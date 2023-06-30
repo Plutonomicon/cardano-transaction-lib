@@ -26,10 +26,7 @@ import Ctl.Internal.BalanceTx.Collateral
   , addTxCollateralReturn
   , minRequiredCollateral
   )
-import Ctl.Internal.BalanceTx.Constraints
-  ( BalanceTxConstraintsBuilder
-  , _nonSpendableInputs
-  )
+import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
   , _changeDatum

@@ -17,11 +17,11 @@ import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
 import Data.Lens (_Left, preview)
 import Data.UInt as UInt
 import Effect.Aff (Aff)
-import Mote (group, only, test)
+import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
-suite = only do
+suite = do
   group "BIP32/BIP39/CIP1852 wallets" do
     group "generates valid wallets for valid phrases" do
       for_ accs \(accountIndex /\ addressIndex /\ addressStr) -> do
