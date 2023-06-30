@@ -35,7 +35,7 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
+      url = "github:justinwoo/easy-purescript-nix/0c10ff170461aed0c336f5c21ed0f430c2c3574b";
       flake = false;
     };
 

@@ -2,11 +2,8 @@ module Ctl.Internal.Affjax
   ( request
   ) where
 
-import Prelude
-
 import Affjax (AffjaxDriver)
-import Affjax (Error, Request, Response) as Affjax
-import Affjax (request) as Affjax
+import Affjax (Error, Request, Response, request) as Affjax
 import Data.Either (Either)
 import Effect.Aff (Aff)
 
