@@ -270,8 +270,8 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo =
-            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
-        , version = "710c15c48c5afae5e0623664d982a587ff2bd177"
+            "https://github.com/errfrom/purescript-noble-secp256k1.git"
+        , version = "9fc5db67e2b6e8b027c415e4dd1625c3f1d8b623"
         }
       }
 
