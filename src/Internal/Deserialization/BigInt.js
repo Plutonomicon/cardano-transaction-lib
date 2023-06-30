@@ -1,1 +1,3 @@
-exports._BigInt_to_str = x => x.to_str();
+export function _BigInt_to_str(x) {
+  return x.to_str();
+}

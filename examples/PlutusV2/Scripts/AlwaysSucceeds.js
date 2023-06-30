@@ -12,4 +12,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-exports.alwaysSucceedsV2 = script;
+export {script as alwaysSucceedsV2};

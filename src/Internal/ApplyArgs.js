@@ -19,23 +19,25 @@ apply_args = require("@mlabs-haskell/csl-gc-wrapper")(apply_args);
  * @param {PlutusScript} script
  * @returns {Either String PlutusScript}
  */
-exports.apply_params_to_script = left => right => args => script => {
-  let version = script.language_version();
-  let appliedScript;
-  try {
-    let scriptBytes = script.bytes(); // raw bytes
-    let argsBytes = args.to_bytes(); // cbor
-
+export function apply_params_to_script(left) {
+  return right => args => script => {
+    let version = script.language_version();
+    let appliedScript;
     try {
-      appliedScript = apply_args.apply_params_to_script_no_panic(
-        argsBytes,
-        scriptBytes
-      );
-    } catch (e) {
-      return left("Error applying argument to script: ".concat(e.toString()));
+      let scriptBytes = script.bytes(); // raw bytes
+      let argsBytes = args.to_bytes(); // cbor
+
+      try {
+        appliedScript = apply_args.apply_params_to_script_no_panic(
+          argsBytes,
+          scriptBytes
+        );
+      } catch (e) {
+        return left("Error applying argument to script: ".concat(e.toString()));
+      }
+    } catch (e1) {
+      return left("Error serializing arguments: ".concat(e1.toString()));
     }
-  } catch (e1) {
-    return left("Error serializing arguments: ".concat(e1.toString()));
-  }
-  return right(lib.PlutusScript.new_with_version(appliedScript, version));
-};
+    return right(lib.PlutusScript.new_with_version(appliedScript, version));
+  };
+}

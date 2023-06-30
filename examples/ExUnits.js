@@ -12,4 +12,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-exports.exUnits = script;
+export {script as exUnits};

@@ -12,4 +12,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-exports.includeDatum = script;
+export {script as includeDatum};

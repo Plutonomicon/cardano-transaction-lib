@@ -8,34 +8,43 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 }
 lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
-exports.bnCompare = lhs => rhs => lhs.compare(rhs);
+export function bnCompare(lhs) {
+  return rhs => lhs.compare(rhs);
+}
 
-exports.zero = lib.BigNum.zero();
+export var zero = lib.BigNum.zero();
+export var one = lib.BigNum.one();
 
-exports.one = lib.BigNum.one();
+export function bnAdd(maybe) {
+  return lhs => rhs => {
+    try {
+      return maybe.just(lhs.checked_add(rhs));
+    } catch (_) {
+      return maybe.nothing;
+    }
+  };
+}
 
-exports.bnAdd = maybe => lhs => rhs => {
-  try {
-    return maybe.just(lhs.checked_add(rhs));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
+export function bnMul(maybe) {
+  return lhs => rhs => {
+    try {
+      return maybe.just(lhs.checked_mul(rhs));
+    } catch (_) {
+      return maybe.nothing;
+    }
+  };
+}
 
-exports.bnMul = maybe => lhs => rhs => {
-  try {
-    return maybe.just(lhs.checked_mul(rhs));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
+export function _fromString(maybe) {
+  return str => {
+    try {
+      return maybe.just(lib.BigNum.from_str(str));
+    } catch (_) {
+      return maybe.nothing;
+    }
+  };
+}
 
-exports._fromString = maybe => str => {
-  try {
-    return maybe.just(lib.BigNum.from_str(str));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
-
-exports.toString = bn => bn.to_str();
+export function toString(bn) {
+  return bn.to_str();
+}

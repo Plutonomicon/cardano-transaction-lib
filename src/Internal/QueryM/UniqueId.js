@@ -1,3 +1,5 @@
-const uniqid = require("uniqid");
+import uniqid from "uniqid";
 
-exports.uniqueId = str => () => uniqid(str);
+export function uniqueId(str) {
+  return () => uniqid(str);
+}

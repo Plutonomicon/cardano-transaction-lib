@@ -18,35 +18,39 @@ const containerExtractor = obj => {
   return res;
 };
 
-exports.getVkeywitnesses = callMaybe("vkeys");
-exports.extractWitnesses = containerExtractor;
-exports.getVkey = call("vkey");
-exports.getSignature = call("signature");
-exports.vkeyPublicKey = call("public_key");
-exports.publicKeyToBech32 = call("to_bech32");
-exports.signatureToBech32 = call("to_bech32");
-exports.getNativeScripts = callMaybe("native_scripts");
-exports.extractNativeScripts = containerExtractor;
-exports.nativeScriptAs = maybe => prop => res => ns =>
-  ns[prop]() == null ? maybe.nothing : maybe.just(res);
-exports.getBootstraps = callMaybe("bootstraps");
-exports.extractBootstraps = containerExtractor;
-exports.getBootstrapVkey = call("vkey");
-exports.getBootstrapSignature = call("signature");
-exports.getBootstrapChainCode = call("chain_code");
-exports.getBootstrapAttributes = call("attributes");
-exports.getPlutusScripts = callMaybe("plutus_scripts");
-exports.extractPlutusScripts = containerExtractor;
-exports.plutusScriptBytes = call("bytes");
-exports.plutusScriptVersion = call("language_version");
-exports.getWitnessSetPlutusData = callMaybe("plutus_data");
-exports.extractPlutusData = containerExtractor;
-exports.getRedeemers = callMaybe("redeemers");
-exports.getRedeemerTag = call("tag");
-exports.getRedeemerIndex = call("index");
-exports.extractRedeemers = containerExtractor;
-exports.getRedeemerTagKind = call("kind");
-exports.getRedeemerPlutusData = call("data");
-exports.getExUnits = call("ex_units");
-exports.getExUnitsMem = call("mem");
-exports.getExUnitsSteps = call("steps");
+export var getVkeywitnesses = callMaybe("vkeys");
+export {containerExtractor as extractWitnesses};
+export var getVkey = call("vkey");
+export var getSignature = call("signature");
+export var vkeyPublicKey = call("public_key");
+export var publicKeyToBech32 = call("to_bech32");
+export var signatureToBech32 = call("to_bech32");
+export var getNativeScripts = callMaybe("native_scripts");
+export {containerExtractor as extractNativeScripts};
+
+export function nativeScriptAs(maybe) {
+  return prop => res => ns =>
+    ns[prop]() == null ? maybe.nothing : maybe.just(res);
+}
+
+export var getBootstraps = callMaybe("bootstraps");
+export {containerExtractor as extractBootstraps};
+export var getBootstrapVkey = call("vkey");
+export var getBootstrapSignature = call("signature");
+export var getBootstrapChainCode = call("chain_code");
+export var getBootstrapAttributes = call("attributes");
+export var getPlutusScripts = callMaybe("plutus_scripts");
+export {containerExtractor as extractPlutusScripts};
+export var plutusScriptBytes = call("bytes");
+export var plutusScriptVersion = call("language_version");
+export var getWitnessSetPlutusData = callMaybe("plutus_data");
+export {containerExtractor as extractPlutusData};
+export var getRedeemers = callMaybe("redeemers");
+export var getRedeemerTag = call("tag");
+export var getRedeemerIndex = call("index");
+export {containerExtractor as extractRedeemers};
+export var getRedeemerTagKind = call("kind");
+export var getRedeemerPlutusData = call("data");
+export var getExUnits = call("ex_units");
+export var getExUnitsMem = call("mem");
+export var getExUnitsSteps = call("steps");

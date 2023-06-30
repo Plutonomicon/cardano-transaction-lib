@@ -40,7 +40,7 @@ const enableWallet = wallet => () => {
   }
 };
 
-exports._enableWallet = enableWallet;
+export {enableWallet as _enableWallet};
 
 const isWalletAvailable = walletName => () => {
   checkNotNode();
@@ -51,36 +51,44 @@ const isWalletAvailable = walletName => () => {
   );
 };
 
-exports._isWalletAvailable = isWalletAvailable;
+export {isWalletAvailable as _isWalletAvailable};
 
-exports._isEnabled = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].isEnabled();
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _isEnabled(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return window.cardano[walletName].isEnabled();
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}
 
-exports._apiVersion = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].apiVersion;
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _apiVersion(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return window.cardano[walletName].apiVersion;
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}
 
-exports._name = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].name;
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _name(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return window.cardano[walletName].name;
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}
 
-exports._icon = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].icon;
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _icon(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return window.cardano[walletName].icon;
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}

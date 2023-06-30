@@ -8,10 +8,12 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 }
 lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
-exports._fromBytes = helper => name => bytes => {
-  try {
-    return helper.valid(lib[name].from_bytes(bytes));
-  } catch (e) {
-    return helper.error(name + ".from_bytes() raised " + e);
-  }
-};
+export function _fromBytes(helper) {
+  return name => bytes => {
+    try {
+      return helper.valid(lib[name].from_bytes(bytes));
+    } catch (e) {
+      return helper.error(name + ".from_bytes() raised " + e);
+    }
+  };
+}

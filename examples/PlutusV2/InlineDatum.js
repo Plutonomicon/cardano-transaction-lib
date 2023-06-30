@@ -15,4 +15,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-exports.checkDatumIsInline = script;
+export {script as checkDatumIsInline};

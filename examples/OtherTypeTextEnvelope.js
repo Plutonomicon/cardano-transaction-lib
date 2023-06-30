@@ -14,4 +14,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
     "utf8"
   );
 }
-exports.otherTypeTextEnvelope = script;
+export {script as otherTypeTextEnvelope};

@@ -1,6 +1,6 @@
 /* global BROWSER_RUNTIME */
 
-const ReconnectingWebSocket = require("reconnecting-websocket");
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 let OurWebSocket;
 if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
@@ -17,88 +17,106 @@ class NoPerMessageDeflateWebSocket extends OurWebSocket {
   }
 }
 
-exports._mkWebSocket = logger => url => () => {
-  try {
-    let ws;
-    if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-      ws = new ReconnectingWebSocket.default(url);
-    } else {
-      ws = new ReconnectingWebSocket(url, [], {
-        WebSocket: NoPerMessageDeflateWebSocket,
-      });
+export function _mkWebSocket(logger) {
+  return url => () => {
+    try {
+      let ws;
+      if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+        ws = new ReconnectingWebSocket.default(url);
+      } else {
+        ws = new ReconnectingWebSocket(url, [], {
+          WebSocket: NoPerMessageDeflateWebSocket,
+        });
+      }
+      ws.finalizers = [];
+      logger("Created a new WebSocket")();
+      return ws;
+    } catch (e) {
+      logger("Failed to create a new WebSocket");
+      throw e;
+    }
+  };
+}
+
+export function _onWsConnect(ws) {
+  return fn => () => {
+    ws.addEventListener("open", fn);
+    ws.finalizers.push(() => {
+      ws.removeEventListener("open", fn);
+    });
+  };
+}
+
+export function _onWsError(ws) {
+  return fn => () => {
+    const listener = function (event) {
+      if (
+        "message" in event &&
+        typeof event.message === "string" &&
+        event.message.length > 0
+      ) {
+        fn(event.message)();
+      } else if ("error" in event && event.error instanceof Error) {
+        fn(event.error.toString())();
+      } else {
+        fn(event.toString())();
+      }
+    };
+    ws.addEventListener("error", listener);
+    ws.finalizers.push(() => {
+      ws.removeEventListener("error", listener);
+    });
+    return listener;
+  };
+}
+
+export function _removeOnWsError(ws) {
+  return listener => () =>
+    ws.removeEventListener("error", listener);
+}
+
+export function _onWsMessage(ws) {
+  return logger => fn => () => {
+    const listener = function func(event) {
+      const str = event.data;
+      logger(`message: ${str}`)();
+      fn(str)();
+    };
+    ws.addEventListener("message", listener);
+    ws.finalizers.push(() => {
+      ws.removeEventListener("message", listener);
+    });
+  };
+}
+
+export function _wsFinalize(ws) {
+  return () => {
+    for (let finalizer of ws.finalizers) {
+      /* eslint-disable no-empty */
+      try {
+        finalizer();
+      } catch (_) {}
+      /* eslint-enable */
     }
     ws.finalizers = [];
-    logger("Created a new WebSocket")();
-    return ws;
-  } catch (e) {
-    logger("Failed to create a new WebSocket");
-    throw e;
-  }
-};
-
-exports._onWsConnect = ws => fn => () => {
-  ws.addEventListener("open", fn);
-  ws.finalizers.push(() => {
-    ws.removeEventListener("open", fn);
-  });
-};
-
-exports._onWsError = ws => fn => () => {
-  const listener = function (event) {
-    if (
-      "message" in event &&
-      typeof event.message === "string" &&
-      event.message.length > 0
-    ) {
-      fn(event.message)();
-    } else if ("error" in event && event.error instanceof Error) {
-      fn(event.error.toString())();
-    } else {
-      fn(event.toString())();
-    }
   };
-  ws.addEventListener("error", listener);
-  ws.finalizers.push(() => {
-    ws.removeEventListener("error", listener);
-  });
-  return listener;
-};
+}
 
-exports._removeOnWsError = ws => listener => () =>
-  ws.removeEventListener("error", listener);
-
-exports._onWsMessage = ws => logger => fn => () => {
-  const listener = function func(event) {
-    const str = event.data;
-    logger(`message: ${str}`)();
-    fn(str)();
+export function _wsSend(ws) {
+  return logger => str => () => {
+    logger(`sending: ${str}`)();
+    ws.send(str);
   };
-  ws.addEventListener("message", listener);
-  ws.finalizers.push(() => {
-    ws.removeEventListener("message", listener);
-  });
-};
+}
 
-exports._wsFinalize = ws => () => {
-  for (let finalizer of ws.finalizers) {
-    /* eslint-disable no-empty */
-    try {
-      finalizer();
-    } catch (_) {}
-    /* eslint-enable */
-  }
-  ws.finalizers = [];
-};
+export function _wsReconnect(ws) {
+  return () => {
+    ws.reconnect();
+  };
+}
 
-exports._wsSend = ws => logger => str => () => {
-  logger(`sending: ${str}`)();
-  ws.send(str);
-};
-
-exports._wsReconnect = ws => () => {
-  ws.reconnect();
-};
-
-exports._wsClose = ws => () => {
-  ws.close();
-};
+export function _wsClose(ws) {
+  return () => {
+    ws.close();
+  };
+}

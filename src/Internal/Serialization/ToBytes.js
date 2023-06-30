@@ -1,1 +1,3 @@
-exports._toBytes = sth => sth.to_bytes();
+export function _toBytes(sth) {
+  return sth.to_bytes();
+}

@@ -11,4 +11,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
     "utf8"
   );
 }
-exports.alwaysMints = script;
+export {script as alwaysMints};
