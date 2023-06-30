@@ -256,8 +256,8 @@ let additions =
           , "node-buffer"
           , "node-fs-aff"
           ]
-        , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
-        , version = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9"
+        , repo = "https://github.com/errfrom/purescript-toppokki"
+        , version = "b043e9342463df76972d05981ac4ec25316834bf"
         }
       , noble-secp256k1 =
         { dependencies =
