@@ -91,6 +91,7 @@ import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
+import Effect.AVar as AVar
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import Effect.Ref (Ref)
@@ -277,10 +278,12 @@ buildBackend logger = case _ of
   buildCtlBackend { ogmiosConfig, kupoConfig } = do
     let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig <<< wrap
     ogmiosWs <- mkOgmiosWebSocketAff isTxConfirmed logger ogmiosConfig
+    snapshotHandle <- liftEffect $ AVar.empty
     pure
       { ogmios:
           { config: ogmiosConfig
           , ws: ogmiosWs
+          , snapshotHandle
           }
       , kupoConfig
       }
@@ -468,6 +471,7 @@ mkQueryEnv params ctlBackend =
       }
   , runtime:
       { ogmiosWs: ctlBackend.ogmios.ws
+      , snapshotHandle: ctlBackend.ogmios.snapshotHandle
       }
   }
 
