@@ -77,7 +77,7 @@ import Aeson
   , (.:)
   , (.:!)
   )
-import Affjax (Error, Response, URL, defaultRequest, printError, request) as Affjax
+import Affjax (Error, Response, URL, defaultRequest, printError) as Affjax
 import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
@@ -96,6 +96,7 @@ import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptAll

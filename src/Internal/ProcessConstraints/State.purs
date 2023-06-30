@@ -38,8 +38,8 @@ import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
 import Data.Show.Generic (genericShow)
-import Data.Symbol (SProxy(SProxy))
 import Data.Tuple.Nested ((/\))
+import Type.Proxy (Proxy(Proxy))
 
 -- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
 -- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
@@ -76,45 +76,45 @@ type ConstraintProcessingState (a :: Type) =
 
 _cpsTransaction
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
-_cpsTransaction = prop (SProxy :: SProxy "transaction")
+_cpsTransaction = prop (Proxy :: Proxy "transaction")
 
 _cpsUsedUtxos
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Map TransactionInput TransactionOutput)
-_cpsUsedUtxos = prop (SProxy :: SProxy "usedUtxos")
+_cpsUsedUtxos = prop (Proxy :: Proxy "usedUtxos")
 
 _valueSpentBalancesInputs
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
-_valueSpentBalancesInputs = prop (SProxy :: SProxy "valueSpentBalancesInputs")
+_valueSpentBalancesInputs = prop (Proxy :: Proxy "valueSpentBalancesInputs")
 
 _valueSpentBalancesOutputs
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
-_valueSpentBalancesOutputs = prop (SProxy :: SProxy "valueSpentBalancesOutputs")
+_valueSpentBalancesOutputs = prop (Proxy :: Proxy "valueSpentBalancesOutputs")
 
 _datums
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array Datum)
-_datums = prop (SProxy :: SProxy "datums")
+_datums = prop (Proxy :: Proxy "datums")
 
 _costModels
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) Costmdls
-_costModels = prop (SProxy :: SProxy "costModels")
+_costModels = prop (Proxy :: Proxy "costModels")
 
 _redeemers
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Array UnindexedRedeemer)
-_redeemers = prop (SProxy :: SProxy "redeemers")
+_redeemers = prop (Proxy :: Proxy "redeemers")
 
 _lookups
   :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
-_lookups = prop (SProxy :: SProxy "lookups")
+_lookups = prop (Proxy :: Proxy "lookups")
 
 _refScriptsUtxoMap
   :: forall (a :: Type)
    . Lens' (ConstraintProcessingState a)
        (Map TransactionInput Plutus.TransactionOutputWithRefScript)
-_refScriptsUtxoMap = prop (SProxy :: SProxy "refScriptsUtxoMap")
+_refScriptsUtxoMap = prop (Proxy :: Proxy "refScriptsUtxoMap")
 
 -- | The balances we track for computing the missing 'Value' (if any)
 -- | that needs to be added to the transaction.

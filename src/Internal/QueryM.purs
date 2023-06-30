@@ -59,7 +59,7 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
-import Affjax (Error, Response, defaultRequest, request) as Affjax
+import Affjax (Error, Response, defaultRequest) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -78,6 +78,7 @@ import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.JsWebSocket

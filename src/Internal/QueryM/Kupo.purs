@@ -21,7 +21,7 @@ import Aeson
   , getFieldOptional'
   , isNull
   )
-import Affjax (Error, Response, defaultRequest, request) as Affjax
+import Affjax (Error, Response, defaultRequest) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
 import Contract.Log (logTrace')
@@ -31,6 +31,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
