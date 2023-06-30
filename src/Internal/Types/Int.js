@@ -8,8 +8,8 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 }
 lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
-export var newPositive = lib.Int.new;
-export var newNegative = lib.Int.new_negative;
+export const newPositive = lib.Int.new;
+export const newNegative = lib.Int.new_negative;
 
 export function _intToStr(n) {
   return n.to_str();

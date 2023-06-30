@@ -29,5 +29,6 @@ foreign import driver :: AffjaxDriver
 -- | ```purescript
 -- | get json "/resource"
 -- | ```
-request :: forall a. Affjax.Request a -> Aff (Either Affjax.Error (Affjax.Response a))
+request
+  :: forall a. Affjax.Request a -> Aff (Either Affjax.Error (Affjax.Response a))
 request = Affjax.request driver

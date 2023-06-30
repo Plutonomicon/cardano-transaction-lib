@@ -12,8 +12,8 @@ export function bnCompare(lhs) {
   return rhs => lhs.compare(rhs);
 }
 
-export var zero = lib.BigNum.zero();
-export var one = lib.BigNum.one();
+export const zero = lib.BigNum.zero();
+export const one = lib.BigNum.one();
 
 export function bnAdd(maybe) {
   return lhs => rhs => {

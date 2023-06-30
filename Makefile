@@ -36,7 +36,7 @@ check-format: check-explicit-exports check-examples-imports check-whitespace
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
 	@prettier --loglevel warn -c ${js-sources}
-	@eslint --quiet ${js-sources}
+	@eslint --quiet ${js-sources} --parser-options 'sourceType: module'
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

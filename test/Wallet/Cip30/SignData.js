@@ -45,7 +45,7 @@ export function verifySignature(coseSign1) {
 // -----------------------------------------------------------------------------
 
 // _fromBytesCoseSign1 :: CborBytes -> Effect COSESign1
-export var fromBytesCoseSign1 = fromBytes("COSESign1");
+export const fromBytesCoseSign1 = fromBytes("COSESign1");
 
 // getSignedData :: COSESign1 -> Effect CborBytes
 export function getSignedData(coseSign1) {
@@ -63,7 +63,13 @@ const getCoseSign1ProtectedHeaders = coseSign1 => {
 export function _getCoseSign1ProtectedHeaderAlg(maybe) {
   return coseSign1 => {
     const protectedHeaders = getCoseSign1ProtectedHeaders(coseSign1);
-    return opt_chain(maybe, protectedHeaders, "algorithm_id", "as_int", "as_i32");
+    return opt_chain(
+      maybe,
+      protectedHeaders,
+      "algorithm_id",
+      "as_int",
+      "as_i32"
+    );
   };
 }
 
@@ -91,7 +97,7 @@ export function _getCoseSign1ProtectedHeaderKid(maybe) {
 // -----------------------------------------------------------------------------
 
 // _fromBytesCoseKey :: CborBytes -> Effect COSEKey
-export var fromBytesCoseKey = fromBytes("COSEKey");
+export const fromBytesCoseKey = fromBytes("COSEKey");
 
 // _getCoseKeyHeaderKty :: MaybeFfiHelper -> COSEKey -> Maybe Int
 export function _getCoseKeyHeaderKty(maybe) {

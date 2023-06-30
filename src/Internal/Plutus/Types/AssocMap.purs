@@ -20,7 +20,13 @@ module Ctl.Internal.Plutus.Types.AssocMap
 
 import Prelude
 
-import Aeson (Aeson, class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , decodeAeson
+  , encodeAeson
+  )
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.PlutusData (PlutusData(Map)) as PD
@@ -74,8 +80,9 @@ instance (EncodeAeson k, EncodeAeson v) => EncodeAeson (Map k v) where
 
 instance (DecodeAeson k, DecodeAeson v) => DecodeAeson (Map k v) where
   decodeAeson x = Map <$>
-    (traverse (rtraverse decodeAeson)
-      =<< (decodeAeson x :: _ (Array (Tuple k Aeson))))
+    ( traverse (rtraverse decodeAeson)
+        =<< (decodeAeson x :: _ (Array (Tuple k Aeson)))
+    )
 
 instance (Show k, Show v) => Show (Map k v) where
   show = genericShow

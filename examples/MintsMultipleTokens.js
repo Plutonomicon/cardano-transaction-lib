@@ -19,6 +19,6 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   redeemerInt3 = readScript("redeemer3");
 }
 
-export {redeemerInt1};
-export {redeemerInt2};
-export {redeemerInt3};
+export { redeemerInt1 };
+export { redeemerInt2 };
+export { redeemerInt3 };

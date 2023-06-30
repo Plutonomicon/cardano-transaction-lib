@@ -71,8 +71,7 @@ export function _onWsError(ws) {
 }
 
 export function _removeOnWsError(ws) {
-  return listener => () =>
-    ws.removeEventListener("error", listener);
+  return listener => () => ws.removeEventListener("error", listener);
 }
 
 export function _onWsMessage(ws) {

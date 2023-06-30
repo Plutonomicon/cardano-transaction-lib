@@ -164,4 +164,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-export {scripts};
+export { scripts };

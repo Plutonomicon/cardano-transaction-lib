@@ -26,13 +26,6 @@ export function _txBody(tx) {
   return tx.body();
 }
 
-export function _txAuxiliaryData(maybe) {
-  return tx => {
-    const ad = tx.auxiliary_data();
-    return ad == null ? maybe.nothing : maybe.just(ad);
-  };
-}
-
 const maybeGetter_ = fmap => propstr => maybe => obj => {
   if (typeof propstr != "string") {
     const s = "maybeGetter_ propstr must be a string, got " + propstr;
@@ -45,21 +38,19 @@ const maybeGetter = maybeGetter_(a => a);
 const maybeGetterMulti = propstr => containerHelper =>
   maybeGetter_(o => containerHelper.unpack(o))(propstr);
 
-export var _txAuxiliaryData = maybeGetter("auxiliary_data");
-export var _adGeneralMetadata = maybeGetter("metadata");
-export var _adNativeScripts = maybeGetter("native_scripts");
-export var _adPlutusScripts = maybeGetter("plutus_scripts");
+export const _txAuxiliaryData = maybeGetter("auxiliary_data");
+export const _adGeneralMetadata = maybeGetter("metadata");
+export const _adNativeScripts = maybeGetter("native_scripts");
+export const _adPlutusScripts = maybeGetter("plutus_scripts");
 
 // inputs(): TransactionInputs;
 export function _txBodyInputs(containerhelper) {
-  return body =>
-    containerhelper.unpack(body.inputs());
+  return body => containerhelper.unpack(body.inputs());
 }
 
 // outputs(): TransactionOutputs;
 export function _txBodyOutputs(containerhelper) {
-  return body =>
-    containerhelper.unpack(body.outputs());
+  return body => containerhelper.unpack(body.outputs());
 }
 
 // fee(): BigNum;
@@ -68,27 +59,27 @@ export function _txBodyFee(body) {
 }
 
 // ttl(): number | void;
-export var _txBodyTtl = maybeGetter("ttl_bignum");
+export const _txBodyTtl = maybeGetter("ttl_bignum");
 
 // certs(): Certificates | void;
-export var _txBodyCerts = maybeGetterMulti("certs");
+export const _txBodyCerts = maybeGetterMulti("certs");
 
 // withdrawals(): Withdrawals | void;
-export var _txBodyWithdrawals = maybeGetter("withdrawals");
+export const _txBodyWithdrawals = maybeGetter("withdrawals");
 
 // update(): Update | void;
-export var _txBodyUpdate = maybeGetter("update");
+export const _txBodyUpdate = maybeGetter("update");
 
 // auxiliary_data_hash(): AuxiliaryDataHash | void;
-export var _txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
+export const _txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
 
 // validity_start_interval(): number | void;
-export var _txBodyValidityStartInterval = maybeGetter(
+export const _txBodyValidityStartInterval = maybeGetter(
   "validity_start_interval_bignum"
 );
 
 // multiassets(): Mint | void;
-export var _txBodyMultiAssets = maybeGetter("multiassets");
+export const _txBodyMultiAssets = maybeGetter("multiassets");
 
 export function _txBodyReferenceInputs(maybe) {
   return containerhelper => body =>
@@ -98,13 +89,13 @@ export function _txBodyReferenceInputs(maybe) {
 }
 
 // script_data_hash(): ScriptDataHash | void;
-export var _txBodyScriptDataHash = maybeGetter("script_data_hash");
+export const _txBodyScriptDataHash = maybeGetter("script_data_hash");
 
 // collateral(): Array TransactionInput | void;
-export var _txBodyCollateral = maybeGetterMulti("collateral");
+export const _txBodyCollateral = maybeGetterMulti("collateral");
 
 // required_signers(): Ed25519KeyHashes | void;
-export var _txBodyRequiredSigners = maybeGetterMulti("required_signers");
+export const _txBodyRequiredSigners = maybeGetterMulti("required_signers");
 
 // network_id(): number | void;
 export function _txBodyNetworkId(testnet) {
@@ -122,10 +113,10 @@ export function _txBodyNetworkId(testnet) {
 }
 
 // collateral_return(): TransactionOutput | void;
-export var _txBodyCollateralReturn = maybeGetter("collateral_return");
+export const _txBodyCollateralReturn = maybeGetter("collateral_return");
 
 // total_collateral(): BigNum | void
-export var _txBodyTotalCollateral = maybeGetter("total_collateral");
+export const _txBodyTotalCollateral = maybeGetter("total_collateral");
 
 // foreign import _unpackWithdrawals :: ContainerHelper -> CSL.Withdrawals -> Array(Tuple CSL.RewardAddress CSL.BigNum)
 export function _unpackWithdrawals(containerhelper) {
@@ -187,9 +178,9 @@ export function _convertCert(certConvHelper) {
               mir.pot()
             )(mir.as_to_other_pot());
           case lib.MIRKind.ToStakeCredentials:
-            return certConvHelper.moveInstantaneousRewardsToStakeCreds(mir.pot())(
-              mir.as_to_stake_creds()
-            );
+            return certConvHelper.moveInstantaneousRewardsToStakeCreds(
+              mir.pot()
+            )(mir.as_to_stake_creds());
           default:
             throw (
               "MoveInstantaneousReward convertion failed for kind" + mir.kind()
@@ -312,24 +303,22 @@ export function _unpackExUnitsPrices(cslEup) {
   };
 }
 
-export var poolParamsOperator = call("operator");
-export var poolParamsVrfKeyhash = call("vrf_keyhash");
-export var poolParamsPledge = call("pledge");
-export var poolParamsCost = call("cost");
-export var poolParamsMargin = call("margin");
-export var poolParamsRewardAccount = call("reward_account");
+export const poolParamsOperator = call("operator");
+export const poolParamsVrfKeyhash = call("vrf_keyhash");
+export const poolParamsPledge = call("pledge");
+export const poolParamsCost = call("cost");
+export const poolParamsMargin = call("margin");
+export const poolParamsRewardAccount = call("reward_account");
 
 export function poolParamsPoolOwners(containerHelper) {
-  return poolParams =>
-    containerHelper.unpack(poolParams.pool_owners());
+  return poolParams => containerHelper.unpack(poolParams.pool_owners());
 }
 
 export function poolParamsRelays(containerHelper) {
-  return poolParams =>
-    containerHelper.unpack(poolParams.relays());
+  return poolParams => containerHelper.unpack(poolParams.relays());
 }
 
-export var poolParamsPoolMetadata = callMaybe("pool_metadata");
+export const poolParamsPoolMetadata = callMaybe("pool_metadata");
 
 export function convertRelay_(helper) {
   return relay => {

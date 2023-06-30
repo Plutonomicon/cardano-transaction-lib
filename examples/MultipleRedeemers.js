@@ -19,6 +19,6 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   vredeemerInt3 = readScript("redeemer3-validator");
 }
 
-export {vredeemerInt1};
-export {vredeemerInt2};
-export {vredeemerInt3};
+export { vredeemerInt1 };
+export { vredeemerInt2 };
+export { vredeemerInt3 };

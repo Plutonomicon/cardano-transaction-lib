@@ -22,4 +22,4 @@ export function _decodeUtf8(buffer) {
 
 // FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/548
 const call = property => object => object[property]();
-export var assetNameName = call("name");
+export const assetNameName = call("name");

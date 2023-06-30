@@ -1,6 +1,6 @@
 import base64 from "base64-js";
-export var fromByteArray = base64.fromByteArray;
-export var toByteArray = base64.toByteArray;
+export const fromByteArray = base64.fromByteArray;
+export const toByteArray = base64.toByteArray;
 
 export function _decodeBase64(maybe) {
   return str => {

@@ -15,4 +15,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-export {script as oneShotMinting};
+export { script as oneShotMinting };

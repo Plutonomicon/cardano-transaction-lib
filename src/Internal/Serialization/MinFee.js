@@ -20,6 +20,5 @@ export function _minFee(maybe) {
 }
 
 export function _minScriptFee(exUnitPrices) {
-  return tx =>
-    lib.min_script_fee(tx, exUnitPrices);
+  return tx => lib.min_script_fee(tx, exUnitPrices);
 }

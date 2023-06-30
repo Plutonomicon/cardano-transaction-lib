@@ -40,13 +40,13 @@ const extractDict = tuple => dict => {
   return res;
 };
 
-export var getInput = call("input");
-export var getOutput = call("output");
-export var getTransactionHash = call("transaction_id");
-export var getTransactionIndex = call("index");
-export var getAddress = call("address");
-export var getPlutusData = callMaybe("plutus_data");
-export var getScriptRef = callMaybe("script_ref");
+export const getInput = call("input");
+export const getOutput = call("output");
+export const getTransactionHash = call("transaction_id");
+export const getTransactionIndex = call("index");
+export const getAddress = call("address");
+export const getPlutusData = callMaybe("plutus_data");
+export const getScriptRef = callMaybe("script_ref");
 
 export function withScriptRef(ccNativeScript) {
   return ccPlutusScript => scriptRef => {
@@ -60,14 +60,13 @@ export function withScriptRef(ccNativeScript) {
   };
 }
 
-export var getAmount = call("amount");
-export var getCoin = call("coin");
-export var getMultiAsset = callMaybe("multiasset");
-export {extractDict as extractMultiAsset};
-export {extractDict as extractAssets};
-export var getDataHash = callMaybe("data_hash");
+export const getAmount = call("amount");
+export const getCoin = call("coin");
+export const getMultiAsset = callMaybe("multiasset");
+export { extractDict as extractMultiAsset };
+export { extractDict as extractAssets };
+export const getDataHash = callMaybe("data_hash");
 
 export function mkTransactionUnspentOutput(input) {
-  return output =>
-    lib.TransactionUnspentOutput.new(input, output);
+  return output => lib.TransactionUnspentOutput.new(input, output);
 }

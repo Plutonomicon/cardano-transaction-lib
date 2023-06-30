@@ -29,8 +29,7 @@ export function _mkPlutusData_constr(constr) {
 }
 
 export function _packPlutusList(containerHelper) {
-  return elems =>
-    containerHelper.pack(lib.PlutusList, elems);
+  return elems => containerHelper.pack(lib.PlutusList, elems);
 }
 
 export function _mkConstrPlutusData(n) {

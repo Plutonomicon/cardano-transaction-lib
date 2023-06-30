@@ -19,15 +19,13 @@ export function newValue(coin) {
 }
 
 export function newValueFromAssets(multiasset) {
-  return () =>
-    lib.Value.new_from_assets(multiasset);
+  return () => lib.Value.new_from_assets(multiasset);
 }
 
-export var valueSetCoin = setter("coin");
+export const valueSetCoin = setter("coin");
 
 export function newTransactionInput(transaction_id) {
-  return index => () =>
-    lib.TransactionInput.new(transaction_id, index);
+  return index => () => lib.TransactionInput.new(transaction_id, index);
 }
 
 export function newTransactionInputs() {
@@ -39,8 +37,7 @@ export function addTransactionInput(inputs) {
 }
 
 export function newTransactionOutput(address) {
-  return amount => () =>
-    lib.TransactionOutput.new(address, amount);
+  return amount => () => lib.TransactionOutput.new(address, amount);
 }
 
 export function newTransactionOutputs() {
@@ -66,13 +63,11 @@ export function newTransaction(body) {
 }
 
 export function newTransaction_(body) {
-  return witness_set => () =>
-    lib.Transaction.new(body, witness_set);
+  return witness_set => () => lib.Transaction.new(body, witness_set);
 }
 
 export function newTransactionUnspentOutput(input) {
-  return output => () =>
-    lib.TransactionUnspentOutput.new(input, output);
+  return output => () => lib.TransactionUnspentOutput.new(input, output);
 }
 
 export function newMultiAsset() {
@@ -80,8 +75,7 @@ export function newMultiAsset() {
 }
 
 export function insertMultiAsset(multiasset) {
-  return key => value => () =>
-    multiasset.insert(key, value);
+  return key => value => () => multiasset.insert(key, value);
 }
 
 export function newAssets() {
@@ -89,17 +83,16 @@ export function newAssets() {
 }
 
 export function insertAssets(assets) {
-  return key => value => () =>
-    assets.insert(key, value);
+  return key => value => () => assets.insert(key, value);
 }
 
 export function newAssetName(name) {
   return () => lib.AssetName.new(name);
 }
 
-export var transactionOutputSetDataHash = setter("data_hash");
-export var transactionOutputSetPlutusData = setter("plutus_data");
-export var transactionOutputSetScriptRef = setter("script_ref");
+export const transactionOutputSetDataHash = setter("data_hash");
+export const transactionOutputSetPlutusData = setter("plutus_data");
+export const transactionOutputSetScriptRef = setter("script_ref");
 
 export function scriptRefNewNativeScript(nativeScript) {
   return lib.ScriptRef.new_native_script(nativeScript);
@@ -118,8 +111,7 @@ export function makeVkeywitness(hash) {
 }
 
 export function newVkeywitness(vkey) {
-  return signature => () =>
-    lib.Vkeywitness.new(vkey, signature);
+  return signature => () => lib.Vkeywitness.new(vkey, signature);
 }
 
 export function addVkeywitness(witnesses) {
@@ -134,7 +126,7 @@ export function publicKeyHash(pk) {
   return pk.hash();
 }
 
-export var transactionWitnessSetSetVkeys = setter("vkeys");
+export const transactionWitnessSetSetVkeys = setter("vkeys");
 
 export function newCostmdls() {
   return lib.Costmdls.new();
@@ -173,8 +165,7 @@ export function _hashScriptData(rs) {
 }
 
 export function _hashScriptDataNoDatums(rs) {
-  return cms => () =>
-    lib.hash_script_data(rs, cms);
+  return cms => () => lib.hash_script_data(rs, cms);
 }
 
 export function newRedeemers() {
@@ -186,12 +177,11 @@ export function addRedeemer(rs) {
 }
 
 export function setTxBodyReferenceInputs(txBody) {
-  return referenceInputs => () =>
-    txBody.set_reference_inputs(referenceInputs);
+  return referenceInputs => () => txBody.set_reference_inputs(referenceInputs);
 }
 
-export var setTxBodyScriptDataHash = setter("script_data_hash");
-export var setTxBodyMint = setter("mint");
+export const setTxBodyScriptDataHash = setter("script_data_hash");
+export const setTxBodyMint = setter("mint");
 
 export function newMint() {
   return lib.Mint.new();
@@ -214,16 +204,14 @@ export function _bigIntToInt(maybe) {
   };
 }
 
-export var newMintAssets = lib.MintAssets.new;
+export const newMintAssets = lib.MintAssets.new;
 
 export function insertMintAssets(mint) {
-  return scriptHash => mintAssets => () =>
-    mint.insert(scriptHash, mintAssets);
+  return scriptHash => mintAssets => () => mint.insert(scriptHash, mintAssets);
 }
 
 export function insertMintAsset(mintAssets) {
-  return assetName => int => () =>
-    mintAssets.insert(assetName, int);
+  return assetName => int => () => mintAssets.insert(assetName, int);
 }
 
 export function networkIdTestnet() {
@@ -240,12 +228,11 @@ export function setTxBodyCollateralReturn(txBody) {
 }
 
 export function setTxBodyTotalCollateral(txBody) {
-  return totalCollateral => () =>
-    txBody.set_total_collateral(totalCollateral);
+  return totalCollateral => () => txBody.set_total_collateral(totalCollateral);
 }
 
-export var setTxBodyTtl = setter("ttl");
-export var setTxBodyCerts = setter("certs");
+export const setTxBodyTtl = setter("ttl");
+export const setTxBodyCerts = setter("certs");
 
 export function newCertificates() {
   return lib.Certificates.new();
@@ -274,34 +261,33 @@ export function newStakeDelegationCertificate(stakeCredential) {
 
 export function newPoolRegistrationCertificate(operator) {
   return vrfKeyhash =>
-  pledge =>
-  cost =>
-  margin =>
-  reward_account =>
-  poolOwners =>
-  relays =>
-  poolMetadata =>
-  () =>
-    lib.Certificate.new_pool_registration(
-      lib.PoolRegistration.new(
-        lib.PoolParams.new(
-          operator,
-          vrfKeyhash,
-          pledge,
-          cost,
-          margin,
-          reward_account,
-          poolOwners,
-          relays,
-          poolMetadata
+    pledge =>
+    cost =>
+    margin =>
+    reward_account =>
+    poolOwners =>
+    relays =>
+    poolMetadata =>
+    () =>
+      lib.Certificate.new_pool_registration(
+        lib.PoolRegistration.new(
+          lib.PoolParams.new(
+            operator,
+            vrfKeyhash,
+            pledge,
+            cost,
+            margin,
+            reward_account,
+            poolOwners,
+            relays,
+            poolMetadata
+          )
         )
-      )
-    );
+      );
 }
 
 export function newUnitInterval(numerator) {
-  return denominator => () =>
-    lib.UnitInterval.new(numerator, denominator);
+  return denominator => () => lib.UnitInterval.new(numerator, denominator);
 }
 
 export function newPoolRetirementCertificate(poolKeyHash) {
@@ -319,12 +305,11 @@ export function newGenesisKeyDelegationCertificate(genesisHash) {
 }
 
 export function addCert(certificates) {
-  return certificate => () =>
-    certificates.add(certificate);
+  return certificate => () => certificates.add(certificate);
 }
 
-export var setTxBodyCollateral = setter("collateral");
-export var setTxBodyNetworkId = setter("network_id");
+export const setTxBodyCollateral = setter("collateral");
+export const setTxBodyNetworkId = setter("network_id");
 
 export function transactionBodySetRequiredSigners(containerHelper) {
   return body => keyHashes => () =>
@@ -333,13 +318,12 @@ export function transactionBodySetRequiredSigners(containerHelper) {
     );
 }
 
-export var transactionBodySetValidityStartInterval = setter(
+export const transactionBodySetValidityStartInterval = setter(
   "validity_start_interval_bignum"
 );
 
 export function transactionBodySetAuxiliaryDataHash(txBody) {
-  return hash => () =>
-    txBody.set_auxiliary_data_hash(hash);
+  return hash => () => txBody.set_auxiliary_data_hash(hash);
 }
 
 export function convertPoolOwners(containerHelper) {
@@ -348,8 +332,7 @@ export function convertPoolOwners(containerHelper) {
 }
 
 export function packRelays(containerHelper) {
-  return relays =>
-    containerHelper.pack(lib.Relays, relays);
+  return relays => containerHelper.pack(lib.Relays, relays);
 }
 
 export function newIpv4(data) {
@@ -380,8 +363,7 @@ export function newMultiHostName(dnsName) {
 }
 
 export function newPoolMetadata(url) {
-  return hash => () =>
-    lib.PoolMetadata.new(lib.URL.new(url), hash);
+  return hash => () => lib.PoolMetadata.new(lib.URL.new(url), hash);
 }
 
 export function newMoveInstantaneousRewardToOtherPot(pot) {
@@ -407,56 +389,51 @@ export function newMoveInstantaneousRewardsCertificate(mir) {
 }
 
 export function newWithdrawals(containerHelper) {
-  return entries => () =>
-    containerHelper.packMap(lib.Withdrawals, entries);
+  return entries => () => containerHelper.packMap(lib.Withdrawals, entries);
 }
 
-export var setTxBodyWithdrawals = setter("withdrawals");
-export var setTxBodyUpdate = setter("update");
+export const setTxBodyWithdrawals = setter("withdrawals");
+export const setTxBodyUpdate = setter("update");
 
 export function newUpdate(ppUpdates) {
-  return epoch => () =>
-    lib.Update.new(ppUpdates, epoch);
+  return epoch => () => lib.Update.new(ppUpdates, epoch);
 }
 
-export var ppuSetMinfeeA = setter("minfee_a");
-export var ppuSetMinfeeB = setter("minfee_b");
-export var ppuSetMaxBlockBodySize = setter("max_block_body_size");
-export var ppuSetMaxTxSize = setter("max_tx_size");
-export var ppuSetMaxBlockHeaderSize = setter("max_block_header_size");
-export var ppuSetKeyDeposit = setter("key_deposit");
-export var ppuSetPoolDeposit = setter("pool_deposit");
-export var ppuSetMaxEpoch = setter("max_epoch");
-export var ppuSetNOpt = setter("n_opt");
-export var ppuSetPoolPledgeInfluence = setter("pool_pledge_influence");
-export var ppuSetExpansionRate = setter("expansion_rate");
-export var ppuSetTreasuryGrowthRate = setter("treasury_growth_rate");
+export const ppuSetMinfeeA = setter("minfee_a");
+export const ppuSetMinfeeB = setter("minfee_b");
+export const ppuSetMaxBlockBodySize = setter("max_block_body_size");
+export const ppuSetMaxTxSize = setter("max_tx_size");
+export const ppuSetMaxBlockHeaderSize = setter("max_block_header_size");
+export const ppuSetKeyDeposit = setter("key_deposit");
+export const ppuSetPoolDeposit = setter("pool_deposit");
+export const ppuSetMaxEpoch = setter("max_epoch");
+export const ppuSetNOpt = setter("n_opt");
+export const ppuSetPoolPledgeInfluence = setter("pool_pledge_influence");
+export const ppuSetExpansionRate = setter("expansion_rate");
+export const ppuSetTreasuryGrowthRate = setter("treasury_growth_rate");
 
 export function newProtocolVersion(major) {
-  return minor => () =>
-    lib.ProtocolVersion.new(major, minor);
+  return minor => () => lib.ProtocolVersion.new(major, minor);
 }
 
 export function ppuSetProtocolVersion(ppu) {
-  return version => () =>
-    ppu.set_protocol_version(version);
+  return version => () => ppu.set_protocol_version(version);
 }
 
-export var ppuSetMinPoolCost = setter("min_pool_cost");
-export var ppuSetAdaPerUtxoByte = setter("ada_per_utxo_byte");
-export var ppuSetCostModels = setter("cost_models");
+export const ppuSetMinPoolCost = setter("min_pool_cost");
+export const ppuSetAdaPerUtxoByte = setter("ada_per_utxo_byte");
+export const ppuSetCostModels = setter("cost_models");
 
 export function newExUnitPrices(mem_price) {
-  return step_price => () =>
-    lib.ExUnitPrices.new(mem_price, step_price);
+  return step_price => () => lib.ExUnitPrices.new(mem_price, step_price);
 }
 
-export var ppuSetExecutionCosts = setter("execution_costs");
-export var ppuSetMaxTxExUnits = setter("max_tx_ex_units");
-export var ppuSetMaxBlockExUnits = setter("max_block_ex_units");
-export var ppuSetMaxValueSize = setter("max_value_size");
-export var ppuSetCollateralPercentage = setter("collateral_percentage");
-export var ppuSetMaxCollateralInputs = setter("max_collateral_inputs");
+export const ppuSetExecutionCosts = setter("execution_costs");
+export const ppuSetMaxTxExUnits = setter("max_tx_ex_units");
+export const ppuSetMaxBlockExUnits = setter("max_block_ex_units");
+export const ppuSetMaxValueSize = setter("max_value_size");
+export const ppuSetCollateralPercentage = setter("collateral_percentage");
+export const ppuSetMaxCollateralInputs = setter("max_collateral_inputs");
 
 export function newProtocolParamUpdate() {
   return lib.ProtocolParamUpdate.new();

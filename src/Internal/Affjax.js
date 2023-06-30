@@ -1,3 +1,5 @@
+/* global BROWSER_RUNTIME */
+
 import XHR from "xhr2";
 import urllib from "url";
 
@@ -7,7 +9,7 @@ const browserDriver = {
   },
   fixupUrl: function (url) {
     return url || "/";
-  }
+  },
 };
 
 const nodeDriver = {
@@ -16,7 +18,7 @@ const nodeDriver = {
   },
   fixupUrl: function (url, xhr) {
     if (xhr.nodejsBaseUrl === null) {
-      var u = urllib.parse(url);
+      let u = urllib.parse(url);
       u.protocol = u.protocol || "http:";
       u.hostname = u.hostname || "localhost";
       return urllib.format(u);
@@ -26,7 +28,7 @@ const nodeDriver = {
   },
 };
 
-export const driver = 
-  typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME 
+export const driver =
+  typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME
     ? browserDriver
     : nodeDriver;

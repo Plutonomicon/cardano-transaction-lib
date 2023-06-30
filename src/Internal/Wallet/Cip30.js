@@ -6,7 +6,9 @@ export function _getNetworkId(conn) {
 
 export function _getUtxos(maybe) {
   return conn => () =>
-    conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
+    conn
+      .getUtxos()
+      .then(res => (res === null ? maybe.nothing : maybe.just(res)));
 }
 
 export function _getCollateral(maybe) {

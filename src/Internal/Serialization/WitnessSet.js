@@ -25,8 +25,7 @@ export function newVkeywitnesses() {
 }
 
 export function newVkeywitness(vkey) {
-  return signature => () =>
-    lib.Vkeywitness.new(vkey, signature);
+  return signature => () => lib.Vkeywitness.new(vkey, signature);
 }
 
 export function addVkeywitness(witnesses) {
@@ -42,18 +41,15 @@ export function addPlutusScript(scripts) {
 }
 
 export function transactionWitnessSetSetVkeys(ws) {
-  return vkeys => () =>
-    ws.set_vkeys(vkeys);
+  return vkeys => () => ws.set_vkeys(vkeys);
 }
 
 export function txWitnessSetSetPlutusScripts(ws) {
-  return scripts => () =>
-    ws.set_plutus_scripts(scripts);
+  return scripts => () => ws.set_plutus_scripts(scripts);
 }
 
 export function transactionWitnessSetSetNativeScripts(ws) {
-  return scripts => () =>
-    ws.set_native_scripts(scripts);
+  return scripts => () => ws.set_native_scripts(scripts);
 }
 
 export function _wsSetBootstraps(helper) {
@@ -91,8 +87,7 @@ export function _wsSetRedeemers(helper) {
 }
 
 export function _mkRedeemers(helper) {
-  return redeemers =>
-    helper.pack(lib.Redeemers, redeemers);
+  return redeemers => helper.pack(lib.Redeemers, redeemers);
 }
 
 export function _wsSetPlutusScripts(helper) {

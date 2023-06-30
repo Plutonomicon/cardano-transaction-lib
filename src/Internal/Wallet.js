@@ -40,7 +40,7 @@ const enableWallet = wallet => () => {
   }
 };
 
-export {enableWallet as _enableWallet};
+export { enableWallet as _enableWallet };
 
 const isWalletAvailable = walletName => () => {
   checkNotNode();
@@ -51,7 +51,7 @@ const isWalletAvailable = walletName => () => {
   );
 };
 
-export {isWalletAvailable as _isWalletAvailable};
+export { isWalletAvailable as _isWalletAvailable };
 
 export function _isEnabled(walletName) {
   return () => {

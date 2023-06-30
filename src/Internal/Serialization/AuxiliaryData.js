@@ -18,9 +18,9 @@ export function _hashAuxiliaryData(auxiliaryData) {
   return lib.hash_auxiliary_data(auxiliaryData);
 }
 
-export var setAuxiliaryDataNativeScripts = setter("native_scripts");
-export var setAuxiliaryDataPlutusScripts = setter("plutus_scripts");
-export var setAuxiliaryDataGeneralTransactionMetadata = setter("metadata");
+export const setAuxiliaryDataNativeScripts = setter("native_scripts");
+export const setAuxiliaryDataPlutusScripts = setter("plutus_scripts");
+export const setAuxiliaryDataGeneralTransactionMetadata = setter("metadata");
 
 export function newGeneralTransactionMetadata(containerHelper) {
   return entries => () =>
@@ -46,8 +46,7 @@ export function newMetadataInt(int) {
 }
 
 export function newMetadataBytes(bytes) {
-  return () =>
-    lib.TransactionMetadatum.new_bytes(bytes);
+  return () => lib.TransactionMetadatum.new_bytes(bytes);
 }
 
 export function newMetadataText(text) {

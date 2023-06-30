@@ -39,12 +39,12 @@ export function withStakeCredential(cbObj) {
   };
 }
 
-export var keyHashCredential = lib.StakeCredential.from_keyhash;
-export var scriptHashCredential = lib.StakeCredential.from_scripthash;
-export {callToBytes as addressBytes};
-export {callToBytes as byronAddressBytes};
-export {callToBytes as stakeCredentialToBytes};
-export {callToBech32 as addressBech32};
+export const keyHashCredential = lib.StakeCredential.from_keyhash;
+export const scriptHashCredential = lib.StakeCredential.from_scripthash;
+export { callToBytes as addressBytes };
+export { callToBytes as byronAddressBytes };
+export { callToBytes as stakeCredentialToBytes };
+export { callToBech32 as addressBech32 };
 
 export function _addressNetworkId(toAdt) {
   return addr => {
@@ -58,64 +58,69 @@ export function _byronAddressNetworkId(toAdt) {
   };
 }
 
-export var _addressFromBytes = callClassStaticMaybe("Address", "from_bytes");
+export const _addressFromBytes = callClassStaticMaybe("Address", "from_bytes");
 
-export var _stakeCredentialFromBytes = callClassStaticMaybe(
+export const _stakeCredentialFromBytes = callClassStaticMaybe(
   "StakeCredential",
   "from_bytes"
 );
 
-export var _byronAddressFromBytes = callClassStaticMaybe(
+export const _byronAddressFromBytes = callClassStaticMaybe(
   "ByronAddress",
   "from_bytes"
 );
 
-export var _addressFromBech32 = callClassStaticMaybe("Address", "from_bech32");
+export const _addressFromBech32 = callClassStaticMaybe(
+  "Address",
+  "from_bech32"
+);
 
-export var _byronAddressFromBase58 = callClassStaticMaybe(
+export const _byronAddressFromBase58 = callClassStaticMaybe(
   "ByronAddress",
   "from_base58"
 );
 
-export var _baseAddressFromAddress = callClassStaticMaybe(
+export const _baseAddressFromAddress = callClassStaticMaybe(
   "BaseAddress",
   "from_address"
 );
 
-export var _byronAddressFromAddress = callClassStaticMaybe(
+export const _byronAddressFromAddress = callClassStaticMaybe(
   "ByronAddress",
   "from_address"
 );
 
-export var _enterpriseAddressFromAddress = callClassStaticMaybe(
+export const _enterpriseAddressFromAddress = callClassStaticMaybe(
   "EnterpriseAddress",
   "from_address"
 );
 
-export var _pointerAddressFromAddress = callClassStaticMaybe(
+export const _pointerAddressFromAddress = callClassStaticMaybe(
   "PointerAddress",
   "from_address"
 );
 
-export var _rewardAddressFromAddress = callClassStaticMaybe(
+export const _rewardAddressFromAddress = callClassStaticMaybe(
   "RewardAddress",
   "from_address"
 );
 
-export {callToAddress as baseAddressToAddress};
-export {callToAddress as byronAddressToAddress};
-export {callToAddress as enterpriseAddressToAddress};
-export {callToAddress as pointerAddressToAddress};
-export {callToAddress as rewardAddressToAddress};
-export {callPaymentCred as baseAddressPaymentCred};
-export {callPaymentCred as rewardAddressPaymentCred};
-export {callPaymentCred as enterpriseAddressPaymentCred};
-export {callPaymentCred as pointerAddressPaymentCred};
-export {callStakeCred as baseAddressDelegationCred};
-export var byronAddressAttributes = callMethodParameterless("attributes");
-export var byronAddressIsValid = lib.ByronAddress.is_valid;
-export var byronAddressToBase58 = callMethodParameterless("to_base58");
-export var byronProtocolMagic = callMethodParameterless("byron_protocol_magic");
+export { callToAddress as baseAddressToAddress };
+export { callToAddress as byronAddressToAddress };
+export { callToAddress as enterpriseAddressToAddress };
+export { callToAddress as pointerAddressToAddress };
+export { callToAddress as rewardAddressToAddress };
+export { callPaymentCred as baseAddressPaymentCred };
+export { callPaymentCred as rewardAddressPaymentCred };
+export { callPaymentCred as enterpriseAddressPaymentCred };
+export { callPaymentCred as pointerAddressPaymentCred };
+export { callStakeCred as baseAddressDelegationCred };
+export const byronAddressAttributes = callMethodParameterless("attributes");
+export const byronAddressIsValid = lib.ByronAddress.is_valid;
+export const byronAddressToBase58 = callMethodParameterless("to_base58");
+export const byronProtocolMagic = callMethodParameterless(
+  "byron_protocol_magic"
+);
 
 export function icarusFromKey(bip32pubkey) {
   return byronProtocolMagic => {
@@ -143,7 +148,10 @@ export function _enterpriseAddress(netIdToInt) {
 
 export function _rewardAddress(netIdToInt) {
   return inpRec => {
-    return lib.RewardAddress.new(netIdToInt(inpRec.network), inpRec.paymentCred);
+    return lib.RewardAddress.new(
+      netIdToInt(inpRec.network),
+      inpRec.paymentCred
+    );
   };
 }
 

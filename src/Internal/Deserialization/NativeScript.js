@@ -31,7 +31,7 @@ export function _convertNativeScript(handler) {
 
 const call = property => object => object[property]();
 
-export var scriptPubkey_addr_keyhash = call("addr_keyhash");
+export const scriptPubkey_addr_keyhash = call("addr_keyhash");
 
 export function scriptAllScripts(helper) {
   return helper.unpackFromProperty("native_scripts");
@@ -45,6 +45,6 @@ export function scriptNOfKScripts(helper) {
   return helper.unpackFromProperty("native_scripts");
 }
 
-export var scriptNOfK_n = call("n");
-export var timelockStart_slot = call("slot_bignum");
-export var timelockExpiry_slot = call("slot_bignum");
+export const scriptNOfK_n = call("n");
+export const timelockStart_slot = call("slot_bignum");
+export const timelockExpiry_slot = call("slot_bignum");

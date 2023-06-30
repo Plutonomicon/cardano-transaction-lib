@@ -12,4 +12,4 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   );
 }
 
-export {script as alwaysFails};
+export { script as alwaysFails };
