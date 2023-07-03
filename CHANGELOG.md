@@ -107,7 +107,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Add a single-slot wait at Plutip startup before attempting to query any wallet UTxOs ([#1470](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1470))
 - Index `Reward` redeemers properly ([#1419](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1419),  [#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 - A problem with collateral selection not respecting `mustNotSpendUtxosWithOutRefs` ([#1509](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1509))
-- Fix disabled tests ([#1522](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1522))
 
 ### Removed
 
