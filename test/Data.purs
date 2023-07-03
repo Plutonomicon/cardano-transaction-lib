@@ -43,7 +43,7 @@ import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
-import Data.Tuple (Tuple, uncurry)
+import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Exception (Error)
@@ -536,6 +536,10 @@ data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
 
+instance Functor Tree where
+  map f (Leaf a) = Leaf (f a)
+  map f (Node a (ltree /\ rtree)) = Node (f a) (map f ltree /\ map f rtree)
+
 instance
   HasPlutusSchema (Tree a)
     ( "Node" := PNil @@ Z
@@ -546,10 +550,17 @@ instance
     )
 
 instance (ToData a) => ToData (Tree a) where
-  toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+  -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+  toData t = genericToData $ map toData t
 
 instance (FromData a) => FromData (Tree a) where
-  fromData x = genericFromData x
+  fromData pd = worker =<< (genericFromData pd :: _ (Tree PlutusData))
+    where
+    worker :: Tree PlutusData -> Maybe (Tree a)
+    worker = case _ of
+      Leaf a -> Leaf <$> fromData a
+      Node a (ltree /\ rtree) ->
+        Node <$> fromData a <*> (Tuple <$> worker ltree <*> worker rtree)
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
 fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes

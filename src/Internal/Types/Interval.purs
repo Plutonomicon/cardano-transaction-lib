@@ -168,10 +168,17 @@ instance
     )
 
 instance ToData a => ToData (Extended a) where
-  toData = genericToData
+  toData = case _ of
+    Finite a -> genericToData $ Finite $ toData a
+    NegInf -> genericToData (NegInf :: Extended Void)
+    PosInf -> genericToData (PosInf :: Extended Void)
 
 instance FromData a => FromData (Extended a) where
-  fromData = genericFromData
+  fromData pd =
+    (genericFromData pd :: _ (Extended PlutusData)) >>= case _ of
+      Finite a -> Finite <$> fromData a
+      NegInf -> pure NegInf
+      PosInf -> pure PosInf
 
 derive instance Generic (Extended a) _
 derive instance Eq a => Eq (Extended a)
