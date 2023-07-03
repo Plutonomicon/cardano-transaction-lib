@@ -127,8 +127,8 @@ loadFixtures = do
 
 printEvaluateTxFailures :: Effect Unit
 printEvaluateTxFailures = launchAff_ do
-  fixtures <- loadFixtures <#> filter (fst >>> (_ == "EvaluateTx")) >>> map snd
-  flip (traverse >>> traverse) fixtures \{ aeson } -> do
+  fixtures <- loadFixtures <#> filter (fst >>> eq "EvaluateTx") >>> map snd
+  void $ flip (traverse >>> traverse) fixtures \{ aeson } -> do
     let
       response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
       mbFailure = response >>= unwrap >>> either pure (const Nothing)

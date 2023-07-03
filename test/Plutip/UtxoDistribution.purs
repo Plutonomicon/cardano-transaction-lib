@@ -44,6 +44,7 @@ import Control.Lazy (fix)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
+import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
@@ -137,9 +138,9 @@ genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
   <$> arrayOf (chooseInt 1 1000)
 
 instance Arbitrary ArbitraryUtxoDistr where
-  arbitrary = fix \_ -> sized $ \size -> resize size $ frequency <<< wrap $
-    (1.0 /\ pure UDUnit) :|
-      List.fromFoldable
+  arbitrary =
+    fix \_ -> sized $ \size -> resize size $ frequency $ NEArray.fromNonEmpty $
+      (1.0 /\ pure UDUnit) :|
         [ 2.0 /\ (UDInitialUtxos <$> genInitialUtxo)
         , 2.0 /\
             ( UDInitialUtxosWithStake <$>

@@ -12,7 +12,7 @@ module Ctl.Internal.Plutip.Server
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
-import Affjax as Affjax
+import Affjax (defaultRequest) as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -24,6 +24,7 @@ import Control.Monad.Error.Class (liftEither)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend

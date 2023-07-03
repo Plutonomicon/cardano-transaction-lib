@@ -117,6 +117,8 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
+import Data.Array.NonEmpty (singleton) as NEArray
+import Data.Array.NonEmpty ((:))
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
@@ -128,10 +130,8 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
-import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.NonEmpty ((:|))
 import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
@@ -355,14 +355,13 @@ instance (DecodeAeson a, Ord a, Ring a) => DecodeAeson (Interval a) where
     pure $ haskIntervalToInterval haskInterval
 
 instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
-  arbitrary = frequency $ wrap $
+  arbitrary = frequency $
     (0.25 /\ genFiniteInterval arbitrary)
-      :| (0.25 /\ genUpperRay arbitrary)
-        : (0.25 /\ genLowerRay arbitrary)
-        : (0.1 /\ genSingletonInterval)
-        : (0.075 /\ pure always)
-        : (0.075 /\ pure never)
-        : Nil
+      : (0.25 /\ genUpperRay arbitrary)
+      : (0.25 /\ genLowerRay arbitrary)
+      : (0.1 /\ genSingletonInterval)
+      : (0.075 /\ pure always)
+      : NEArray.singleton (0.075 /\ pure never)
 
 -- | those accept a generator since we want to use them
 -- | for Positive Integers in tests

@@ -33,6 +33,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
+import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
@@ -408,9 +409,9 @@ instance ToData FType' where
 
 instance Arbitrary CType where
   arbitrary =
-    (frequency <<< wrap) $
+    (frequency <<< NEArray.fromNonEmpty) $
       (0.25 /\ pure C0)
-        :| List.fromFoldable
+        :|
           [ 0.25 /\ (C1 <$> arbitrary)
           , 0.25 /\ (C2 <$> arbitrary <*> arbitrary)
           , 0.25 /\ (C3 <$> arbitrary <*> arbitrary <*> arbitrary)
@@ -420,17 +421,17 @@ instance Arbitrary EType where
   arbitrary = genericArbitrary
 
 instance Arbitrary DType where
-  arbitrary = fix \_ -> (frequency <<< wrap) $
+  arbitrary = fix \_ -> frequency $ NEArray.fromNonEmpty $
     0.4 /\ (D0 <$> arbitrary <*> arbitrary <*> arbitrary)
-      :| List.fromFoldable
+      :|
         [ 0.4 /\ (D2 <$> arbitrary)
         , 0.2 /\ (D1 <$> arbitrary)
         ]
 
 instance Arbitrary FType where
-  arbitrary = fix \_ -> (frequency <<< wrap) $
+  arbitrary = fix \_ -> frequency $ NEArray.fromNonEmpty $
     0.4 /\ (F0 <$> ({ f0A: _ } <<< unwrap <$> arbitrary))
-      :| List.fromFoldable
+      :|
         [ 0.4 /\
             ( F1 <$>
                 ( { f1A: _, f1B: _, f1C: _ } <$> arbitrary <*> arbitrary <*>
