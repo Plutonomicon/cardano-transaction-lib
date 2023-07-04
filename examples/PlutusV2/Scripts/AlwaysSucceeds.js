@@ -6,7 +6,10 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 } else {
   const fs = await import("fs");
   script = fs.readFileSync(
-    new URL("../../fixtures/scripts/always-succeeds-v2.plutus", import.meta.url),
+    new URL(
+      "../../fixtures/scripts/always-succeeds-v2.plutus",
+      import.meta.url
+    ),
     "utf8"
   );
 }

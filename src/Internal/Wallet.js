@@ -29,12 +29,14 @@ const checkNotNode = () => {
 
 const enableWallet = wallet => () => {
   if (isWalletAvailable(wallet)()) {
-    return getWindow().cardano[wallet].enable().catch(e => {
-      throw new Error(
-        "enableWallet failed: " +
-          (typeof e.info == "string" ? e.info : e.toString())
-      );
-    });
+    return getWindow()
+      .cardano[wallet].enable()
+      .catch(e => {
+        throw new Error(
+          "enableWallet failed: " +
+            (typeof e.info == "string" ? e.info : e.toString())
+        );
+      });
   } else {
     throw new Error(
       "Wallet is not available. Use `isWalletAvailable " +

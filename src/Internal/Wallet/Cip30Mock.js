@@ -15,7 +15,7 @@ export function injectCip30Mock(walletName) {
         ")"
       );
     }
-    
+
     window_.cardano = {};
     window_.cardano[walletName] = {
       enable: () => {
