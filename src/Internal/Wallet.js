@@ -1,5 +1,9 @@
 /* global BROWSER_RUNTIME */
 
+function getWindow() {
+  return typeof window != "undefined" ? window : global.window_;
+}
+
 const getIsWalletAvailableTagName = wallet => {
   const strs = {
     nami: "NamiWallet",
@@ -18,14 +22,14 @@ const nodeEnvError = new Error(
 );
 
 const checkNotNode = () => {
-  if (typeof window != "object") {
+  if (typeof getWindow() != "object") {
     throw nodeEnvError;
   }
 };
 
 const enableWallet = wallet => () => {
   if (isWalletAvailable(wallet)()) {
-    return window.cardano[wallet].enable().catch(e => {
+    return getWindow().cardano[wallet].enable().catch(e => {
       throw new Error(
         "enableWallet failed: " +
           (typeof e.info == "string" ? e.info : e.toString())
@@ -45,9 +49,9 @@ export { enableWallet as _enableWallet };
 const isWalletAvailable = walletName => () => {
   checkNotNode();
   return (
-    typeof window.cardano != "undefined" &&
-    typeof window.cardano[walletName] != "undefined" &&
-    typeof window.cardano[walletName].enable == "function"
+    typeof getWindow().cardano != "undefined" &&
+    typeof getWindow().cardano[walletName] != "undefined" &&
+    typeof getWindow().cardano[walletName].enable == "function"
   );
 };
 
@@ -56,7 +60,7 @@ export { isWalletAvailable as _isWalletAvailable };
 export function _isEnabled(walletName) {
   return () => {
     if (isWalletAvailable(walletName)()) {
-      return window.cardano[walletName].isEnabled();
+      return getWindow().cardano[walletName].isEnabled();
     } else {
       throw new Error("Wallet `" + walletName + "` is not available");
     }
@@ -66,7 +70,7 @@ export function _isEnabled(walletName) {
 export function _apiVersion(walletName) {
   return () => {
     if (isWalletAvailable(walletName)()) {
-      return window.cardano[walletName].apiVersion;
+      return getWindow().cardano[walletName].apiVersion;
     } else {
       throw new Error("Wallet `" + walletName + "` is not available");
     }
@@ -76,7 +80,7 @@ export function _apiVersion(walletName) {
 export function _name(walletName) {
   return () => {
     if (isWalletAvailable(walletName)()) {
-      return window.cardano[walletName].name;
+      return getWindow().cardano[walletName].name;
     } else {
       throw new Error("Wallet `" + walletName + "` is not available");
     }
@@ -86,7 +90,7 @@ export function _name(walletName) {
 export function _icon(walletName) {
   return () => {
     if (isWalletAvailable(walletName)()) {
-      return window.cardano[walletName].icon;
+      return getWindow().cardano[walletName].icon;
     } else {
       throw new Error("Wallet `" + walletName + "` is not available");
     }

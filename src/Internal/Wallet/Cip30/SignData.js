@@ -2,9 +2,9 @@
 
 let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-message-signing-browser");
+  lib = await import("@emurgo/cardano-message-signing-browser");
 } else {
-  lib = require("@emurgo/cardano-message-signing-nodejs");
+  lib = await import("@emurgo/cardano-message-signing-nodejs");
 }
 
 // -----------------------------------------------------------------------------

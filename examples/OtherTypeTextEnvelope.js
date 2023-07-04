@@ -4,13 +4,9 @@ let script;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   script = require("Scripts/other-type-text-envelope.plutus");
 } else {
-  const fs = require("fs");
-  const path = require("path");
+  const fs = await import("fs");
   script = fs.readFileSync(
-    path.resolve(
-      __dirname,
-      "../../fixtures/scripts/other-type-text-envelope.plutus"
-    ),
+    new URL("../../fixtures/scripts/other-type-text-envelope.plutus", import.meta.url),
     "utf8"
   );
 }

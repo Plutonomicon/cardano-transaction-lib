@@ -2,12 +2,12 @@
 
 export function injectCip30Mock(walletName) {
   return mock => () => {
-    const hadWindow = typeof window != "undefined";
+    let window_ = typeof window != "undefined" ? window : (global.window_ = {});
 
     if (
-      typeof window == "object" &&
-      typeof window.cardano == "object" &&
-      typeof window.cardano[walletName] != "undefined"
+      typeof window_ == "object" &&
+      typeof window_.cardano == "object" &&
+      typeof window_.cardano[walletName] != "undefined"
     ) {
       throw (
         "injectCip30Mock: refusing to overwrite existing wallet (" +
@@ -15,14 +15,9 @@ export function injectCip30Mock(walletName) {
         ")"
       );
     }
-
-    if (typeof window == "undefined") {
-      window = { cardano: {} };
-    } else if (typeof window.cardano == "undefined") {
-      window.cardano = {};
-    }
-
-    window.cardano[walletName] = {
+    
+    window_.cardano = {};
+    window_.cardano[walletName] = {
       enable: () => {
         return new Promise((resolve, _reject) =>
           resolve({
@@ -44,9 +39,9 @@ export function injectCip30Mock(walletName) {
     };
 
     return () => {
-      delete window.cardano[walletName];
-      if (!hadWindow) {
-        window = undefined;
+      delete window_.cardano[walletName];
+      if (typeof window == "undefined") {
+        global.window_ = undefined;
       }
     };
   };

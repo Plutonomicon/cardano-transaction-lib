@@ -88,7 +88,6 @@ You can edit this file as you like.
   , "typelevel"
   , "typelevel-prelude"
   , "uint"
-  , "undefined"
   , "unfoldable"
   , "untagged-union"
   , "variant"

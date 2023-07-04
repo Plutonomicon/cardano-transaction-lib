@@ -4,10 +4,9 @@ let script;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   script = require("Scripts/always-mints.plutus");
 } else {
-  const fs = require("fs");
-  const path = require("path");
+  const fs = await import("fs");
   script = fs.readFileSync(
-    path.resolve(__dirname, "../../fixtures/scripts/always-mints.plutus"),
+    new URL("../../fixtures/scripts/always-mints.plutus", import.meta.url),
     "utf8"
   );
 }

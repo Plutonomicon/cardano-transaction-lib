@@ -80,11 +80,10 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
     "redeemer1-validator-unit"
   ] = require("Scripts/applied/redeemer1-validator-unit.plutus");
 } else {
-  const fs = require("fs");
-  const path = require("path");
+  const fs = await import("fs");
   const read_script = fp => {
     return fs.readFileSync(
-      path.resolve(__dirname, "../../fixtures/scripts/".concat(fp)),
+      new URL("../../fixtures/scripts/".concat(fp), import.meta.url),
       "utf8"
     );
   };

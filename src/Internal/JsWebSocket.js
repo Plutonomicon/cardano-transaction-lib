@@ -4,7 +4,8 @@ import ReconnectingWebSocket from "reconnecting-websocket";
 
 let OurWebSocket;
 if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
-  OurWebSocket = require("ws");
+  const { default: WebSocket } = await import("ws");
+  OurWebSocket = WebSocket;
 } else {
   OurWebSocket = WebSocket;
 }

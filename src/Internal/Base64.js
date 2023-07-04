@@ -1,4 +1,4 @@
-import base64 from "base64-js";
+import * as base64 from "base64-js";
 export const fromByteArray = base64.fromByteArray;
 export const toByteArray = base64.toByteArray;
 

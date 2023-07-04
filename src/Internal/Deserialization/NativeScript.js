@@ -2,11 +2,12 @@
 
 let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
+  lib = await import("@emurgo/cardano-serialization-lib-browser");
 } else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
+  lib = await import("@emurgo/cardano-serialization-lib-nodejs");
 }
-lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
+// import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
+// lib = gcWrapper(lib);
 
 export function _convertNativeScript(handler) {
   return ns => {

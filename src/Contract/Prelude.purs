@@ -16,7 +16,6 @@ module Contract.Prelude
   , module Traversable
   , module Tuple
   , module TupleNested
-  , module Undefined
   ) where
 
 -- Imports for extra functions:
@@ -334,7 +333,6 @@ import Prelude
   , (>>>)
   , (||)
   ) as PurescriptPrelude
-import Undefined (undefined) as Undefined
 
 mconcat
   :: forall (f :: Type -> Type) (m :: Type). Foldable f => Monoid m => f m -> m

@@ -3,7 +3,8 @@
 // `TextDecoder` is not available in `node`, use polyfill in that case
 let OurTextDecoder;
 if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
-  OurTextDecoder = require("util").TextDecoder;
+  const util = await import("util");
+  OurTextDecoder = util.TextDecoder;
 } else {
   OurTextDecoder = TextDecoder;
 }

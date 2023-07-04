@@ -3,14 +3,15 @@
 let lib;
 let apply_args;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
-  apply_args = require("apply-args-browser");
+  lib = await import("@emurgo/cardano-serialization-lib-browser");
+  apply_args = await import("apply-args-browser");
 } else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
-  apply_args = require("apply-args-nodejs");
+  lib = await import("@emurgo/cardano-serialization-lib-nodejs");
+  apply_args = await import("apply-args-nodejs");
 }
-lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
-apply_args = require("@mlabs-haskell/csl-gc-wrapper")(apply_args);
+// import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
+// lib = gcWrapper(lib);
+// apply_args = gcWrapper(apply_args);
 
 /**
  * @param {} left
