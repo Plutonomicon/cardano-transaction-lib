@@ -49,10 +49,9 @@ import Data.BigInt (BigInt)
 import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
-import Data.List (fromFoldable) as List
 import Data.Map (empty, insert, isEmpty) as Map
 import Data.Maybe (isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.NonEmpty ((:|))
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))

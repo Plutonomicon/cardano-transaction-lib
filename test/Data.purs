@@ -38,7 +38,6 @@ import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
-import Data.List as List
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
