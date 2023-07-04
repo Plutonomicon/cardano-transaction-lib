@@ -64,7 +64,7 @@ import Ctl.Internal.Wallet.Key
   )
 import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Data.Int (toNumber)
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, wrap)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
@@ -96,7 +96,7 @@ data WalletExtension
   | LodeWallet
   | LaceWallet
   | NuFiWallet
-  | GenericCip30Wallet String (Maybe (Aff Cip30Wallet))
+  | GenericCip30Wallet String
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
@@ -122,9 +122,8 @@ mkWalletAff walletExtension =
     LodeWallet -> _mkLodeWalletAff
     NuFiWallet -> NuFi <$> mkCip30WalletAff (_enableWallet walletName)
     LaceWallet -> Lace <$> mkCip30WalletAff (_enableWallet walletName)
-    GenericCip30Wallet name mbMkWallet ->
-      GenericCip30 <$> fromMaybe (mkCip30WalletAff (_enableWallet name))
-        mbMkWallet
+    GenericCip30Wallet name' ->
+      GenericCip30 <$> mkCip30WalletAff (_enableWallet name')
   where
   walletName = walletExtensionToName walletExtension
 
@@ -250,7 +249,7 @@ walletExtensionToName = case _ of
   LodeWallet -> "LodeWallet"
   NuFiWallet -> "nufi"
   LaceWallet -> "lace"
-  GenericCip30Wallet name _ -> name
+  GenericCip30Wallet name' -> name'
 
 walletToWalletExtension :: Wallet -> Maybe WalletExtension
 walletToWalletExtension = case _ of

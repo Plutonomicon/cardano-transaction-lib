@@ -10,7 +10,10 @@ import Ctl.Internal.Cardano.Types.Transaction (_body, _inputs, _witnessSet)
 import Ctl.Internal.Cardano.Types.Transaction as Transaction
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.Wallet (withWallet)
-import Ctl.Internal.Wallet (Wallet(..), callCip30Wallet)
+import Ctl.Internal.Wallet
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, GenericCip30, KeyWallet)
+  , callCip30Wallet
+  )
 import Data.Array (fromFoldable)
 import Data.Lens ((<>~))
 import Data.Lens.Getter ((^.))
