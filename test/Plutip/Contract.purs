@@ -154,7 +154,7 @@ import Ctl.Internal.Wallet
   ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   )
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi)
+  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi, MockGenericCip30)
   , withCip30Mock
   )
 import Data.Array (head, (!!))
@@ -1927,6 +1927,8 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
+            Cip30.contract
+          withCip30Mock alice (MockGenericCip30 "nami") do
             Cip30.contract
       test "ECDSA example" do
         let
