@@ -10,16 +10,16 @@ exports._getCollateral = maybe => conn => () =>
 
      Yoroi will throw an error if no amount argument is provided, and will
      break if the following expression is written as
-     (conn.getCollateral || conn.experimental)("3000000") due to JavaScript
-     object binding
+     (conn.getCollateral || conn.experimental.getCollateral)("5000000") due to
+     JavaScript object binding
 
      Typhon will throw an error if the amount argument is not a string
 
      Nami only provides `getCollateral` under the experimental API
   */
   (typeof conn.getCollateral === "function"
-    ? conn.getCollateral("3000000")
-    : conn.experimental.getCollateral("3000000")
+    ? conn.getCollateral("5000000")
+    : conn.experimental.getCollateral("5000000")
   ).then(utxos =>
     utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
   );
