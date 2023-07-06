@@ -360,8 +360,10 @@ let
           sleep 0.1;
         done;
 
+        mkdir project
+        cp -r ${project}/* project 
         ln -sfn $NODE_PATH node_modules 
-        ${nodejs}/bin/node --enable-source-maps -e 'import("${project}/output/${testMain}/index.js").then(m => m.main())' e2e-test run
+        ${nodejs}/bin/node --enable-source-maps -e 'import("./project/output/${testMain}/index.js").then(m => m.main())' e2e-test run
         mkdir $out
       ''
   ;
@@ -409,9 +411,7 @@ let
         cp -r ${project}/* .
         chmod -R +rwx .
         node esbuild/bundle.js ${main}
-        cd dist/esbuild
-        ln -sfn ../../fixtures fixtures
-        cd ../..
+        cp -r fixtures dist/esbuild
         mkdir $out
         mv dist $out
       '';

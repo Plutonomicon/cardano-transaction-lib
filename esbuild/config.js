@@ -6,7 +6,7 @@ export const buildOptions = {
   outdir: "dist/esbuild",
   define: {
     BROWSER_RUNTIME: process.env.BROWSER_RUNTIME,
-    SCRIPTS_DIR: '"fixtures/scripts/"',
+    SCRIPTS_DIR: '"fixtures/scripts"',
   },
   plugins: [
     polyfillNode({

@@ -2,12 +2,16 @@ module Ctl.Internal.Affjax
   ( request
   ) where
 
+import Prelude
+
 import Affjax (AffjaxDriver)
 import Affjax (Error, Request, Response, request) as Affjax
+import Control.Promise (Promise, toAffE)
 import Data.Either (Either)
+import Effect (Effect)
 import Effect.Aff (Aff)
 
-foreign import driver :: AffjaxDriver
+foreign import driver :: Effect (Promise AffjaxDriver)
 
 -- | Makes an HTTP request.
 -- |
@@ -28,4 +32,4 @@ foreign import driver :: AffjaxDriver
 -- | ```
 request
   :: forall a. Affjax.Request a -> Aff (Either Affjax.Error (Affjax.Response a))
-request = Affjax.request driver
+request req = toAffE driver >>= flip Affjax.request req
