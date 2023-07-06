@@ -121,7 +121,7 @@ v2ScriptPaths :: Array String
 v2ScriptPaths =
   [ "always-succeeds-v2"
   , "one-shot-minting-v2"
-  , "check-datum-is-inline$"
+  , "check-datum-is-inline"
   ]
 
 params :: Array (Tuple (Array PlutusData) String)
