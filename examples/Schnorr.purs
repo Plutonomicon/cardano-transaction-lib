@@ -11,7 +11,7 @@ import Contract.Crypto.Secp256k1.Schnorr
   )
 import Contract.Crypto.Secp256k1.Utils (randomSecp256k1PrivateKey)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM)
+import Contract.Monad (Contract, liftContractAffM, liftContractM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( class ToData
@@ -22,7 +22,7 @@ import Contract.PlutusData
   )
 import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator, validatorHash)
+import Contract.Scripts (Validator(Validator), validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction
   ( TransactionHash
@@ -32,6 +32,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.Map as Map
 import Data.Set as Set
 
@@ -55,7 +56,7 @@ contract = do
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract TransactionHash
 prepTest = do
-  validator <- liftContractM "Caonnot get validator" getValidator
+  validator <- liftContractAffM "Caonnot get validator" getValidator
   let
     valHash = validatorHash validator
     val = Value.lovelaceValueOf one
@@ -80,7 +81,7 @@ testVerification
 testVerification txId ecdsaRed = do
   let red = Redeemer $ toData ecdsaRed
 
-  validator <- liftContractM "Can't get validator" getValidator
+  validator <- liftContractAffM "Can't get validator" getValidator
   let valHash = validatorHash validator
 
   netId <- getNetworkId
@@ -122,8 +123,8 @@ testSchnorr txId = do
       , pk: publicKey
       }
 
-getValidator :: Maybe Validator
-getValidator = do
-  decodeTextEnvelope validateSchnorr >>= plutusScriptV2FromEnvelope >>> map wrap
-
-foreign import validateSchnorr :: String
+getValidator :: Aff (Maybe Validator)
+getValidator =
+  loadScript "validate-schnorr.plutus" <#> \validateSchnorr -> do
+    envelope <- decodeTextEnvelope validateSchnorr
+    Validator <$> plutusScriptV2FromEnvelope envelope

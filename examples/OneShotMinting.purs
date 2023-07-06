@@ -50,6 +50,7 @@ import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.Array (head, singleton) as Array
 import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
@@ -112,14 +113,13 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee }
 
-foreign import oneShotMinting :: String
-
 oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicy =
   map PlutusMintingPolicy <<< oneShotMintingPolicyScript
 
 oneShotMintingPolicyScript :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScript txInput = do
+  oneShotMinting <- liftAff $ loadScript "one-shot-minting.plutus"
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV1FromEnvelope envelope

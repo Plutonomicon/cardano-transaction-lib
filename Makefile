@@ -12,10 +12,21 @@ preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r 
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
 
 run-dev:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
+	@${ps-bundle} --minify && BROWSER_RUNTIME=1 webpack-dev-server --progress
 
 run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
+
+esbuild-bundle:
+	@spago build \ 
+		&& BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
+
+esbuild-serve:
+	@spago build \
+		&& cd dist/esbuild \
+		&& ln -sfn ../../fixtures fixtures \
+		&& cd ../.. \
+		&& BROWSER_RUNTIME=1 node esbuild/serve.js ${ps-entrypoint}
 
 .ONESHELL:
 check-explicit-exports:

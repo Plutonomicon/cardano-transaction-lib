@@ -30,6 +30,7 @@ import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   )
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt3
   )
@@ -118,26 +119,26 @@ spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   pure $ constraints /\
     (Lookups.unspentOutputs utxo <> Lookups.validator validator)
 
---- Importing validation scripts
-
-foreign import vredeemerInt1 :: String
-foreign import vredeemerInt2 :: String
-foreign import vredeemerInt3 :: String
-
 -- | checks whether redeemer is 1
 redeemerIs1Validator :: Contract Validator
-redeemerIs1Validator = liftMaybe (error "Error decoding vredeemerInt1") do
-  envelope <- decodeTextEnvelope vredeemerInt1
-  Validator <$> plutusScriptV1FromEnvelope envelope
+redeemerIs1Validator = do
+  vredeemerInt1 <- liftAff $ loadScript "redeemer1-validator.plutus"
+  liftMaybe (error "Error decoding vredeemerInt1") do
+    envelope <- decodeTextEnvelope vredeemerInt1
+    Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 2
 redeemerIs2Validator :: Contract Validator
-redeemerIs2Validator = liftMaybe (error "Error decoding vredeemerInt2") do
-  envelope <- decodeTextEnvelope vredeemerInt2
-  Validator <$> plutusScriptV1FromEnvelope envelope
+redeemerIs2Validator = do
+  vredeemerInt2 <- liftAff $ loadScript "redeemer2-validator.plutus"
+  liftMaybe (error "Error decoding vredeemerInt2") do
+    envelope <- decodeTextEnvelope vredeemerInt2
+    Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 3
 redeemerIs3Validator :: Contract Validator
-redeemerIs3Validator = liftMaybe (error "Error decoding vredeemerInt3") do
-  envelope <- decodeTextEnvelope vredeemerInt3
-  Validator <$> plutusScriptV1FromEnvelope envelope
+redeemerIs3Validator = do
+  vredeemerInt3 <- liftAff $ loadScript "redeemer3-validator.plutus"
+  liftMaybe (error "Error decoding vredeemerInt3") do
+    envelope <- decodeTextEnvelope vredeemerInt3
+    Validator <$> plutusScriptV1FromEnvelope envelope

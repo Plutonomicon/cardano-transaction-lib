@@ -9,7 +9,7 @@ import Contract.TextEnvelope
   , decodeTextEnvelope
   )
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
-import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Ctl.Internal.Cardano.Types.Transaction (Vkeywitness)
@@ -49,6 +49,7 @@ import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Effect (Effect)
 import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
 import Mote (group, skip, test)
@@ -247,6 +248,8 @@ suite = do
       test "fixture #4" $ witnessSetRoundTrip witnessSetFixture4
     group "TextEnvelope decoding" do
       test "Decoding TestEnvelope with some other type" do
+        otherTypeTextEnvelope <- liftAff $ loadScript
+          "other-type-text-envelope.plutus"
         TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
           decodeTextEnvelope otherTypeTextEnvelope
         envelope.type_ `shouldEqual` (Other "SomeOtherType")

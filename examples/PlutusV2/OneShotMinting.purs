@@ -22,6 +22,7 @@ import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Contract.Transaction (TransactionInput)
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Ctl.Examples.OneShotMinting
   ( mkContractWithAssertions
   , mkOneShotMintingPolicy
@@ -40,14 +41,13 @@ contract =
   mkContractWithAssertions "Examples.PlutusV2.OneShotMinting"
     oneShotMintingPolicyV2
 
-foreign import oneShotMinting :: String
-
 oneShotMintingPolicyV2 :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicyV2 =
   map PlutusMintingPolicy <<< oneShotMintingPolicyScriptV2
 
 oneShotMintingPolicyScriptV2 :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScriptV2 txInput = do
+  oneShotMinting <- liftAff $ loadScript "one-shot-minting-v2.plutus"
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
     plutusScriptV2FromEnvelope envelope

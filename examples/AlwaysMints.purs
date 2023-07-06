@@ -13,21 +13,15 @@ import Contract.Prelude
 
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
-import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.BigInt as BigInt
 import Effect.Exception (error)
 
@@ -57,14 +51,12 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 
-foreign import alwaysMints :: String
-
-alwaysMintsPolicyMaybe :: Maybe MintingPolicy
-alwaysMintsPolicyMaybe = do
-  envelope <- decodeTextEnvelope alwaysMints
-  PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+alwaysMintsPolicyMaybe :: Aff (Maybe MintingPolicy)
+alwaysMintsPolicyMaybe =
+  loadScript "always-mints.plutus" <#> \alwaysMints -> do
+    envelope <- decodeTextEnvelope alwaysMints
+    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 alwaysMintsPolicy :: Contract MintingPolicy
 alwaysMintsPolicy =
-  liftMaybe (error "Error decoding alwaysMintsPolicy")
-    alwaysMintsPolicyMaybe
+  liftContractAffM "Error decoding alwaysMintsPolicy" alwaysMintsPolicyMaybe

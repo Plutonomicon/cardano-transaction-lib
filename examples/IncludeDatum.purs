@@ -32,6 +32,7 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
@@ -94,11 +95,10 @@ spendFromIncludeDatum vhash validator txId = do
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
-foreign import includeDatum :: String
-
 -- | checks if the datum equals 42
 only42Script :: Contract Validator
-only42Script =
+only42Script = do
+  includeDatum <- liftAff $ loadScript "include-datum.plutus"
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum
     Validator <$> plutusScriptV1FromEnvelope envelope

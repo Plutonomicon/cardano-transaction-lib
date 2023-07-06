@@ -15,7 +15,11 @@ result-*
 .node
 .node-cfg
 .projectile
-/dist/
+/dist/*
+!/dist/esbuild/
+/dist/esbuild/*
+!/dist/esbuild/index.html
+!/dist/esbuild/wrapper.js
 output.js
 .DS_Store
 .idea/
