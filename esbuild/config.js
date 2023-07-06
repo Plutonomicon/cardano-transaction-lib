@@ -6,25 +6,25 @@ import { fileURLToPath } from "node:url";
 export const buildOptions = {
   entryPoints: [`output/${process.argv[2]}/index.js`],
   outdir: "dist/esbuild",
-  define: { 
-    BROWSER_RUNTIME: process.env.BROWSER_RUNTIME, 
-    SCRIPTS_DIR: '"fixtures/scripts/"'
+  define: {
+    BROWSER_RUNTIME: process.env.BROWSER_RUNTIME,
+    SCRIPTS_DIR: '"fixtures/scripts/"',
   },
   plugins: [
     polyfillNode({
       polyfills: {
         crypto: true,
         fs: true,
-        os: true
-      }
+        os: true,
+      },
     }),
     wasmLoader({
-      mode: "deferred"
-    })
+      mode: "deferred",
+    }),
   ],
   bundle: true,
   platform: "browser",
   format: "esm",
   treeShaking: true,
-  logLevel: "warning"
+  logLevel: "warning",
 };
