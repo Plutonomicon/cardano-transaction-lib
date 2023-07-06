@@ -228,7 +228,7 @@ let
       # (idea taken from `plutus-playground-client`)
       ''
         cd ${project}
-        ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}").then(m => m.main())'
+        ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.main())'
         touch $out
       '';
 
@@ -358,7 +358,7 @@ let
         done;
 
 
-        ${nodejs}/bin/node --enable-source-maps -e 'import("${project}/output/${testMain}").then(m => m.main())' e2e-test run
+        ${nodejs}/bin/node --enable-source-maps -e 'import("${project}/output/${testMain}/index.js").then(m => m.main())' e2e-test run
         mkdir $out
       ''
   ;
