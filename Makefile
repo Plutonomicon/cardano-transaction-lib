@@ -18,8 +18,7 @@ run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
 
 esbuild-bundle:
-	@spago build \ 
-		&& BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
+	@spago build && BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
 
 esbuild-serve:
 	@spago build \

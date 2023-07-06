@@ -1,7 +1,5 @@
-import * as esbuild from "esbuild";
 import { wasmLoader } from "esbuild-plugin-wasm";
 import { polyfillNode } from "esbuild-plugin-polyfill-node";
-import { fileURLToPath } from "node:url";
 
 export const buildOptions = {
   entryPoints: [`output/${process.argv[2]}/index.js`],

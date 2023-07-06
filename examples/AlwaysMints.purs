@@ -23,7 +23,6 @@ import Contract.Value as Value
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.BigInt as BigInt
-import Effect.Exception (error)
 
 main :: Effect Unit
 main = example testnetNamiConfig
