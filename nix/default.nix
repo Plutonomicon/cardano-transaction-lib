@@ -229,7 +229,7 @@ let
       # sandbox, so we can just use node instead
       # (idea taken from `plutus-playground-client`)
       ''
-        cd ${project}
+        cp -r ${project}/* .
         ln -sfn $NODE_PATH node_modules 
         ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.main())'
         touch $out
