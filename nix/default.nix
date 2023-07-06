@@ -136,6 +136,7 @@ let
           ];
         shellHook = ''
           export NODE_PATH="${nodeModules}/lib/node_modules"
+          ln -sfn $NODE_PATH node_modules 
           export PATH="${nodeModules}/bin:$PATH"
           ${pkgs.lib.optionalString packageLockOnly "export NPM_CONFIG_PACKAGE_LOCK_ONLY=true"}
         ''
@@ -177,6 +178,7 @@ let
       unpackPhase = ''
         export HOME="$TMP"
         export NODE_PATH="${nodeModules}/lib/node_modules"
+        ln -sfn $NODE_PATH node_modules 
         export PATH="${nodeModules}/bin:$PATH"
         cp -r $src .
         install-spago-style
@@ -228,6 +230,7 @@ let
       # (idea taken from `plutus-playground-client`)
       ''
         cd ${project}
+        ln -sfn $NODE_PATH node_modules 
         ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.main())'
         touch $out
       '';
@@ -400,6 +403,7 @@ let
       ''
         export HOME="$TMP"
         export NODE_PATH="${nodeModules}/lib/node_modules"
+        ln -sfn $NODE_PATH node_modules 
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
         cp -r ${project}/* .
@@ -489,6 +493,7 @@ let
       }
       ''
         export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
+        ln -sfn $NODE_PATH node_modules 
         export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
         cp -r ${buildPursDocs { }}/{generated-docs,output,src} .
         install-spago-style

@@ -8,9 +8,9 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = await import("@emurgo/cardano-message-signing-nodejs");
   csl = await import("@emurgo/cardano-serialization-lib-nodejs");
 }
-import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
-lib = gcWrapper(lib);
-csl = gcWrapper(csl);
+// import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
+// lib = gcWrapper(lib);
+// csl = gcWrapper(csl);
 
 function opt_chain(maybe, obj) {
   const isNothing = x => x === null || x === undefined;
