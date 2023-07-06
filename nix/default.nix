@@ -354,13 +354,13 @@ let
         export OGMIOS_PORT=1345
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
-        python -m http.server 4008 --directory ${bundledPursProject}/dist &
+        python -m http.server 4008 --directory ${bundledPursProject}/dist/esbuild &
         until curl -S http://127.0.0.1:4008/index.html &>/dev/null; do
           echo "Trying to connect to webserver...";
           sleep 0.1;
         done;
 
-
+        ln -sfn $NODE_PATH node_modules 
         ${nodejs}/bin/node --enable-source-maps -e 'import("${project}/output/${testMain}/index.js").then(m => m.main())' e2e-test run
         mkdir $out
       ''
@@ -408,12 +408,10 @@ let
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
         cp -r ${project}/* .
         chmod -R +rwx .
-        spago bundle-module --no-install --no-build -m "${main}" \
-          --to ${bundledModuleName}
-        mkdir -p ./dist
-        ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
-        webpack --mode=production -c ${webpackConfig} -o ./dist \
-          --entry ./${entrypoint}
+        node esbuild/bundle.js ${main}
+        cd dist/esbuild
+        ln -sfn ../../fixtures fixtures
+        cd ../..
         mkdir $out
         mv dist $out
       '';
