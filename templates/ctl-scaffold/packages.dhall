@@ -105,8 +105,8 @@ in  upstream
 -------------------------------
 -}
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.14.5-20220224/packages.dhall
-        sha256:67cc3d4f0e8fb72bb1413ba94ddd72a3ceb0783eb725e3b22ad7568b3b581163
+      https://github.com/purescript/package-sets/releases/download/psc-0.15.4-20230105/packages.dhall
+        sha256:3e9fbc9ba03e9a1fcfd895f65e2d50ee2f5e86c4cd273f3d5c841b655a0e1bda
 
 let additions =
       { aeson =
@@ -145,8 +145,8 @@ let additions =
           , "uint"
           , "untagged-union"
           ]
-        , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "bfd8f4dcd0522a076320f9dc710c24817438e02e"
+        , repo = "https://github.com/errfrom/purescript-aeson.git"
+        , version = "f092a1fc9b0ecc2445accf5bf0aad10e6eade89b"
         }
       , sequences =
         { dependencies =
@@ -168,8 +168,8 @@ let additions =
           , "unfoldable"
           , "unsafe-coerce"
           ]
-        , repo = "https://github.com/hdgarrood/purescript-sequences"
-        , version = "v3.0.2"
+        , repo = "https://github.com/garganscript/purescript-sequences"
+        , version = "cae456c1a7463785ad33981a93e7a9cb5fc7872c"
         }
       , properties =
         { dependencies = [ "prelude", "console" ]
@@ -228,8 +228,8 @@ let additions =
           , "unordered-collections"
           , "unsafe-coerce"
           ]
-        , repo = "https://github.com/juspay/medea-ps.git"
-        , version = "8b215851959aa8bbf33e6708df6bd683c89d1a5a"
+        , repo = "https://github.com/errfrom/medea-ps.git"
+        , version = "00981e4ce7249808413a6db8d88d849bbe85245a"
         }
       , purescript-toppokki =
         { dependencies =
@@ -241,8 +241,8 @@ let additions =
           , "node-buffer"
           , "node-fs-aff"
           ]
-        , repo = "https://github.com/firefrorefiddle/purescript-toppokki"
-        , version = "6983e07bf0aa55ab779bcef12df3df339a2b5bd9"
+        , repo = "https://github.com/errfrom/purescript-toppokki"
+        , version = "b043e9342463df76972d05981ac4ec25316834bf"
         }
       , bignumber =
         { dependencies =
@@ -256,8 +256,8 @@ let additions =
           , "prelude"
           , "tuples"
           ]
-        , repo = "https://github.com/mlabs-haskell/purescript-bignumber"
-        , version = "705923edd892a3397b90d28ce7db9a7181dcd599"
+        , repo = "https://github.com/errfrom/purescript-bignumber"
+        , version = "9b3179ad07428d189e42a7a205aab9c7c4849d4a"
         }
       , cardano-transaction-lib =
         { dependencies =
@@ -298,7 +298,6 @@ let additions =
           , "js-date"
           , "lattice"
           , "lists"
-          , "math"
           , "maybe"
           , "medea"
           , "media-types"
@@ -330,6 +329,7 @@ let additions =
           , "quickcheck"
           , "quickcheck-combinators"
           , "quickcheck-laws"
+          , "random"
           , "rationals"
           , "record"
           , "refs"
@@ -345,15 +345,14 @@ let additions =
           , "typelevel"
           , "typelevel-prelude"
           , "uint"
-          , "undefined"
           , "unfoldable"
           , "untagged-union"
           , "variant"
-          , "web-storage"
           , "web-html"
+          , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "167bc59308d00be43c01706e03f8c0e7993b6d69"
+        , version = "ef1441b9a401586c8ecfb3d8cdbbb42d4bcda3ea"
         }
       , noble-secp256k1 =
         { dependencies =
@@ -366,10 +365,9 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo =
-            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
-        , version = "710c15c48c5afae5e0623664d982a587ff2bd177"
+            "https://github.com/errfrom/purescript-noble-secp256k1.git"
+        , version = "9fc5db67e2b6e8b027c415e4dd1625c3f1d8b623"
         }
       }
 
 in  (upstream // additions)
-  with parsing.version = "v7.0.1"

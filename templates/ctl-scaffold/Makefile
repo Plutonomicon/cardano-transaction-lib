@@ -7,6 +7,16 @@ ps-entrypoint := Scaffold.Main
 e2e-entrypoint := Scaffold.Test.E2E.Serve
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
+esbuild-bundle:
+	@spago build && BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
+
+esbuild-serve:
+	@spago build \
+		&& cd dist/esbuild \
+		&& ln -sfn ../../scripts scripts \
+		&& cd ../.. \
+		&& BROWSER_RUNTIME=1 node esbuild/serve.js ${ps-entrypoint}
+
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
 
