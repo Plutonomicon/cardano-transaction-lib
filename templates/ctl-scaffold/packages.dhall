@@ -136,7 +136,6 @@ let additions =
           , "prelude"
           , "quickcheck"
           , "record"
-          , "sequences"
           , "spec"
           , "strings"
           , "tuples"
@@ -145,31 +144,8 @@ let additions =
           , "uint"
           , "untagged-union"
           ]
-        , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "97d6d06e29c466542c0d3c7893a24325d07913db"
-        }
-      , sequences =
-        { dependencies =
-          [ "arrays"
-          , "assert"
-          , "console"
-          , "effect"
-          , "lazy"
-          , "maybe"
-          , "newtype"
-          , "nonempty"
-          , "partial"
-          , "prelude"
-          , "profunctor"
-          , "psci-support"
-          , "quickcheck"
-          , "quickcheck-laws"
-          , "tuples"
-          , "unfoldable"
-          , "unsafe-coerce"
-          ]
-        , repo = "https://github.com/garganscript/purescript-sequences"
-        , version = "cae456c1a7463785ad33981a93e7a9cb5fc7872c"
+        , repo = "https://github.com/errfrom/purescript-aeson.git"
+        , version = "f614a840036aabb059017d03cf365f4199b9547b"
         }
       , properties =
         { dependencies = [ "prelude", "console" ]

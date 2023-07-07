@@ -7,11 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "97d6d06e29c466542c0d3c7893a24325d07913db";
+        version = "f614a840036aabb059017d03cf365f4199b9547b";
         src = pkgs.fetchgit {
-          url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "97d6d06e29c466542c0d3c7893a24325d07913db";
-          sha256 = "057cndwgcl8y8qh2afw3210hqcizr1ccsx1zkygn3bs2gpyx7h3q";
+          url = "https://github.com/errfrom/purescript-aeson.git";
+          rev = "f614a840036aabb059017d03cf365f4199b9547b";
+          sha256 = "01wqbd9pz1pmz1f0z5w4gwaswbdnkr9md7fihg4d91vs690zf792";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1284,18 +1284,6 @@ let
           url = "https://github.com/paf31/purescript-safely.git";
           rev = "19f854737e17b4d058e5a1504a960821db36e4ab";
           sha256 = "1mrpz19smjsamz4cci287z89q715chzxna0gpbvdgivlca4z6879";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "sequences" = pkgs.stdenv.mkDerivation {
-        name = "sequences";
-        version = "cae456c1a7463785ad33981a93e7a9cb5fc7872c";
-        src = pkgs.fetchgit {
-          url = "https://github.com/garganscript/purescript-sequences";
-          rev = "cae456c1a7463785ad33981a93e7a9cb5fc7872c";
-          sha256 = "0dimbcmj7f4mbxq3yq591spizib60iir9igjzb6lbydir7kc6934";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
