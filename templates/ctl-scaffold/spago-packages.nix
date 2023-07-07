@@ -7,10 +7,10 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "f092a1fc9b0ecc2445accf5bf0aad10e6eade89b";
+        version = "97d6d06e29c466542c0d3c7893a24325d07913db";
         src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/purescript-aeson.git";
-          rev = "f092a1fc9b0ecc2445accf5bf0aad10e6eade89b";
+          url = "https://github.com/mlabs-haskell/purescript-aeson.git";
+          rev = "97d6d06e29c466542c0d3c7893a24325d07913db";
           sha256 = "057cndwgcl8y8qh2afw3210hqcizr1ccsx1zkygn3bs2gpyx7h3q";
         };
         phases = "installPhase";
@@ -811,10 +811,10 @@ let
 
     "noble-secp256k1" = pkgs.stdenv.mkDerivation {
         name = "noble-secp256k1";
-        version = "9fc5db67e2b6e8b027c415e4dd1625c3f1d8b623";
+        version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd";
         src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/purescript-noble-secp256k1.git";
-          rev = "9fc5db67e2b6e8b027c415e4dd1625c3f1d8b623";
+          url = "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git";
+          rev = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd";
           sha256 = "0n2q83n210ih5l54p6wrrjqmy40xhhdd3mam5mzixgr2hszm8969";
         };
         phases = "installPhase";

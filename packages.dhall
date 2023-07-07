@@ -145,8 +145,8 @@ let additions =
           , "uint"
           , "untagged-union"
           ]
-        , repo = "https://github.com/errfrom/purescript-aeson.git"
-        , version = "f092a1fc9b0ecc2445accf5bf0aad10e6eade89b"
+        , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
+        , version = "97d6d06e29c466542c0d3c7893a24325d07913db"
         }
       , bignumber =
         { dependencies =
@@ -256,7 +256,7 @@ let additions =
           , "node-buffer"
           , "node-fs-aff"
           ]
-        , repo = "https://github.com/errfrom/purescript-toppokki"
+        , repo = "https://github.com/mlabs-haskell/purescript-toppokki"
         , version = "b043e9342463df76972d05981ac4ec25316834bf"
         }
       , noble-secp256k1 =
@@ -270,8 +270,8 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo =
-            "https://github.com/errfrom/purescript-noble-secp256k1.git"
-        , version = "9fc5db67e2b6e8b027c415e4dd1625c3f1d8b623"
+            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
+        , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
         }
       }
 
