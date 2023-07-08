@@ -26,7 +26,7 @@ exports._getCollateral = maybe => conn => () =>
 
 exports._getBalance = conn => () => conn.getBalance();
 
-exports._getAddresses = conn => conn.getUsedAddresses;
+exports._getAddresses = conn => () => conn.getUsedAddresses();
 
 exports._getUnusedAddresses = conn => () => conn.getUnusedAddresses();
 
