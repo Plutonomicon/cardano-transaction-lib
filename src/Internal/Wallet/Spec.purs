@@ -9,6 +9,7 @@ module Ctl.Internal.Wallet.Spec
       , ConnectToLode
       , ConnectToNuFi
       , ConnectToLace
+      , ConnectToGenericCip30
       )
   , Cip1852DerivationPath
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
@@ -32,6 +33,7 @@ import Ctl.Internal.Wallet
       , LodeWallet
       , NuFiWallet
       , LaceWallet
+      , GenericCip30Wallet
       )
   , mkKeyWallet
   , mkWalletAff
@@ -110,6 +112,7 @@ data WalletSpec
   | ConnectToLode
   | ConnectToNuFi
   | ConnectToLace
+  | ConnectToGenericCip30 String
 
 derive instance Generic WalletSpec _
 
@@ -148,6 +151,7 @@ mkWalletBySpec = case _ of
   ConnectToLode -> mkWalletAff LodeWallet
   ConnectToNuFi -> mkWalletAff NuFiWallet
   ConnectToLace -> mkWalletAff LaceWallet
+  ConnectToGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
 
 -- | Create a wallet given a mnemonic phrase, account index, address index and
 -- | stake key presence flag.
