@@ -20,6 +20,9 @@ result-*
 /dist/esbuild/*
 !/dist/esbuild/index.html
 !/dist/esbuild/wrapper.js
+!/dist/webpack/
+/dist/webpack/*
+!/dist/webpack/.gitkeep
 output.js
 .DS_Store
 .idea/

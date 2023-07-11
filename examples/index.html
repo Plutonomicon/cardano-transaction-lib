@@ -5,7 +5,9 @@
 </head>
 
 <body>
-  <script type="module" src="./bundle.js"></script>
+  <script type="module">
+    import("./bundle.js").then(m => m.main());
+  </script>
   Examples source code is located in <i>examples/</i> directory.<br>
 </body>
 </html>

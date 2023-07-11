@@ -1,31 +1,34 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: run-dev run-build check-format format query-testnet-tip clean check-explicit-exports
+.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
 nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
 js-sources := $(shell fd --no-ignore-parent -ejs)
 ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript modules in examples/
-ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
 
-run-dev:
-	@${ps-bundle} --minify && BROWSER_RUNTIME=1 webpack-dev-server --progress
-
-run-build:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
-
 esbuild-bundle:
-	@spago build && BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
+	@spago build \
+		&& cp -rf fixtures dist/esbuild \
+		&& BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
 
 esbuild-serve:
 	@spago build \
-		&& cd dist/esbuild \
-		&& ln -sfn ../../fixtures fixtures \
-		&& cd ../.. \
+		&& cp -rf fixtures dist/esbuild \
 		&& BROWSER_RUNTIME=1 node esbuild/serve.js ${ps-entrypoint}
+
+webpack-bundle:
+	@spago build \
+		&& rm -rf dist/webpack/* \
+		&& cp -rf fixtures/* dist/webpack \
+		&& BROWSER_RUNTIME=1 webpack --mode=production --env entry=./output/${ps-entrypoint}/index.js
+
+webpack-serve:
+	@spago build \
+		&& BROWSER_RUNTIME=1 webpack-dev-server --progress --env entry=./output/${ps-entrypoint}/index.js
 
 .ONESHELL:
 check-explicit-exports:

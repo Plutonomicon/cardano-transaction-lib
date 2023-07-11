@@ -24,5 +24,5 @@ export const buildOptions = {
   platform: "browser",
   format: "esm",
   treeShaking: true,
-  logLevel: "warning",
+  logLevel: "error",
 };
