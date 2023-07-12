@@ -6,15 +6,18 @@ exports._getUtxos = maybe => conn => () =>
   conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
 
 exports._getCollateral = maybe => conn => () =>
-  conn.experimental
-    .getCollateral()
-    .then(utxos =>
-      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
-    );
+  // yoroi will throw an error if no argument is provided
+  // typhon will throw an error if the argument is not a string
+  (conn.getCollateral
+    ? conn.getCollateral("3000000")
+    : conn.experimental.getCollateral("3000000")
+  ).then(utxos =>
+    utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
+  );
 
 exports._getBalance = conn => () => conn.getBalance();
 
-exports._getAddresses = conn => conn.getUsedAddresses;
+exports._getAddresses = conn => () => conn.getUsedAddresses();
 
 exports._getUnusedAddresses = conn => () => conn.getUnusedAddresses();
 
