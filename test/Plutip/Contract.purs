@@ -16,6 +16,9 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
+import Contract.BalanceTxConstraints
+  ( mustNotSpendUtxosWithOutRefs
+  )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
@@ -160,7 +163,7 @@ import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
@@ -211,6 +214,37 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice ManyAssets.contract
+    test
+      "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs "
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+
+        withWallets someUtxos \alice -> do
+          withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+              ownPaymentPubKeyHashes
+            stakePkh <- join <<< head <$> withKeyWallet alice
+              ownStakePubKeyHashes
+            utxos <- fromMaybe Map.empty <$> getWalletUtxos
+            let
+              constraints :: Constraints.TxConstraints Void Void
+              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraints ubTx
+                  (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
+              )
+            res `shouldSatisfy` isLeft
+
     test "#1480 - test that does nothing but fails" do
       let
         someUtxos =

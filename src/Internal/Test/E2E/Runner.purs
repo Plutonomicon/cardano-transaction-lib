@@ -212,7 +212,9 @@ buildPlutipConfig options =
   , hooks: emptyHooks
   , clusterConfig:
       { slotLength: Seconds 0.05
+      , epochSize: Nothing
       , maxTxSize: Nothing
+      , raiseExUnitsToMax: false
       }
   }
 

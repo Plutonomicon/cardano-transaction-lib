@@ -980,17 +980,17 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1678285155,
-        "narHash": "sha256-GcaiQRZhPYysINnAFPN+IyQu9S/CZA8eb5sTGZ4qfxw=",
+        "lastModified": 1684305087,
+        "narHash": "sha256-8MvK2AxG3bGWkxWutsCWRk9MYxf/FdQu/DkAvemjqHM=",
         "owner": "blockfrost",
         "repo": "blockfrost-backend-ryo",
-        "rev": "49269a9adb27b370209a61de2f5407945112860a",
+        "rev": "113ddfc2dbea9beba3a428aa274965237f31b858",
         "type": "github"
       },
       "original": {
         "owner": "blockfrost",
         "repo": "blockfrost-backend-ryo",
-        "rev": "49269a9adb27b370209a61de2f5407945112860a",
+        "rev": "113ddfc2dbea9beba3a428aa274965237f31b858",
         "type": "github"
       }
     },
@@ -12533,17 +12533,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1678283073,
-        "narHash": "sha256-eh//MOBA7+Lmzu4fhhqpKBTlgTJxEq36jPQkVYwu6Ts=",
+        "lastModified": 1682621645,
+        "narHash": "sha256-JXvTEmGzLDPfzLJxw+jvtOTR9fyIWlqm5a7IjRLBtGQ=",
         "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "89cf822c213f6a4278a88c8a8bb982696c649e76",
+        "rev": "1d35f53c7e4938c6df0fdd3bea6c5e9d5f704158",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
         "repo": "plutip",
-        "rev": "89cf822c213f6a4278a88c8a8bb982696c649e76",
+        "rev": "1d35f53c7e4938c6df0fdd3bea6c5e9d5f704158",
         "type": "github"
       }
     },

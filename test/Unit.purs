@@ -44,6 +44,7 @@ import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
+import Test.Ctl.Wallet.Bip32 as Bip32
 import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 import Test.Spec.Runner (defaultConfig)
 
@@ -61,6 +62,7 @@ testPlan = do
   Ipv6.suite
   NativeScript.suite
   Base64.suite
+  Bip32.suite
   ByteArray.suite
   Cip25.suite
   Cip30SignData.suite

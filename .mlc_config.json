@@ -2,6 +2,9 @@
     "ignorePatterns": [
         {
             "pattern": "^https://gerowallet.io"
+        },
+        {
+            "pattern": "^https://iohk.io"
         }
     ],
     "aliveStatusCodes": [

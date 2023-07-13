@@ -245,6 +245,7 @@ rec {
       } else { });
     in
     {
+      project.name = "ctl-runtime";
       docker-compose.raw = pkgs.lib.recursiveUpdate
         {
           volumes = {

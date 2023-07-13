@@ -3,7 +3,7 @@ module Contract.Backend.Ogmios
   ( getPoolParameters
   ) where
 
-import Prelude
+import Contract.Prelude
 
 import Contract.Monad (Contract)
 import Contract.Transaction (PoolPubKeyHash)
