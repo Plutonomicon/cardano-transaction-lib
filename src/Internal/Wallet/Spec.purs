@@ -152,7 +152,7 @@ mkWalletBySpec = case _ of
   ConnectToNuFi -> mkWalletAff NuFiWallet
   ConnectToLace -> mkWalletAff LaceWallet
   ConnectToGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
-  
+
 -- | Create a wallet given a mnemonic phrase, account index, address index and
 -- | stake key presence flag.
 -- | See `doc/key-management.md` for more info.

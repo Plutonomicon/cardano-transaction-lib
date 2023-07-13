@@ -19,6 +19,7 @@ import Ctl.Internal.QueryM (OgmiosWebSocket)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Time.Duration (Seconds(Seconds))
+import Effect.AVar (AVar)
 
 --------------------------------------------------------------------------------
 -- QueryBackend
@@ -32,6 +33,7 @@ type CtlBackend =
   { ogmios ::
       { config :: ServerConfig
       , ws :: OgmiosWebSocket
+      , snapshotHandle :: AVar Unit
       }
   , kupoConfig :: ServerConfig
   }
