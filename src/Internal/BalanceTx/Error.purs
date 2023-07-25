@@ -9,6 +9,7 @@ module Ctl.Internal.BalanceTx.Error
       , CouldNotConvertScriptOutputToTxInput
       , CouldNotGetChangeAddress
       , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
       , CouldNotGetUtxos
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
@@ -73,6 +74,7 @@ data BalanceTxError
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetChangeAddress
   | CouldNotGetCollateral
+  | InsufficientCollateralUtxos
   | CouldNotGetUtxos
   | CollateralReturnError String
   | CollateralReturnMinAdaValueCalcError

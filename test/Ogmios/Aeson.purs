@@ -11,7 +11,7 @@ import Aeson as Aeson
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.BalanceTx.Error (printTxEvaluationFailure)
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)

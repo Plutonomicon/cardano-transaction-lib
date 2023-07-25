@@ -1,7 +1,5 @@
 module Ctl.Internal.BalanceTx
-  ( module BalanceTxErrorExport
-  , module FinalizedTransaction
-  , balanceTxWithConstraints
+  ( balanceTxWithConstraints
   ) where
 
 import Prelude
@@ -39,28 +37,15 @@ import Ctl.Internal.BalanceTx.Constraints
   , _srcAddresses
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( CouldNotGetChangeAddress
+  ( BalanceTxError
+      ( BalanceInsufficientError
+      , CouldNotGetChangeAddress
       , CouldNotGetCollateral
       , CouldNotGetUtxos
-      , ExUnitsEvaluationFailed
+      , InsufficientCollateralUtxos
       , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
-      )
-  , Expected(Expected)
-  , printTxEvaluationFailure
-  ) as BalanceTxErrorExport
-import Ctl.Internal.BalanceTx.Error
-  ( BalanceTxError
-      ( UtxoLookupFailedFor
-      , UtxoMinAdaValueCalculationFailed
-      , ReindexRedeemersError
-      , BalanceInsufficientError
-      , CouldNotGetUtxos
-      , CouldNotGetCollateral
-      , CouldNotGetChangeAddress
       )
   , InvalidInContext(InvalidInContext)
   )
@@ -85,7 +70,6 @@ import Ctl.Internal.BalanceTx.Types
   , liftEitherContract
   , withBalanceTxConstraints
   )
-import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UnattachedTx
   ( EvaluatedTx
   , UnindexedTx
@@ -302,8 +286,9 @@ setTransactionCollateral changeAddr transaction = do
         maxCollateralInputs = UInt.toInt $ params.maxCollateralInputs
         utxoMap' = fromPlutusUtxoMap networkId $ Map.filterKeys isSpendable
           utxoMap
-      liftEffect $ Array.fromFoldable <<< fold <$>
+      mbCollateral <- liftEffect $ map Array.fromFoldable <$>
         selectCollateral coinsPerUtxoUnit maxCollateralInputs utxoMap'
+      liftEither $ note InsufficientCollateralUtxos mbCollateral
   addTxCollateralReturn collateral (addTxCollateral collateral transaction)
     changeAddr
 

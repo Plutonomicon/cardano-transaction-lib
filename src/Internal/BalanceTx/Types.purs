@@ -22,16 +22,15 @@ import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints
   , BalanceTxConstraintsBuilder
   )
-import Ctl.Internal.BalanceTx.Constraints
-  ( buildBalanceTxConstraints
-  ) as Constraints
+import Ctl.Internal.BalanceTx.Constraints (buildBalanceTxConstraints) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
 import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Scripts (Language)
-import Ctl.Internal.Wallet (Cip30Wallet, cip30Wallet)
+import Ctl.Internal.Wallet (cip30Wallet)
+import Ctl.Internal.Wallet.Cip30 (Cip30Wallet)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')

@@ -18,6 +18,7 @@ import Contract.BalanceTxConstraints
   ) as BalanceTxConstraints
 import Contract.BalanceTxConstraints
   ( mustNotSpendUtxosWithOutRefs
+  , mustUseCollateralUtxos
   )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
@@ -63,7 +64,7 @@ import Contract.Test.Plutip
   )
 import Contract.Time (Slot(Slot), getEraSummaries)
 import Contract.Transaction
-  ( BalanceTxError(BalanceInsufficientError)
+  ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
   , DataHash
   , InvalidInContext(InvalidInContext)
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
@@ -170,8 +171,9 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
+import Effect.Console as Console
 import Effect.Exception (throw)
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -270,7 +272,70 @@ suite = do
 
       withWallets distribution \_ → pure unit
 
-  group "Contract interface" do
+  only $ group "Contract interface" do
+    only $ test
+      "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+        withWallets (someUtxos /\ someUtxos) \(alice /\ bob) -> do
+          bobsCollateral <- withKeyWallet bob do
+            fromMaybe Map.empty <$> getWalletUtxos
+          withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+              ownPaymentPubKeyHashes
+            stakePkh <- join <<< head <$> withKeyWallet alice
+              ownStakePubKeyHashes
+            let
+              constraints :: Constraints.TxConstraints Void Void
+              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraints ubTx
+                  $ mustUseCollateralUtxos bobsCollateral
+              )
+            res `shouldSatisfy` isRight
+
+    only $ test
+      "mustUseCollateralUtxos should fail if not enough UTxOs are provided"
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+        withWallets someUtxos \alice -> do
+          withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+              ownPaymentPubKeyHashes
+            stakePkh <- join <<< head <$> withKeyWallet alice
+              ownStakePubKeyHashes
+            let
+              constraints :: Constraints.TxConstraints Void Void
+              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraints ubTx
+                  $ mustUseCollateralUtxos Map.empty
+              )
+            liftEffect $ Console.log $ show $ res
+            res `shouldSatisfy` case _ of
+              Left InsufficientCollateralUtxos -> true
+              _ -> false
+
     test "Collateral selection: UTxO with lower amount is selected" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs

@@ -51,8 +51,6 @@ import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (FinalizedTransaction)
-import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Error
@@ -62,6 +60,7 @@ import Ctl.Internal.BalanceTx.Error
       , CouldNotConvertScriptOutputToTxInput
       , CouldNotGetChangeAddress
       , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
       , CouldNotGetUtxos
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
@@ -75,6 +74,8 @@ import Ctl.Internal.BalanceTx.Error
   , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
   ) as BalanceTxError
+import Ctl.Internal.BalanceTx.Types (FinalizedTransaction)
+import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
