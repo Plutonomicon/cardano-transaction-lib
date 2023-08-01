@@ -222,7 +222,7 @@ let additions =
         , repo = "https://github.com/errfrom/medea-ps.git"
         , version = "00981e4ce7249808413a6db8d88d849bbe85245a"
         }
-      , purescript-toppokki =
+      , toppokki =
         { dependencies =
           [ "prelude"
           , "record"
@@ -233,7 +233,7 @@ let additions =
           , "node-fs-aff"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-toppokki"
-        , version = "b043e9342463df76972d05981ac4ec25316834bf"
+        , version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb"
         }
       , noble-secp256k1 =
         { dependencies =
@@ -251,4 +251,4 @@ let additions =
         }
       }
 
-in  (upstream // additions)
+in  upstream // additions

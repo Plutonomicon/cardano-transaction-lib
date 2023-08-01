@@ -68,7 +68,7 @@ You can edit this file as you like.
   , "prelude"
   , "profunctor"
   , "profunctor-lenses"
-  , "purescript-toppokki"
+  , "toppokki"
   , "quickcheck"
   , "quickcheck-combinators"
   , "quickcheck-laws"

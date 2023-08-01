@@ -1169,18 +1169,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "purescript-toppokki" = pkgs.stdenv.mkDerivation {
-        name = "purescript-toppokki";
-        version = "b043e9342463df76972d05981ac4ec25316834bf";
-        src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/purescript-toppokki";
-          rev = "b043e9342463df76972d05981ac4ec25316834bf";
-          sha256 = "0kkk4xfnkq6fqr30d95i3x4r6z9479bx7v0ama7xf36pr0y26lk1";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "quickcheck" = pkgs.stdenv.mkDerivation {
         name = "quickcheck";
         version = "v8.0.1";
@@ -1368,6 +1356,18 @@ let
           url = "https://github.com/purescript-contrib/purescript-these.git";
           rev = "ad4de7d2bb9ce684a9dff5def6489630736985b8";
           sha256 = "1i73qz7pk11mbiymhfg21i3nq92hqjmqzj4gjp1n6l2zkm0lmql3";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "toppokki" = pkgs.stdenv.mkDerivation {
+        name = "toppokki";
+        version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-toppokki";
+          rev = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
+          sha256 = "1kmqajf7n5l9lk4amyma3rhm60llrgamap5hi21kkqs52xm3fr2q";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

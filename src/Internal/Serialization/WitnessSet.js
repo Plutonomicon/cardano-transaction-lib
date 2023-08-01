@@ -2,12 +2,10 @@
 
 let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@emurgo/cardano-serialization-lib-browser");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
 } else {
-  lib = await import("@emurgo/cardano-serialization-lib-nodejs");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
 }
-// import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
-// lib = gcWrapper(lib);
 
 export function newTransactionWitnessSet() {
   return lib.TransactionWitnessSet.new();
