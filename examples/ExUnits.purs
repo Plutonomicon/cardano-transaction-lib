@@ -33,7 +33,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.Array (head)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -123,7 +122,8 @@ spendFromExUnits iters vhash validator txId = do
 
 exUnitsScript :: Contract Validator
 exUnitsScript = do
-  exUnits <- liftAff $ loadScript "exunits.plutus"
   liftMaybe (error "Error decoding exUnits") do
     envelope <- decodeTextEnvelope exUnits
     Validator <$> plutusScriptV2FromEnvelope envelope
+
+foreign import exUnits :: String

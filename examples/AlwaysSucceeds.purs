@@ -34,7 +34,6 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
@@ -120,7 +119,8 @@ spendFromAlwaysSucceeds vhash validator txId = do
 
 alwaysSucceedsScript :: Contract Validator
 alwaysSucceedsScript = do
-  alwaysSucceeds <- liftAff $ loadScript "always-succeeds.plutus"
   liftMaybe (error "Error decoding alwaysSucceeds") do
     envelope <- decodeTextEnvelope alwaysSucceeds
     Validator <$> plutusScriptV1FromEnvelope envelope
+
+foreign import alwaysSucceeds :: String

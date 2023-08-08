@@ -3,10 +3,10 @@
 let lib, csl;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = await import("@emurgo/cardano-message-signing-browser");
-  csl = await import("@emurgo/cardano-serialization-lib-browser");
+  csl = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
 } else {
   lib = await import("@emurgo/cardano-message-signing-nodejs");
-  csl = await import("@emurgo/cardano-serialization-lib-nodejs");
+  csl = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
 }
 // import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
 // lib = gcWrapper(lib);

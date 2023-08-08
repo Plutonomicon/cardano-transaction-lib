@@ -32,7 +32,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Data.Array (head)
 import Data.BigInt as BigInt
 import Data.Lens (view)
@@ -98,7 +97,16 @@ spendFromIncludeDatum vhash validator txId = do
 -- | checks if the datum equals 42
 only42Script :: Contract Validator
 only42Script = do
-  includeDatum <- liftAff $ loadScript "include-datum.plutus"
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum
     Validator <$> plutusScriptV1FromEnvelope envelope
+
+includeDatum :: String
+includeDatum =
+  """
+{
+    "type": "PlutusScriptV1",
+    "description": "include-datum",
+    "cborHex": "55540100002225333573466e1cdd6801a40a82930b01"
+}
+"""

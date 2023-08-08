@@ -8,12 +8,20 @@ import Contract.Monad (Contract)
 import Contract.Scripts (Validator(Validator))
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Effect.Exception (error)
 
 alwaysSucceedsScriptV2 :: Contract Validator
 alwaysSucceedsScriptV2 = do
-  alwaysSucceedsV2 <- liftAff $ loadScript "always-succeeds-v2.plutus"
   liftMaybe (error "Error decoding alwaysSucceeds") do
     envelope <- decodeTextEnvelope alwaysSucceedsV2
     Validator <$> plutusScriptV2FromEnvelope envelope
+
+alwaysSucceedsV2 :: String
+alwaysSucceedsV2 =
+  """
+{
+    "cborHex": "4e4d01000033222220051200120011",
+    "description": "always-succeeds",
+    "type": "PlutusScriptV2"
+}
+"""

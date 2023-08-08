@@ -30,7 +30,6 @@ import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   )
-import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Ctl.Examples.MintsMultipleTokens
   ( mintingPolicyRdmrInt3
   )
@@ -119,26 +118,27 @@ spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   pure $ constraints /\
     (Lookups.unspentOutputs utxo <> Lookups.validator validator)
 
+foreign import redeemerIs1Script :: String
+foreign import redeemerIs2Script :: String
+foreign import redeemerIs3Script :: String
+
 -- | checks whether redeemer is 1
 redeemerIs1Validator :: Contract Validator
 redeemerIs1Validator = do
-  vredeemerInt1 <- liftAff $ loadScript "redeemer1-validator.plutus"
-  liftMaybe (error "Error decoding vredeemerInt1") do
-    envelope <- decodeTextEnvelope vredeemerInt1
+  liftMaybe (error "Error decoding redeemerIs1Script") do
+    envelope <- decodeTextEnvelope redeemerIs1Script
     Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 2
 redeemerIs2Validator :: Contract Validator
 redeemerIs2Validator = do
-  vredeemerInt2 <- liftAff $ loadScript "redeemer2-validator.plutus"
-  liftMaybe (error "Error decoding vredeemerInt2") do
-    envelope <- decodeTextEnvelope vredeemerInt2
+  liftMaybe (error "Error decoding redeemerIs2Script") do
+    envelope <- decodeTextEnvelope redeemerIs2Script
     Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 3
 redeemerIs3Validator :: Contract Validator
 redeemerIs3Validator = do
-  vredeemerInt3 <- liftAff $ loadScript "redeemer3-validator.plutus"
-  liftMaybe (error "Error decoding vredeemerInt3") do
-    envelope <- decodeTextEnvelope vredeemerInt3
+  liftMaybe (error "Error decoding redeemerIs3Script") do
+    envelope <- decodeTextEnvelope redeemerIs3Script
     Validator <$> plutusScriptV1FromEnvelope envelope
