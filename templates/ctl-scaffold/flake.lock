@@ -2757,17 +2757,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1688727102,
-        "narHash": "sha256-qeYJOsLWEI3byvvcUqm9Z6LwCs4NB7JFHRHTwib2ET4=",
+        "lastModified": 1691599815,
+        "narHash": "sha256-i7t+KgDAMCaYqqF+BdBAsV1B4/9gFr11Yd9RpxF10JQ=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "ef1441b9a401586c8ecfb3d8cdbbb42d4bcda3ea",
+        "rev": "325665b19859bbf3e48e296e9aa717673f5f3d79",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "ef1441b9a401586c8ecfb3d8cdbbb42d4bcda3ea",
+        "rev": "325665b19859bbf3e48e296e9aa717673f5f3d79",
         "type": "github"
       }
     },
