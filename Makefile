@@ -79,7 +79,6 @@ run-ci-actions:
 	nix build -L .#checks.x86_64-linux.ctl-staking-test
 	nix build -L .#checks.x86_64-linux.examples-imports-check
 
-
 clean:
 	@ rm -r .psc-ide-port || true
 	@ rm -rf .psci_modules || true

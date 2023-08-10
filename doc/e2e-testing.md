@@ -214,7 +214,7 @@ Note that the test closes successfully after the first successful `Contract` exe
 
 CTL offers a function to serve the `Contract`s to be tested with a router, that dispatches contracts and configuration parameters based on query part of the URL.
 
-It also builds a page with a table consisting of links to all possible examples with all possible environments, that looks like this:
+It also builds a page with drop-downs, allowing to select an example and an environments, that looks like this:
 
 ![Headless browser test suite - served examples](./images/e2e.png)
 

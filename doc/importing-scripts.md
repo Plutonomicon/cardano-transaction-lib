@@ -11,6 +11,35 @@
   - [plutarch-ctl-bridge](#plutarch-ctl-bridge)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Exporting scripts from Plutus
+
+Usually projects use a Haskell binary called *exporter* that outputs a pre-compiler UPLC bundle into a file, for example see [our Plutarch exporter from the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold/tree/main/onchain).
+
+A simpler exporter for Plutus can be found [here](https://github.com/Mr-Andersen/ctl-multisign-mre/blob/main/onchain/exporter/Main.hs).
+
+The output file should be a Cardano envelope:
+
+```json
+{
+    "cborHex": "4e4d01000033222220051200120011",
+    "description": "always-succeeds",
+    "type": "PlutusScriptV2"
+}
+```
+
+### Using Plutonomy
+
+When using Plutus, it makes sense to use [Plutonomy](https://github.com/well-typed/plutonomy) in the exporter:
+
+```haskell
+import Plutonomy (aggressiveOptimizerOptions, optimizeUPLCWith)
+
+script :: Script
+script = fromCompiledCode $
+  optimizeUPLCWith aggressiveOptimizerOptions $$(PlutusTx.compile [||policy||])
+```
+
 ## Importing serialized scripts
 
 To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.

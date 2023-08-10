@@ -15,7 +15,6 @@ import Contract.TextEnvelope
 import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Examples.Helpers.LoadScript (loadScript)
 import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Cardano.TextEnvelope (TextEnvelope)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
@@ -27,6 +26,8 @@ import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
 import Foreign.Object as Object
 import Mote (group, test)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS.Aff (readTextFile)
 import Test.Spec.Assertions (shouldEqual)
 
 scriptFilenames :: Object String
@@ -94,6 +95,9 @@ suite = group "Applying params to scripts test" $ do
     test
       ("Apply " <> argsName <> " to " <> scriptName)
       $ compareApplied lang scriptName (args /\ argsName)
+
+loadScript :: String -> Aff String
+loadScript = readTextFile UTF8 <<< append "./fixtures/scripts/"
 
 compareApplied
   :: forall (m :: Type -> Type)

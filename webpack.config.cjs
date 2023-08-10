@@ -23,8 +23,8 @@ module.exports = env => {
     stats: { errorDetails: true },
 
     devServer: {
-      static: {
-        directory: path.join(__dirname, "fixtures"),
+      client: {
+        overlay: false
       },
       port: 4008,
       proxy: {
@@ -86,7 +86,6 @@ module.exports = env => {
     plugins: [
       new webpack.DefinePlugin({
         BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
-        SCRIPTS_DIR: '"scripts"'
       }),
       new NodePolyfillPlugin(),
       new webpack.LoaderOptionsPlugin({

@@ -22,6 +22,9 @@ module.exports = {
   stats: { errorDetails: true },
 
   devServer: {
+    client: {
+      overlay: false,
+    },
     port: 4008,
     proxy: {
       "/kupo": {
