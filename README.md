@@ -79,8 +79,8 @@ Support is planned for the following light wallets:
 - [x] **Stage 3** Once we have a simple working transaction, we will seek to build a Plutus smart contract transaction with datum from scratch
 - [x] **Stage 4** Once we can construct Plutus smart contract transactions, we will seek to build a library/DSL/interface such that transactions can be built using constraints and lookups - as close as possible to a cut-and-paste solution from Plutus' `Contract` monad code in Haskell (but with no guarantee that code changes are not necessary)
   - [x] **Stage 4.1** Investigate supporting compatibility with the Vasil hardfork and improvements to our initial `Contract` API
-- [ ] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (**DONE** - see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators (**DONE**), and support CIP workflows on the public testnet (**In progress**)
-- [ ] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server (**DONE**)
+- [x] **Stage 5** Once we have a basic `Contract`-style API, we will further refine its public interface, expand wallet support (see [below](#light-wallet-support)), expose a test interface (**DONE** - see [here](doc/plutip-testing.md)), provide a more ergonomic JS/TS API, support stake validators (**DONE**), and support CIP workflows on the public testnet (**In progress**)
+- [x] **Stage 6** Once CTL's `Contract` interface has been stabilized, we will add support for even more wallets and attempt to deprecate CTL's currently required Haskell server (**DONE**)
 
 ## Architecture
 
@@ -90,12 +90,10 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
    - This is handled by `cardano-serialization-lib`, a Rust library available as WASM
 2. How do we query the chain?
    - This has been solved using Ogmios & Kupo
-   - We [will support](https://cardano.ideascale.com/c/idea/420791) an alternative [BlockFrost](https://blockfrost.io/) backend as well in the future
-3. How do we query for datums (i.e. the datums themselves and not just their hashes)?
-   - `Kupo` solves this problem
-4. How do we get wallet data?
+   - Thanks to [Catalyst](https://cardano.ideascale.com/c/idea/420791), we now support an alternative [BlockFrost](https://blockfrost.io/) backend as well
+3. How do we get wallet data?
    - This is done via browser-based light wallet integration in the browser based on CIP-30
-5. How closely should we follow Plutus' `Contract` API?
+4. How closely should we follow Plutus' `Contract` API?
    - CTL's `Contract` model is **significantly** less restrictive than Plutus' and allows for arbitrary effects within the `Contract` monad
    - Certain features cannot be directly translated into Purescript from Haskell due to differences between the two languages
    - Some of the Plutus conventions do not make sense for us, due to differences between on-chain and off-chain
