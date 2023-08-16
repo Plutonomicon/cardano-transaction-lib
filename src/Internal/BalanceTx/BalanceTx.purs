@@ -32,7 +32,6 @@ import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
   , _changeDatum
   , _maxChangeOutputTokenQuantity
-  , _nonSpendableInputs
   , _selectionStrategy
   , _srcAddresses
   ) as Constraints
@@ -288,7 +287,7 @@ setTransactionCollateral changeAddr transaction = do
       isSpendable =
         \(TransactionUnspentOutput { input, output }) ->
           not (Set.member input nonSpendableSet) &&
-            not (any (\p -> p input output) nonSpendableInputsPredicates)
+            not (any (\f -> f input output) nonSpendableInputsPredicates)
     pure $ Array.filter isSpendable rawCollateral
   addTxCollateralReturn collateral (addTxCollateral collateral transaction)
     changeAddr
@@ -381,7 +380,7 @@ runBalancer p = do
             spendable :: Boolean
             spendable = not $ or
               [ Set.member oref nonSpendableInputs
-              , any (\p -> p oref output)
+              , any (\f -> f oref output)
                   constraints.nonSpendableInputsPredicates
               , Set.member oref
                   ( p.transaction ^. _transaction <<< _body <<<
