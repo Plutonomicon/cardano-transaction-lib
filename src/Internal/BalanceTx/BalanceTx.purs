@@ -26,6 +26,7 @@ import Ctl.Internal.BalanceTx.Collateral
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraintsBuilder
   , _nonSpendableInputs
+  , _nonSpendableInputsPredicates
   )
 import Ctl.Internal.BalanceTx.Constraints
   ( _changeAddress
@@ -108,6 +109,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _withdrawals
   , _witnessSet
   )
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Ctl.Internal.Cardano.Types.Value
   ( AssetClass
   , Coin(Coin)
@@ -157,7 +161,7 @@ import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.Either (Either, hush, note)
-import Data.Foldable (fold, foldMap, foldr, length, null, sum)
+import Data.Foldable (any, fold, foldMap, foldr, length, null, or, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
@@ -275,13 +279,16 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
 setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
 setTransactionCollateral changeAddr transaction = do
   nonSpendableSet <- asksConstraints _nonSpendableInputs
+  nonSpendableInputsPredicates <- asksConstraints _nonSpendableInputsPredicates
   collateral <- do
     rawCollateral <- liftEitherContract $ note CouldNotGetCollateral <$>
       Wallet.getWalletCollateral
     -- filter out UTxOs that are set as non-spendable in the balancer constraints
     let
-      isSpendable = not <<< flip Set.member nonSpendableSet <<< _.input <<<
-        unwrap
+      isSpendable =
+        \(TransactionUnspentOutput { input, output }) ->
+          not (Set.member input nonSpendableSet) &&
+            not (any (\p -> p input output) nonSpendableInputsPredicates)
     pure $ Array.filter isSpendable rawCollateral
   addTxCollateralReturn collateral (addTxCollateral collateral transaction)
     changeAddr
@@ -356,44 +363,49 @@ runBalancer p = do
         liftContract $ Wallet.getWalletCollateral <#>
           fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
       else mempty
-    asksConstraints Constraints._nonSpendableInputs <#>
-      append nonSpendableCollateralInputs >>>
-        \nonSpendableInputs ->
-          foldr
-            ( \(oref /\ output) acc ->
-                let
-                  hasInlineDatum :: Boolean
-                  hasInlineDatum = case (unwrap output).datum of
-                    OutputDatum _ -> true
-                    _ -> false
+    constraints <- unwrap <$> asks _.constraints
+    let
+      nonSpendableInputs =
+        constraints.nonSpendableInputs <> nonSpendableCollateralInputs
+    pure $ foldr
+      ( \(oref /\ output) acc ->
+          let
+            hasInlineDatum :: Boolean
+            hasInlineDatum = case (unwrap output).datum of
+              OutputDatum _ -> true
+              _ -> false
 
-                  hasScriptRef :: Boolean
-                  hasScriptRef = isJust (unwrap output).scriptRef
+            hasScriptRef :: Boolean
+            hasScriptRef = isJust (unwrap output).scriptRef
 
-                  spendable :: Boolean
-                  spendable = not $ Set.member oref nonSpendableInputs ||
-                    Set.member oref
-                      ( p.transaction ^. _transaction <<< _body <<<
-                          _referenceInputs
-                      )
+            spendable :: Boolean
+            spendable = not $ or
+              [ Set.member oref nonSpendableInputs
+              , any (\p -> p oref output)
+                  constraints.nonSpendableInputsPredicates
+              , Set.member oref
+                  ( p.transaction ^. _transaction <<< _body <<<
+                      _referenceInputs
+                  )
+              ]
 
-                  validInContext :: Boolean
-                  validInContext = not $ txHasPlutusV1 &&
-                    (hasInlineDatum || hasScriptRef)
-                in
-                  case spendable, validInContext of
-                    true, true -> acc
-                      { spendable = Map.insert oref output acc.spendable }
-                    true, false -> acc
-                      { invalidInContext = Map.insert oref output
-                          acc.invalidInContext
-                      }
-                    _, _ -> acc
-            )
-            { spendable: Map.empty
-            , invalidInContext: Map.empty
-            }
-            (Map.toUnfoldable p.utxos :: Array _)
+            validInContext :: Boolean
+            validInContext = not $ txHasPlutusV1 &&
+              (hasInlineDatum || hasScriptRef)
+          in
+            case spendable, validInContext of
+              true, true -> acc
+                { spendable = Map.insert oref output acc.spendable }
+              true, false -> acc
+                { invalidInContext = Map.insert oref output
+                    acc.invalidInContext
+                }
+              _, _ -> acc
+      )
+      { spendable: Map.empty
+      , invalidInContext: Map.empty
+      }
+      (Map.toUnfoldable p.utxos :: Array _)
 
   mainLoop :: BalancerState UnindexedTx -> BalanceTxM FinalizedTransaction
   mainLoop = worker <<< PrebalanceTx

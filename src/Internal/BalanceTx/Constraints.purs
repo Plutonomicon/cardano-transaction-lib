@@ -1,8 +1,10 @@
 module Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints(BalanceTxConstraints)
   , BalanceTxConstraintsBuilder(BalanceTxConstraintsBuilder)
+  , UtxoPredicate
   , buildBalanceTxConstraints
   , mustGenChangeOutsWithMaxTokenQuantity
+  , mustNotSpendUtxosWhere
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
@@ -16,6 +18,7 @@ module Ctl.Internal.BalanceTx.Constraints
   , _changeDatum
   , _maxChangeOutputTokenQuantity
   , _nonSpendableInputs
+  , _nonSpendableInputsPredicates
   , _selectionStrategy
   , _srcAddresses
   ) where
@@ -25,15 +28,20 @@ import Prelude
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyOptimal)
   )
+import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
+  , toPlutusTxOutputWithRefScript
   )
 import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   ) as Plutus
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as Plutus
+import Ctl.Internal.Plutus.Types.Transaction
+  ( TransactionOutputWithRefScript
+  , UtxoMap
+  ) as Plutus
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -45,7 +53,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter (appendOver, set, setJust)
 import Data.Map (empty) as Map
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Nothing), fromMaybe)
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (singleton) as Set
@@ -55,6 +63,7 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   { additionalUtxos :: Plutus.UtxoMap
   , maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
+  , nonSpendableInputsPredicates :: Array (UtxoPredicate TransactionOutput)
   , srcAddresses :: Maybe (Array Address)
   , changeAddress :: Maybe Address
   , changeDatum :: Maybe OutputDatum
@@ -62,6 +71,8 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   }
 
 derive instance Newtype BalanceTxConstraints _
+
+type UtxoPredicate (output :: Type) = TransactionInput -> output -> Boolean
 
 _additionalUtxos :: Lens' BalanceTxConstraints Plutus.UtxoMap
 _additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
@@ -72,6 +83,11 @@ _maxChangeOutputTokenQuantity =
 
 _nonSpendableInputs :: Lens' BalanceTxConstraints (Set TransactionInput)
 _nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
+
+_nonSpendableInputsPredicates
+  :: Lens' BalanceTxConstraints (Array (UtxoPredicate TransactionOutput))
+_nonSpendableInputsPredicates =
+  _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputsPredicates")
 
 _srcAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
 _srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
@@ -104,6 +120,7 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
     { additionalUtxos: Map.empty
     , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
+    , nonSpendableInputsPredicates: mempty
     , srcAddresses: Nothing
     , changeDatum: Nothing
     , changeAddress: Nothing
@@ -166,6 +183,20 @@ mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
 mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
+-- | Tells the balancer not to spend UTxO's based on the given predicate.
+-- | Note that `mustNotSpendUtxosWhere` constraints are stacked when specified
+-- | multiple times, and utxos are tested against each predicate. The order of
+-- | specifying multiple `mustNotSpendUtxosWhere` constraints does NOT affect
+-- | the resulting set.
+mustNotSpendUtxosWhere
+  :: UtxoPredicate Plutus.TransactionOutputWithRefScript
+  -> BalanceTxConstraintsBuilder
+mustNotSpendUtxosWhere p =
+  wrap $ appendOver _nonSpendableInputsPredicates
+    ( Array.singleton \oref out ->
+        fromMaybe false $ p oref <$> toPlutusTxOutputWithRefScript out
+    )
+
 -- | Tells the balancer to use the provided UTxO set when evaluating script
 -- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
 -- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
@@ -176,4 +207,3 @@ mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
 -- | Tells the balancer to use the given strategy for coin selection.
 mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
 mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
-
