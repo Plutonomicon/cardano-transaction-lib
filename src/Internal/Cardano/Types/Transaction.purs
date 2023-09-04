@@ -622,6 +622,8 @@ derive instance Newtype PoolPubKeyHash _
 derive instance Eq PoolPubKeyHash
 derive instance Ord PoolPubKeyHash
 derive instance Generic PoolPubKeyHash _
+derive newtype instance ToData PoolPubKeyHash
+derive newtype instance FromData PoolPubKeyHash
 
 instance EncodeAeson PoolPubKeyHash where
   encodeAeson (PoolPubKeyHash kh) =

@@ -7,6 +7,7 @@ module Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , isTxConfirmedAff
   , utxosAt
+  , utxosAtScriptHash
   ) where
 
 import Prelude
@@ -118,6 +119,16 @@ utxosAt address = runExceptT do
   let endpoint = "/matches/" <> addressBech32 address <> "?unspent"
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
   ExceptT $ resolveKupoUtxoMap kupoUtxoMap
+
+utxosAtScriptHash :: ScriptHash -> QueryM (Either ClientError UtxoMap)
+utxosAtScriptHash scriptHash = runExceptT do
+  let
+    endpoint = "/matches/" <> rawBytesToHex (scriptHashToBytes scriptHash)
+      <> "/*"
+      <> "?unspent"
+  kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+  ExceptT $ resolveKupoUtxoMap kupoUtxoMap
+
 
 getUtxoByOref
   :: TransactionInput -> QueryM (Either ClientError (Maybe TransactionOutput))

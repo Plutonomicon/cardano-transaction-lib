@@ -7,6 +7,11 @@ module Ctl.Internal.Plutip.Server
   , checkPlutipServer
   , stopChildProcessWithPort
   , testPlutipContracts
+  , execDistribution 
+  , runCleanup
+  , startPlutipContractEnv
+  , stopChildProcessWithPortAndRemoveOnSignal
+  , whenError
   ) where
 
 import Prelude
@@ -138,7 +143,7 @@ withPlutipContractEnv
 withPlutipContractEnv plutipCfg distr cont = do
   cleanupRef <- liftEffect $ Ref.new mempty
   Aff.bracket
-    (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
+    (try $ startPlutipContractEnv plutipCfg distr (const $ pure unit) cleanupRef)
     (const $ runCleanup cleanupRef)
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
@@ -161,7 +166,7 @@ testPlutipContracts plutipCfg tp = do
     cleanupRef <- liftEffect $ Ref.new mempty
     -- Sets a single Mote bracket at the top level, it will be run for all
     -- immediate tests and groups
-    bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
+    bracket (startPlutipContractEnv plutipCfg distr (const $ pure unit) cleanupRef)
       (runCleanup cleanupRef)
       $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
           whenError printLogs (runContractInEnv env (test wallets))
@@ -250,6 +255,8 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
   emptyContractTestPlan :: ContractTestPlan
   emptyContractTestPlan = ContractTestPlan \h -> h unit (pure unit)
 
+type Refs = Ref (Array (Aff Unit))
+
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | Can be used to run multiple `Contract`s using `runContractInEnv`.
 -- | Resources which are allocated in the `Aff` computation must be de-allocated
@@ -262,19 +269,23 @@ startPlutipContractEnv
    . UtxoDistribution distr wallets
   => PlutipConfig
   -> distr
-  -> Ref (Array (Aff Unit))
+  -> (Refs -> Aff Unit)
+  -> Refs
   -> Aff
        { env :: ContractEnv
        , wallets :: wallets
        , printLogs :: Aff Unit
        , clearLogs :: Aff Unit
        }
-startPlutipContractEnv plutipCfg distr cleanupRef = do
+startPlutipContractEnv plutipCfg distr hooks cleanupRef = do
   configCheck plutipCfg
   startPlutipServer'
   ourKey /\ response <- startPlutipCluster'
   startOgmios' response
   startKupo' response
+
+  hooks cleanupRef
+
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure

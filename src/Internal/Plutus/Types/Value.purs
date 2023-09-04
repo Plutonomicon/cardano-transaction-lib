@@ -125,6 +125,13 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
+derive newtype instance Ord Coin
+derive newtype instance DecodeAeson Coin
+derive newtype instance EncodeAeson Coin
+derive newtype instance Semiring Coin
+derive newtype instance Ring Coin
+derive newtype instance CommutativeRing Coin
+derive newtype instance EuclideanRing Coin
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c

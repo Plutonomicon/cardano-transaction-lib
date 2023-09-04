@@ -11,6 +11,8 @@ module Ctl.Internal.Plutip.Spawn
   , cleanupTmpDir
   , cleanupOnSigint
   , removeOnSignal
+  , _rmdirSync
+  , onSignal
   ) where
 
 import Prelude
@@ -30,12 +32,7 @@ import Effect.Aff.AVar (isEmpty, read, status) as AVar
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error)
 import Effect.Ref as Ref
-import Node.ChildProcess
-  ( ChildProcess
-  , SpawnOptions
-  , kill
-  , stdout
-  )
+import Node.ChildProcess (ChildProcess, SpawnOptions, kill, stdout)
 import Node.ChildProcess as ChildProcess
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 

@@ -43,6 +43,7 @@ type QueryHandle =
   , getOutputAddressesByTxHash :: TransactionHash -> AffE (Array Address)
   , doesTxExist :: TransactionHash -> AffE Boolean
   , utxosAt :: Address -> AffE UtxoMap
+  , utxosAtScriptHash :: ScriptHash -> AffE UtxoMap
   , getChainTip :: AffE Chain.Tip
   , getCurrentEpoch :: Aff CurrentEpoch
   -- TODO Capture errors from all backends
