@@ -15,10 +15,8 @@ esbuild-bundle:
 		&& cp -rf fixtures dist/esbuild \
 		&& BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
 
-esbuild-serve:
-	@spago build \
-		&& cp -rf fixtures dist/esbuild \
-		&& BROWSER_RUNTIME=1 node esbuild/serve.js ${ps-entrypoint}
+esbuild-serve: esbuild-bundle
+	BROWSER_RUNTIME=1 node esbuild/serve.js ${ps-entrypoint}
 
 webpack-bundle:
 	@spago build \

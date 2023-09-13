@@ -2,8 +2,10 @@ import * as esbuild from "esbuild";
 import { buildOptions } from "./config.js";
 
 const ctx = await esbuild.context(buildOptions);
-await ctx.serve({
+const config = {
   host: "127.0.0.1",
   port: 4008,
   servedir: "dist/esbuild",
-});
+};
+console.log('serving:', config);
+await ctx.serve(config);
