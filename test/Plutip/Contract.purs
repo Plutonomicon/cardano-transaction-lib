@@ -16,9 +16,7 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
-import Contract.BalanceTxConstraints
-  ( mustNotSpendUtxosWithOutRefs
-  )
+import Contract.BalanceTxConstraints (mustNotSpendUtxosWithOutRefs)
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
@@ -36,6 +34,7 @@ import Contract.PlutusData
   , getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
+  , unitDatum
   , unitRedeemer
   )
 import Contract.Prelude (mconcat)
@@ -72,6 +71,8 @@ import Contract.Transaction
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
+  , _body
+  , _outputs
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
@@ -85,6 +86,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
@@ -157,11 +159,12 @@ import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi)
   , withCip30Mock
   )
-import Data.Array (head, (!!))
+import Data.Array (head, replicate, (!!))
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
-import Data.Lens (view)
+import Data.Lens (to, view, (^.))
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
@@ -170,8 +173,9 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
+import Effect.Console as Console
 import Effect.Exception (throw)
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -202,7 +206,35 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
-  group "Regressions" do
+  only $ group "Regressions" do
+    only $ test "#1530 - too many change outputs" do
+      do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigInt.fromInt 1000_000_000
+            , BigInt.fromInt 2000_000_000
+            ]
+        withWallets distribution \alice -> do
+          withKeyWallet alice do
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            let
+              constraints :: TxConstraints Unit Unit
+              constraints = fold $ replicate 20
+                $ Constraints.mustPayToScript vhash unitDatum
+                    Constraints.DatumWitness
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
+
+              lookups :: Lookups.ScriptLookups PlutusData
+              lookups = mempty
+            unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
+            balancedTx <- liftedE $ balanceTx unbalancedTx
+            let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
+            liftEffect $ Console.log $ show (Array.length outputs) <> " " <>
+              show outputs
+
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
       do
