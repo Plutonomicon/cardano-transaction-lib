@@ -92,7 +92,7 @@ startClusterHandler
           , keysDirectory = keysDir clusterEnv
           }
     where
-      getNodeSocketFile (runningNode -> RunningNode conn _ _ _) = nodeSocketFile conn
+      getNodeSocketFile (runningNode -> RunningNode conn _ _) = nodeSocketFile conn
       getNodeConfigFile =
         -- assumption is that node.config lies in the same directory as node.socket
         flip replaceFileName "node.config" . getNodeSocketFile

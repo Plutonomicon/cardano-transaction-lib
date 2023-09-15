@@ -1,10 +1,33 @@
 {
   description = "cardano-transaction-lib";
 
-  nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+  nixConfig = {
+    extra-substituters = [ "https://cache.iog.io" ];
+    extra-trusted-public-keys = [ "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" ];
+
+    bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+  };
+
 
   inputs = {
-    nixpkgs.follows = "ogmios/nixpkgs";
+    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    hackage-nix = {
+      url = "github:input-output-hk/hackage.nix";
+      flake = false;
+    };
+    haskell-nix = {
+      url = "github:input-output-hk/haskell.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.hackage.follows = "hackage-nix";
+    };
+    CHaP = {
+      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+      flake = false;
+    };
+    iohk-nix = {
+      url = "github:input-output-hk/iohk-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -19,14 +42,13 @@
       url = "github:CardanoSolutions/kupo/v2.2.0";
       flake = false;
     };
+    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
 
     # ogmios nixos module (remove and replace with the above after merging and updating)
-    ogmios-nixos.url = "github:mlabs-haskell/ogmios";
-
-    cardano-node.follows = "ogmios-nixos/cardano-node";
-    # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
-    iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
-    cardano-node.inputs.iohkNix.follows = "iohk-nix-environments";
+    ogmios-nixos = {
+      url = "github:mlabs-haskell/ogmios";
+      inputs.cardano-node.follows = "cardano-node";
+    };
 
     # Repository with network parameters
     cardano-configurations = {
@@ -35,25 +57,23 @@
       flake = false;
     };
     easy-purescript-nix = {
-      url = "github:justinwoo/easy-purescript-nix/da7acb2662961fd355f0a01a25bd32bf33577fa8";
+      url = "github:justinwoo/easy-purescript-nix";
       flake = false;
     };
 
-    # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/113ddfc2dbea9beba3a428aa274965237f31b858";
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
 
     # Plutip server related inputs
-    plutip.url = "github:mlabs-haskell/plutip/1d35f53c7e4938c6df0fdd3bea6c5e9d5f704158";
-    plutip-nixpkgs.follows = "plutip/nixpkgs";
-    haskell-nix.url = "github:mlabs-haskell/haskell.nix";
-    iohk-nix = {
-      follows = "plutip/iohk-nix";
-      flake = false;
-    };
-    CHaP = {
-      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
-      flake = false;
+    plutip = {
+      url = "github:mlabs-haskell/plutip/d060231ebf20383cbdc854a4664fd66a5815aedc";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        iohk-nix.follows = "iohk-nix";
+        haskell-nix.follows = "haskell-nix";
+        hackage-nix.follows = "hackage-nix";
+        cardano-node.follows = "cardano-node";
+      };
     };
   };
 
@@ -206,17 +226,17 @@
 
       plutipServerFor = system:
         let
-          pkgs = import inputs.plutip-nixpkgs {
+          pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [
               inputs.haskell-nix.overlay
-              (import "${inputs.iohk-nix}/overlays/crypto")
+              inputs.iohk-nix.overlays.crypto
             ];
           };
         in
         import ./plutip-server {
           inherit pkgs;
-          inherit (inputs) plutip CHaP iohk-nix;
+          inherit (inputs) plutip CHaP cardano-node;
           inherit (pkgs) system;
           src = ./plutip-server;
         };
