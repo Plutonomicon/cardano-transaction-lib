@@ -217,23 +217,39 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice do
-            validator <- AlwaysSucceeds.alwaysSucceedsScript
-            let vhash = validatorHash validator
-            let
-              constraints :: TxConstraints Unit Unit
-              constraints = fold $ replicate 20
-                $ Constraints.mustPayToScript vhash unitDatum
-                    Constraints.DatumWitness
-                $ Value.lovelaceValueOf
-                $ BigInt.fromInt 2_000_000
+            mp <- alwaysMintsPolicy
+            _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+            tn <- mkTokenName "TheToken"
+            -- do
+            --   let
+            --     constraints :: Constraints.TxConstraints Void Void
+            --     constraints = Constraints.mustMintValue
+            --       $ Value.singleton cs tn
+            --       $ BigInt.fromInt 100
 
-              lookups :: Lookups.ScriptLookups PlutusData
-              lookups = mempty
-            unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-            balancedTx <- liftedE $ balanceTx unbalancedTx
-            let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
-            liftEffect $ Console.log $ show (Array.length outputs) <> " " <>
-              show outputs
+            --     lookups :: Lookups.ScriptLookups Void
+            --     lookups = Lookups.mintingPolicy mp
+
+            --   txHash <- submitTxFromConstraints lookups constraints
+            --   awaitTxConfirmed txHash
+            do
+              validator <- AlwaysSucceeds.alwaysSucceedsScript
+              let vhash = validatorHash validator
+              let
+                constraints :: TxConstraints Unit Unit
+                constraints = fold $ replicate 20
+                  $ Constraints.mustPayToScript vhash unitDatum
+                      Constraints.DatumWitness
+                  -- $ Value.singleton cs tn one
+                  $ Value.lovelaceValueOf $ BigInt.fromInt 10000000
+
+                lookups :: Lookups.ScriptLookups PlutusData
+                lookups = mempty
+              unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
+              balancedTx <- liftedE $ balanceTx unbalancedTx
+              let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
+              liftEffect $ Console.log $ show (Array.length outputs) <> " " <>
+                show outputs
 
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
