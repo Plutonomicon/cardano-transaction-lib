@@ -30,6 +30,7 @@ import Effect.Aff
   )
 import Mote (group, test)
 import Mote.Monad (mapTest)
+import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
@@ -63,6 +64,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
             flip mapTest QueryM.AffInterface.suite
               (noWallet <<< wrapQueryM)
             NetworkId.suite
+            ChangeGeneration.suite
             Contract.suite
           UtxoDistribution.suite
           testPlutipContracts config OgmiosMempool.suite
