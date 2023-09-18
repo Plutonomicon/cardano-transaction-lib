@@ -167,6 +167,7 @@ import Data.Map (Map)
 import Data.Map (empty, insert, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst)
@@ -443,7 +444,10 @@ runBalancer p = do
     runNextBalancerStep state@{ transaction } = do
       let txBody = transaction ^. _transaction <<< _body
       inputValue <- except $ getInputValue p.allUtxos txBody
-      changeOutputs <- makeChange p.changeAddress p.changeDatum inputValue
+      ownWalletAddresses <- asks _.ownAddresses
+      changeOutputs <- makeChange ownWalletAddresses p.changeAddress
+        p.changeDatum
+        inputValue
         p.certsFee
         txBody
 
@@ -551,13 +555,20 @@ setTxChangeOutputs outputs tx =
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1396
 makeChange
-  :: Address
+  :: Set Address
+  -> Address
   -> OutputDatum
   -> Value
   -> Coin
   -> TxBody
   -> BalanceTxM (Array TransactionOutput)
-makeChange changeAddress changeDatum inputValue certsFee txBody =
+makeChange
+  ownWalletAddresses
+  changeAddress
+  changeDatum
+  inputValue
+  certsFee
+  txBody =
   -- Always generate change when a transaction has no outputs to avoid issues
   -- with transaction confirmation:
   -- FIXME: https://github.com/Plutonomicon/cardano-transaction-lib/issues/1293
@@ -576,6 +587,12 @@ makeChange changeAddress changeDatum inputValue certsFee txBody =
   -- |
   -- | Taken from cardano-wallet:
   -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1447
+  -- |
+  -- | Differences from cardano-wallet:
+  -- |
+  -- | - We only consider outputs that go back to our wallet when deciding on
+  -- | the number of desired outputs for change generation. See
+  -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1530
   changeValueOutputCoinPairs :: NonEmptyArray (Value /\ BigInt)
   changeValueOutputCoinPairs = outputCoins
     # NEArray.zip changeForAssets
@@ -599,10 +616,16 @@ makeChange changeAddress changeDatum inputValue certsFee txBody =
     unbundle :: Value -> Value /\ BigInt
     unbundle (Value coin assets) = mkValue mempty assets /\ unwrap coin
 
+  -- find outputs belonging to one of the wallet's addresses.
+  ownAddressOutputs :: Array TransactionOutput
+  ownAddressOutputs = Array.filter
+    (unwrap >>> _.address >>> flip Set.member ownWalletAddresses)
+    txOutputs
+
   changeForAssets :: NonEmptyArray Value
   changeForAssets = foldr
-    (NEArray.zipWith (<>) <<< makeChangeForAsset txOutputs)
-    (NEArray.replicate (length txOutputs) mempty)
+    (NEArray.zipWith (<>) <<< makeChangeForAsset ownAddressOutputs)
+    (NEArray.replicate (length ownAddressOutputs) mempty)
     excessAssets
 
   outputCoins :: NonEmptyArray BigInt

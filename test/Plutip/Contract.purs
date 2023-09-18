@@ -206,51 +206,7 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
-  only $ group "Regressions" do
-    only $ test "#1530 - too many change outputs" do
-      do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1000_000_000
-            , BigInt.fromInt 2000_000_000
-            ]
-        withWallets distribution \alice -> do
-          withKeyWallet alice do
-            mp <- alwaysMintsPolicy
-            _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
-            tn <- mkTokenName "TheToken"
-            -- do
-            --   let
-            --     constraints :: Constraints.TxConstraints Void Void
-            --     constraints = Constraints.mustMintValue
-            --       $ Value.singleton cs tn
-            --       $ BigInt.fromInt 100
-
-            --     lookups :: Lookups.ScriptLookups Void
-            --     lookups = Lookups.mintingPolicy mp
-
-            --   txHash <- submitTxFromConstraints lookups constraints
-            --   awaitTxConfirmed txHash
-            do
-              validator <- AlwaysSucceeds.alwaysSucceedsScript
-              let vhash = validatorHash validator
-              let
-                constraints :: TxConstraints Unit Unit
-                constraints = fold $ replicate 20
-                  $ Constraints.mustPayToScript vhash unitDatum
-                      Constraints.DatumWitness
-                  -- $ Value.singleton cs tn one
-                  $ Value.lovelaceValueOf $ BigInt.fromInt 10000000
-
-                lookups :: Lookups.ScriptLookups PlutusData
-                lookups = mempty
-              unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-              balancedTx <- liftedE $ balanceTx unbalancedTx
-              let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
-              liftEffect $ Console.log $ show (Array.length outputs) <> " " <>
-                show outputs
-
+  group "Regressions" do
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
       do
