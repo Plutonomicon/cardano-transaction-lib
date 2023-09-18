@@ -33,7 +33,7 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
     validator <- AlwaysSucceeds.alwaysSucceedsScript
     let
       vhash = validatorHash validator
-      value = Value.lovelaceValueOf $ BigInt.fromInt 10000000
+      value = Value.lovelaceValueOf $ BigInt.fromInt 1000000
 
       constraintsToSelf :: TxConstraints Unit Unit
       constraintsToSelf = fold <<< fold $ replicate outputsToSelf
