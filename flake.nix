@@ -66,7 +66,7 @@
 
     # Plutip server related inputs
     plutip = {
-      url = "github:mlabs-haskell/plutip/d060231ebf20383cbdc854a4664fd66a5815aedc";
+      url = "github:mlabs-haskell/plutip/1bf0b547cd3689c727586abb8385c008fb2a3d1c";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         iohk-nix.follows = "iohk-nix";
