@@ -740,7 +740,10 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
 
         changeValuesForOutputCoins :: NonEmptyArray Value
         changeValuesForOutputCoins =
-          makeChangeForCoin (_.outputAda <$> changeValues) adaRemaining
+          let
+            weights = _.outputAda <$> changeValues
+          in
+            makeChangeForCoin weights adaRemaining
 
         changeValuesWithMinCoins :: NonEmptyArray Value
         changeValuesWithMinCoins = assignMinCoin <$> changeValues

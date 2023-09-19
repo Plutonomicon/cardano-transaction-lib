@@ -2,15 +2,21 @@ module Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution) where
 
 import Prelude
 
+import Contract.BalanceTxConstraints (mustSendChangeWithDatum)
 import Contract.Monad (Contract, liftedE)
-import Contract.PlutusData (PlutusData, unitDatum)
+import Contract.PlutusData
+  ( Datum(Datum)
+  , OutputDatum(OutputDatum)
+  , PlutusData(Integer)
+  , unitDatum
+  )
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (validatorHash)
 import Contract.Transaction
   ( _body
   , _outputs
   , awaitTxConfirmed
-  , balanceTx
+  , balanceTxWithConstraints
   , signTransaction
   , submit
   )
@@ -20,8 +26,7 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Data.Array (fold, replicate, zip)
-import Data.Array (length) as Array
+import Data.Array (fold, length, replicate, zip)
 import Data.BigInt (fromInt) as BigInt
 import Data.Lens (to, (^.))
 import Data.Maybe (Maybe(Just, Nothing))
@@ -59,9 +64,13 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
       lookups :: Lookups.ScriptLookups PlutusData
       lookups = mempty
     unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-    balancedTx <- liftedE $ balanceTx unbalancedTx
-    let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
-    Array.length outputs `shouldEqual` expectedOutputs
+    balancedTx <- liftedE $ balanceTxWithConstraints unbalancedTx
+      -- just to check that attaching datums works
+      ( mustSendChangeWithDatum $ OutputDatum $ Datum $ Integer $ BigInt.fromInt
+          1000
+      )
     balancedSignedTx <- signTransaction balancedTx
+    let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
+    length outputs `shouldEqual` expectedOutputs
     txHash <- submit balancedSignedTx
     awaitTxConfirmed txHash

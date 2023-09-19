@@ -33,8 +33,8 @@ module.exports = {
       },
     },
     client: {
-      overlay: false
-    }
+      overlay: false,
+    },
   },
 
   // we can add more entrypoints as needed
