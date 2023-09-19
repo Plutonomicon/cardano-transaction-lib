@@ -143,8 +143,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty
-  ( cons'
-  , fromArray
+  ( fromArray
   , replicate
   , singleton
   , sortWith
@@ -159,8 +158,7 @@ import Data.BigInt (BigInt)
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
-import Data.Lens.Getter ((^.))
-import Data.Lens.Setter ((%~), (.~), (?~))
+import Data.Lens ((%~), (.~), (?~), (^.))
 import Data.Log.Tag (TagSet)
 import Data.Log.Tag (fromArray, tag) as TagSet
 import Data.Map (Map)
@@ -554,6 +552,12 @@ setTxChangeOutputs outputs tx =
 -- |
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1396
+-- |
+-- | Differences from cardano-wallet:
+-- |
+-- | - We only consider outputs that go back to our wallet when deciding on
+-- | the number of desired outputs for change generation. See
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1530
 makeChange
   :: Set Address
   -> Address
@@ -587,16 +591,16 @@ makeChange
   -- |
   -- | Taken from cardano-wallet:
   -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1447
-  -- |
-  -- | Differences from cardano-wallet:
-  -- |
-  -- | - We only consider outputs that go back to our wallet when deciding on
-  -- | the number of desired outputs for change generation. See
-  -- | https://github.com/Plutonomicon/cardano-transaction-lib/issues/1530
   changeValueOutputCoinPairs :: NonEmptyArray (Value /\ BigInt)
   changeValueOutputCoinPairs = outputCoins
     # NEArray.zip changeForAssets
     # NEArray.sortWith (AssetCount <<< fst)
+    where
+    outputCoins :: NonEmptyArray BigInt
+    outputCoins =
+      NEArray.fromArray
+        (valueToCoin' <<< _.amount <<< unwrap <$> ownAddressOutputs)
+        ?? NEArray.singleton zero
 
   splitOversizedValues
     :: NonEmptyArray (Value /\ BigInt)
@@ -616,25 +620,18 @@ makeChange
     unbundle :: Value -> Value /\ BigInt
     unbundle (Value coin assets) = mkValue mempty assets /\ unwrap coin
 
-  -- find outputs belonging to one of the wallet's addresses.
+  -- outputs belonging to one of the wallet's addresses.
   ownAddressOutputs :: Array TransactionOutput
-  ownAddressOutputs = Array.filter
-    (unwrap >>> _.address >>> flip Set.member ownWalletAddresses)
-    txOutputs
+  ownAddressOutputs = Array.filter isOwnWalletAddress $ txBody ^. _outputs
+    where
+    isOwnWalletAddress = unwrap >>> _.address >>> flip Set.member
+      ownWalletAddresses
 
   changeForAssets :: NonEmptyArray Value
   changeForAssets = foldr
     (NEArray.zipWith (<>) <<< makeChangeForAsset ownAddressOutputs)
     (NEArray.replicate (length ownAddressOutputs) mempty)
     excessAssets
-
-  outputCoins :: NonEmptyArray BigInt
-  outputCoins =
-    NEArray.fromArray (valueToCoin' <<< _.amount <<< unwrap <$> txOutputs)
-      ?? NEArray.singleton zero
-
-  txOutputs :: Array TransactionOutput
-  txOutputs = txBody ^. _outputs
 
   excessAssets :: Array (AssetClass /\ BigInt)
   excessAssets = Value.valueAssets excessValue
@@ -665,8 +662,10 @@ makeChange
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/4c2eb651d79212157a749d8e69a48fff30862e93/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1729
 makeChangeForAsset
-  :: Array TransactionOutput -> (AssetClass /\ BigInt) -> NonEmptyArray Value
-makeChangeForAsset txOutputs (assetClass /\ excess) =
+  :: Array TransactionOutput
+  -> (AssetClass /\ BigInt)
+  -> NonEmptyArray Value
+makeChangeForAsset ownAddressOutputs (assetClass /\ excess) =
   Value.assetToValue assetClass <$>
     partition excess weights ?? equipartition excess (length weights)
   where
@@ -675,7 +674,8 @@ makeChangeForAsset txOutputs (assetClass /\ excess) =
 
   assetQuantities :: Array BigInt
   assetQuantities =
-    txOutputs <#> Value.getAssetQuantity assetClass <<< _.amount <<< unwrap
+    ownAddressOutputs <#> Value.getAssetQuantity assetClass <<< _.amount <<<
+      unwrap
 
 -- | Constructs an array of ada change outputs based on the given distribution.
 -- |
@@ -728,16 +728,13 @@ assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
     worker (adaRequiredAtStart changeValues) changeValues
   where
   worker :: BigInt -> NonEmptyArray ChangeValue -> Array Value
-  worker adaRequired = NEArray.uncons >>> case _ of
+  worker adaRequired changeValues = changeValues # NEArray.uncons >>> case _ of
     { head: x, tail }
       | Just xs <- NEA.fromArray tail
       , adaAvailable < adaRequired && noTokens x ->
           worker (adaRequired - x.minCoin) xs
-    { head: x, tail: xs } ->
+    _ ->
       let
-        changeValues :: NonEmptyArray ChangeValue
-        changeValues = NEArray.cons' x xs
-
         adaRemaining :: BigInt
         adaRemaining = max zero (adaAvailable - adaRequired)
 

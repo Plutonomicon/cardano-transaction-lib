@@ -24,6 +24,12 @@ suite = do
           mkChangeOutputs 10 3 16
         test "0 outputs to script address, 10 outputs to own address" do
           mkChangeOutputs 0 10 20
+        test "1 / 1" do
+          mkChangeOutputs 1 1 3
+        test "3 / 1" do
+          mkChangeOutputs 3 1 5
+        test "1 / 3" do
+          mkChangeOutputs 1 3 7
 
 mkChangeOutputs :: Int -> Int -> Int -> ContractTest
 mkChangeOutputs outputsToScript outputsToSelf expectedOutputs = do
