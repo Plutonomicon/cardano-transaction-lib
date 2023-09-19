@@ -12,7 +12,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   const readScript = name =>
     fs.readFileSync(
       path.resolve(__dirname, `../../fixtures/scripts/${name}.plutus`),
-      "utf8"
+      "utf8",
     );
   vredeemerInt1 = readScript("redeemer1-validator");
   vredeemerInt2 = readScript("redeemer2-validator");

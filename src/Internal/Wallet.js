@@ -14,7 +14,7 @@ const getIsWalletAvailableTagName = wallet => {
 
 const nodeEnvError = new Error(
   "`window` is not an object. Are you trying to run a Contract with" +
-    " connected light wallet in NodeJS environment?"
+    " connected light wallet in NodeJS environment?",
 );
 
 const checkNotNode = () => {
@@ -28,14 +28,14 @@ const enableWallet = wallet => () => {
     return window.cardano[wallet].enable().catch(e => {
       throw new Error(
         "enableWallet failed: " +
-          (typeof e.info == "string" ? e.info : e.toString())
+          (typeof e.info == "string" ? e.info : e.toString()),
       );
     });
   } else {
     throw new Error(
       "Wallet is not available. Use `isWalletAvailable " +
         getIsWalletAvailableTagName(wallet) +
-        "` before connecting."
+        "` before connecting.",
     );
   }
 };

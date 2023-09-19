@@ -59,7 +59,7 @@ exports._txBodyUpdate = maybeGetter("update");
 exports._txBodyAuxiliaryDataHash = maybeGetter("auxiliary_data_hash");
 // validity_start_interval(): number | void;
 exports._txBodyValidityStartInterval = maybeGetter(
-  "validity_start_interval_bignum"
+  "validity_start_interval_bignum",
 );
 // multiassets(): Mint | void;
 exports._txBodyMultiAssets = maybeGetter("multiassets");
@@ -98,7 +98,7 @@ exports._unpackWithdrawals = containerhelper =>
 
 exports._unpackUpdate = containerhelper => update => {
   const pppus = containerhelper.unpackKeyIndexed(
-    update.proposed_protocol_parameter_updates()
+    update.proposed_protocol_parameter_updates(),
   );
   return { epoch: update.epoch(), paramUpdates: pppus };
 };
@@ -111,29 +111,29 @@ exports._convertCert = certConvHelper => cert => {
   switch (cert.kind()) {
     case lib.CertificateKind.StakeRegistration:
       return certConvHelper.stakeRegistration(
-        cert.as_stake_registration().stake_credential()
+        cert.as_stake_registration().stake_credential(),
       );
     case lib.CertificateKind.StakeDeregistration:
       return certConvHelper.stakeDeregistration(
-        cert.as_stake_deregistration().stake_credential()
+        cert.as_stake_deregistration().stake_credential(),
       );
     case lib.CertificateKind.StakeDelegation:
       return certConvHelper.stakeDelegation(
-        cert.as_stake_delegation().stake_credential()
+        cert.as_stake_delegation().stake_credential(),
       )(cert.as_stake_delegation().pool_keyhash());
     case lib.CertificateKind.PoolRegistration:
       return certConvHelper.poolRegistration(
-        cert.as_pool_registration().pool_params()
+        cert.as_pool_registration().pool_params(),
       );
     case lib.CertificateKind.PoolRetirement:
       return certConvHelper.poolRetirement(
-        cert.as_pool_retirement().pool_keyhash()
+        cert.as_pool_retirement().pool_keyhash(),
       )(cert.as_pool_retirement().epoch());
     case lib.CertificateKind.GenesisKeyDelegation:
       return certConvHelper.genesisKeyDelegation(
-        cert.as_genesis_key_delegation().genesishash()
+        cert.as_genesis_key_delegation().genesishash(),
       )(cert.as_genesis_key_delegation().genesis_delegate_hash())(
-        cert.as_genesis_key_delegation().vrf_keyhash()
+        cert.as_genesis_key_delegation().vrf_keyhash(),
       );
     case lib.CertificateKind.MoveInstantaneousRewardsCert:
       const mirCert = cert.as_move_instantaneous_rewards_cert();
@@ -141,11 +141,11 @@ exports._convertCert = certConvHelper => cert => {
       switch (mir.kind()) {
         case lib.MIRKind.ToOtherPot:
           return certConvHelper.moveInstantaneousRewardsToOtherPotCert(
-            mir.pot()
+            mir.pot(),
           )(mir.as_to_other_pot());
         case lib.MIRKind.ToStakeCredentials:
           return certConvHelper.moveInstantaneousRewardsToStakeCreds(mir.pot())(
-            mir.as_to_stake_creds()
+            mir.as_to_stake_creds(),
           );
         default:
           throw (
@@ -288,14 +288,14 @@ exports.convertSingleHostAddr_ = maybe => cont => singleHostAddr => {
   const ipv6 = singleHostAddr.ipv6();
 
   return cont(port ? maybe.just(port) : maybe.nothing)(
-    ipv4 ? maybe.just(ipv4) : maybe.nothing
+    ipv4 ? maybe.just(ipv4) : maybe.nothing,
   )(ipv6 ? maybe.just(ipv6) : maybe.nothing);
 };
 
 exports.convertSingleHostName_ = maybe => cont => singleHostName => {
   const port = singleHostName.port();
   return cont(port ? maybe.just(port) : maybe.nothing)(
-    singleHostName.dns_name().record()
+    singleHostName.dns_name().record(),
   );
 };
 

@@ -26,12 +26,12 @@ exports.newGeneralTransactionMetadata = containerHelper => entries => () =>
 
 exports.newMetadataMap = containerHelper => entries => () =>
   lib.TransactionMetadatum.new_map(
-    containerHelper.packMap(lib.MetadataMap, entries)
+    containerHelper.packMap(lib.MetadataMap, entries),
   );
 
 exports.newMetadataList = containerHelper => entries => () =>
   lib.TransactionMetadatum.new_list(
-    containerHelper.pack(lib.MetadataList, entries)
+    containerHelper.pack(lib.MetadataList, entries),
   );
 
 exports.newMetadataInt = int => () => lib.TransactionMetadatum.new_int(int);

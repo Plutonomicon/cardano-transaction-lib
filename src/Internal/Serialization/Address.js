@@ -55,39 +55,39 @@ exports._byronAddressNetworkId = toAdt => addr => {
 exports._addressFromBytes = callClassStaticMaybe("Address", "from_bytes");
 exports._stakeCredentialFromBytes = callClassStaticMaybe(
   "StakeCredential",
-  "from_bytes"
+  "from_bytes",
 );
 exports._byronAddressFromBytes = callClassStaticMaybe(
   "ByronAddress",
-  "from_bytes"
+  "from_bytes",
 );
 
 exports._addressFromBech32 = callClassStaticMaybe("Address", "from_bech32");
 
 exports._byronAddressFromBase58 = callClassStaticMaybe(
   "ByronAddress",
-  "from_base58"
+  "from_base58",
 );
 
 exports._baseAddressFromAddress = callClassStaticMaybe(
   "BaseAddress",
-  "from_address"
+  "from_address",
 );
 exports._byronAddressFromAddress = callClassStaticMaybe(
   "ByronAddress",
-  "from_address"
+  "from_address",
 );
 exports._enterpriseAddressFromAddress = callClassStaticMaybe(
   "EnterpriseAddress",
-  "from_address"
+  "from_address",
 );
 exports._pointerAddressFromAddress = callClassStaticMaybe(
   "PointerAddress",
-  "from_address"
+  "from_address",
 );
 exports._rewardAddressFromAddress = callClassStaticMaybe(
   "RewardAddress",
-  "from_address"
+  "from_address",
 );
 
 exports.baseAddressToAddress = callToAddress;
@@ -124,7 +124,7 @@ exports.pointerAddressStakePointer = pa => {
 exports._enterpriseAddress = netIdToInt => inpRec => {
   return lib.EnterpriseAddress.new(
     netIdToInt(inpRec.network),
-    inpRec.paymentCred
+    inpRec.paymentCred,
   );
 };
 
@@ -136,7 +136,7 @@ exports._baseAddress = netIdToInt => inpRec => {
   return lib.BaseAddress.new(
     netIdToInt(inpRec.network),
     inpRec.paymentCred,
-    inpRec.delegationCred
+    inpRec.delegationCred,
   );
 };
 
@@ -146,6 +146,6 @@ exports._pointerAddress = netIdToInt => inpRec => {
   return lib.PointerAddress.new(
     netIdToInt(inpRec.network),
     inpRec.paymentCred,
-    pointerForeign
+    pointerForeign,
   );
 };

@@ -13,7 +13,7 @@ exports._isPortAvailable = port => () =>
               port +
               ", error: " +
               err.code +
-              ")"
+              ")",
           );
         }
       })

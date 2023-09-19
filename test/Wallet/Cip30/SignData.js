@@ -97,8 +97,8 @@ exports._getCoseKeyHeaderAlg = maybe => coseKey => {
 exports._getCoseKeyHeaderCrv = maybe => coseKey => {
   const cborValue = coseKey.header(
     lib.Label.new_int(
-      lib.Int.new_negative(lib.BigNum.from_str("1")) // crv (-1)
-    )
+      lib.Int.new_negative(lib.BigNum.from_str("1")), // crv (-1)
+    ),
   );
   return opt_chain(maybe, cborValue, "as_int", "as_i32");
 };
@@ -107,8 +107,8 @@ exports._getCoseKeyHeaderCrv = maybe => coseKey => {
 exports._getCoseKeyHeaderX = maybe => coseKey => {
   const cborValue = coseKey.header(
     lib.Label.new_int(
-      lib.Int.new_negative(lib.BigNum.from_str("2")) // x (-2)
-    )
+      lib.Int.new_negative(lib.BigNum.from_str("2")), // x (-2)
+    ),
   );
   return opt_chain(maybe, cborValue, "as_bytes");
 };
