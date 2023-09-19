@@ -216,9 +216,9 @@ examples = Map.fromFoldable
   , "PaysWithDatum" /\ PaysWithDatum.contract
   , "DropTokens" /\ DropTokens.contract
   , "ChangeGeneration1-1" /\
-    ChangeGeneration.checkChangeOutputsDistribution 1 1 3
+      ChangeGeneration.checkChangeOutputsDistribution 1 1 3
   , "ChangeGeneration3-1" /\
-    ChangeGeneration.checkChangeOutputsDistribution 3 1 5
+      ChangeGeneration.checkChangeOutputsDistribution 3 1 5
   , "ChangeGeneration1-3" /\
-    ChangeGeneration.checkChangeOutputsDistribution 1 3 7
+      ChangeGeneration.checkChangeOutputsDistribution 1 3 7
   ]
