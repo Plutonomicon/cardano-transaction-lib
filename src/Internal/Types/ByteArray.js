@@ -46,8 +46,8 @@ exports.byteArrayToUTF16le = uint8array => {
   for (let j = 0, i = 0; i < len; i++)
     output.push(
       fromCharCode(
-        (uint8array[j++] << 8) + (j < length ? uint8array[j++] : extra++),
-      ),
+        (uint8array[j++] << 8) + (j < length ? uint8array[j++] : extra++)
+      )
     );
   output.push(fromCharCode(extra));
   return output.join("");

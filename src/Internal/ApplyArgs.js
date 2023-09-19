@@ -29,7 +29,7 @@ exports.apply_params_to_script = left => right => args => script => {
     try {
       appliedScript = apply_args.apply_params_to_script_no_panic(
         argsBytes,
-        scriptBytes,
+        scriptBytes
       );
     } catch (e) {
       return left("Error applying argument to script: ".concat(e.toString()));

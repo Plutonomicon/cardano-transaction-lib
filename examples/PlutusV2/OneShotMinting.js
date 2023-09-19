@@ -9,9 +9,9 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   script = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../../fixtures/scripts/one-shot-minting-v2.plutus",
+      "../../fixtures/scripts/one-shot-minting-v2.plutus"
     ),
-    "utf8",
+    "utf8"
   );
 }
 

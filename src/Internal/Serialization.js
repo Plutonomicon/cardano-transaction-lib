@@ -128,7 +128,7 @@ exports._bigIntToInt = maybe => bigInt => {
     const str = bigInt.to_str();
     if (str[0] == "-") {
       return maybe.just(
-        lib.Int.new_negative(lib.BigNum.from_str(str.slice(1))),
+        lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
       );
     } else {
       return maybe.just(lib.Int.new(lib.BigNum.from_str(str)));
@@ -164,18 +164,18 @@ exports.newCertificates = () => lib.Certificates.new();
 
 exports.newStakeRegistrationCertificate = stakeCredential => () =>
   lib.Certificate.new_stake_registration(
-    lib.StakeRegistration.new(stakeCredential),
+    lib.StakeRegistration.new(stakeCredential)
   );
 
 exports.newStakeDeregistrationCertificate = stakeCredential => () =>
   lib.Certificate.new_stake_deregistration(
-    lib.StakeDeregistration.new(stakeCredential),
+    lib.StakeDeregistration.new(stakeCredential)
   );
 
 exports.newStakeDelegationCertificate =
   stakeCredential => ed25519KeyHash => () =>
     lib.Certificate.new_stake_delegation(
-      lib.StakeDelegation.new(stakeCredential, ed25519KeyHash),
+      lib.StakeDelegation.new(stakeCredential, ed25519KeyHash)
     );
 
 exports.newPoolRegistrationCertificate =
@@ -200,9 +200,9 @@ exports.newPoolRegistrationCertificate =
           reward_account,
           poolOwners,
           relays,
-          poolMetadata,
-        ),
-      ),
+          poolMetadata
+        )
+      )
     );
 
 exports.newUnitInterval = numerator => denominator => () =>
@@ -210,17 +210,13 @@ exports.newUnitInterval = numerator => denominator => () =>
 
 exports.newPoolRetirementCertificate = poolKeyHash => epoch => () =>
   lib.Certificate.new_pool_retirement(
-    lib.PoolRetirement.new(poolKeyHash, epoch),
+    lib.PoolRetirement.new(poolKeyHash, epoch)
   );
 
 exports.newGenesisKeyDelegationCertificate =
   genesisHash => genesisDelegateHash => vrfKeyhash => () =>
     lib.Certificate.new_genesis_key_delegation(
-      lib.GenesisKeyDelegation.new(
-        genesisHash,
-        genesisDelegateHash,
-        vrfKeyhash,
-      ),
+      lib.GenesisKeyDelegation.new(genesisHash, genesisDelegateHash, vrfKeyhash)
     );
 
 exports.addCert = certificates => certificate => () =>
@@ -233,11 +229,11 @@ exports.setTxBodyNetworkId = setter("network_id");
 exports.transactionBodySetRequiredSigners =
   containerHelper => body => keyHashes => () =>
     body.set_required_signers(
-      containerHelper.pack(lib.Ed25519KeyHashes, keyHashes),
+      containerHelper.pack(lib.Ed25519KeyHashes, keyHashes)
     );
 
 exports.transactionBodySetValidityStartInterval = setter(
-  "validity_start_interval_bignum",
+  "validity_start_interval_bignum"
 );
 
 exports.transactionBodySetAuxiliaryDataHash = txBody => hash => () =>
@@ -258,12 +254,12 @@ exports.newSingleHostAddr = port => ipv4 => ipv6 => () =>
 
 exports.newSingleHostName = port => dnsName => () =>
   lib.Relay.new_single_host_name(
-    lib.SingleHostName.new(port, lib.DNSRecordAorAAAA.new(dnsName)),
+    lib.SingleHostName.new(port, lib.DNSRecordAorAAAA.new(dnsName))
   );
 
 exports.newMultiHostName = dnsName => () =>
   lib.Relay.new_multi_host_name(
-    lib.MultiHostName.new(lib.DNSRecordSRV.new(dnsName)),
+    lib.MultiHostName.new(lib.DNSRecordSRV.new(dnsName))
   );
 
 exports.newPoolMetadata = url => hash => () =>
@@ -280,7 +276,7 @@ exports.newMIRToStakeCredentials = containerHelper => entries => () =>
 
 exports.newMoveInstantaneousRewardsCertificate = mir => () =>
   lib.Certificate.new_move_instantaneous_rewards_cert(
-    lib.MoveInstantaneousRewardsCert.new(mir),
+    lib.MoveInstantaneousRewardsCert.new(mir)
   );
 
 exports.newWithdrawals = containerHelper => entries => () =>

@@ -85,7 +85,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   const read_script = fp => {
     return fs.readFileSync(
       path.resolve(__dirname, "../../fixtures/scripts/".concat(fp)),
-      "utf8",
+      "utf8"
     );
   };
 
@@ -96,71 +96,71 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   scripts["always-succeeds-v2"] = read_script("always-succeeds-v2.plutus");
   scripts["one-shot-minting-v2"] = read_script("one-shot-minting-v2.plutus");
   scripts["check-datum-is-inline"] = read_script(
-    "check-datum-is-inline.plutus",
+    "check-datum-is-inline.plutus"
   );
 
   scripts["always-fails-big-arg"] = read_script(
-    "applied/always-fails-big-arg.plutus",
+    "applied/always-fails-big-arg.plutus"
   );
   scripts["always-fails-no-args"] = read_script(
-    "applied/always-fails-no-args.plutus",
+    "applied/always-fails-no-args.plutus"
   );
   scripts["always-fails-unit"] = read_script(
-    "applied/always-fails-unit.plutus",
+    "applied/always-fails-unit.plutus"
   );
   scripts["always-succeeds-v2-big-arg"] = read_script(
-    "applied/always-succeeds-v2-big-arg.plutus",
+    "applied/always-succeeds-v2-big-arg.plutus"
   );
   scripts["always-succeeds-v2-no-args"] = read_script(
-    "applied/always-succeeds-v2-no-args.plutus",
+    "applied/always-succeeds-v2-no-args.plutus"
   );
   scripts["always-succeeds-v2-unit"] = read_script(
-    "applied/always-succeeds-v2-unit.plutus",
+    "applied/always-succeeds-v2-unit.plutus"
   );
   scripts["check-datum-is-inline-big-arg"] = read_script(
-    "applied/check-datum-is-inline-big-arg.plutus",
+    "applied/check-datum-is-inline-big-arg.plutus"
   );
   scripts["check-datum-is-inline-no-args"] = read_script(
-    "applied/check-datum-is-inline-no-args.plutus",
+    "applied/check-datum-is-inline-no-args.plutus"
   );
   scripts["check-datum-is-inline-unit"] = read_script(
-    "applied/check-datum-is-inline-unit.plutus",
+    "applied/check-datum-is-inline-unit.plutus"
   );
   scripts["include-datum-big-arg"] = read_script(
-    "applied/include-datum-big-arg.plutus",
+    "applied/include-datum-big-arg.plutus"
   );
   scripts["include-datum-no-args"] = read_script(
-    "applied/include-datum-no-args.plutus",
+    "applied/include-datum-no-args.plutus"
   );
   scripts["include-datum-unit"] = read_script(
-    "applied/include-datum-unit.plutus",
+    "applied/include-datum-unit.plutus"
   );
   scripts["one-shot-minting-big-arg"] = read_script(
-    "applied/one-shot-minting-big-arg.plutus",
+    "applied/one-shot-minting-big-arg.plutus"
   );
   scripts["one-shot-minting-no-args"] = read_script(
-    "applied/one-shot-minting-no-args.plutus",
+    "applied/one-shot-minting-no-args.plutus"
   );
   scripts["one-shot-minting-unit"] = read_script(
-    "applied/one-shot-minting-unit.plutus",
+    "applied/one-shot-minting-unit.plutus"
   );
   scripts["one-shot-minting-v2-big-arg"] = read_script(
-    "applied/one-shot-minting-v2-big-arg.plutus",
+    "applied/one-shot-minting-v2-big-arg.plutus"
   );
   scripts["one-shot-minting-v2-no-args"] = read_script(
-    "applied/one-shot-minting-v2-no-args.plutus",
+    "applied/one-shot-minting-v2-no-args.plutus"
   );
   scripts["one-shot-minting-v2-unit"] = read_script(
-    "applied/one-shot-minting-v2-unit.plutus",
+    "applied/one-shot-minting-v2-unit.plutus"
   );
   scripts["redeemer1-validator-big-arg"] = read_script(
-    "applied/redeemer1-validator-big-arg.plutus",
+    "applied/redeemer1-validator-big-arg.plutus"
   );
   scripts["redeemer1-validator-no-args"] = read_script(
-    "applied/redeemer1-validator-no-args.plutus",
+    "applied/redeemer1-validator-no-args.plutus"
   );
   scripts["redeemer1-validator-unit"] = read_script(
-    "applied/redeemer1-validator-unit.plutus",
+    "applied/redeemer1-validator-unit.plutus"
   );
 }
 

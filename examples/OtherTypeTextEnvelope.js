@@ -9,9 +9,9 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   script = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../../fixtures/scripts/other-type-text-envelope.plutus",
+      "../../fixtures/scripts/other-type-text-envelope.plutus"
     ),
-    "utf8",
+    "utf8"
   );
 }
 exports.otherTypeTextEnvelope = script;

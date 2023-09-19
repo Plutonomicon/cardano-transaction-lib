@@ -9,7 +9,7 @@ exports._getCollateral = maybe => conn => () =>
   conn.experimental
     .getCollateral()
     .then(utxos =>
-      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing,
+      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
     );
 
 exports._getBalance = conn => () => conn.getBalance();

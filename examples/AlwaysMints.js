@@ -8,7 +8,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   const path = require("path");
   script = fs.readFileSync(
     path.resolve(__dirname, "../../fixtures/scripts/always-mints.plutus"),
-    "utf8",
+    "utf8"
   );
 }
 exports.alwaysMints = script;

@@ -89,11 +89,11 @@ exports.setCoseKeyAlgHeaderToEdDsa = key => () => {
 exports.setCoseKeyCrvHeaderToEd25519 = key => () => {
   key.set_header(
     lib.Label.new_int(
-      lib.Int.new_negative(lib.BigNum.from_str("1")), // crv (-1)
+      lib.Int.new_negative(lib.BigNum.from_str("1")) // crv (-1)
     ),
     lib.CBORValue.new_int(
-      lib.Int.new_i32(6), // Ed25519 (6)
-    ),
+      lib.Int.new_i32(6) // Ed25519 (6)
+    )
   );
 };
 
@@ -101,9 +101,9 @@ exports.setCoseKeyCrvHeaderToEd25519 = key => () => {
 exports.setCoseKeyXHeader = publicKeyBytes => key => () => {
   key.set_header(
     lib.Label.new_int(
-      lib.Int.new_negative(lib.BigNum.from_str("2")), // x (-2)
+      lib.Int.new_negative(lib.BigNum.from_str("2")) // x (-2)
     ),
-    lib.CBORValue.new_bytes(publicKeyBytes), // public key bytes
+    lib.CBORValue.new_bytes(publicKeyBytes) // public key bytes
   );
 };
 

@@ -9,9 +9,9 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   script = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../../fixtures/scripts/check-datum-is-inline.plutus",
+      "../../fixtures/scripts/check-datum-is-inline.plutus"
     ),
-    "utf8",
+    "utf8"
   );
 }
 

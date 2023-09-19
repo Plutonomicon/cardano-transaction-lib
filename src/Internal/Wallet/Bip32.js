@@ -16,10 +16,10 @@ exports._bip32PrivateKeyFromMnemonic = left => right => phrase => {
     return right(
       lib.Bip32PrivateKey.from_bip39_entropy(
         Uint8Array.from(
-          Buffer.from(bip39.mnemonicToEntropy(phrase.toLowerCase()), "hex"),
+          Buffer.from(bip39.mnemonicToEntropy(phrase.toLowerCase()), "hex")
         ),
-        new Uint8Array(), // passphrase (not currently implemented)
-      ),
+        new Uint8Array() // passphrase (not currently implemented)
+      )
     );
   } catch (e) {
     return left(e.toString());
