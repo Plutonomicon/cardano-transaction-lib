@@ -6,7 +6,14 @@ import Contract.Monad (Contract, liftedE)
 import Contract.PlutusData (PlutusData, unitDatum)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (validatorHash)
-import Contract.Transaction (_body, _outputs, balanceTx)
+import Contract.Transaction
+  ( _body
+  , _outputs
+  , awaitTxConfirmed
+  , balanceTx
+  , signTransaction
+  , submit
+  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx)
@@ -33,7 +40,7 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
     validator <- AlwaysSucceeds.alwaysSucceedsScript
     let
       vhash = validatorHash validator
-      value = Value.lovelaceValueOf $ BigInt.fromInt 1000000
+      value = Value.lovelaceValueOf $ BigInt.fromInt 1000001
 
       constraintsToSelf :: TxConstraints Unit Unit
       constraintsToSelf = fold <<< fold $ replicate outputsToSelf
@@ -55,3 +62,6 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
     balancedTx <- liftedE $ balanceTx unbalancedTx
     let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
     Array.length outputs `shouldEqual` expectedOutputs
+    balancedSignedTx <- signTransaction balancedTx
+    txHash <- submit balancedSignedTx
+    awaitTxConfirmed txHash
