@@ -43,6 +43,8 @@ module Ctl.Internal.Cardano.Types.Value
   , numNonAdaCurrencySymbols
   , numTokenNames
   , posNonAdaAsset
+  , pprintNonAdaAsset
+  , pprintValue
   , scriptHashAsCurrencySymbol
   , split
   , sumTokenNameLengths
@@ -90,16 +92,18 @@ import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Ctl.Internal.Types.TokenName
   ( TokenName
   , adaToken
+  , fromTokenName
   , getTokenName
   , mkTokenName
   , mkTokenNames
   )
-import Data.Array (cons, filter)
+import Data.Array (cons, filter, intercalate)
 import Data.Array (fromFoldable) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt, toNumber)
+import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
@@ -338,6 +342,15 @@ instance Equipartition NonAdaAsset where
         map (mkSingletonNonAdaAsset cs tn)
           (equipartition tokenQuantity numParts)
 
+pprintNonAdaAsset :: NonAdaAsset -> String
+pprintNonAdaAsset mp = intercalate "\n" $
+  Map.toUnfoldable (unwrapNonAdaAsset mp) <#> \(currency /\ tokens) ->
+    byteArrayToHex (getCurrencySymbol currency) <> ":\n" <>
+      ( intercalate "\n" $ Map.toUnfoldable tokens <#> \(tokenName /\ amount) ->
+          "  " <> fromTokenName byteArrayToHex show tokenName <> ": "
+            <> BigInt.toString amount
+      )
+
 -- | Partitions a `NonAdaAsset` into smaller `NonAdaAsset`s, where the
 -- | quantity of each token is equipartitioned across the resultant
 -- | `NonAdaAsset`s, with the goal that no token quantity in any of the
@@ -482,6 +495,11 @@ instance Equipartition Value where
     NEArray.zipWith mkValue
       (equipartition coin numParts)
       (equipartition nonAdaAssets numParts)
+
+pprintValue :: Value -> String
+pprintValue value =
+  "ADA: " <> BigInt.toString (unwrap (valueToCoin value)) <> "\n" <>
+    pprintNonAdaAsset (getNonAdaAsset value)
 
 -- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the
 -- | quantity of each token is equipartitioned across the resultant `Value`s,
