@@ -34,7 +34,6 @@ import Contract.PlutusData
   , getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
-  , unitDatum
   , unitRedeemer
   )
 import Contract.Prelude (mconcat)
@@ -71,8 +70,6 @@ import Contract.Transaction
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
-  , _body
-  , _outputs
   , awaitTxConfirmed
   , balanceTx
   , balanceTxWithConstraints
@@ -86,7 +83,6 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
@@ -159,12 +155,11 @@ import Ctl.Internal.Wallet.Cip30Mock
   ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi)
   , withCip30Mock
   )
-import Data.Array (head, replicate, (!!))
-import Data.Array as Array
+import Data.Array (head, (!!))
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
-import Data.Lens (to, view, (^.))
+import Data.Lens (view)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
@@ -173,9 +168,8 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
 import Effect.Exception (throw)
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
