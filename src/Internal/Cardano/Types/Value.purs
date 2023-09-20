@@ -97,7 +97,7 @@ import Ctl.Internal.Types.TokenName
   , mkTokenName
   , mkTokenNames
   )
-import Data.Array (cons, filter, intercalate)
+import Data.Array (cons, filter)
 import Data.Array (fromFoldable) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
@@ -114,6 +114,8 @@ import Data.Int (ceil) as Int
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Map.Gen (genMap)
@@ -342,13 +344,13 @@ instance Equipartition NonAdaAsset where
         map (mkSingletonNonAdaAsset cs tn)
           (equipartition tokenQuantity numParts)
 
-pprintNonAdaAsset :: NonAdaAsset -> String
-pprintNonAdaAsset mp = intercalate "\n" $
+pprintNonAdaAsset :: NonAdaAsset -> TagSet
+pprintNonAdaAsset mp = TagSet.fromArray $
   Map.toUnfoldable (unwrapNonAdaAsset mp) <#> \(currency /\ tokens) ->
-    byteArrayToHex (getCurrencySymbol currency) <> ":\n" <>
-      ( intercalate "\n" $ Map.toUnfoldable tokens <#> \(tokenName /\ amount) ->
-          "  " <> fromTokenName byteArrayToHex show tokenName <> ": "
-            <> BigInt.toString amount
+    byteArrayToHex (getCurrencySymbol currency) `tagSetTag` TagSet.fromArray
+      ( Map.toUnfoldable tokens <#> \(tokenName /\ amount) ->
+          fromTokenName byteArrayToHex show tokenName `tag` BigInt.toString
+            amount
       )
 
 -- | Partitions a `NonAdaAsset` into smaller `NonAdaAsset`s, where the
@@ -496,10 +498,15 @@ instance Equipartition Value where
       (equipartition coin numParts)
       (equipartition nonAdaAssets numParts)
 
-pprintValue :: Value -> String
-pprintValue value =
-  "ADA: " <> BigInt.toString (unwrap (valueToCoin value)) <> "\n" <>
-    pprintNonAdaAsset (getNonAdaAsset value)
+pprintValue :: Value -> TagSet
+pprintValue value = TagSet.fromArray $
+  [ "ADA" `tag` BigInt.toString (unwrap (valueToCoin value)) ]
+    <>
+      if nonAdaAssets /= mempty then
+        [ "Assets" `tagSetTag` pprintNonAdaAsset nonAdaAssets ]
+      else []
+  where
+  nonAdaAssets = getNonAdaAsset value
 
 -- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the
 -- | quantity of each token is equipartitioned across the resultant `Value`s,

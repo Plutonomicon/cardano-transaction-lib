@@ -6,10 +6,9 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
-import Contract.Log (logTrace')
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Logger.Class (trace) as Logger
+import Control.Monad.Logger.Class (info) as Logger
 import Control.Monad.Reader (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.CoinSelection
@@ -107,6 +106,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _referenceInputs
   , _withdrawals
   , _witnessSet
+  , pprintUtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value
   ( AssetClass
@@ -162,7 +162,7 @@ import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
-import Data.Log.Tag (TagSet, tag)
+import Data.Log.Tag (TagSet, tag, tagSetTag)
 import Data.Log.Tag (fromArray) as TagSet
 import Data.Map (Map)
 import Data.Map (empty, insert, lookup, toUnfoldable, union) as Map
@@ -236,9 +236,10 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
         utxos `Map.union` extraUtxos
 
     availableUtxos <- liftContract $ filterLockedUtxos allUtxos
-    logTrace' $ "balanceTxWithConstraints: all UTxOs: " <> show allUtxos
-    logTrace' $ "balanceTxWithConstraints: available UTxOs: " <> show
-      availableUtxos
+
+    Logger.info (pprintUtxoMap allUtxos) "balanceTxWithConstraints: all UTxOs"
+    Logger.info (pprintUtxoMap availableUtxos)
+      "balanceTxWithConstraints: available UTxOs"
 
     selectionStrategy <- asksConstraints Constraints._selectionStrategy
 
@@ -876,19 +877,20 @@ logTransactionWithChange message utxos mChangeOutputs tx =
 
     outputValuesTagSet :: Maybe (Array TransactionOutput) -> Array TagSet
     outputValuesTagSet Nothing =
-      [ "Output Value" `tag` pprintValue (outputValue txBody) ]
+      [ "Output Value" `tagSetTag` pprintValue (outputValue txBody) ]
     outputValuesTagSet (Just changeOutputs) =
-      [ "Output Value without change" `tag` pprintValue (outputValue txBody)
-      , "Change Value" `tag` pprintValue (foldMap getAmount changeOutputs)
+      [ "Output Value without change" `tagSetTag` pprintValue
+          (outputValue txBody)
+      , "Change Value" `tagSetTag` pprintValue (foldMap getAmount changeOutputs)
       ]
 
     transactionInfo :: Value -> TagSet
     transactionInfo inputValue =
       TagSet.fromArray $
-        [ "Input Value" `tag` pprintValue inputValue
-        , "Mint Value" `tag` pprintValue (mintValue txBody)
+        [ "Input Value" `tagSetTag` pprintValue inputValue
+        , "Mint Value" `tagSetTag` pprintValue (mintValue txBody)
         , "Fees" `tag` BigInt.toString (unwrap (txBody ^. _fee))
         ] <> outputValuesTagSet mChangeOutputs
   in
     except (getInputValue utxos txBody)
-      >>= (flip Logger.trace (message <> ":") <<< transactionInfo)
+      >>= (flip Logger.info (message <> ":") <<< transactionInfo)
