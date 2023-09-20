@@ -119,6 +119,7 @@ import Ctl.Internal.Cardano.Types.Value
   , minus
   , mkValue
   , posNonAdaAsset
+  , pprintValue
   , valueToCoin'
   )
 import Ctl.Internal.Cardano.Types.Value as Value
@@ -158,9 +159,10 @@ import Data.BigInt (BigInt)
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
-import Data.Lens ((%~), (.~), (?~), (^.))
-import Data.Log.Tag (TagSet)
-import Data.Log.Tag (fromArray, tag) as TagSet
+import Data.Lens.Getter ((^.))
+import Data.Lens.Setter ((%~), (.~), (?~))
+import Data.Log.Tag (TagSet, tag)
+import Data.Log.Tag (fromArray) as TagSet
 import Data.Map (Map)
 import Data.Map (empty, insert, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, maybe)
@@ -871,23 +873,20 @@ logTransactionWithChange message utxos mChangeOutputs tx =
     txBody :: TxBody
     txBody = tx ^. _body
 
-    tag :: forall (a :: Type). Show a => String -> a -> TagSet
-    tag title = TagSet.tag title <<< show
-
     outputValuesTagSet :: Maybe (Array TransactionOutput) -> Array TagSet
     outputValuesTagSet Nothing =
-      [ "Output Value" `tag` outputValue txBody ]
+      [ "Output Value" `tag` pprintValue (outputValue txBody) ]
     outputValuesTagSet (Just changeOutputs) =
-      [ "Output Value without change" `tag` outputValue txBody
-      , "Change Value" `tag` foldMap getAmount changeOutputs
+      [ "Output Value without change" `tag` pprintValue (outputValue txBody)
+      , "Change Value" `tag` pprintValue (foldMap getAmount changeOutputs)
       ]
 
     transactionInfo :: Value -> TagSet
     transactionInfo inputValue =
       TagSet.fromArray $
-        [ "Input Value" `tag` inputValue
-        , "Mint Value" `tag` mintValue txBody
-        , "Fees" `tag` (txBody ^. _fee)
+        [ "Input Value" `tag` pprintValue inputValue
+        , "Mint Value" `tag` pprintValue (mintValue txBody)
+        , "Fees" `tag` show (txBody ^. _fee)
         ] <> outputValuesTagSet mChangeOutputs
   in
     except (getInputValue utxos txBody)
