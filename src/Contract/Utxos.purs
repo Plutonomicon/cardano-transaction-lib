@@ -16,7 +16,11 @@ import Contract.Prelude (for)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.BalanceTx.Sync (getControlledAddresses, isCip30Wallet)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, toPlutusTxOutput, toPlutusUtxoMap)
+import Ctl.Internal.Plutus.Conversion
+  ( fromPlutusAddress
+  , toPlutusTxOutput
+  , toPlutusUtxoMap
+  )
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X

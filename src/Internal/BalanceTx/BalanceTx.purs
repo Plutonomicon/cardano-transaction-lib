@@ -156,6 +156,7 @@ import Data.Array.NonEmpty
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)

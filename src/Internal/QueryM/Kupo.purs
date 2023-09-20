@@ -129,7 +129,6 @@ utxosAtScriptHash scriptHash = runExceptT do
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
   ExceptT $ resolveKupoUtxoMap kupoUtxoMap
 
-
 getUtxoByOref
   :: TransactionInput -> QueryM (Either ClientError (Maybe TransactionOutput))
 getUtxoByOref oref = runExceptT do

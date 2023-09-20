@@ -7,7 +7,7 @@ module Ctl.Internal.Plutip.Server
   , checkPlutipServer
   , stopChildProcessWithPort
   , testPlutipContracts
-  , execDistribution 
+  , execDistribution
   , runCleanup
   , startPlutipContractEnv
   , stopChildProcessWithPortAndRemoveOnSignal
@@ -143,7 +143,9 @@ withPlutipContractEnv
 withPlutipContractEnv plutipCfg distr cont = do
   cleanupRef <- liftEffect $ Ref.new mempty
   Aff.bracket
-    (try $ startPlutipContractEnv plutipCfg distr (const $ pure unit) cleanupRef)
+    ( try $ startPlutipContractEnv plutipCfg distr (const $ pure unit)
+        cleanupRef
+    )
     (const $ runCleanup cleanupRef)
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
@@ -166,7 +168,8 @@ testPlutipContracts plutipCfg tp = do
     cleanupRef <- liftEffect $ Ref.new mempty
     -- Sets a single Mote bracket at the top level, it will be run for all
     -- immediate tests and groups
-    bracket (startPlutipContractEnv plutipCfg distr (const $ pure unit) cleanupRef)
+    bracket
+      (startPlutipContractEnv plutipCfg distr (const $ pure unit) cleanupRef)
       (runCleanup cleanupRef)
       $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
           whenError printLogs (runContractInEnv env (test wallets))
