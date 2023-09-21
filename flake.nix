@@ -34,20 +34,33 @@
       flake = false;
     };
 
-    ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
-    kupo-nixos.inputs.kupo.follows = "kupo";
+    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
+
+    ogmios-nixos = {
+      url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        iohk-nix.follows = "iohk-nix";
+        haskell-nix.follows = "haskell-nix";
+        hackage-nix.follows = "hackage-nix";
+        cardano-node.follows = "cardano-node";
+        ogmios-src.follows = "ogmios";
+      };
+    };
+
+    ogmios = {
+      url = "github:CardanoSolutions/ogmios/v6.0.0";
+      flake = false;
+    };
+
+    kupo-nixos = {
+      url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
+      inputs.kupo.follows = "kupo";
+    };
 
     kupo = {
       url = "github:CardanoSolutions/kupo/v2.2.0";
       flake = false;
-    };
-    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
-
-    # ogmios nixos module (remove and replace with the above after merging and updating)
-    ogmios-nixos = {
-      url = "github:mlabs-haskell/ogmios";
-      inputs.cardano-node.follows = "cardano-node";
     };
 
     # Repository with network parameters
@@ -286,7 +299,7 @@
               {
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+                ogmios = ogmios-nixos.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
@@ -483,11 +496,7 @@
         system = "x86_64-linux";
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
-          inputs.ogmios-nixos.nixosModules.ogmios
-          {
-            services.ogmios.package =
-              inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
-          }
+          inputs.ogmios.nixosModules.ogmios
           inputs.kupo-nixos.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
