@@ -119,7 +119,7 @@ import Ctl.Internal.QueryM.Dispatcher
   , newDispatcher
   , newPendingRequests
   )
-import Ctl.Internal.QueryM.JsonWsp as JsonWsp
+import Ctl.Internal.QueryM.JsonRpc2 as JsonRpc2
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , DelegationsAndRewardsR
@@ -301,8 +301,8 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
   ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
   ogmiosChainTipToTip = case _ of
     Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
-    Ogmios.CtChainPoint { slot, hash } -> Chain.Tip $ wrap
-      { slot, blockHeaderHash: wrap $ unwrap hash }
+    Ogmios.CtChainPoint { slot, id } -> Chain.Tip $ wrap
+      { slot, blockHeaderHash: wrap $ unwrap id }
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Submission Protocol
@@ -806,21 +806,21 @@ mkSubmitTxListenerSet dispatcher pendingRequests =
 -- | Builds an Ogmios request action using `QueryM`
 mkOgmiosRequest
   :: forall (request :: Type) (response :: Type)
-   . JsonWsp.JsonWspCall request response
+   . JsonRpc2.JsonRpc2Call request response
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest jsonWspCall getLs inp = do
+mkOgmiosRequest jsonRpc2Call getLs inp = do
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
-  mkRequest listeners' websocket jsonWspCall getLs inp
+  mkRequest listeners' websocket jsonRpc2Call getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
   :: forall (request :: Type) (response :: Type)
    . OgmiosWebSocket
   -> Logger
-  -> JsonWsp.JsonWspCall request response
+  -> JsonRpc2.JsonRpc2Call request response
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> Aff response
@@ -832,13 +832,13 @@ mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
    . listeners
   -> JsWebSocket
-  -> JsonWsp.JsonWspCall request response
+  -> JsonRpc2.JsonRpc2Call request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkRequest listeners' ws jsonWspCall getLs inp = do
+mkRequest listeners' ws jsonRpc2Call getLs inp = do
   logger <- getLogger
-  liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
+  liftAff $ mkRequestAff listeners' ws logger jsonRpc2Call getLs inp
 
 getLogger :: QueryM Logger
 getLogger = do
@@ -851,13 +851,13 @@ mkRequestAff
    . listeners
   -> JsWebSocket
   -> Logger
-  -> JsonWsp.JsonWspCall request response
+  -> JsonRpc2.JsonRpc2Call request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
+mkRequestAff listeners' webSocket logger jsonRpc2Call getLs input = do
   { body, id } <-
-    liftEffect $ JsonWsp.buildRequest jsonWspCall input
+    liftEffect $ JsonRpc2.buildRequest jsonRpc2Call input
   let
     respLs :: ListenerSet request response
     respLs = getLs listeners'

@@ -12,7 +12,7 @@ import Aeson
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.QueryM.JsonWsp (JsonWspResponse, parseJsonWspResponse)
+import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Response, parseJsonRpc2Response)
 import Ctl.Internal.QueryM.Ogmios (UtxoQR)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array as Array
@@ -33,7 +33,7 @@ import Test.Spec.Assertions (shouldNotSatisfy, shouldSatisfy)
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   str <- lift $ readTextFile UTF8
-    "./fixtures/test/parsing/JsonWsp/UtxoQueryResponse.json"
+    "./fixtures/test/parsing/JsonRpc2/UtxoQueryResponse.json"
   let
     eJson = parseJsonStringToAeson str
   json <- either
@@ -44,7 +44,7 @@ suite = do
     stringArray = caseAesonArray [] convertJsonArray json :: Array String
     jsonStrArray = caseAesonArray [] identity json :: Array Aeson
   schema <- lift $ getSchema
-    "./fixtures/schemata/JsonWsp/UtxoQueryResponse.medea"
+    "./fixtures/schemata/JsonRpc2/UtxoQueryResponse.medea"
   group "Parser tests" $ do
     group "Schemata parse tests" $ do
       test "fixture array should not be empty" $
@@ -55,11 +55,11 @@ suite = do
           isRight
     group "Type parsing" $ do
       test "fixtures parse correctly - UtxoQueryResponse" $
-        traverseJsonWsps jsonStrArray `shouldSatisfy` isRight
+        traverseJsonRpc2s jsonStrArray `shouldSatisfy` isRight
 
-traverseJsonWsps
-  :: Array Aeson -> Either JsonDecodeError (Array (JsonWspResponse UtxoQR))
-traverseJsonWsps arr = traverse parseJsonWspResponse arr
+traverseJsonRpc2s
+  :: Array Aeson -> Either JsonDecodeError (Array (JsonRpc2Response UtxoQR))
+traverseJsonRpc2s arr = traverse parseJsonRpc2Response arr
 
 convertJsonArray :: Array Aeson -> Array String
 convertJsonArray arr = map stringifyAeson arr

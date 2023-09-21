@@ -49,11 +49,12 @@ module Ctl.Internal.QueryM.Ogmios
   , aesonArray
   , aesonObject
   , evaluateTxCall
-  , queryPoolIdsCall
+  , queryStakePoolsCall
   , mempoolSnapshotHasTxCall
   , mempoolSnapshotNextTxCall
   , mempoolSnpashotSizeAndCapacityCall
   , mkOgmiosCallType
+  , mkOgmiosCallTypeNoArgs
   , queryChainTipCall
   , queryCurrentEpochCall
   , queryEraSummariesCall
@@ -108,7 +109,8 @@ import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Costmdls(Costmdls)
+  ( CostModel(CostModel)
+  , Costmdls(Costmdls)
   , ExUnitPrices
   , ExUnits
   , Ipv4(Ipv4)
@@ -137,7 +139,7 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
-import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
+import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call, JsonRpc2Request, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -155,6 +157,7 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   )
+import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
 import Ctl.Internal.Types.ProtocolParameters
@@ -224,56 +227,39 @@ import Untagged.Union (type (|+|), toEither1)
 --------------------------------------------------------------------------------
 
 -- | Queries Ogmios for the system start Datetime
-querySystemStartCall :: JsonWspCall Unit OgmiosSystemStart
-querySystemStartCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: const { query: "systemStart" }
-  }
+querySystemStartCall :: JsonRpc2Call Unit OgmiosSystemStart
+querySystemStartCall = mkOgmiosCallTypeNoArgs "queryNetwork/startTime"
 
 -- | Queries Ogmios for the current epoch
-queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
-queryCurrentEpochCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: const { query: "currentEpoch" }
-  }
+queryCurrentEpochCall :: JsonRpc2Call Unit CurrentEpoch
+queryCurrentEpochCall = mkOgmiosCallTypeNoArgs "queryLedgerState/epoch"
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
-queryEraSummariesCall :: JsonWspCall Unit OgmiosEraSummaries
-queryEraSummariesCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: const { query: "eraSummaries" }
-  }
+queryEraSummariesCall :: JsonRpc2Call Unit OgmiosEraSummaries
+queryEraSummariesCall = mkOgmiosCallTypeNoArgs "queryLedgerState/eraSummaries"
 
 -- | Queries Ogmios for the current protocol parameters
-queryProtocolParametersCall :: JsonWspCall Unit OgmiosProtocolParameters
-queryProtocolParametersCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: const { query: "currentProtocolParameters" }
-  }
+queryProtocolParametersCall :: JsonRpc2Call Unit OgmiosProtocolParameters
+queryProtocolParametersCall = mkOgmiosCallTypeNoArgs
+  "queryLedgerState/protocolParameters"
 
 -- | Queries Ogmios for the chain’s current tip.
-queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: const { query: "chainTip" }
-  }
+queryChainTipCall :: JsonRpc2Call Unit ChainTipQR
+queryChainTipCall = mkOgmiosCallTypeNoArgs "queryNetwork/tip"
 
-queryPoolIdsCall :: JsonWspCall Unit PoolIdsR
-queryPoolIdsCall = mkOgmiosCallType
-  { methodname: "Query"
-  , args: const { query: "poolIds" }
-  }
+queryStakePoolsCall :: JsonRpc2Call Unit PoolIdsR
+queryStakePoolsCall = mkOgmiosCallTypeNoArgs "queryLedgerState/stakePools"
 
-queryPoolParameters :: JsonWspCall (Array PoolPubKeyHash) PoolParametersR
+queryPoolParameters :: JsonRpc2Call (Array PoolPubKeyHash) PoolParametersR
 queryPoolParameters = mkOgmiosCallType
-  { methodname: "Query"
-  , args: \params -> { query: { poolParameters: params } }
+  { method: "Query"
+  , params: \params -> { query: { poolParameters: params } }
   }
 
-queryDelegationsAndRewards :: JsonWspCall (Array String) DelegationsAndRewardsR
+queryDelegationsAndRewards :: JsonRpc2Call (Array String) DelegationsAndRewardsR
 queryDelegationsAndRewards = mkOgmiosCallType
-  { methodname: "Query"
-  , args: \skhs ->
+  { method: "rewardAccountSummaries"
+  , params: \skhs ->
       { query:
           { delegationsAndRewards: skhs
           }
@@ -289,20 +275,22 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonWspCall (TxHash /\ CborBytes) SubmitTxR
+submitTxCall :: JsonRpc2Call (TxHash /\ CborBytes) SubmitTxR
 submitTxCall = mkOgmiosCallType
-  { methodname: "SubmitTx"
-  , args: { submit: _ } <<< cborBytesToHex <<< snd
+  { method: "submitTransaction"
+  , params: \(_ /\ cbor) -> 
+    { transaction:  { cbor: cborBytesToHex cbor }
+    }
   }
 
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
-evaluateTxCall :: JsonWspCall (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
+evaluateTxCall :: JsonRpc2Call (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
-  { methodname: "EvaluateTx"
-  , args: \(cbor /\ utxoqr) ->
-      { evaluate: cborBytesToHex cbor
-      , additionalUtxoSet: utxoqr
+  { method: "evaluateTransaction"
+  , params: \(cbor /\ utxoqr) ->
+      { transaction:  { cbor: cborBytesToHex cbor }
+      , additionalUtxo: utxoqr
       }
   }
 
@@ -311,33 +299,33 @@ evaluateTxCall = mkOgmiosCallType
 -- https://ogmios.dev/mini-protocols/local-tx-monitor/
 --------------------------------------------------------------------------------
 
-acquireMempoolSnapshotCall :: JsonWspCall Unit MempoolSnapshotAcquired
+acquireMempoolSnapshotCall :: JsonRpc2Call Unit MempoolSnapshotAcquired
 acquireMempoolSnapshotCall =
-  mkOgmiosCallTypeNoArgs "AwaitAcquire"
+  mkOgmiosCallTypeNoArgs "acquireMempool"
 
 mempoolSnapshotHasTxCall
-  :: MempoolSnapshotAcquired -> JsonWspCall TxHash Boolean
+  :: MempoolSnapshotAcquired -> JsonRpc2Call TxHash Boolean
 mempoolSnapshotHasTxCall _ = mkOgmiosCallType
-  { methodname: "HasTx"
-  , args: { id: _ }
+  { method: "hasTransacation"
+  , params: { id: _ }
   }
 
 mempoolSnapshotNextTxCall
-  :: MempoolSnapshotAcquired -> JsonWspCall Unit (Maybe MempoolTransaction)
+  :: MempoolSnapshotAcquired -> JsonRpc2Call Unit (Maybe MempoolTransaction)
 mempoolSnapshotNextTxCall _ = mkOgmiosCallType
-  { methodname: "NextTx"
-  , args: const { fields: "all" }
+  { method: "nextTransaction"
+  , params: const { fields: "all" }
   }
 
 mempoolSnpashotSizeAndCapacityCall
-  :: MempoolSnapshotAcquired -> JsonWspCall Unit MempoolSizeAndCapacity
+  :: MempoolSnapshotAcquired -> JsonRpc2Call Unit MempoolSizeAndCapacity
 mempoolSnpashotSizeAndCapacityCall _ =
-  mkOgmiosCallTypeNoArgs "SizeAndCapacity"
+  mkOgmiosCallTypeNoArgs "sizeOfMempool"
 
 releaseMempoolCall
-  :: MempoolSnapshotAcquired -> JsonWspCall Unit String
+  :: MempoolSnapshotAcquired -> JsonRpc2Call Unit String
 releaseMempoolCall _ =
-  mkOgmiosCallTypeNoArgs "ReleaseMempool"
+  mkOgmiosCallTypeNoArgs "releaseMempool"
 
 --------------------------------------------------------------------------------
 -- Local Tx Monitor Query Response & Parsing
@@ -397,22 +385,17 @@ instance DecodeAeson MempoolTransaction where
 --------------------------------------------------------------------------------
 
 mkOgmiosCallTypeNoArgs
-  :: forall (o :: Type). String -> JsonWspCall Unit o
-mkOgmiosCallTypeNoArgs methodname =
-  mkOgmiosCallType { methodname, args: const {} }
+  :: forall (o :: Type). String -> JsonRpc2Call Unit o
+mkOgmiosCallTypeNoArgs method =
+  mkOgmiosCallType { method, params: const {} }
 
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeAeson (JsonWspRequest a)
-  => { methodname :: String, args :: i -> a }
-  -> JsonWspCall i o
+   . EncodeAeson (JsonRpc2Request a)
+  => { method :: String, params :: i -> a }
+  -> JsonRpc2Call i o
 mkOgmiosCallType =
-  ( mkCallType
-      { "type": "jsonwsp/request"
-      , version: "1.0"
-      , servicename: "ogmios"
-      }
-  )
+  mkCallType { jsonrpc: "2.0" }
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
@@ -430,7 +413,7 @@ type TxHash = ByteArray
 instance DecodeAeson SubmitTxR where
   decodeAeson = aesonObject $
     \o ->
-      ( getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
+      ( getField o "transaction" >>= flip getField "id" >>= hexToByteArray
           >>> maybe (Left (TypeMismatch "Expected hexstring"))
             (pure <<< SubmitTxSuccess)
       ) <|> (SubmitFail <$> getField o "SubmitFail")
@@ -496,7 +479,8 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
+      slotLength <- wrap <$> ((*) slotLengthFactor <$> 
+          (flip getField "seconds" =<< getField o "slotLength"))
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -712,21 +696,18 @@ instance Show TxEvaluationResult where
   show = genericShow
 
 instance DecodeAeson TxEvaluationResult where
-  decodeAeson = aesonObject $ \obj -> do
-    rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
-      ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
+  decodeAeson = aesonArray $ \array -> do
     TxEvaluationResult <<< Map.fromFoldable <$>
-      traverse decodeRdmrPtrExUnitsItem rdmrPtrExUnitsList
+      traverse decodeRdmrPtrExUnitsItem array
     where
-    decodeRdmrPtrExUnitsItem
-      :: String /\ Aeson
-      -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
-    decodeRdmrPtrExUnitsItem (redeemerPtrRaw /\ exUnitsAeson) = do
+    decodeRdmrPtrExUnitsItem :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
+    decodeRdmrPtrExUnitsItem elem = do
+      (redeemerPtrRaw /\ exUnitsAeson) :: String /\ Aeson <- decodeAeson elem
       redeemerPtr <- decodeRedeemerPointer redeemerPtrRaw
       flip aesonObject exUnitsAeson $ \exUnitsObj -> do
         memory <- getField exUnitsObj "memory"
-        steps <- getField exUnitsObj "steps"
-        pure $ redeemerPtr /\ { memory, steps }
+        cpu <- getField exUnitsObj "cpu"
+        pure $ redeemerPtr /\ { memory, steps: cpu }
 
 redeemerPtrTypeMismatch :: JsonDecodeError
 redeemerPtrTypeMismatch = TypeMismatch
@@ -903,41 +884,48 @@ rationalToSubcoin (PParamRational rat) = do
 -- | A type that corresponds to Ogmios response.
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
-  , "minFeeConstant" :: UInt
-  , "maxBlockBodySize" :: UInt
-  , "maxBlockHeaderSize" :: UInt
-  , "maxTxSize" :: UInt
-  , "stakeKeyDeposit" :: BigInt
-  , "poolDeposit" :: BigInt
-  , "poolRetirementEpochBound" :: BigInt
-  , "desiredNumberOfPools" :: UInt
-  , "poolInfluence" :: PParamRational
+  , "minFeeConstant" ::
+      { "lovelace" :: UInt }
+  , "minUtxoDepositCoefficient" :: BigInt
+  , "maxBlockBodySize" ::
+      { "bytes" :: UInt }
+  , "maxBlockHeaderSize" ::
+      { "bytes" :: UInt }
+  , "maxTransactionSize" ::
+      { "bytes" :: UInt }
+  , "maxValueSize" ::
+      { "bytes" :: UInt }
+  , "stakeCredentialDeposit" ::
+      { "lovelace" :: BigInt }
+  , "stakePoolDeposit" ::
+      { "lovelace" :: BigInt }
+  , "stakePoolRetirementEpochBound" :: BigInt
+  , "desiredNumberOfStakePools" :: UInt
+  , "stakePoolPledgeInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
   , "treasuryExpansion" :: PParamRational
-  , "protocolVersion" ::
+  , "version" ::
       { "major" :: UInt
       , "minor" :: UInt
       }
-  , "minPoolCost" :: BigInt
-  , "coinsPerUtxoByte" :: Maybe BigInt
-  , "coinsPerUtxoWord" :: Maybe BigInt
-  , "costModels" ::
-      { "plutus:v1" :: { | CostModelV1 }
-      , "plutus:v2" :: Maybe { | CostModelV2 }
+  , "minStakePoolCost" ::
+      { "lovelace" :: BigInt }
+  , "plutusCostModels" ::
+      { "plutus:v1" :: Array Csl.Int
+      , "plutus:v2" :: Maybe (Array Csl.Int)
       }
-  , "prices" ::
+  , "scriptExecutionPrices" ::
       { "memory" :: PParamRational
-      , "steps" :: PParamRational
+      , "cpu" :: PParamRational
       }
   , "maxExecutionUnitsPerTransaction" ::
       { "memory" :: BigInt
-      , "steps" :: BigInt
+      , "cpu" :: BigInt
       }
   , "maxExecutionUnitsPerBlock" ::
       { "memory" :: BigInt
-      , "steps" :: BigInt
+      , "cpu" :: BigInt
       }
-  , "maxValueSize" :: UInt
   , "collateralPercentage" :: UInt
   , "maxCollateralInputs" :: UInt
   }
@@ -955,54 +943,50 @@ instance DecodeAeson OgmiosProtocolParameters where
   decodeAeson aeson = do
     ps :: ProtocolParametersRaw <- decodeAeson aeson
     prices <- decodePrices ps
-    coinsPerUtxoUnit <-
-      maybe
-        (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
-        pure
-        $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
-            (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
     pure $ OgmiosProtocolParameters $ ProtocolParameters
-      { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
+      { protocolVersion: ps.version.major /\ ps.version.minor
       -- The following two parameters were removed from Babbage
       , decentralization: zero
       , extraPraosEntropy: Nothing
-      , maxBlockHeaderSize: ps.maxBlockHeaderSize
-      , maxBlockBodySize: ps.maxBlockBodySize
-      , maxTxSize: ps.maxTxSize
-      , txFeeFixed: ps.minFeeConstant
+      , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
+      , maxBlockBodySize: ps.maxBlockBodySize.bytes
+      , maxTxSize: ps.maxTransactionSize.bytes
+      , txFeeFixed: ps.minFeeConstant.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeKeyDeposit
-      , stakePoolDeposit: Coin ps.poolDeposit
-      , minPoolCost: Coin ps.minPoolCost
-      , poolRetireMaxEpoch: Epoch ps.poolRetirementEpochBound
-      , stakePoolTargetNum: ps.desiredNumberOfPools
-      , poolPledgeInfluence: unwrap ps.poolInfluence
+      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.lovelace
+      , stakePoolDeposit: Coin ps.stakePoolDeposit.lovelace
+      , minPoolCost: Coin ps.minStakePoolCost.lovelace
+      , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
+      , stakePoolTargetNum: ps.desiredNumberOfStakePools
+      , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoUnit: coinsPerUtxoUnit
+      , coinsPerUtxoUnit: CoinsPerUtxoByte (Coin ps.minUtxoDepositCoefficient)
       , costModels: Costmdls $ Map.fromFoldable $ catMaybes
           [ pure
-              (PlutusV1 /\ convertPlutusV1CostModel ps.costModels."plutus:v1")
-          , (PlutusV2 /\ _) <<< convertPlutusV2CostModel <$>
-              ps.costModels."plutus:v2"
+              ( PlutusV1 /\ CostModel
+                  ps.plutusCostModels."plutus:v1"
+              )
+          , (PlutusV2 /\ _) <<< CostModel <$>
+              ps.plutusCostModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: decodeExUnits ps.maxExecutionUnitsPerBlock
-      , maxValueSize: ps.maxValueSize
+      , maxValueSize: ps.maxValueSize.bytes
       , collateralPercent: ps.collateralPercentage
       , maxCollateralInputs: ps.maxCollateralInputs
       }
     where
     decodeExUnits
-      :: { memory :: BigInt, steps :: BigInt } -> ExUnits
-    decodeExUnits { memory, steps } = { mem: memory, steps }
+      :: { memory :: BigInt, cpu :: BigInt } -> ExUnits
+    decodeExUnits { memory, cpu } = { mem: memory, steps: cpu }
 
     decodePrices
       :: ProtocolParametersRaw -> Either JsonDecodeError ExUnitPrices
     decodePrices ps = note (TypeMismatch "ExUnitPrices") do
-      memPrice <- rationalToSubcoin ps.prices.memory
-      stepPrice <- rationalToSubcoin ps.prices.steps
+      memPrice <- rationalToSubcoin ps.scriptExecutionPrices.memory
+      stepPrice <- rationalToSubcoin ps.scriptExecutionPrices.cpu
       pure { memPrice, stepPrice } -- ExUnits
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
@@ -1049,7 +1033,7 @@ instance Show ChainOrigin where
 type ChainPoint =
   { slot :: Slot -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/632
   -- for details on why we lose a negligible amount of precision.
-  , hash :: OgmiosBlockHeaderHash
+  , id :: OgmiosBlockHeaderHash
   }
 
 ---------------- POOL ID RESPONSE
@@ -1131,7 +1115,7 @@ instance EncodeAeson AdditionalUtxoSet where
 ---------------- UTXO QUERY RESPONSE & PARSING
 
 -- the outer result type for Utxo queries, newtyped so that it can have
--- appropriate instances to work with `parseJsonWspResponse`
+-- appropriate instances to work with `parseJsonRpc2Response`
 -- | Ogmios response for Utxo Query
 newtype UtxoQR = UtxoQR UtxoQueryResult
 
@@ -1306,10 +1290,10 @@ newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
 instance DecodeAeson Assets where
   decodeAeson j = do
-    wspAssets :: Array (String /\ BigInt) <-
+    jsonRpc2Assets :: Array (String /\ BigInt) <-
       ForeignObject.toUnfoldable <$> decodeAeson j
     Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
-      (uncurry decodeAsset <$> wspAssets)
+      (uncurry decodeAsset <$> jsonRpc2Assets)
     where
     decodeAsset
       :: String

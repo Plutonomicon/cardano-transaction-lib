@@ -15,7 +15,7 @@ module Ctl.Internal.QueryM.Dispatcher
 import Prelude
 
 import Aeson (Aeson, JsonDecodeError, stringifyAeson)
-import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
+import Ctl.Internal.QueryM.JsonRpc2 (parseJsonRpc2ResponseId)
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Data.Either (Either(Left, Right))
@@ -64,7 +64,7 @@ newDispatcher = Ref.new Map.empty
 
 mkWebsocketDispatch :: Dispatcher -> WebsocketDispatch
 mkWebsocketDispatch dispatcher aeson = do
-  case parseJsonWspResponseId aeson of
+  case parseJsonRpc2ResponseId aeson of
     Left parseError ->
       pure $ Left $ JsonError parseError
     Right reflection -> do

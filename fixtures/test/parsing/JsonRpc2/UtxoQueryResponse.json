@@ -1,9 +1,7 @@
 [
   {
-    "type": "jsonwsp/response",
-    "version": "1.0",
-    "servicename": "ogmios",
-    "methodname": "Query",
+    "jsonrpc": "2.0",
+    "method": "queryLedgerState/utxo",
     "result": [
       [
         {
@@ -19,6 +17,6 @@
         }
       ]
     ],
-    "reflection": "Hello123"
+    "id": "Hello123"
   }
 ]

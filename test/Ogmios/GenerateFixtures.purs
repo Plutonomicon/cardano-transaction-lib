@@ -26,12 +26,14 @@ import Ctl.Internal.QueryM
   , mkRequestAff
   , mkWebsocketDispatch
   )
-import Ctl.Internal.QueryM.JsonWsp (JsonWspCall)
-import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
+import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call)
+import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType, mkOgmiosCallTypeNoArgs)
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
+import Data.String.Common (replace)
+import Data.String.Pattern (Pattern(Pattern), Replacement(Replacement))
 import Data.Traversable (for_, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, Canceler(Canceler), launchAff_, makeAff)
@@ -87,18 +89,23 @@ mkWebSocketAff
 mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
 
-data Query = Query (JsonWspCall Unit Aeson) String
+data Query = Query (JsonRpc2Call Unit Aeson) String
 
-mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
-mkQuery query shown = Query queryCall shown
+mkQuery
+  :: forall (params :: Type). EncodeAeson params => params -> String -> Query
+mkQuery params method = Query queryCall (sanitiseMethod method)
   where
   queryCall = mkOgmiosCallType
-    { methodname: "Query"
-    , args: const { query }
+    { method
+    , params: const { params }
     }
 
 mkQuery' :: String -> Query
-mkQuery' query = mkQuery query query
+mkQuery' method = Query (mkOgmiosCallTypeNoArgs method) (sanitiseMethod method)
+
+-- | To avoid creating directories, replace slashes with dashes
+sanitiseMethod :: String -> String
+sanitiseMethod = replace (Pattern "/") (Replacement "-")
 
 main :: Effect Unit
 main =
@@ -121,17 +128,19 @@ main =
         ]
     let
       queries =
-        [ mkQuery' "currentProtocolParameters"
-        , mkQuery' "eraSummaries"
-        , mkQuery' "currentEpoch"
-        , mkQuery' "systemStart"
-        , mkQuery' "chainTip"
-        ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] } "utxo"
-    resps <- flip parTraverse queries \(Query qc shown) -> do
-      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
-      pure { resp, query: shown }
+        [ mkQuery' "queryLedgerState/protocolParameters"
+        , mkQuery' "queryLedgerState/eraSummaries"
+        , mkQuery' "queryLedgerState/epoch"
+        , mkQuery' "queryNetwork/systemStart"
+        , mkQuery' "queryNetwork/tip"
+        ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] }
+          "queryLedgerStat/utxo"
 
-    for_ resps \{ resp, query } -> do
+    resps <- flip parTraverse queries \(Query qc method) -> do
+      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
+      pure { resp, method }
+
+    for_ resps \{ resp, method } -> do
       let resp' = stringifyAeson resp
       respMd5 <- liftEffect $ md5HashHex resp'
       let
@@ -139,7 +148,7 @@ main =
           [ "fixtures"
           , "test"
           , "ogmios"
-          , query <> "-" <> respMd5 <> ".json"
+          , method <> "-" <> respMd5 <> ".json"
           ]
       writeTextFile UTF8 fp resp'
       log ("Written " <> fp)

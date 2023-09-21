@@ -38,7 +38,7 @@ import Effect.Exception (error)
 import Record.Builder (build, merge)
 
 getPoolIds :: QueryM (Array PoolPubKeyHash)
-getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
+getPoolIds = mkOgmiosRequest Ogmios.queryStakePoolsCall
   _.poolIds
   unit
 

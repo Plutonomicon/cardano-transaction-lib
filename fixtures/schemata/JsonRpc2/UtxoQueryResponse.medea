@@ -2,42 +2,26 @@ $schema $start
     $type
         $object
     $properties
-        $property-name "type"
-        $property-schema jsonWspType
-        $property-name "version"
-        $property-schema versionType
-        $property-name "servicename"
-        $property-schema serviceType
-        $property-name "methodname"
+        $property-name "jsonrpc"
+        $property-schema jsonRpcType
+        $property-name "method"
         $property-schema methodType
         $property-name "result"
         $property-schema result
-        $property-name "reflection"
+        $property-name "id"
         $property-schema mirrorType
 
-$schema jsonWspType
+$schema jsonRpcType
     $type
         $string
     $string-values
-        "jsonwsp/response"
-
-$schema versionType
-    $type
-        $string
-    $string-values
-        "1.0"
-
-$schema serviceType
-    $type
-        $string
-    $string-values
-        "ogmios"
+        "2.0"
 
 $schema methodType
     $type
         $string
     $string-values
-        "Query"
+        "queryLedgerState/utxo"
 
 $schema mirrorType
     $type
