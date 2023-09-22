@@ -5,6 +5,7 @@ module Contract.Utxos
   ( getUtxo
   , utxosAt
   , utxosWithAssetClass
+  , utxosWithCurrencySymbol
   , module X
   ) where
 
@@ -82,5 +83,12 @@ utxosWithAssetClass symbol name = do
   queryHandle <- getQueryHandle
   cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithAssetClass symbol
     name
+  liftContractM "utxosAt: failed to convert utxos"
+    $ toPlutusUtxoMap cardanoUtxoMap
+
+utxosWithCurrencySymbol :: CurrencySymbol -> Contract UtxoMap
+utxosWithCurrencySymbol symbol = do
+  queryHandle <- getQueryHandle
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithCurrencySymbol symbol
   liftContractM "utxosAt: failed to convert utxos"
     $ toPlutusUtxoMap cardanoUtxoMap
