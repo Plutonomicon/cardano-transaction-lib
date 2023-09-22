@@ -59,10 +59,10 @@ contract = do
 
   lcs <- sequence $ spendLockedByIntOutputParams <$>
     [ (validator1 /\ 1), (validator2 /\ 2) ]
-  let lookups = (mconcat $ snd <$> lcs) :: Lookups.ScriptLookups Void
+  let lookups = (mconcat $ snd <$> lcs) :: Lookups.ScriptLookups
   let
     constraints =
-      (mconcat $ fst <$> lcs) :: Constraints.TxConstraints Void Void
+      (mconcat $ fst <$> lcs) :: Constraints.TxConstraints
   txHash <- submitTxFromConstraints
     (Lookups.mintingPolicy mintingPolicy <> lookups)
     constraints
@@ -82,8 +82,8 @@ contractWithMintRedeemers = do
   --- Unlock tokens and mint other tokens with redeemer
 
   lcs <- spendLockedByIntOutputParams (validator1 /\ 1)
-  let unlockingLookups = snd lcs :: Lookups.ScriptLookups Void
-  let unlockingConstraints = fst lcs :: Constraints.TxConstraints Void Void
+  let unlockingLookups = snd lcs :: Lookups.ScriptLookups
+  let unlockingConstraints = fst lcs :: Constraints.TxConstraints
   let
     mintingConstraints =
       ( Constraints.mustMintValueWithRedeemer
@@ -100,8 +100,8 @@ contractWithMintRedeemers = do
 spendLockedByIntOutputParams
   :: Tuple Validator Int
   -> Contract
-       ( Tuple (Constraints.TxConstraints Void Void)
-           (Lookups.ScriptLookups Void)
+       ( Tuple (Constraints.TxConstraints)
+           (Lookups.ScriptLookups)
        )
 spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   let vhash = validatorHash validator

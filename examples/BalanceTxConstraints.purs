@@ -139,12 +139,12 @@ contract (ContractParams p) = do
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "The Token"
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintValue (Value.singleton cs tn $ fromInt 11)
         <> foldMap Constraints.mustBeSignedBy [ alicePubKeyHash, bobPubKeyHash ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
     balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
