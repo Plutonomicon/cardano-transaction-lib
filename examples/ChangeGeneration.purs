@@ -26,7 +26,7 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Data.Array (fold, length, replicate, zip)
+import Data.Array (fold, length, replicate, take, zip)
 import Data.BigInt (fromInt) as BigInt
 import Data.Lens (to, (^.))
 import Data.Maybe (Maybe(Just, Nothing))
@@ -48,7 +48,8 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
       value = Value.lovelaceValueOf $ BigInt.fromInt 1000001
 
       constraintsToSelf :: TxConstraints Unit Unit
-      constraintsToSelf = fold <<< fold $ replicate outputsToSelf
+      constraintsToSelf = fold <<< take outputsToSelf <<< fold
+        $ replicate outputsToSelf
         $ zip pkhs skhs <#> \(Tuple pkh mbSkh) -> case mbSkh of
             Nothing -> Constraints.mustPayToPubKey pkh value
             Just skh -> Constraints.mustPayToPubKeyAddress pkh skh value
