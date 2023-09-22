@@ -16,9 +16,7 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
-import Contract.BalanceTxConstraints
-  ( mustNotSpendUtxosWithOutRefs
-  )
+import Contract.BalanceTxConstraints (mustNotSpendUtxosWithOutRefs)
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')

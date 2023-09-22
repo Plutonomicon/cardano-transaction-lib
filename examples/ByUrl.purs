@@ -34,6 +34,7 @@ import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.ChangeGeneration as ChangeGeneration
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.DropTokens as DropTokens
@@ -214,4 +215,10 @@ examples = Map.fromFoldable
   , "ECDSA" /\ ECDSA.contract
   , "PaysWithDatum" /\ PaysWithDatum.contract
   , "DropTokens" /\ DropTokens.contract
+  , "ChangeGeneration1-1" /\
+      ChangeGeneration.checkChangeOutputsDistribution 1 1 3
+  , "ChangeGeneration3-1" /\
+      ChangeGeneration.checkChangeOutputsDistribution 3 1 5
+  , "ChangeGeneration1-3" /\
+      ChangeGeneration.checkChangeOutputsDistribution 1 3 7
   ]
