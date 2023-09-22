@@ -4,6 +4,7 @@
 module Contract.Utxos
   ( getUtxo
   , utxosAt
+  , utxosWithAssetClass
   , module X
   ) where
 
@@ -21,8 +22,10 @@ import Ctl.Internal.Plutus.Conversion
   , toPlutusUtxoMap
   )
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
+import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
+import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Maybe (Maybe)
 import Data.Set (member) as Set
@@ -70,3 +73,14 @@ getUtxo oref = do
   cardanoTxOutput <- liftedE $ liftAff $ queryHandle.getUtxoByOref oref
   for cardanoTxOutput
     (liftContractM "getUtxo: failed to convert tx output" <<< toPlutusTxOutput)
+
+utxosWithAssetClass
+  :: CurrencySymbol
+  -> TokenName
+  -> Contract UtxoMap
+utxosWithAssetClass symbol name = do
+  queryHandle <- getQueryHandle
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithAssetClass symbol
+    name
+  liftContractM "utxosAt: failed to convert utxos"
+    $ toPlutusUtxoMap cardanoUtxoMap

@@ -11,6 +11,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , UtxoMap
   )
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
+import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , CurrentEpoch
@@ -25,6 +26,7 @@ import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either)
@@ -54,4 +56,6 @@ type QueryHandle =
       NetworkId -> StakePubKeyHash -> AffE (Maybe DelegationsAndRewards)
   , getValidatorHashDelegationsAndRewards ::
       NetworkId -> StakeValidatorHash -> AffE (Maybe DelegationsAndRewards)
+  , utxosWithAssetClass :: CurrencySymbol -> TokenName -> AffE UtxoMap
+  , utxosWithCurrencySymbol :: CurrencySymbol -> AffE UtxoMap
   }

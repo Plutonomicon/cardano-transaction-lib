@@ -7,6 +7,8 @@ module Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , isTxConfirmedAff
   , utxosAt
+  , utxosWithAssetClass
+  , utxosWithCurrencySymbol
   ) where
 
 import Prelude
@@ -25,6 +27,7 @@ import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
 import Contract.Log (logTrace')
+import Contract.Prelude (mconcat)
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
 import Control.Monad.Error.Class (throwError)
@@ -58,6 +61,10 @@ import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
+import Ctl.Internal.Plutus.Types.CurrencySymbol
+  ( CurrencySymbol
+  , getCurrencySymbol
+  )
 import Ctl.Internal.QueryM (QueryM, handleAffjaxResponse)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -78,7 +85,7 @@ import Ctl.Internal.Types.OutputDatum
   )
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
-import Ctl.Internal.Types.TokenName (mkTokenName)
+import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -209,6 +216,28 @@ getTxMetadata txHash = runExceptT do
           | Map.isEmpty (unwrap metadata) -> throwError
               GetTxMetadataMetadataEmptyOrMissingError
           | otherwise -> pure metadata
+
+utxosWithAssetClass
+  :: CurrencySymbol -> TokenName -> QueryM (Either ClientError UtxoMap)
+utxosWithAssetClass symbol name = runExceptT do
+  let
+    pattern = encodedCurrencySymbol <> "." <> encodedTokenName
+    parameters = [ "unspent" ]
+    encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+    encodedTokenName = byteArrayToHex $ getTokenName name
+    endpoint = "/matches/" <> pattern <> "?" <> mconcat parameters
+  kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+  ExceptT $ resolveKupoUtxoMap kupoUtxoMap
+
+utxosWithCurrencySymbol :: CurrencySymbol -> QueryM (Either ClientError UtxoMap)
+utxosWithCurrencySymbol symbol = runExceptT do
+  let
+    pattern = encodedCurrencySymbol <> ".*"
+    parameters = [ "unspent" ]
+    encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+    endpoint = "/matches/" <> pattern <> "?" <> mconcat parameters
+  kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+  ExceptT $ resolveKupoUtxoMap kupoUtxoMap
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing
@@ -509,3 +538,4 @@ kupoGetRequestRetryAff delayMs config endpoint = do
       kupoGetRequestRetryAff (Milliseconds (unwrap delayMs * 2.0)) config
         endpoint
   else pure result
+

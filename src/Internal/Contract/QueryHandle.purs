@@ -25,6 +25,8 @@ import Ctl.Internal.QueryM.Kupo
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
+  , utxosWithAssetClass
+  , utxosWithCurrencySymbol
   ) as Kupo
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitFail, SubmitTxSuccess))
 import Ctl.Internal.QueryM.Pools
@@ -46,6 +48,7 @@ import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
+import Undefined (undefined)
 
 queryHandleForCtlBackend
   :: forall rest
@@ -84,6 +87,9 @@ queryHandleForCtlBackend runQueryM params backend =
   , getValidatorHashDelegationsAndRewards: \_ validatorHash ->
       Right <$> runQueryM'
         (QueryM.getValidatorHashDelegationsAndRewards validatorHash)
+  , utxosWithAssetClass: \symbol -> runQueryM' <<< Kupo.utxosWithAssetClass
+      symbol
+  , utxosWithCurrencySymbol: runQueryM' <<< Kupo.utxosWithCurrencySymbol
   }
 
   where
@@ -123,6 +129,8 @@ queryHandleForBlockfrostBackend logParams backend =
         ( Blockfrost.getValidatorHashDelegationsAndRewards networkId
             stakeValidatorHash
         )
+  , utxosWithAssetClass: undefined
+  , utxosWithCurrencySymbol: undefined
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
