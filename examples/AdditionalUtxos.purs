@@ -50,20 +50,22 @@ main :: Effect Unit
 main = example testnetNamiConfig
 
 example :: ContractParams -> Effect Unit
-example contractParams = launchAff_ $ runContract contractParams contract
+example contractParams =
+  launchAff_ $ runContract contractParams $ contract false
 
-contract :: Contract Unit
-contract = withoutSync do
+contract :: Boolean -> Contract Unit
+contract testAdditionalUtxoOverlap = withoutSync do
   logInfo' "Running Examples.AdditionalUtxos"
   validator <- alwaysSucceedsScriptV2
   let vhash = validatorHash validator
-  { additionalUtxos, datum } <- payToValidator vhash
+  { additionalUtxos, datum } <- payToValidator vhash testAdditionalUtxoOverlap
   spendFromValidator validator additionalUtxos datum
 
 payToValidator
   :: ValidatorHash
+  -> Boolean
   -> Contract { additionalUtxos :: UtxoMap, datum :: Datum }
-payToValidator vhash = do
+payToValidator vhash testAdditionalUtxoOverlap = do
   scriptRef <- liftEffect (NativeScriptRef <$> randomSampleOne arbitrary)
   let
     value :: Value
@@ -85,7 +87,8 @@ payToValidator vhash = do
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
   balancedTx <- liftedE $ balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
-  void $ submit balancedSignedTx
+  txHash <- submit balancedSignedTx
+  when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
   logInfo' "Successfully locked two outputs at the validator address."
 
   additionalUtxos <- createAdditionalUtxos balancedSignedTx

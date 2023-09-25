@@ -193,7 +193,7 @@ mkBlockfrostPreprodConfig apiKey =
 
 examples :: Map E2ETestName (Contract Unit)
 examples = Map.fromFoldable
-  [ "AdditionalUtxos" /\ AdditionalUtxos.contract
+  [ "AdditionalUtxos" /\ AdditionalUtxos.contract false
   , "AlwaysMints" /\ AlwaysMints.contract
   , "NativeScriptMints" /\ NativeScriptMints.contract
   , "AlwaysSucceeds" /\ AlwaysSucceeds.contract

@@ -1044,7 +1044,17 @@ suite = do
           , BigInt.fromInt 50_000_000
           ]
       withWallets distribution \alice ->
-        withKeyWallet alice AdditionalUtxos.contract
+        withKeyWallet alice $ AdditionalUtxos.contract false
+
+    test "Handles AdditionalUtxoOverlap exception (AdditionalUtxos example)" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice $ AdditionalUtxos.contract true
 
     test
       "Locking & unlocking on an always succeeding script (AlwaysSucceeds example)"

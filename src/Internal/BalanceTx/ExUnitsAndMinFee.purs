@@ -45,6 +45,7 @@ import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
+  , TxEvaluationFailure(AdditionalUtxoOverlap)
   , TxEvaluationResult(TxEvaluationResult)
   ) as Ogmios
 import Ctl.Internal.QueryM.Ogmios (TxEvaluationFailure(UnparsedError))
@@ -58,14 +59,14 @@ import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes)
-import Data.Array (fromFoldable) as Array
+import Data.Array (fromFoldable, notElem) as Array
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((?~))
-import Data.Map (empty, fromFoldable, lookup, toUnfoldable) as Map
+import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -80,28 +81,33 @@ evalTxExecutionUnits
   :: Transaction
   -> BalanceTxM Ogmios.TxEvaluationResult
 evalTxExecutionUnits tx = do
-  queryHandle <- liftContract getQueryHandle
-  additionalUtxos <- getOgmiosAdditionalUtxoSet
-  evalResult <-
-    unwrap <$> liftContract
-      (liftAff $ queryHandle.evaluateTx tx additionalUtxos)
-
-  case evalResult of
-    Right a -> pure a
-    Left evalFailure | tx ^. _isValid ->
-      throwError $ ExUnitsEvaluationFailed tx evalFailure
-    Left _ -> pure $ wrap Map.empty
+  networkId <- askNetworkId
+  additionalUtxos <-
+    fromPlutusUtxoMap networkId <$> asksConstraints Constraints._additionalUtxos
+  worker additionalUtxos
   where
-  getOgmiosAdditionalUtxoSet :: BalanceTxM Ogmios.AdditionalUtxoSet
-  getOgmiosAdditionalUtxoSet = do
-    networkId <- askNetworkId
-    additionalUtxos <-
-      asksConstraints Constraints._additionalUtxos
-        <#> fromPlutusUtxoMap networkId
-    pure $ wrap $ Map.fromFoldable
-      ( bimap transactionInputToTxOutRef transactionOutputToOgmiosTxOut
-          <$> (Map.toUnfoldable :: _ -> Array _) additionalUtxos
-      )
+  worker :: UtxoMap -> BalanceTxM Ogmios.TxEvaluationResult
+  worker additionalUtxos = do
+    queryHandle <- liftContract getQueryHandle
+    evalResult <-
+      unwrap <$> liftContract
+        (liftAff $ queryHandle.evaluateTx tx ogmiosAdditionalUtxos)
+    case evalResult of
+      Right a -> pure a
+      Left (Ogmios.AdditionalUtxoOverlap overlappingUtxos) ->
+        -- Remove overlapping additional utxos and retry evaluation:
+        worker $ Map.filterKeys (flip Array.notElem overlappingUtxos)
+          additionalUtxos
+      Left evalFailure | tx ^. _isValid ->
+        throwError $ ExUnitsEvaluationFailed tx evalFailure
+      Left _ -> pure $ wrap Map.empty
+    where
+    ogmiosAdditionalUtxos :: Ogmios.AdditionalUtxoSet
+    ogmiosAdditionalUtxos =
+      wrap $ Map.fromFoldable
+        ( bimap transactionInputToTxOutRef transactionOutputToOgmiosTxOut
+            <$> (Map.toUnfoldable :: _ -> Array _) additionalUtxos
+        )
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
