@@ -5,21 +5,10 @@ exports._getNetworkId = conn => () => conn.getNetworkId();
 exports._getUtxos = maybe => conn => () =>
   conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
 
-exports._getCollateral = maybe => conn => () =>
-  /* Notes regarding the quirks of various wallets:
-
-     Yoroi will throw an error if no amount argument is provided, and will
-     break if the following expression is written as
-     (conn.getCollateral || conn.experimental.getCollateral)("5000000") due to
-     JavaScript object binding
-
-     Typhon will throw an error if the amount argument is not a string
-
-     Nami only provides `getCollateral` under the experimental API
-  */
+exports._getCollateral = maybe => conn => requiredValue => () =>
   (typeof conn.getCollateral === "function"
-    ? conn.getCollateral("5000000")
-    : conn.experimental.getCollateral("5000000")
+    ? conn.getCollateral(requiredValue)
+    : conn.experimental.getCollateral(requiredValue)
   ).then(utxos =>
     utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
   );

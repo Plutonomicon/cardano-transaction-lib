@@ -18,7 +18,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
@@ -36,6 +36,8 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressBytes
   , rewardAddressFromAddress
   )
+import Ctl.Internal.Serialization.ToBytes (toBytes)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes
   ( CborBytes
@@ -44,6 +46,7 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Data.BigInt (fromInt) as BigInt
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -140,12 +143,15 @@ getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
 hexStringToAddress :: String -> Maybe Address
 hexStringToAddress = fromBytes <<< rawBytesAsCborBytes <=< hexToRawBytes
 
+defaultCollateralAmount :: Coin
+defaultCollateralAmount = Coin $ BigInt.fromInt 5_000_000
+
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
 getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
 getCollateral conn = do
-  mbUtxoStrs <- toAffE $ getCip30Collateral conn
+  mbUtxoStrs <- toAffE $ getCip30Collateral conn defaultCollateralAmount
   let
     (mbUtxoBytes :: Maybe (Array RawBytes)) =
       join $ map (traverse hexToRawBytes) mbUtxoStrs
@@ -238,12 +244,23 @@ foreign import _getUtxos
 foreign import _getCollateral
   :: MaybeFfiHelper
   -> Cip30Connection
+  -> String
   -> Effect (Promise (Maybe (Array String)))
 
-getCip30Collateral :: Cip30Connection -> Effect (Promise (Maybe (Array String)))
-getCip30Collateral conn =
-  _getCollateral maybeFfiHelper conn `catchError`
-    \_ -> throwError $ error "Wallet doesn't implement `getCollateral`."
+getCip30Collateral
+  :: Cip30Connection -> Coin -> Effect (Promise (Maybe (Array String)))
+getCip30Collateral conn requiredValue = do
+  bigNumValue <- maybe (throw convertError) pure
+    $ BigNum.fromBigInt
+    $ unwrap requiredValue
+  let requiredValueStr = byteArrayToHex $ unwrap $ toBytes bigNumValue
+  _getCollateral maybeFfiHelper conn requiredValueStr `catchError`
+    \err -> throwError $ error $
+      "Failed to call `getCollateral`: " <> show err
+  where
+  convertError =
+    "Unable to convert CIP-30 getCollateral required value: " <>
+      show requiredValue
 
 foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
 
