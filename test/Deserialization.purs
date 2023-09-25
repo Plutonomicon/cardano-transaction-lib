@@ -12,11 +12,12 @@ import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
+import Ctl.Internal.Cardano.Types.Transaction (Vkeywitness)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
 import Ctl.Internal.Deserialization.BigInt as DB
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.NativeScript as NSD
 import Ctl.Internal.Deserialization.PlutusData as DPD
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
@@ -30,8 +31,11 @@ import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serializa
 import Ctl.Internal.Serialization.BigInt as SB
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
+import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.ToBytes (toBytes) as Serialization
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
+import Ctl.Internal.Serialization.Types (Vkeywitness) as Serialization
+import Ctl.Internal.Serialization.WitnessSet (convertVkeywitness) as Serialization
 import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
@@ -39,8 +43,10 @@ import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Either (hush)
+import Data.Foldable (fold)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
+import Data.Traversable (traverse)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -203,6 +209,21 @@ suite = do
           liftEffect $ testNativeScript longNativeScript
     group "WitnessSet - deserialization is inverse to serialization" do
       let
+        vkeyWitnessesRoundtrip
+          :: ∀ (m :: Type -> Type)
+           . MonadEffect m
+          => MonadThrow Error m
+          => Array Vkeywitness
+          -> m Unit
+        vkeyWitnessesRoundtrip vks = do
+          cslVks <- traverse (liftEffect <<< Serialization.convertVkeywitness)
+            vks
+          let cslVksBytes = toBytes <$> cslVks
+          (_ :: Array Serialization.Vkeywitness) <- traverse
+            (liftEffect <<< fromBytesEffect)
+            cslVksBytes
+          pure unit
+
         witnessSetRoundTrip
           :: ∀ (m :: Type -> Type)
            . MonadEffect m
@@ -214,6 +235,8 @@ suite = do
             fromBytes (wrap fixture) >>= convertWitnessSet
           ws1 <- liftEffect $ SW.convertWitnessSet ws0
           ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
+          let vkeys = fold (unwrap ws2).vkeys
+          vkeyWitnessesRoundtrip vkeys
           ws0 `shouldEqual` ws2 -- value representation
           let wsBytes = unwrap $ Serialization.toBytes ws1
           wsBytes `shouldEqual` fixture -- byte representation

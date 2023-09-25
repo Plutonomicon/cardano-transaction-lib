@@ -36,6 +36,7 @@
     "base64-js": "^1.5.1",
     "big-integer": "1.6.51",
     "bignumber.js": "^9.1.1",
+    "bip39": "^3.1.0",
     "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
     "jssha": "3.2.0",

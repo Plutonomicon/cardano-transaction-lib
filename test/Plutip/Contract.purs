@@ -16,7 +16,8 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
-import Contract.Chain (currentTime)
+import Contract.BalanceTxConstraints (mustNotSpendUtxosWithOutRefs)
+import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
 import Contract.Metadata
@@ -25,6 +26,7 @@ import Contract.Metadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Contract.Monad (Contract, liftContractE, liftContractM, liftedE, liftedM)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Bytes, Integer, List)
@@ -57,7 +59,7 @@ import Contract.Test.Plutip
   , withStakeKey
   , withWallets
   )
-import Contract.Time (getEraSummaries)
+import Contract.Time (Slot(Slot), getEraSummaries)
 import Contract.Transaction
   ( BalanceTxError(BalanceInsufficientError)
   , DataHash
@@ -159,7 +161,7 @@ import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
@@ -190,6 +192,14 @@ import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
 suite = do
+  group "WaitUntilSlot" do
+    test "wait for slot far in the future" do
+      withWallets unit \_ -> do
+        -- Plutip increases last known slot by 80 at a time
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 10
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
+        void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
   group "Regressions" do
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
@@ -202,6 +212,37 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice ManyAssets.contract
+    test
+      "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs "
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+
+        withWallets someUtxos \alice -> do
+          withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+              ownPaymentPubKeyHashes
+            stakePkh <- join <<< head <$> withKeyWallet alice
+              ownStakePubKeyHashes
+            utxos <- fromMaybe Map.empty <$> getWalletUtxos
+            let
+              constraints :: Constraints.TxConstraints Void Void
+              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
+
+              lookups :: Lookups.ScriptLookups Void
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraints ubTx
+                  (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
+              )
+            res `shouldSatisfy` isLeft
+
     test "#1480 - test that does nothing but fails" do
       let
         someUtxos =

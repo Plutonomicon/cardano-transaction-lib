@@ -83,7 +83,7 @@ import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Nothing, Just), maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
@@ -143,20 +143,24 @@ withPlutipContractEnv plutipCfg distr cont = do
     $ liftEither >=> \{ env, wallets, printLogs } ->
         whenError printLogs (cont env wallets)
 
--- | Run `Contract`s in tests in a single Plutip instance.
--- | NOTE: This uses `MoteT`s bracketting, and thus has the same caveats.
--- |       Namely, brackets are run for each of the following groups and tests.
--- |       If you wish to only set up Plutip once, ensure all tests are wrapped
--- |       in a single group.
+-- | Run several `Contract`s in tests in a (single) Plutip environment (plutip-server and cluster, kupo, etc.).
+-- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
+-- |       Namely, brackets are run for each of the top-level groups and tests
+-- |       inside the bracket.
+-- |       If you wish to only set up Plutip once, ensure all tests that are passed
+-- |       to `testPlutipContracts` are wrapped in a single group.
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote
 testPlutipContracts
   :: PlutipConfig
   -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
+  -- Modify tests to pluck out parts of a single combined distribution
   ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
   runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
+    -- Sets a single Mote bracket at the top level, it will be run for all
+    -- immediate tests and groups
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
       (runCleanup cleanupRef)
       $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
@@ -199,9 +203,15 @@ whenError whenErrorAction action = do
 -- | distribution. Adapts the tests to pick their distribution out of the
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
+-- | This is the current method of constructing all the wallets with required distributions
+-- | in one go during Plutip startup.
 execDistribution :: TestPlanM ContractTest Unit -> Aff ContractTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
   where
+  -- Recursively go over the tree of test `Description`s and construct a `ContractTestPlan` callback.
+  -- When run the `ContractTestPlan` will reconstruct the whole `MoteT` value passed to `execDistribution`
+  -- via similar writer effects (plus combining distributions) which append test descriptions
+  -- or wrap them in a group.
   go :: Array (Description Aff ContractTest) -> ContractTestPlan
   go = flip execState emptyContractTestPlan <<< traverse_ case _ of
     Test rm { bracket, label, value: ContractTest runTest } ->
@@ -215,6 +225,16 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
           (censor (pure <<< Group rm <<< { bracket, label, value: _ }))
           tests
 
+  -- This function is used by `go` for iteratively adding Mote tests (internally Writer monad actions)
+  -- to the `ContractTestPlan` in the State monad _and_ for combining UTxO distributions used by tests.
+  -- Given a distribution and tests (a MoteT value) this runs a `ContractTestPlan`, i.e. passes its
+  -- stored distribution and tests to our handler, and then makes a new `ContractTestPlan`, but this time
+  -- storing a tuple of stored and passed distributions and also storing a pair of Mote tests, modifying
+  -- the previously stored tests to use the first distribution, and the passed tests the second distribution
+  --
+  -- `go` starts at the top of the test tree and step-by-step constructs a big `ContractTestPlan` which
+  -- stores distributions of all inner tests tupled together and tests from the original test tree, which
+  -- know how to get their distribution out of the big tuple.
   addTests
     :: forall (distr :: Type) (wallets :: Type)
      . ContractTestPlanHandler distr wallets (State ContractTestPlan Unit)
@@ -224,6 +244,9 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
         mapTest (_ <<< fst) tests'
         mapTest (_ <<< snd) tests
 
+  -- Start with an empty plan, which passes an empty distribution
+  -- and an empty array of test `Description`s to the function that
+  -- will run tests.
   emptyContractTestPlan :: ContractTestPlan
   emptyContractTestPlan = ContractTestPlan \h -> h unit (pure unit)
 
@@ -403,9 +426,9 @@ startPlutipCluster
 startPlutipCluster cfg keysToGenerate = do
   let
     url = mkServerEndpointUrl cfg "start"
-    -- TODO epoch size cannot currently be changed due to
-    -- https://github.com/mlabs-haskell/plutip/issues/149
-    epochSize = UInt.fromInt 80
+    -- TODO: Non-default values for `slotLength` and `epochSize` break staking
+    -- rewards, see https://github.com/mlabs-haskell/plutip/issues/149
+    epochSize = fromMaybe (UInt.fromInt 80) cfg.clusterConfig.epochSize
   res <- do
     response <- liftAff
       ( Affjax.request
@@ -416,8 +439,10 @@ startPlutipCluster cfg keysToGenerate = do
                 $ encodeAeson
                 $ ClusterStartupRequest
                     { keysToGenerate
-                    , slotLength: cfg.clusterConfig.slotLength
                     , epochSize
+                    , slotLength: cfg.clusterConfig.slotLength
+                    , maxTxSize: cfg.clusterConfig.maxTxSize
+                    , raiseExUnitsToMax: cfg.clusterConfig.raiseExUnitsToMax
                     }
             , responseFormat = Affjax.ResponseFormat.string
             , headers = [ Header.ContentType (wrap "application/json") ]
@@ -512,6 +537,7 @@ startKupo cfg params = do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
   childProcess <- spawnKupoProcess workdir
+  -- here we also set the SIGINT handler for the whole process
   sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
   pure (childProcess /\ workdir /\ sig)
   where

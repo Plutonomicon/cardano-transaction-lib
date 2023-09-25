@@ -79,7 +79,7 @@ import Aeson
   , (.:)
   )
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except (runExcept)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers
   ( contentsProp
@@ -135,7 +135,6 @@ import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
 import Foreign.Object (Object)
 import Math (trunc, (%)) as Math
 import Partial.Unsafe (unsafePartial)
@@ -703,8 +702,8 @@ slotToPosixTime
   :: EraSummaries
   -> SystemStart
   -> Slot
-  -> Effect (Either SlotToPosixTimeError POSIXTime)
-slotToPosixTime eraSummaries sysStart slot = runExceptT do
+  -> Either SlotToPosixTimeError POSIXTime
+slotToPosixTime eraSummaries sysStart slot = runExcept do
   -- Find current era:
   currentEra <- liftEither $ findSlotEraSummary eraSummaries slot
   -- Convert absolute slot (relative to System start) to relative slot of era
@@ -940,8 +939,8 @@ posixTimeToSlot
   :: EraSummaries
   -> SystemStart
   -> POSIXTime
-  -> Effect (Either PosixTimeToSlotError Slot)
-posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
+  -> Either PosixTimeToSlotError Slot
+posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExcept do
   -- Get POSIX time for system start:
   sysStartPosix <- liftM CannotGetBigIntFromNumber' $ sysStartUnixTime sysStart
   -- Ensure the time we are converting is after the system start, otherwise
@@ -1057,12 +1056,11 @@ posixTimeRangeToSlotRange
   :: EraSummaries
   -> SystemStart
   -> POSIXTimeRange
-  -> Effect (Either PosixTimeToSlotError SlotRange)
+  -> Either PosixTimeToSlotError SlotRange
 posixTimeRangeToSlotRange
   eraSummaries
   sysStart
-  range = sequenceInterval <$>
-  sequenceInterval (posixTimeToSlot eraSummaries sysStart <$> range)
+  range = sequenceInterval (posixTimeToSlot eraSummaries sysStart <$> range)
 
 -- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
@@ -1070,12 +1068,11 @@ slotRangeToPosixTimeRange
   :: EraSummaries
   -> SystemStart
   -> SlotRange
-  -> Effect (Either SlotToPosixTimeError POSIXTimeRange)
+  -> Either SlotToPosixTimeError POSIXTimeRange
 slotRangeToPosixTimeRange
   eraSummaries
   sysStart
-  range = sequenceInterval <$>
-  sequenceInterval (slotToPosixTime eraSummaries sysStart <$> range)
+  range = sequenceInterval (slotToPosixTime eraSummaries sysStart <$> range)
 
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
@@ -1110,9 +1107,9 @@ posixTimeRangeToTransactionValidity
   :: EraSummaries
   -> SystemStart
   -> POSIXTimeRange
-  -> Effect (Either PosixTimeToSlotError TransactionValiditySlot)
+  -> Either PosixTimeToSlotError TransactionValiditySlot
 posixTimeRangeToTransactionValidity es ss =
-  map (map slotRangeToTransactionValidity) <<< posixTimeRangeToSlotRange es ss
+  map slotRangeToTransactionValidity <<< posixTimeRangeToSlotRange es ss
 
 data ToOnChainPosixTimeRangeError
   = PosixTimeToSlotError' PosixTimeToSlotError
@@ -1262,18 +1259,18 @@ toOnchainPosixTimeRange
   :: EraSummaries
   -> SystemStart
   -> POSIXTimeRange
-  -> Effect (Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange)
-toOnchainPosixTimeRange es ss ptr = runExceptT do
+  -> Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange
+toOnchainPosixTimeRange es ss ptr = runExcept do
   { validityStartInterval, timeToLive } <-
-    ExceptT $ posixTimeRangeToTransactionValidity es ss ptr
-      <#> lmap PosixTimeToSlotError'
+    liftEither $ posixTimeRangeToTransactionValidity es ss ptr
+      # lmap PosixTimeToSlotError'
   case validityStartInterval, timeToLive of
     Nothing, Nothing -> liftEither $ Right $ wrap always
-    Just s, Nothing -> ExceptT $ slotToPosixTime es ss s
-      <#> bimap SlotToPosixTimeError' (from >>> wrap)
-    Nothing, Just s -> ExceptT $ slotToPosixTime es ss s
-      <#> bimap SlotToPosixTimeError' (to >>> wrap)
+    Just s, Nothing -> liftEither $ slotToPosixTime es ss s
+      # bimap SlotToPosixTimeError' (from >>> wrap)
+    Nothing, Just s -> liftEither $ slotToPosixTime es ss s
+      # bimap SlotToPosixTimeError' (to >>> wrap)
     Just s1, Just s2 -> do
-      t1 <- ExceptT $ slotToPosixTime es ss s1 <#> lmap SlotToPosixTimeError'
-      t2 <- ExceptT $ slotToPosixTime es ss s2 <#> lmap SlotToPosixTimeError'
+      t1 <- liftEither $ slotToPosixTime es ss s1 # lmap SlotToPosixTimeError'
+      t2 <- liftEither $ slotToPosixTime es ss s2 # lmap SlotToPosixTimeError'
       liftEither $ Right $ wrap $ mkFiniteInterval t1 t2

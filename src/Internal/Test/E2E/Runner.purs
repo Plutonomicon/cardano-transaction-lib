@@ -211,7 +211,11 @@ buildPlutipConfig options =
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.05 }
+      { slotLength: Seconds 0.05
+      , epochSize: Nothing
+      , maxTxSize: Nothing
+      , raiseExUnitsToMax: false
+      }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
