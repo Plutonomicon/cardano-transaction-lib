@@ -55,8 +55,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ## [Unreleased]
 
 ### Added
-
-- Added several `Ring`-like numeric instances for `Coin` ([#1485](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1485))
 - **[IMPORTANT]** New machinery to achieve better synchronization between wallets and query layer has been added. This affects all CTL-based apps when light wallet browser extensions are in use. See [here](./doc/query-layers.md) for more info ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - **Local Blockfrost runtime** based on [run-your-own version of Blockfrost](https://github.com/blockfrost/blockfrost-backend-ryo/) - see [here](./doc/blockfrost.md#running-blockfrost-locally) for more info ([#1395](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1395))
 - **Lace wallet support** - ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
@@ -70,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [HD wallet support](./doc/key-management.md) with mnemonic seed phrases ([#1498](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1498))
 - Ogmios-specific functions for Local TX Monitor Ouroboros Mini-Protocol in `Contract.Backend.Ogmios` ([#1508](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1508/))
 - New `mustSendChangeWithDatum` balancer constraint that adds datum to all change outputs ([#1510](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1510/))
+- Added instances for `Contract.Value.Coin`: `Ord`, `DecodeAeson`, `EncodeAeson`, `Equipartition`, and `Ring`-like numeric instances ([#1489](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1489))
 
 ### Changed
 

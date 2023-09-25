@@ -56,6 +56,7 @@ import Ctl.Internal.QuickCheck (genPositive, unMaybeGen)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
+import Ctl.Internal.Partition (class Equipartition)
 import Data.Array (concatMap, filter, replicate)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -125,6 +126,14 @@ newtype Coin = Coin BigInt
 derive instance Generic Coin _
 derive instance Newtype Coin _
 derive newtype instance Eq Coin
+derive newtype instance Ord Coin
+derive newtype instance DecodeAeson Coin
+derive newtype instance EncodeAeson Coin
+derive newtype instance Equipartition Coin
+derive newtype instance Semiring Coin
+derive newtype instance Ring Coin
+derive newtype instance CommutativeRing Coin
+derive newtype instance EuclideanRing Coin
 
 instance Show Coin where
   show (Coin c) = showWithParens "Coin" c
