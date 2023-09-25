@@ -12,7 +12,7 @@ import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, runContract)
 import Contract.PlutusData (Datum, PlutusData(Integer), unitRedeemer)
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx)
+import Contract.ScriptLookups (ScriptLookups, UnbalancedTx, mkUnbalancedTx)
 import Contract.ScriptLookups (datum, unspentOutputs, validator) as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Sync (withoutSync)
@@ -25,6 +25,7 @@ import Contract.Transaction
   , createAdditionalUtxos
   , signTransaction
   , submit
+  , withBalancedTx
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
@@ -58,14 +59,19 @@ contract testAdditionalUtxoOverlap = withoutSync do
   logInfo' "Running Examples.AdditionalUtxos"
   validator <- alwaysSucceedsScriptV2
   let vhash = validatorHash validator
-  { additionalUtxos, datum } <- payToValidator vhash testAdditionalUtxoOverlap
-  spendFromValidator validator additionalUtxos datum
+  { unbalancedTx, datum } <- payToValidator vhash
+  withBalancedTx unbalancedTx \balancedTx -> do
+    balancedSignedTx <- signTransaction balancedTx
+    txHash <- submit balancedSignedTx
+    when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
+    logInfo' "Successfully locked two outputs at the validator address."
+
+    additionalUtxos <- createAdditionalUtxos balancedSignedTx
+    spendFromValidator validator additionalUtxos datum
 
 payToValidator
-  :: ValidatorHash
-  -> Boolean
-  -> Contract { additionalUtxos :: UtxoMap, datum :: Datum }
-payToValidator vhash testAdditionalUtxoOverlap = do
+  :: ValidatorHash -> Contract { unbalancedTx :: UnbalancedTx, datum :: Datum }
+payToValidator vhash = do
   scriptRef <- liftEffect (NativeScriptRef <$> randomSampleOne arbitrary)
   let
     value :: Value
@@ -85,14 +91,7 @@ payToValidator vhash testAdditionalUtxoOverlap = do
     lookups = Lookups.datum datum
 
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTx unbalancedTx
-  balancedSignedTx <- signTransaction balancedTx
-  txHash <- submit balancedSignedTx
-  when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
-  logInfo' "Successfully locked two outputs at the validator address."
-
-  additionalUtxos <- createAdditionalUtxos balancedSignedTx
-  pure { additionalUtxos, datum }
+  pure { unbalancedTx, datum }
 
 spendFromValidator :: Validator -> UtxoMap -> Datum -> Contract Unit
 spendFromValidator validator additionalUtxos datum = do
