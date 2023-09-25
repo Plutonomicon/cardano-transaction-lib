@@ -107,10 +107,8 @@ queryHandleForBlockfrostBackend logParams backend =
         Right epoch -> pure $ wrap epoch
         Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
-  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' do
-      unless (Map.isEmpty $ unwrap additionalUtxos) do
-        logWarn' "Blockfrost does not support explicit additional utxos"
-      Blockfrost.evaluateTx tx
+  , evaluateTx: \tx additionalUtxos ->
+      runBlockfrostServiceM' $ Blockfrost.evaluateTx tx additionalUtxos
   , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
   , getPubKeyHashDelegationsAndRewards: \networkId stakePubKeyHash ->
