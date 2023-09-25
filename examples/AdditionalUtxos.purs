@@ -20,7 +20,6 @@ import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
   , TransactionInput
   , awaitTxConfirmed
-  , balanceTx
   , balanceTxWithConstraints
   , createAdditionalUtxos
   , signTransaction
