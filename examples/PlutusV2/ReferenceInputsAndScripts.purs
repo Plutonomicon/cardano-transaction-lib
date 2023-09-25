@@ -190,7 +190,7 @@ mintAlwaysMintsV2ToTheScript
   :: TokenName -> Validator -> Int -> Contract Unit
 mintAlwaysMintsV2ToTheScript tokenName validator sum = do
   mp <- alwaysMintsPolicyV2
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  let cs = Value.scriptCurrencySymbol mp
 
   let
     vhash = validatorHash validator
