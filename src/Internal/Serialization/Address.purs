@@ -207,6 +207,10 @@ instance FromData Address where
 instance ToData Address where
   toData addr = toData <<< unwrap <<< addressBytes $ addr
 
+instance DecodeAeson Address where
+  decodeAeson = decodeAeson >=>
+    note (TypeMismatch "Address") <<< addressFromBech32
+
 foreign import data BaseAddress :: Type
 
 instance Show BaseAddress where

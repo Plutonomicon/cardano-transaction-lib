@@ -48,7 +48,6 @@ import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import Undefined (undefined)
 
 queryHandleForCtlBackend
   :: forall rest
@@ -129,8 +128,11 @@ queryHandleForBlockfrostBackend logParams backend =
         ( Blockfrost.getValidatorHashDelegationsAndRewards networkId
             stakeValidatorHash
         )
-  , utxosWithAssetClass: undefined
-  , utxosWithCurrencySymbol: undefined
+  , utxosWithAssetClass: \symbol name ->
+      runBlockfrostServiceM'
+        $ Blockfrost.utxosWithAssetClass symbol name
+  , utxosWithCurrencySymbol: runBlockfrostServiceM' <<<
+      Blockfrost.utxosWithCurrencySymbol
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
