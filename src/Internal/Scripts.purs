@@ -14,8 +14,7 @@ import Prelude
 import Ctl.Internal.Hashing (plutusScriptHash)
 import Ctl.Internal.NativeScripts (NativeScriptHash, nativeScriptHash)
 import Ctl.Internal.Plutus.Types.CurrencySymbol
-  ( CurrencySymbol
-  , mkCurrencySymbolUnsafe
+  ( CurrencySymbol(CurrencySymbol)
   )
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -36,7 +35,6 @@ import Ctl.Internal.Types.Scripts
   , Validator
   , ValidatorHash
   )
-import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
@@ -86,7 +84,7 @@ nativeScriptStakeValidatorHash = unwrap >>> nativeScriptHash >>> unwrap >>> wrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
 scriptCurrencySymbol :: MintingPolicy -> CurrencySymbol
-scriptCurrencySymbol = mkCurrencySymbolUnsafe
+scriptCurrencySymbol = CurrencySymbol
   <<< unwrap
   <<< scriptHashToBytes
   <<< unwrap

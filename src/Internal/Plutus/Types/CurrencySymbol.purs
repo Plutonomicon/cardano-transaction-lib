@@ -1,10 +1,9 @@
 module Ctl.Internal.Plutus.Types.CurrencySymbol
-  ( CurrencySymbol
+  ( CurrencySymbol(CurrencySymbol)
   , adaSymbol
   , currencyMPSHash
   , getCurrencySymbol
   , mkCurrencySymbol
-  , mkCurrencySymbolUnsafe
   , mpsSymbol
   , scriptHashAsCurrencySymbol
   ) where
@@ -98,10 +97,6 @@ mkCurrencySymbol byteArr
       pure adaSymbol
   | otherwise =
       scriptHashFromBytes byteArr $> CurrencySymbol byteArr
-
--- | Bypasses the usual checks of mkCurrencySymbol: use with extreme care!
-mkCurrencySymbolUnsafe :: ByteArray -> CurrencySymbol
-mkCurrencySymbolUnsafe = CurrencySymbol
 
 --------------------------------------------------------------------------------
 -- Internal
