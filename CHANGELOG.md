@@ -70,6 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [HD wallet support](./doc/key-management.md) with mnemonic seed phrases ([#1498](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1498))
 - Ogmios-specific functions for Local TX Monitor Ouroboros Mini-Protocol in `Contract.Backend.Ogmios` ([#1508](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1508/))
 - New `mustSendChangeWithDatum` balancer constraint that adds datum to all change outputs ([#1510](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1510/))
+- Support for generic CIP-30 wallets by name ([#1524](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1524))
 
 ### Changed
 
