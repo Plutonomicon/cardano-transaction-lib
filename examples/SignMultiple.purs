@@ -64,12 +64,12 @@ contract = do
     createAdditionalUtxos
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKeyAddress pkh skh
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -122,7 +122,7 @@ createAdditionalUtxos = do
     ownStakePubKeyHashes
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustPayToPubKeyAddress pkh skh
         ( Value.lovelaceValueOf
@@ -133,7 +133,7 @@ createAdditionalUtxos = do
               $ BigInt.fromInt 2_000_000
           )
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   txId <- submitTxFromConstraints lookups constraints

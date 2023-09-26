@@ -26,14 +26,14 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   tn <- Helpers.mkTokenName "TheToken"
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mconcat
       [ Constraints.mustMintValue (Value.singleton cs tn one)
       , Constraints.mustPayToPubKey pkh
           (Value.lovelaceValueOf lovelace <> Value.singleton cs tn one)
       ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints

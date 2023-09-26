@@ -8,7 +8,6 @@ import Ctl.Internal.Types.TxConstraints
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
   , TxConstraints(TxConstraints)
-  , addTxIn
   , isSatisfiable
   , mustBeSignedBy
   , mustDelegateStakeNativeScript

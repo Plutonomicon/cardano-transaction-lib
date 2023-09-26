@@ -644,7 +644,6 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , handle: mkQueryHandle plutipCfg backend
     , networkId: MainnetId
     , logLevel: plutipCfg.logLevel
-    , walletSpec: Nothing
     , customLogger: customLogger
     , suppressLogs: plutipCfg.suppressLogs
     , hooks: emptyHooks

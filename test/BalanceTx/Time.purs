@@ -129,7 +129,7 @@ mkTestMultipleInterval intervals expected = do
 -- Fixtures
 --------------------------------------------------------------------------------
 
-emptyLookup :: ScriptLookups Void
+emptyLookup :: ScriptLookups
 emptyLookup = mempty
 
 now :: POSIXTime
