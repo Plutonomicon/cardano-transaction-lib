@@ -52,13 +52,13 @@ mkContractWithAssertions exampleName = do
   tns <- for (Array.range 0 600) \i -> Helpers.mkTokenName $ "CTLNFT" <> show i
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       fold
         (tns <#> \tn -> Constraints.mustMintValue (Value.singleton cs tn one))
         <> Constraints.mustSpendPubKeyOutput oref
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
       <> Lookups.unspentOutputs utxos
 

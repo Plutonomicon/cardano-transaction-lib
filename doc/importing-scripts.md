@@ -4,6 +4,7 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [Exporting scripts from Plutus](#exporting-scripts-from-plutus)
 - [Importing serialized scripts](#importing-serialized-scripts)
 - [Serializing Plutus scripts](#serializing-plutus-scripts)
   - [PlutusTx](#plutustx)
@@ -11,6 +12,11 @@
   - [plutarch-ctl-bridge](#plutarch-ctl-bridge)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Exporting scripts from Plutus
+
+See [the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold)'s [exporter](https://github.com/mlabs-haskell/the-plutus-scaffold/tree/main/onchain/exporter) for a pipeline example.
+
 ## Importing serialized scripts
 
 To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.

@@ -79,12 +79,12 @@ contract = do
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       mustPayToPubKeyStakeAddressWithDatum pkh skh datum DatumWitness value
         <> mustPayToPubKeyStakeAddressWithDatum pkh skh datum DatumInline value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   void $ runChecks checks $ lift do
