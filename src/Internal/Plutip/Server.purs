@@ -270,40 +270,32 @@ startPlutipContractEnv
        , clearLogs :: Aff Unit
        }
 startPlutipContractEnv plutipCfg distr cleanupRef = do
-  configChecked <- try (configCheck plutipCfg)
-  case configChecked of
-    Left err -> throwError $ error $ "Config check failed: " <> message err
-    Right _ -> do
-      serverStarted <- try startPlutipServer'
-      case serverStarted of
-        Left err -> throwError $ error $ "Could not start Plutip server: " <>
-          message err
-        Right _ -> do
-          clusterStarted <- try startPlutipCluster'
-          case clusterStarted of
-            Left err -> throwError $ error $ "Could not start Plutip cluster: "
-              <> message err
-            Right (ourKey /\ response) -> do
-              ogmiosStarted <- try (startOgmios' response)
-              case ogmiosStarted of
-                Left err -> throwError $ error $ "Could not start Ogmios: " <>
-                  message err
-                Right _ -> do
-                  kupoStarted <- try (startKupo' response)
-                  case kupoStarted of
-                    Left err -> throwError $ error $ "Could not start Kupo: " <>
-                      message err
-                    Right _ -> do
-                      { env, printLogs, clearLogs } <-
-                        mkContractEnv'
-                      wallets <- mkWallets' env ourKey response
-                      pure
-                        { env
-                        , wallets
-                        , printLogs
-                        , clearLogs
-                        }
+  configCheck plutipCfg
+  tryWithReport startPlutipServer' "Could not start Plutip server"
+  (ourKey /\ response) <- tryWithReport startPlutipCluster'
+    "Could not start Plutip cluster"
+  tryWithReport (startOgmios' response) "Could not start Ogmios"
+  tryWithReport (startKupo' response) "Could not start Kupo"
+  { env, printLogs, clearLogs } <- mkContractEnv'
+  wallets <- mkWallets' env ourKey response
+  pure
+    { env
+    , wallets
+    , printLogs
+    , clearLogs
+    }
   where
+  tryWithReport
+    :: forall (a :: Type)
+     . Aff a
+    -> String
+    -> Aff a
+  tryWithReport what prefix = do
+    result <- try what
+    case result of
+      Left err -> throwError $ error $ prefix <> ": " <> message err
+      Right result' -> pure result'
+
   -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
   -- later.
   bracket
