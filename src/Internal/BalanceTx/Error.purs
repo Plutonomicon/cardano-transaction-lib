@@ -230,7 +230,9 @@ printTxEvaluationFailure transaction e =
     Ogmios.UnknownInputReferencedByRedeemer txIn -> line
       ("Unknown input referenced by redeemer: " <> show txIn)
     Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
-      ("Non script input referenced by redeemer: " <> show txIn)
+      ( "Non-script input, or input without datum, referenced by redeemer: " <>
+          show txIn
+      )
     Ogmios.IllFormedExecutionBudget Nothing -> line
       ("Ill formed execution budget: Execution budget missing")
     Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
