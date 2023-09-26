@@ -205,11 +205,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     ourPkh <- liftedM "Could not get our payment pkh" $
       head <$> withKeyWallet ourWallet ownPaymentPubKeyHashes
     let
-      lookups :: Lookups.ScriptLookups Void
+      lookups :: Lookups.ScriptLookups
       lookups = Lookups.unspentOutputs ourUtxos
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
 
-      constraints :: Constraints.TxConstraints Void Void
+      constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -228,7 +228,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     cache <- asks (unwrap <<< _.usedTxOuts)
     liftEffect $ Ref.write Map.empty cache
   where
-  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
+  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints
   constraintsForWallet { utxos, payPkh, stakePkh } =
     -- It's necessary to include `mustBeSignedBy`, we get a
     -- `feeTooSmall` error otherwise. See

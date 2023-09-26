@@ -4,8 +4,6 @@ module Ctl.Internal.Scripts
   , nativeScriptStakeValidatorHash
   , plutusScriptStakeValidatorHash
   , scriptCurrencySymbol
-  , typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
   , validatorHash
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
@@ -34,27 +32,11 @@ import Ctl.Internal.Types.Scripts
   , Validator
   , ValidatorHash
   )
-import Ctl.Internal.Types.TypedValidator (TypedValidator(TypedValidator))
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
 -- | the data type definitions to prevent cylic dependencies.
-
--- | Converts a Plutus-style `TypedValidator` to an `BaseAddress`
-typedValidatorBaseAddress
-  :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
-typedValidatorBaseAddress networkId (TypedValidator typedVal) =
-  baseAddressToAddress $ scriptAddress networkId $ unwrap typedVal.validatorHash
-
--- | Converts a Plutus-style `TypedValidator` to an `Address` as an
--- | `EnterpriseAddress`. This is likely what you will use since Plutus
--- | currently uses `scriptHashAddress` on non-staking addresses which is
--- | invoked in `validatorAddress`
-typedValidatorEnterpriseAddress
-  :: forall (a :: Type). NetworkId -> TypedValidator a -> Address
-typedValidatorEnterpriseAddress network (TypedValidator typedVal) =
-  validatorHashEnterpriseAddress network typedVal.validatorHash
 
 -- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
 mintingPolicyHash :: MintingPolicy -> MintingPolicyHash

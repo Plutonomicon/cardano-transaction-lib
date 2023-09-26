@@ -152,7 +152,7 @@ suite = do
             let
               constraints = mustRegisterStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -165,7 +165,7 @@ suite = do
             let
               constraints = mustDeregisterStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -200,7 +200,7 @@ suite = do
               constraints = mustRegisterStakeScript validatorHash1
                 <> mustRegisterStakeScript validatorHash2
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -217,7 +217,7 @@ suite = do
                   <> mustDeregisterStakePlutusScript validator2
                     unitRedeemer
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -250,7 +250,7 @@ suite = do
             let
               constraints = mustRegisterStakeScript stakeValidatorHash
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -263,7 +263,7 @@ suite = do
             let
               constraints = mustDeregisterStakeNativeScript validator
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -288,7 +288,7 @@ suite = do
           let
             constraints = mustRegisterStakePubKey aliceStakePkh
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
@@ -337,7 +337,7 @@ suite = do
 
             constraints = mustRegisterPool poolParams
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
@@ -364,7 +364,7 @@ suite = do
           let
             constraints = mustRetirePool poolOperator retirementEpoch
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
@@ -419,7 +419,7 @@ suite = do
                     $ lovelaceValueOf
                     $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
               ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -431,7 +431,7 @@ suite = do
                 constraints =
                   mustRegisterStakeScript stakeValidatorHash
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
               ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -446,7 +446,7 @@ suite = do
                 constraints =
                   mustDelegateStakePlutusScript validator unitRedeemer poolId
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups =
                   Lookups.ownPaymentPubKeyHash alicePkh <>
                     Lookups.ownStakePubKeyHash aliceStakePkh
@@ -476,7 +476,7 @@ suite = do
                 constraints =
                   mustWithdrawStakePlutusScript validator unitRedeemer
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups =
                   Lookups.ownPaymentPubKeyHash alicePkh <>
                     Lookups.ownStakePubKeyHash aliceStakePkh
@@ -534,7 +534,7 @@ suite = do
                     $ lovelaceValueOf
                     $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
               ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -546,7 +546,7 @@ suite = do
                 constraints =
                   mustRegisterStakeScript stakeValidatorHash
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
               ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -565,7 +565,7 @@ suite = do
                 constraints =
                   mustDelegateStakeNativeScript validator poolId
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups =
                   Lookups.ownPaymentPubKeyHash bobPkh <>
                     Lookups.ownStakePubKeyHash bobStakePkh
@@ -595,7 +595,7 @@ suite = do
                 constraints =
                   mustWithdrawStakeNativeScript validator
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups =
                   Lookups.ownPaymentPubKeyHash bobPkh <>
                     Lookups.ownStakePubKeyHash bobStakePkh
@@ -631,7 +631,7 @@ suite = do
             let
               constraints = mustRegisterStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -647,7 +647,7 @@ suite = do
               constraints =
                 mustDelegateStakePubKey aliceStakePkh poolId
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
@@ -680,7 +680,7 @@ suite = do
               constraints =
                 mustWithdrawStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh

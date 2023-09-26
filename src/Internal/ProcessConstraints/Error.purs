@@ -19,7 +19,6 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Ctl.Internal.Types.TypedTxOut (TypeCheckError)
 import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
@@ -48,9 +47,6 @@ data MkUnbalancedTxError
   | OwnPubKeyAndStakeKeyMissing
   | TxOutRefNotFound TransactionInput
   | TxOutRefWrongType TransactionInput
-  | TypeCheckFailed TypeCheckError
-  | TypedTxOutHasNoDatumHash
-  | TypedValidatorMissing
   | ValidatorHashNotFound ValidatorHash
   | WrongRefScriptHash (Maybe ScriptHash)
   | CannotSatisfyAny

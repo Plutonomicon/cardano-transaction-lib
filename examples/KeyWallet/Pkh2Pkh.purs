@@ -18,11 +18,11 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   logInfo' "Running Examples.KeyWallet.Pkh2Pkh"
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKey pkh $
       Value.lovelaceValueOf lovelace
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   txId <- submitTxFromConstraints lookups constraints
