@@ -1,6 +1,13 @@
 module Ctl.Internal.Wallet.Cip30Mock
   ( withCip30Mock
-  , WalletMock(MockFlint, MockGero, MockNami, MockLode, MockNuFi)
+  , WalletMock
+      ( MockFlint
+      , MockGero
+      , MockNami
+      , MockLode
+      , MockNuFi
+      , MockGenericCip30
+      )
   ) where
 
 import Prelude
@@ -40,7 +47,14 @@ import Ctl.Internal.Types.RewardAddress
   )
 import Ctl.Internal.Wallet
   ( Wallet
-  , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
+  , WalletExtension
+      ( LodeWallet
+      , NamiWallet
+      , GeroWallet
+      , FlintWallet
+      , NuFiWallet
+      , GenericCip30Wallet
+      )
   , mkWalletAff
   )
 import Ctl.Internal.Wallet.Key
@@ -66,7 +80,13 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 
-data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
+data WalletMock
+  = MockFlint
+  | MockGero
+  | MockNami
+  | MockLode
+  | MockNuFi
+  | MockGenericCip30 String
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -103,6 +123,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> mkWalletAff NamiWallet
     MockLode -> mkWalletAff LodeWallet
     MockNuFi -> mkWalletAff NuFiWallet
+    MockGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
 
   mockString :: String
   mockString = case mock of
@@ -111,6 +132,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> "nami"
     MockLode -> "LodeWallet"
     MockNuFi -> "nufi"
+    MockGenericCip30 name -> name
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)

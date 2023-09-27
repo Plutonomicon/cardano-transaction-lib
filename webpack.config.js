@@ -32,6 +32,9 @@ module.exports = {
         pathRewrite: { "^/kupo": "" },
       },
     },
+    client: {
+      overlay: false,
+    },
   },
 
   // we can add more entrypoints as needed

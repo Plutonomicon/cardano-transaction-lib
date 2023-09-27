@@ -144,7 +144,7 @@ mkContract p = do
     nonAdaValue :: Value
     nonAdaValue = uncurry3 Value.singleton p.tokensToMint
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mconcat
       [ Helpers.mustPayToPubKeyStakeAddress p.receiverPkh p.receiverSkh adaValue
 
@@ -156,7 +156,7 @@ mkContract p = do
           nonAdaValue
       ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy p.mintingPolicy
 
   unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints

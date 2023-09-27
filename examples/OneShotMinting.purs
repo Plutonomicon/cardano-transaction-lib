@@ -93,12 +93,12 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   tn <- Helpers.mkTokenName "CTLNFT"
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintValue (Value.singleton cs tn one)
         <> Constraints.mustSpendPubKeyOutput oref
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups =
       Lookups.mintingPolicy mp
         <> Lookups.unspentOutputs utxos

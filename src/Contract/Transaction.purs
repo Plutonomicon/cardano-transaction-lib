@@ -44,9 +44,7 @@ import Contract.Monad
   , liftedM
   , runContractInEnv
   )
-import Contract.PlutusData (class IsData)
 import Contract.ScriptLookups (mkUnbalancedTx)
-import Contract.Scripts (class ValidatorTypes)
 import Contract.TxConstraints (TxConstraints)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
@@ -529,13 +527,8 @@ createAdditionalUtxos tx = do
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
 
 submitTxFromConstraintsReturningFee
-  :: forall (validator :: Type) (datum :: Type)
-       (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => ScriptLookups validator
-  -> TxConstraints redeemer datum
+  :: ScriptLookups
+  -> TxConstraints
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
@@ -545,13 +538,8 @@ submitTxFromConstraintsReturningFee lookups constraints = do
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
 
 submitTxFromConstraints
-  :: forall (validator :: Type) (datum :: Type)
-       (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => ScriptLookups validator
-  -> TxConstraints redeemer datum
+  :: ScriptLookups
+  -> TxConstraints
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints =
   _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints

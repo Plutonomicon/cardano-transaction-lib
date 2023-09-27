@@ -70,6 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [HD wallet support](./doc/key-management.md) with mnemonic seed phrases ([#1498](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1498))
 - Ogmios-specific functions for Local TX Monitor Ouroboros Mini-Protocol in `Contract.Backend.Ogmios` ([#1508](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1508/))
 - New `mustSendChangeWithDatum` balancer constraint that adds datum to all change outputs ([#1510](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1510/))
+- Support for generic CIP-30 wallets by name ([#1524](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1524))
 - Allow providing a custom set of UTxOs for collateral selection, overriding the wallet (`mustUseCollateralUtxos` balancer constraint) ([#1513](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1513))
 
 ### Changed
@@ -92,6 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Do not require light wallet collateral for all interactions ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
+- UTxO lists and combined input/output/mint/fee values are now being pretty-printed instead of logged using `Show` instance (in the balancer) ([#1531](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1531))
 
 ### Fixed
 
@@ -108,11 +110,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Add a single-slot wait at Plutip startup before attempting to query any wallet UTxOs ([#1470](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1470))
 - Index `Reward` redeemers properly ([#1419](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1419),  [#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 - A problem with collateral selection not respecting `mustNotSpendUtxosWithOutRefs` ([#1509](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1509))
+- A problem with too many change UTxOs being generated ([#1530](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1530))
 
 ### Removed
 
 - `E2E_SKIP_JQUERY_DOWNLOAD` configuration variable for [E2E test suite](./doc/e2e-testing.md). It is not needed, because it's expected value can be determined from the environment, and thus it can be an implementation detail ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `reindexSpentScriptRedeemers` function from the public API - if there is a need to modify the `Transaction` in a way that breaks redeemer indices, it should be done before balancing ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
+- Typed scripts and constraints interface. In practice, it means that the following types now have no type-level arguments: `TxConstraints`, `ScriptLookups`.
 
 ## [v5.0.0]
 

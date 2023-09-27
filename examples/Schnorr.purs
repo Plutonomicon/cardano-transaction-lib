@@ -60,10 +60,10 @@ prepTest = do
     valHash = validatorHash validator
     val = Value.lovelaceValueOf one
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToScript valHash unitDatum
       Constraints.DatumInline
       val
@@ -94,12 +94,12 @@ testVerification txId ecdsaRed = do
     $ Map.keys scriptUtxos
 
   let
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs
         (Map.filterKeys ((unwrap >>> _.transactionId >>> eq txId)) scriptUtxos)
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustSpendScriptOutput txIn red
   txId' <- submitTxFromConstraints lookups constraints
   logInfo' $ "Submitted Schnorr test verification tx: " <> show txId'

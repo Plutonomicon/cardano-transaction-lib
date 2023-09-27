@@ -17,7 +17,6 @@ import Contract.BalanceTxConstraints
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedE, liftedM, runContract)
-import Contract.PlutusData (PlutusData)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( awaitTxConfirmed
@@ -45,12 +44,12 @@ contract :: Contract Unit
 contract = do
   pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeyHashes
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToPubKey pkh
         (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
 
-    lookups0 :: Lookups.ScriptLookups PlutusData
+    lookups0 :: Lookups.ScriptLookups
     lookups0 = mempty
 
   unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups0 constraints
@@ -62,7 +61,7 @@ contract = do
     logInfo' $ "Additional utxos: " <> show additionalUtxos
 
     let
-      lookups1 :: Lookups.ScriptLookups PlutusData
+      lookups1 :: Lookups.ScriptLookups
       lookups1 = Lookups.unspentOutputs additionalUtxos
 
       balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
