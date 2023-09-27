@@ -43,9 +43,8 @@ suite = do
 -- Properties
 
 prop_roundtripOverMonoid
-  :: forall i o
-   . (Value.Value -> TxConstraints i o)
-  -> (TxConstraints i o -> Value.Value)
+  :: (Value.Value -> TxConstraints)
+  -> (TxConstraints -> Value.Value)
   -> Value.Value
   -> Value.Value
   -> Result
@@ -54,9 +53,8 @@ prop_roundtripOverMonoid must total x y =
     "On value 1 " <> show x <> " and value 2 " <> show y
 
 prop_roundtrip
-  :: forall i o
-   . (Value.Value -> TxConstraints i o)
-  -> (TxConstraints i o -> Value.Value)
+  :: (Value.Value -> TxConstraints)
+  -> (TxConstraints -> Value.Value)
   -> Value.Value
   -> Result
 prop_roundtrip must total x = (must >>> total) x === x

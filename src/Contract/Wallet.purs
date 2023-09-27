@@ -2,6 +2,7 @@
 module Contract.Wallet
   ( mkKeyWalletFromPrivateKeys
   , withKeyWallet
+  , withKeyWalletFromMnemonic
   , ownStakePubKeyHash
   , ownPaymentPubKeyHash
   , getWalletBalance
@@ -31,6 +32,7 @@ import Contract.Utxos (UtxoMap)
 import Contract.Value (Value)
 import Contract.Value as Value
 import Contract.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
+import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks, local)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
@@ -56,7 +58,7 @@ import Ctl.Internal.Plutus.Conversion
   )
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddressWithNetworkTag)
 import Ctl.Internal.Wallet
-  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, KeyWallet)
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, KeyWallet, GenericCip30)
   , WalletExtension
       ( NamiWallet
       , GeroWallet
@@ -65,6 +67,7 @@ import Ctl.Internal.Wallet
       , LodeWallet
       , LaceWallet
       , NuFiWallet
+      , GenericCip30Wallet
       )
   , apiVersion
   , icon
@@ -87,10 +90,17 @@ import Ctl.Internal.Wallet.Key
   ) as X
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey) as X
 import Ctl.Internal.Wallet.Spec
-  ( PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  ( Cip1852DerivationPath
+  , StakeKeyPresence
+  , mkKeyWalletFromMnemonic
+  )
+import Ctl.Internal.Wallet.Spec
+  ( MnemonicSource(MnemonicString, MnemonicFile)
+  , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , WalletSpec
       ( UseKeys
+      , UseMnemonic
       , ConnectToNami
       , ConnectToGero
       , ConnectToFlint
@@ -98,9 +108,11 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLace
       , ConnectToEternl
       , ConnectToNuFi
+      , ConnectToGenericCip30
       )
   ) as X
 import Data.Array (head)
+import Data.Bifunctor (lmap)
 import Data.Foldable (fold, foldr)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just), fromMaybe)
@@ -117,6 +129,20 @@ withKeyWallet
   -> Contract a
 withKeyWallet wallet =
   local _ { wallet = Just $ Wallet.KeyWallet wallet }
+
+withKeyWalletFromMnemonic
+  :: forall (a :: Type)
+   . String
+  -> Cip1852DerivationPath
+  -> StakeKeyPresence
+  -> Contract a
+  -> Contract a
+withKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence contract = do
+  keyWallet <- liftEither $ lmap (error <<< addNote) $
+    mkKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence
+  withKeyWallet keyWallet contract
+  where
+  addNote = append "withKeyWalletFromMnemonic: "
 
 mkKeyWalletFromPrivateKeys
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet

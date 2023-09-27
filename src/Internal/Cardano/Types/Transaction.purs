@@ -54,6 +54,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , UnitInterval
   , Update
   , UtxoMap
+  , pprintUtxoMap
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , _auxiliaryData
@@ -100,7 +101,7 @@ import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value)
+import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value, pprintValue)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Keys
   ( ed25519SignatureFromBech32
@@ -113,6 +114,7 @@ import Ctl.Internal.Serialization.Address
   , NetworkId
   , Slot(Slot)
   , StakeCredential
+  , addressBech32
   )
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
@@ -130,16 +132,18 @@ import Ctl.Internal.Serialization.Types (Ed25519Signature, PublicKey) as Seriali
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.Int as Int
-import Ctl.Internal.Types.OutputDatum (OutputDatum)
-import Ctl.Internal.Types.PlutusData (PlutusData)
+import Ctl.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
+import Ctl.Internal.Types.PlutusData (PlutusData, pprintPlutusData)
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash(PubKeyHash))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
@@ -150,8 +154,11 @@ import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Map (Map)
-import Data.Maybe (Maybe(Nothing), fromJust)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
@@ -160,8 +167,9 @@ import Data.Show.Generic (genericShow)
 import Data.String.Utils (startsWith)
 import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
+import Data.UInt as UInt
 import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
@@ -967,3 +975,33 @@ instance Show TransactionOutput where
   show = genericShow
 
 type UtxoMap = Map TransactionInput TransactionOutput
+
+pprintUtxoMap :: UtxoMap -> TagSet
+pprintUtxoMap utxos = TagSet.fromArray $
+  Map.toUnfoldable utxos <#>
+    \( TransactionInput { transactionId, index } /\
+         TransactionOutput { address, amount, datum, scriptRef }
+     ) ->
+      let
+        datumTagSets = case datum of
+          NoOutputDatum -> []
+          OutputDatumHash datumHash ->
+            [ TagSet.fromArray
+                [ "datum hash" `tag` byteArrayToHex (unwrap datumHash) ]
+            ]
+          OutputDatum plutusData ->
+            [ TagSet.fromArray
+                [ "datum" `tagSetTag` pprintPlutusData (unwrap plutusData) ]
+            ]
+        scriptRefTagSets = case scriptRef of
+          Nothing -> []
+          Just ref -> [ "Script Reference" `tag` show ref ]
+        outputTagSet =
+          [ "amount" `tagSetTag` pprintValue amount
+          , "address" `tag` addressBech32 address
+          ]
+            <> datumTagSets
+            <> scriptRefTagSets
+      in
+        (byteArrayToHex (unwrap transactionId) <> "#" <> UInt.toString index)
+          `tagSetTag` TagSet.fromArray outputTagSet

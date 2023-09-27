@@ -1,3 +1,4 @@
+-- | `KeyWallet` type and its utility functions.
 module Contract.Wallet.Key
   ( module X
   , publicKeyFromPrivateKey
@@ -13,6 +14,11 @@ import Ctl.Internal.Wallet.Key
   , keyWalletPrivatePaymentKey
   , keyWalletPrivateStakeKey
   , privateKeysToKeyWallet
+  ) as X
+import Ctl.Internal.Wallet.Spec
+  ( Cip1852DerivationPath
+  , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
+  , mkKeyWalletFromMnemonic
   ) as X
 
 publicKeyFromPrivateKey :: PrivateKey -> PublicKey

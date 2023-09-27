@@ -42,13 +42,13 @@ testMustSatisfyAnyOf = do
     wrongDatumHash = Hashing.datumHash wrongDatum
     correctDatumHash = Hashing.datumHash unitDatum
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints = Constraints.mustSatisfyAnyOf
       [ Constraints.mustHashDatum wrongDatumHash unitDatum
       , Constraints.mustHashDatum correctDatumHash unitDatum
       ]
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   void $ liftedE $ Lookups.mkUnbalancedTx lookups constraints

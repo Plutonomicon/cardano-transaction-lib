@@ -16,6 +16,7 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
+import Contract.BalanceTxConstraints (mustNotSpendUtxosWithOutRefs)
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
@@ -151,7 +152,7 @@ import Ctl.Internal.Wallet
   ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
   )
 import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi)
+  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi, MockGenericCip30)
   , withCip30Mock
   )
 import Data.Array (head, (!!))
@@ -160,7 +161,7 @@ import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
@@ -211,6 +212,37 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice ManyAssets.contract
+    test
+      "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs "
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+
+        withWallets someUtxos \alice -> do
+          withKeyWallet alice do
+            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+              ownPaymentPubKeyHashes
+            stakePkh <- join <<< head <$> withKeyWallet alice
+              ownStakePubKeyHashes
+            utxos <- fromMaybe Map.empty <$> getWalletUtxos
+            let
+              constraints :: Constraints.TxConstraints
+              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
+                $ Value.lovelaceValueOf
+                $ BigInt.fromInt 2_000_000
+
+              lookups :: Lookups.ScriptLookups
+              lookups = mempty
+            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraints ubTx
+                  (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
+              )
+            res `shouldSatisfy` isLeft
+
     test "#1480 - test that does nothing but fails" do
       let
         someUtxos =
@@ -412,12 +444,12 @@ suite = do
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
-              constraints :: TxConstraints Unit Unit
+              constraints :: TxConstraints
               constraints = Constraints.mustPayToNativeScript nsHash
                 $ Value.lovelaceValueOf
                 $ BigInt.fromInt 10_000_000
 
-              lookups :: Lookups.ScriptLookups PlutusData
+              lookups :: Lookups.ScriptLookups
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -437,7 +469,7 @@ suite = do
             txInput <- liftContractM "Unable to get UTxO" $
               view _input <$> lookupTxHash txId utxos !! 0
             let
-              constraints :: TxConstraints Unit Unit
+              constraints :: TxConstraints
               constraints =
                 Constraints.mustPayToPubKey (coerce alicePaymentPKH)
                   (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
@@ -455,7 +487,7 @@ suite = do
               -- the script itself, so we know how much space to allocate
               -- for signatures on fee calculation stage.
 
-              lookups :: Lookups.ScriptLookups PlutusData
+              lookups :: Lookups.ScriptLookups
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -509,12 +541,12 @@ suite = do
           -- Alice locks 10 ADA at mutlisig script
           txId <- withKeyWallet alice do
             let
-              constraints :: TxConstraints Unit Unit
+              constraints :: TxConstraints
               constraints = Constraints.mustPayToNativeScript nsHash
                 $ Value.lovelaceValueOf
                 $ BigInt.fromInt 10_000_000
 
-              lookups :: Lookups.ScriptLookups PlutusData
+              lookups :: Lookups.ScriptLookups
               lookups = mempty
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -535,14 +567,14 @@ suite = do
             txInput <- liftContractM "Unable to get UTxO" $
               view _input <$> lookupTxHash txId utxos !! 0
             let
-              constraints :: TxConstraints Unit Unit
+              constraints :: TxConstraints
               constraints =
                 Constraints.mustPayToPubKey (coerce alicePaymentPKH)
                   (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
                   <> Constraints.mustSpendNativeScriptOutput txInput
                     nativeScript
 
-              lookups :: Lookups.ScriptLookups PlutusData
+              lookups :: Lookups.ScriptLookups
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -565,18 +597,18 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+          let cs = Value.scriptCurrencySymbol mp
           tn <- liftContractM "Cannot make token name"
             $ Value.mkTokenName
                 =<< byteArrayFromAscii "TheToken"
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = Constraints.mustMintValue
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups = Lookups.mintingPolicy mp
 
           ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -599,12 +631,12 @@ suite = do
           -- Minting
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = Constraints.mustMintValue
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups = Lookups.mintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
@@ -616,7 +648,7 @@ suite = do
             liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
-            constraints' :: Constraints.TxConstraints Void Void
+            constraints' :: Constraints.TxConstraints
             constraints' = Constraints.mustProduceAtLeast
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
@@ -641,12 +673,12 @@ suite = do
           -- Minting
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = Constraints.mustMintValue
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups = Lookups.mintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
@@ -658,7 +690,7 @@ suite = do
             liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
-            constraints' :: Constraints.TxConstraints Void Void
+            constraints' :: Constraints.TxConstraints
             constraints' = Constraints.mustProduceAtLeast
               $ Value.singleton cs tn
               $ BigInt.fromInt 101
@@ -684,12 +716,12 @@ suite = do
           -- Minting
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = Constraints.mustMintValue
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups = Lookups.mintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
@@ -701,7 +733,7 @@ suite = do
             liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
-            constraints' :: Constraints.TxConstraints Void Void
+            constraints' :: Constraints.TxConstraints
             constraints' = Constraints.mustSpendAtLeast
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
@@ -726,12 +758,12 @@ suite = do
           -- Minting
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = Constraints.mustMintValue
               $ Value.singleton cs tn
               $ BigInt.fromInt 100
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups = Lookups.mintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
@@ -743,7 +775,7 @@ suite = do
             liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
 
           let
-            constraints' :: Constraints.TxConstraints Void Void
+            constraints' :: Constraints.TxConstraints
             constraints' = Constraints.mustSpendAtLeast
               $ Value.singleton cs tn
               $ BigInt.fromInt 101
@@ -821,7 +853,7 @@ suite = do
                   Constraints.DatumWitness
                   (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
 
-            lookups :: Lookups.ScriptLookups PlutusData
+            lookups :: Lookups.ScriptLookups
             lookups = mempty
           submitTxFromConstraints lookups constraints
 
@@ -898,10 +930,10 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = mempty
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups = mempty
             givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
               [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
@@ -930,13 +962,13 @@ suite = do
           mp2 /\ _ <- mkCurrencySymbol alwaysMintsPolicyV2
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = mconcat
               [ Constraints.mustMintCurrency (mintingPolicyHash mp1) tn1 zero
               , Constraints.mustMintCurrency (mintingPolicyHash mp2) tn1 one
               ]
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.mintingPolicy mp1 <> Lookups.mintingPolicy mp2
           result <- Lookups.mkUnbalancedTx lookups constraints
@@ -958,7 +990,7 @@ suite = do
           mp3 /\ cs3 <- mkCurrencySymbol mintingPolicyRdmrInt3
 
           let
-            constraints :: Constraints.TxConstraints Void Void
+            constraints :: Constraints.TxConstraints
             constraints = mconcat
               [ Constraints.mustMintValueWithRedeemer
                   (Redeemer $ Integer (BigInt.fromInt 1))
@@ -971,7 +1003,7 @@ suite = do
                   (Value.singleton cs3 tn1 one <> Value.singleton cs3 tn2 one)
               ]
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.mintingPolicy mp1
                 <> Lookups.mintingPolicy mp2
@@ -1128,7 +1160,7 @@ suite = do
               value :: Value.Value
               value = Value.lovelaceValueOf $ BigInt.fromInt 50_000_000
 
-              constraints :: TxConstraints Unit Unit
+              constraints :: TxConstraints
               constraints = fold
                 [ Constraints.mustSpendScriptOutput
                     (view _input alwaysSucceedsUtxo)
@@ -1136,7 +1168,7 @@ suite = do
                 , Constraints.mustPayToPubKey alicePkh value
                 ]
 
-              lookups :: Lookups.ScriptLookups PlutusData
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.validator validator
                   <> Lookups.unspentOutputs additionalUtxos
@@ -1342,7 +1374,7 @@ suite = do
               pure $ pkh /\ stakePkh
 
             mp <- alwaysMintsPolicy
-            cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+            let cs = Value.scriptCurrencySymbol mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
             let asset = Value.singleton cs tn $ BigInt.fromInt 50
@@ -1353,7 +1385,7 @@ suite = do
             txId <- withKeyWallet seed do
               logInfo' "Minting asset to Alice"
               let
-                constraints :: Constraints.TxConstraints Void Void
+                constraints :: Constraints.TxConstraints
                 constraints = Constraints.mustMintValue (asset <> asset)
                   <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
                     ( asset <>
@@ -1364,7 +1396,7 @@ suite = do
                         (Value.lovelaceValueOf $ BigInt.fromInt 50_000_000)
                     )
 
-                lookups :: Lookups.ScriptLookups Void
+                lookups :: Lookups.ScriptLookups
                 lookups = Lookups.mintingPolicy mp
 
               ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -1520,7 +1552,7 @@ suite = do
               ownPaymentPubKeyHashes
 
             let
-              constraints0 :: TxConstraints Unit Unit
+              constraints0 :: TxConstraints
               constraints0 =
                 Constraints.mustPayToPubKeyWithScriptRef
                   pkh
@@ -1557,7 +1589,7 @@ suite = do
                       (NativeScriptRef nativeScriptFixture7)
                       (Value.lovelaceValueOf $ BigInt.fromInt 10_000_000)
 
-              lookups0 :: Lookups.ScriptLookups PlutusData
+              lookups0 :: Lookups.ScriptLookups
               lookups0 = mempty
 
             unbalancedTx0 <-
@@ -1572,12 +1604,12 @@ suite = do
               length additionalUtxos `shouldNotEqual` 0
 
               let
-                constraints1 :: TxConstraints Unit Unit
+                constraints1 :: TxConstraints
                 constraints1 =
                   Constraints.mustPayToPubKey pkh
                     (Value.lovelaceValueOf $ BigInt.fromInt 70_000_000)
 
-                lookups1 :: Lookups.ScriptLookups PlutusData
+                lookups1 :: Lookups.ScriptLookups
                 lookups1 = Lookups.unspentOutputs additionalUtxos
 
                 balanceTxConstraints
@@ -1618,7 +1650,7 @@ suite = do
             logInfo' $ "wUtxos0 " <> show wUtxos0
 
             mp <- alwaysMintsPolicyV2
-            cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+            let cs = Value.scriptCurrencySymbol mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
 
@@ -1657,7 +1689,7 @@ suite = do
                   , Integer $ BigInt.fromInt 7295143
                   ]
 
-              constraints0 :: TxConstraints Unit Unit
+              constraints0 :: TxConstraints
               constraints0 =
                 Constraints.mustPayToPubKeyWithDatumAndScriptRef
                   pkh
@@ -1680,7 +1712,7 @@ suite = do
             let datumLookup = Lookups.datum datum'
 
             let
-              lookups0 :: Lookups.ScriptLookups PlutusData
+              lookups0 :: Lookups.ScriptLookups
               lookups0 = Lookups.mintingPolicy mp <> datumLookup
 
             unbalancedTx0 <-
@@ -1695,13 +1727,13 @@ suite = do
               length additionalUtxos `shouldNotEqual` 0
 
               let
-                constraints1 :: TxConstraints Unit Unit
+                constraints1 :: TxConstraints
                 constraints1 =
                   Constraints.mustPayToPubKey pkh $
                     Value.lovelaceValueOf (BigInt.fromInt 60_000_000)
                       <> Value.singleton cs tn (BigInt.fromInt 50)
 
-                lookups1 :: Lookups.ScriptLookups PlutusData
+                lookups1 :: Lookups.ScriptLookups
                 lookups1 = Lookups.unspentOutputs additionalUtxos
 
                 balanceTxConstraints
@@ -1894,6 +1926,8 @@ suite = do
         withWallets distribution \alice -> do
           withCip30Mock alice MockNami do
             Cip30.contract
+          withCip30Mock alice (MockGenericCip30 "nami") do
+            Cip30.contract
       test "ECDSA example" do
         let
           distribution = withStakeKey privateStakeKey
@@ -1933,12 +1967,12 @@ signMultipleContract = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   stakePkh <- join <<< head <$> ownStakePubKeyHashes
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mustPayToPubKeyStakeAddress pkh stakePkh
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
@@ -1962,12 +1996,12 @@ pkh2PkhContract
   -> Contract Unit
 pkh2PkhContract pkh stakePkh = do
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mustPayToPubKeyStakeAddress pkh stakePkh
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
   ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
   bsTx <- signTransaction =<< liftedE (balanceTx ubTx)

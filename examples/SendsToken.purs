@@ -49,10 +49,10 @@ mintToken :: Contract TransactionHash
 mintToken = do
   mp /\ value <- tokenValue
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustMintValue value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
   submitTxFromConstraints lookups constraints
@@ -63,10 +63,10 @@ sendToken = do
   skh <- join <<< head <$> ownStakePubKeyHashes
   _ /\ value <- tokenValue
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Helpers.mustPayToPubKeyStakeAddress pkh skh value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints

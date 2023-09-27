@@ -31,7 +31,7 @@ mkCurrencySymbol
   -> Contract (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  let cs = Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
 mkTokenName :: String -> Contract TokenName
@@ -44,7 +44,7 @@ mustPayToPubKeyStakeAddress
    . PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> Value
-  -> Constraints.TxConstraints i o
+  -> Constraints.TxConstraints
 mustPayToPubKeyStakeAddress pkh Nothing =
   Constraints.mustPayToPubKey pkh
 mustPayToPubKeyStakeAddress pkh (Just skh) =
@@ -57,7 +57,7 @@ mustPayToPubKeyStakeAddressWithDatum
   -> Datum
   -> DatumPresence
   -> Value
-  -> Constraints.TxConstraints i o
+  -> Constraints.TxConstraints
 mustPayToPubKeyStakeAddressWithDatum pkh Nothing datum dtp =
   Constraints.mustPayToPubKeyWithDatum pkh datum dtp
 mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) datum dtp =
@@ -69,7 +69,7 @@ mustPayToPubKeyStakeAddressWithScriptRef
   -> Maybe StakePubKeyHash
   -> ScriptRef
   -> Value
-  -> Constraints.TxConstraints i o
+  -> Constraints.TxConstraints
 mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing scriptRef =
   Constraints.mustPayToPubKeyWithScriptRef pkh scriptRef
 mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
