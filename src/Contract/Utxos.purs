@@ -89,6 +89,7 @@ utxosWithAssetClass symbol name = do
 utxosWithCurrencySymbol :: CurrencySymbol -> Contract UtxoMap
 utxosWithCurrencySymbol symbol = do
   queryHandle <- getQueryHandle
-  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithCurrencySymbol symbol
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithCurrencySymbol
+    symbol
   liftContractM "utxosAt: failed to convert utxos"
     $ toPlutusUtxoMap cardanoUtxoMap

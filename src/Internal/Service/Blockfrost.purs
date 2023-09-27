@@ -243,7 +243,7 @@ import Data.Show.Generic (genericShow)
 import Data.String (splitAt) as String
 import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Data.Traversable (for, for_, traverse)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (Tuple(Tuple), fst, snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
@@ -676,9 +676,10 @@ utxosWithCurrencySymbol
 utxosWithCurrencySymbol symbol = runExceptT $ do
   assets :: BlockfrostAssetsWithCurrencySymbol <- ExceptT
     (entriesOnPage assetsOnPage 1)
-  utxos <- traverse
-    (\(symbol /\ name) -> ExceptT $ utxosWithAssetClass symbol name)
-    (unwrap assets)
+  utxos <-
+    traverse
+      (ExceptT <<< uncurry utxosWithAssetClass)
+      $ unwrap assets
   pure $ Map.unions utxos
   where
   assetsOnPage :: Int -> Int -> BlockfrostEndpoint
