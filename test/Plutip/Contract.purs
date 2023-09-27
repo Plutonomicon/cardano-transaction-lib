@@ -39,7 +39,7 @@ import Contract.PlutusData
   , getDatumsByHashesWithErrors
   , unitRedeemer
   )
-import Contract.Prelude (mconcat)
+import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray
   ( byteArrayFromAscii
   , hexToByteArrayUnsafe
@@ -171,9 +171,8 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
-import Effect.Exception (throw)
-import Mote (group, only, skip, test)
+import Effect.Exception (error, throw)
+import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -272,8 +271,8 @@ suite = do
 
       withWallets distribution \_ → pure unit
 
-  only $ group "Contract interface" do
-    only $ test
+  group "Contract interface" do
+    test
       "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
       do
         let
@@ -285,18 +284,36 @@ suite = do
           bobsCollateral <- withKeyWallet bob do
             fromMaybe Map.empty <$> getWalletUtxos
           withKeyWallet alice do
-            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-              ownPaymentPubKeyHashes
-            stakePkh <- join <<< head <$> withKeyWallet alice
-              ownStakePubKeyHashes
-            let
-              constraints :: Constraints.TxConstraints Void Void
-              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
-                $ Value.lovelaceValueOf
-                $ BigInt.fromInt 2_000_000
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            let
+              scriptAddress = scriptHashAddress vhash Nothing
+            utxos <- utxosAt scriptAddress
+            txInput <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                (view _input <$> head (lookupTxHash txId utxos))
+            let
+              lookups :: Lookups.ScriptLookups PlutusData
+              lookups = Lookups.validator validator
+                <> Lookups.unspentOutputs utxos
+
+              constraints :: TxConstraints Unit Unit
+              constraints =
+                Constraints.mustSpendScriptOutput txInput unitRedeemer
+
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             res <-
               ( balanceTxWithConstraints ubTx
@@ -304,7 +321,7 @@ suite = do
               )
             res `shouldSatisfy` isRight
 
-    only $ test
+    test
       "mustUseCollateralUtxos should fail if not enough UTxOs are provided"
       do
         let
@@ -314,24 +331,41 @@ suite = do
             ]
         withWallets someUtxos \alice -> do
           withKeyWallet alice do
-            pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-              ownPaymentPubKeyHashes
-            stakePkh <- join <<< head <$> withKeyWallet alice
-              ownStakePubKeyHashes
-            let
-              constraints :: Constraints.TxConstraints Void Void
-              constraints = mustPayToPubKeyStakeAddress pkh stakePkh
-                $ Value.lovelaceValueOf
-                $ BigInt.fromInt 2_000_000
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            let
+              scriptAddress = scriptHashAddress vhash Nothing
+            utxos <- utxosAt scriptAddress
+            txInput <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                (view _input <$> head (lookupTxHash txId utxos))
+            let
+              lookups :: Lookups.ScriptLookups PlutusData
+              lookups = Lookups.validator validator
+                <> Lookups.unspentOutputs utxos
+
+              constraints :: TxConstraints Unit Unit
+              constraints =
+                Constraints.mustSpendScriptOutput txInput unitRedeemer
+
             ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
             res <-
               ( balanceTxWithConstraints ubTx
                   $ mustUseCollateralUtxos Map.empty
               )
-            liftEffect $ Console.log $ show $ res
             res `shouldSatisfy` case _ of
               Left InsufficientCollateralUtxos -> true
               _ -> false
