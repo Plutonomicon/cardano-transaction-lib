@@ -3,7 +3,10 @@ module Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
+  , currentEra
+  , mkTimeRangeWithinSummary
   , module Chain
+  , module TipChain
   , module ExportEraSummaries
   , module ExportOgmios
   , module ExportSystemStart
@@ -13,15 +16,12 @@ module Contract.Time
 
 import Prelude
 
-import Contract.Chain
-  ( BlockHeaderHash(BlockHeaderHash)
-  , ChainTip(ChainTip)
-  , Tip(Tip, TipAtGenesis)
-  , getTip
-  ) as Chain
-import Contract.Monad (Contract, liftedE)
+import Contract.Chain (getTip) as TipChain
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, liftContractM, liftedE)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
+import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
@@ -30,6 +30,12 @@ import Ctl.Internal.QueryM.Ogmios
   , OgmiosEraSummaries(OgmiosEraSummaries)
   ) as ExportOgmios
 import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
+import Ctl.Internal.Serialization.Address (Slot)
+import Ctl.Internal.Types.Chain
+  ( BlockHeaderHash(BlockHeaderHash)
+  , ChainTip(ChainTip)
+  , Tip(TipAtGenesis, Tip)
+  ) as Chain
 import Ctl.Internal.Types.EraSummaries
   ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
@@ -44,7 +50,7 @@ import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
   , Extended(NegInf, Finite, PosInf)
-  , Interval
+  , Interval(FiniteInterval)
   , LowerBound(LowerBound)
   , ModTime(ModTime)
   , OnchainPOSIXTimeRange(OnchainPOSIXTimeRange)
@@ -98,9 +104,69 @@ import Ctl.Internal.Types.Interval
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Data.BigInt as BigInt
+import Data.Foldable (find)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap)
 import Data.UInt as UInt
+import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
+
+-- | Get a summary of the current era.
+currentEra :: Contract ExportEraSummaries.EraSummary
+currentEra = do
+  eraSummaries <- getEraSummaries
+  currentSlot <- getCurrentSlot
+  logInfo' $ show eraSummaries
+  logInfo' $ show currentSlot
+  -- Assumes that eras are sorted: this may not be stable in the future.
+  liftContractM "Could not find era summary"
+    $ find (go currentSlot)
+    $ unwrap eraSummaries
+  where
+  go :: Slot -> ExportEraSummaries.EraSummary -> Boolean
+  go currentSlot era =
+    let
+      eraStartSlot = era # unwrap # _.start # unwrap # _.slot
+      startNotAfterUs = eraStartSlot <= currentSlot
+    in
+      case era # unwrap # _.end of
+        Nothing -> startNotAfterUs
+        Just eraEnd -> startNotAfterUs &&
+          ( (eraEnd # unwrap # _.slot) >
+              currentSlot
+          )
+
+  getCurrentSlot :: Contract Slot
+  getCurrentSlot = do
+    { delay: delayMs } <- asks $ _.timeParams >>> _.awaitTxConfirmed
+    getChainTip >>= case _ of
+      Chain.TipAtGenesis -> do
+        liftAff $ delay delayMs
+        getCurrentSlot
+      Chain.Tip (Chain.ChainTip { slot }) -> pure slot
+
+-- | Given a desired range, tighten it to fit onchain.
+mkTimeRangeWithinSummary
+  :: Interval.Interval Interval.POSIXTime
+  -> Contract (Interval.Interval Interval.POSIXTime)
+mkTimeRangeWithinSummary = case _ of
+  desired@(Interval.FiniteInterval start end) -> do
+    era <- currentEra
+    let params = unwrap (unwrap era).parameters
+    slotLength <- liftContractM "Could not get slot length" $ BigInt.fromNumber
+      $ unwrap params.slotLength
+    let offset = unwrap params.safeZone + slotLength
+    let endTime = start + Interval.POSIXTime offset
+    let oneSecond = Interval.POSIXTime $ BigInt.fromInt 1_000
+    let
+      range = Interval.FiniteInterval (start + oneSecond)
+        (min end (endTime - oneSecond))
+    logInfo' $ "Desired range: " <> show desired
+    logInfo' $ "Computed range: " <> show range
+    pure range
+  i -> liftContractM ("Could not convert to start-end range: " <> show i)
+    Nothing
 
 -- | Get the current Epoch.
 getCurrentEpoch :: Contract Epoch
