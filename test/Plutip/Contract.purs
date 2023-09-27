@@ -597,7 +597,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+          let cs = Value.scriptCurrencySymbol mp
           tn <- liftContractM "Cannot make token name"
             $ Value.mkTokenName
                 =<< byteArrayFromAscii "TheToken"
@@ -1374,7 +1374,7 @@ suite = do
               pure $ pkh /\ stakePkh
 
             mp <- alwaysMintsPolicy
-            cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+            let cs = Value.scriptCurrencySymbol mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
             let asset = Value.singleton cs tn $ BigInt.fromInt 50
@@ -1650,7 +1650,7 @@ suite = do
             logInfo' $ "wUtxos0 " <> show wUtxos0
 
             mp <- alwaysMintsPolicyV2
-            cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+            let cs = Value.scriptCurrencySymbol mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
 

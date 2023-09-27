@@ -13,7 +13,9 @@ import Prelude
 
 import Ctl.Internal.Hashing (plutusScriptHash)
 import Ctl.Internal.NativeScripts (NativeScriptHash, nativeScriptHash)
-import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol, mpsSymbol)
+import Ctl.Internal.Plutus.Types.CurrencySymbol
+  ( CurrencySymbol(CurrencySymbol)
+  )
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -23,6 +25,7 @@ import Ctl.Internal.Serialization.Address
   , scriptAddress
   , scriptHashCredential
   )
+import Ctl.Internal.Serialization.Hash (scriptHashToBytes)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
@@ -32,7 +35,6 @@ import Ctl.Internal.Types.Scripts
   , Validator
   , ValidatorHash
   )
-import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 
 -- | Helpers for `PlutusScript` and `ScriptHash` newtype wrappers, separate from
@@ -81,5 +83,10 @@ nativeScriptStakeValidatorHash
 nativeScriptStakeValidatorHash = unwrap >>> nativeScriptHash >>> unwrap >>> wrap
 
 -- | Converts a `MintingPolicy` to a `CurrencySymbol`.
-scriptCurrencySymbol :: MintingPolicy -> Maybe CurrencySymbol
-scriptCurrencySymbol = mpsSymbol <<< mintingPolicyHash
+scriptCurrencySymbol :: MintingPolicy -> CurrencySymbol
+scriptCurrencySymbol = CurrencySymbol
+  <<< unwrap
+  <<< scriptHashToBytes
+  <<< unwrap
+  <<<
+    mintingPolicyHash

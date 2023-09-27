@@ -31,7 +31,7 @@ mkCurrencySymbol
   -> Contract (MintingPolicy /\ CurrencySymbol)
 mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  let cs = Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
 mkTokenName :: String -> Contract TokenName
