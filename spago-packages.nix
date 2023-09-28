@@ -1171,11 +1171,11 @@ let
 
     "purescript-toppokki" = pkgs.stdenv.mkDerivation {
         name = "purescript-toppokki";
-        version = "b043e9342463df76972d05981ac4ec25316834bf";
+        version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
         src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/purescript-toppokki";
-          rev = "b043e9342463df76972d05981ac4ec25316834bf";
-          sha256 = "0kkk4xfnkq6fqr30d95i3x4r6z9479bx7v0ama7xf36pr0y26lk1";
+          url = "https://github.com/mlabs-haskell/purescript-toppokki";
+          rev = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
+          sha256 = "1kmqajf7n5l9lk4amyma3rhm60llrgamap5hi21kkqs52xm3fr2q";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
