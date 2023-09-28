@@ -773,7 +773,7 @@ instance Show ScriptFailure where
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
   = UnparsedError String
-  | AdditionalUtxoOverlap (Array TransactionInput)
+  | AdditionalUtxoOverlap (Array OgmiosTxOutRef)
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
 
 derive instance Generic TxEvaluationFailure _
@@ -873,22 +873,7 @@ instance DecodeAeson TxEvaluationFailure where
     decodeAdditionalUtxoOverlap = ReaderT \o -> do
       ogmiosOrefs <-
         flip getField "AdditionalUtxoOverlap" =<< getField o "EvaluationFailure"
-      orefs <-
-        note orefConversionError $
-          traverse ogmiosOrefToTransactionInput ogmiosOrefs
-      pure $ AdditionalUtxoOverlap orefs
-      where
-      orefConversionError :: JsonDecodeError
-      orefConversionError =
-        TypeMismatch "Could not convert OgmiosTxOutRef to TransactionInput"
-
-      ogmiosOrefToTransactionInput :: OgmiosTxOutRef -> Maybe TransactionInput
-      ogmiosOrefToTransactionInput { txId, index } =
-        hexToByteArray txId <#> \transactionId ->
-          wrap
-            { transactionId: wrap transactionId
-            , index
-            }
+      pure $ AdditionalUtxoOverlap ogmiosOrefs
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
