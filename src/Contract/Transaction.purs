@@ -3,8 +3,10 @@
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceTx
+  , balanceTxE
   , balanceTxM
   , balanceTxWithConstraints
+  , balanceTxWithConstraintsE
   , balanceTxs
   , balanceTxsWithConstraints
   , calculateMinFee
@@ -72,6 +74,7 @@ import Ctl.Internal.BalanceTx.Error
   , Expected(Expected)
   , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
+  , explainBalanceTxError
   ) as BalanceTxError
 import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -238,7 +241,7 @@ import Ctl.Internal.Types.VRFKeyHash
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.Either (Either, hush)
+import Data.Either (Either(Left, Right), hush)
 import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
@@ -407,6 +410,9 @@ unUnbalancedTx
 
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
+-- |
+-- | This is a 'non-throwing' variant of this functionality. Use this when
+-- | errors are expected, and graceful recovery is possible.
 balanceTxWithConstraints
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
@@ -417,12 +423,39 @@ balanceTxWithConstraints tx =
   in
     BalanceTx.balanceTxWithConstraints tx' ix
 
+-- | 'Throwing' variant of `balanceTxWithConstraints`. Instead of returning in
+-- | `Either`, it throws an exception on failure. Use this when errors are not
+-- | expected, and graceful recovery is either impossible or wouldn't make
+-- | sense.
+balanceTxWithConstraintsE
+  :: UnbalancedTx
+  -> BalanceTxConstraintsBuilder
+  -> Contract FinalizedTransaction
+balanceTxWithConstraintsE tx bcb = do
+  result <- balanceTxWithConstraints tx bcb
+  case result of
+    Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
+    Right ftx -> pure ftx
+
 -- | Same as `balanceTxWithConstraints`, but uses the default balancer
 -- | constraints.
+-- |
+-- | This is a 'non-throwing' variant of this functionality. Use this when
+-- | errors are expected, and graceful recovery is possible.
 balanceTx
   :: UnbalancedTx
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTx = flip balanceTxWithConstraints mempty
+
+-- | 'Throwing' variant of `balanceTx`. Instead of returning in `Either`, it
+-- | throws an exception on failure. Use this when errors are not expected, and
+-- | graceful recovery is either impossible or wouldn't make sense.
+balanceTxE :: UnbalancedTx -> Contract FinalizedTransaction
+balanceTxE utx = do
+  result <- balanceTx utx
+  case result of
+    Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
+    Right ftx -> pure ftx
 
 -- | Balances each transaction using specified balancer constraint sets and
 -- | locks the used inputs so that they cannot be reused by subsequent

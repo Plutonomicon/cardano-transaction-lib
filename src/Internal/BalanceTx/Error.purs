@@ -21,6 +21,7 @@ module Ctl.Internal.BalanceTx.Error
   , Expected(Expected)
   , ImpossibleError(Impossible)
   , printTxEvaluationFailure
+  , explainBalanceTxError
   ) where
 
 import Prelude
@@ -88,6 +89,37 @@ instance Show BalanceTxError where
   show (ExUnitsEvaluationFailed tx failure) =
     "ExUnitsEvaluationFailed: " <> printTxEvaluationFailure tx failure
   show e = genericShow e
+
+explainBalanceTxError :: BalanceTxError -> String
+explainBalanceTxError = case _ of
+  BalanceInsufficientError expected actual ctx ->
+    "Insufficient balance. Expected: " <> show expected
+      <> ", actual: "
+      <> show actual
+      <> ". Context: "
+      <> show ctx
+  CouldNotConvertScriptOutputToTxInput ->
+    "Could not convert script output to transaction input."
+  CouldNotGetChangeAddress ->
+    "Could not get change address."
+  CouldNotGetCollateral -> "Could not get collateral."
+  CouldNotGetUtxos -> "Could not get UTxOs."
+  CollateralReturnError err ->
+    "Collateral return error: " <> show err
+  CollateralReturnMinAdaValueCalcError ->
+    "Could not calculate minimum Ada for collateral return."
+  ExUnitsEvaluationFailed tx txEvalErr ->
+    "Script evaluation failure. Transaction: " <> show tx
+      <> "Error: "
+      <> show txEvalErr
+  InsufficientUtxoBalanceToCoverAsset _ asset ->
+    "Insufficient UTxO balance to cover asset " <> show asset
+  ReindexRedeemersError uir ->
+    "Could not reindex redeemer " <> show uir
+  UtxoLookupFailedFor ti ->
+    "Could not look up UTxO for " <> show ti
+  UtxoMinAdaValueCalculationFailed ->
+    "Could not calculate min ADA for UTxO."
 
 newtype Actual = Actual Value
 
