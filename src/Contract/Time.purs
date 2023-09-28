@@ -118,8 +118,8 @@ getCurrentEra :: Contract ExportEraSummaries.EraSummary
 getCurrentEra = do
   eraSummaries <- getEraSummaries
   currentSlot <- getCurrentSlot
-  logInfo' $ show eraSummaries
-  logInfo' $ show currentSlot
+  logInfo' $ "getCurrentEra: " <> show eraSummaries
+  logInfo' $ "getCurrentEra: " <> show currentSlot
   liftContractM "Could not find era summary"
     $ find (slotInRange currentSlot)
     $ Array.sortBy (comparing getStartSlot)
@@ -166,8 +166,8 @@ normalizeTimeInterval = case _ of
     let
       range = Interval.FiniteInterval (start + oneSecond)
         (min end (endTime - oneSecond))
-    logInfo' $ "Desired range: " <> show desired
-    logInfo' $ "Computed range: " <> show range
+    logInfo' $ "normalizeTimeInterval: desired range: " <> show desired
+    logInfo' $ "normalizeTimeInterval: computed range: " <> show range
     pure range
   i -> liftContractM ("Could not convert to start-end range: " <> show i)
     Nothing
