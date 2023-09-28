@@ -180,7 +180,6 @@ import Ctl.Internal.Types.SystemStart
   , sysStartToOgmiosTimestamp
   )
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
