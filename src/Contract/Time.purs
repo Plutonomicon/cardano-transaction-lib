@@ -103,6 +103,7 @@ import Ctl.Internal.Types.Interval
   ) as Interval
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
+import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Foldable (find)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -119,15 +120,18 @@ getCurrentEra = do
   currentSlot <- getCurrentSlot
   logInfo' $ show eraSummaries
   logInfo' $ show currentSlot
-  -- Assumes that eras are sorted: this may not be stable in the future.
   liftContractM "Could not find era summary"
     $ find (slotInRange currentSlot)
+    $ Array.sortBy (comparing getStartSlot)
     $ unwrap eraSummaries
   where
+  getStartSlot :: ExportEraSummaries.EraSummary -> Slot
+  getStartSlot = unwrap >>> _.start >>> unwrap >>> _.slot
+
   slotInRange :: Slot -> ExportEraSummaries.EraSummary -> Boolean
   slotInRange currentSlot era =
     let
-      eraStartSlot = era # unwrap # _.start # unwrap # _.slot
+      eraStartSlot = getStartSlot era
       startNotAfterUs = eraStartSlot <= currentSlot
     in
       case era # unwrap # _.end of
