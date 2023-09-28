@@ -89,9 +89,9 @@ import Data.Set as Set
 import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
+import Effect.AVar as AVar
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (liftAff)
-import Effect.AVar as AVar
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import Effect.Ref (Ref)

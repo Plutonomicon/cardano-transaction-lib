@@ -21,6 +21,9 @@ module Ctl.Internal.Service.Blockfrost
       , PoolIds
       , PoolParameters
       , DelegationsAndRewards
+      , AssetAddresses
+      , AssetsOfPolicy
+      , AssetUtxosAtAddress
       )
   , BlockfrostStakeCredential(BlockfrostStakeCredential)
   , BlockfrostEraSummaries(BlockfrostEraSummaries)
@@ -56,6 +59,8 @@ module Ctl.Internal.Service.Blockfrost
   , runBlockfrostServiceTestM
   , submitTx
   , utxosAt
+  , utxosWithAssetClass
+  , utxosWithCurrencySymbol
   ) where
 
 import Prelude
@@ -82,6 +87,7 @@ import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Contract.Prelude (mconcat)
 import Contract.RewardAddress
   ( rewardAddressToBech32
   , stakePubKeyHashRewardAddress
@@ -136,6 +142,11 @@ import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
+import Ctl.Internal.Plutus.Types.CurrencySymbol
+  ( CurrencySymbol
+  , adaSymbol
+  , getCurrencySymbol
+  )
 import Ctl.Internal.QueryM.Ogmios (TxEvaluationR)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.Serialization as Serialization
@@ -165,6 +176,7 @@ import Ctl.Internal.Service.Helpers
   , aesonObject
   , aesonString
   , decodeAssetClass
+  , decodePlutusAssetClass
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -200,6 +212,7 @@ import Ctl.Internal.Types.Scripts
   , plutusV2Script
   )
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart))
+import Ctl.Internal.Types.TokenName (TokenName, adaToken, getTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -230,7 +243,7 @@ import Data.Show.Generic (genericShow)
 import Data.String (splitAt) as String
 import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Data.Traversable (for, for_, traverse)
-import Data.Tuple (Tuple(Tuple), fst, snd)
+import Data.Tuple (Tuple(Tuple), fst, snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
@@ -344,6 +357,12 @@ data BlockfrostEndpoint
   | PoolParameters PoolPubKeyHash
   -- /accounts/{stake_address}
   | DelegationsAndRewards BlockfrostStakeCredential
+  -- /assets/{asset}/addresses?page={page}&count={count}
+  | AssetAddresses CurrencySymbol TokenName Int Int
+  -- /assets/policy/{policy_id}?page={page}&count={count}
+  | AssetsOfPolicy CurrencySymbol Int Int
+  -- /addresses/{address}/utxos/{asset}?page={page}&count={count}
+  | AssetUtxosAtAddress Address CurrencySymbol TokenName Int Int
 
 derive instance Generic BlockfrostEndpoint _
 derive instance Eq BlockfrostEndpoint
@@ -392,6 +411,36 @@ realizeEndpoint endpoint =
       "/pool/" <> poolPubKeyHashToBech32 poolPubKeyHash
     DelegationsAndRewards credential ->
       "/accounts/" <> blockfrostStakeCredentialToBech32 credential
+    AssetAddresses symbol name page count ->
+      let
+        encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+        encodedTokenName = byteArrayToHex $ getTokenName name
+      in
+        "/assets/" <> encodedCurrencySymbol <> encodedTokenName <> "/addresses"
+          <> "/utxos?page="
+          <> show page
+          <> ("&count=" <> show count)
+          <> "&order=asc"
+    AssetsOfPolicy symbol page count ->
+      let
+        encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+      in
+        "/assets/policy/" <> encodedCurrencySymbol <> "?page" <> show page
+          <> "&count"
+          <> show count
+          <> "&order=asc"
+    AssetUtxosAtAddress address symbol name page count ->
+      let
+        encodedAddress = addressBech32 address
+        encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+        encodedTokenName = byteArrayToHex $ getTokenName name
+      in
+        "/addresses/" <> encodedAddress <> "/utxos/" <> encodedCurrencySymbol
+          <> encodedTokenName
+          <> "?page="
+          <> show page
+          <> ("&count=" <> show count)
+          <> "&order=asc"
 
 blockfrostGetRequest
   :: BlockfrostEndpoint
@@ -566,6 +615,75 @@ getOutputAddressesByTxHash txHash = runExceptT do
     blockfrostGetRequest (UtxosOfTransaction txHash)
       <#> handle404AsMempty <<< handleBlockfrostResponse
   pure $ _.address <<< unwrap <<< snd <$> unwrap blockfrostUtxoMap
+
+--------------------------------------------------------------------------------
+-- Get utxos of a specific asset class
+--------------------------------------------------------------------------------
+
+utxosWithAssetClass
+  :: CurrencySymbol
+  -> TokenName
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+utxosWithAssetClass symbol name = runExceptT $ do
+  addresses :: BlockfrostAssetAddresses <- ExceptT
+    (entriesOnPage addressesOnPage 1)
+  utxosOfAssetClassAtAddresses :: Array BlockfrostUtxosAtAddress <-
+    traverse (ExceptT <<< utxosOfAssetClassAtAddress) $ unwrap addresses
+  ExceptT $ resolveBlockfrostUtxosAtAddress
+    (mconcat utxosOfAssetClassAtAddresses)
+  where
+  addressesOnPage :: Int -> Int -> BlockfrostEndpoint
+  addressesOnPage = AssetAddresses symbol name
+
+  assetUtxosAtAddressOnPage :: Address -> Int -> Int -> BlockfrostEndpoint
+  assetUtxosAtAddressOnPage address =
+    AssetUtxosAtAddress address symbol name
+
+  utxosOfAssetClassAtAddress
+    :: Address
+    -> BlockfrostServiceM (Either ClientError BlockfrostUtxosAtAddress)
+  utxosOfAssetClassAtAddress address = entriesOnPage
+    (assetUtxosAtAddressOnPage address)
+    1
+
+entriesOnPage
+  :: forall (result :: Type) (a :: Type)
+   . Monoid result
+  => DecodeAeson result
+  => Newtype result (Array a)
+  => (Int -> Int -> BlockfrostEndpoint)
+  -> Int
+  -> BlockfrostServiceM (Either ClientError result)
+entriesOnPage paginatedEndpoint page = runExceptT $ do
+  let
+    -- Maximum number of results per page supported by Blockfrost:
+    maxNumResultsOnPage :: Int
+    maxNumResultsOnPage = 100
+
+  utxos <- ExceptT $
+    blockfrostGetRequest (paginatedEndpoint page maxNumResultsOnPage)
+      <#> handle404AsMempty <<< handleBlockfrostResponse
+  if Array.length (unwrap utxos) /= maxNumResultsOnPage then pure utxos
+  else append utxos <$> ExceptT (entriesOnPage paginatedEndpoint $ page + 1)
+
+--------------------------------------------------------------------------------
+-- Get utxos of a specific currency symbol
+--------------------------------------------------------------------------------
+
+utxosWithCurrencySymbol
+  :: CurrencySymbol
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+utxosWithCurrencySymbol symbol = runExceptT $ do
+  assets :: BlockfrostAssetsWithCurrencySymbol <- ExceptT
+    (entriesOnPage assetsOnPage 1)
+  utxos <-
+    traverse
+      (ExceptT <<< uncurry utxosWithAssetClass)
+      $ unwrap assets
+  pure $ Map.unions utxos
+  where
+  assetsOnPage :: Int -> Int -> BlockfrostEndpoint
+  assetsOnPage = AssetsOfPolicy symbol
 
 --------------------------------------------------------------------------------
 -- Get datum by hash
@@ -954,6 +1072,56 @@ instance DecodeAeson BlockfrostUtxosOfTransaction where
     decodeTxOref txHash = aesonObject $
       flip getField "output_index" >>> map \index ->
         TransactionInput { transactionId: txHash, index }
+
+--------------------------------------------------------------------------------
+-- BlockfrostAssetAddresses
+--------------------------------------------------------------------------------
+
+newtype BlockfrostAssetAddresses = BlockfrostAssetAddresses (Array Address)
+
+derive instance Generic BlockfrostAssetAddresses _
+derive instance Newtype BlockfrostAssetAddresses _
+derive newtype instance Semigroup BlockfrostAssetAddresses
+derive newtype instance Monoid BlockfrostAssetAddresses
+
+instance Show BlockfrostAssetAddresses where
+  show = genericShow
+
+instance DecodeAeson BlockfrostAssetAddresses where
+  decodeAeson = aesonArray (map wrap <<< traverse decodeAddressEntry)
+    where
+    decodeAddressEntry :: Aeson -> Either JsonDecodeError Address
+    decodeAddressEntry = aesonObject $ \obj -> do
+      bech32Address <- getField obj "address"
+      note (TypeMismatch "Expected bech32 encoded address")
+        (addressFromBech32 bech32Address)
+
+--------------------------------------------------------------------------------
+-- BlockfrostAssetsWithCurrencySymbol
+--------------------------------------------------------------------------------
+
+newtype BlockfrostAssetsWithCurrencySymbol = BlockfrostAssetsWithCurrencySymbol
+  (Array (CurrencySymbol /\ TokenName))
+
+derive instance Generic BlockfrostAssetsWithCurrencySymbol _
+derive instance Newtype BlockfrostAssetsWithCurrencySymbol _
+derive newtype instance Semigroup BlockfrostAssetsWithCurrencySymbol
+derive newtype instance Monoid BlockfrostAssetsWithCurrencySymbol
+
+instance Show BlockfrostAssetsWithCurrencySymbol where
+  show = genericShow
+
+instance DecodeAeson BlockfrostAssetsWithCurrencySymbol where
+  decodeAeson = aesonArray (map wrap <<< traverse decodeAddressEntry)
+    where
+    decodeAddressEntry
+      :: Aeson -> Either JsonDecodeError (CurrencySymbol /\ TokenName)
+    decodeAddressEntry = aesonObject $ \obj -> do
+      getField obj "asset" >>= case _ of
+        "lovelace" -> pure $ adaSymbol /\ adaToken
+        assetString -> do
+          let { before: symbol, after: name } = String.splitAt 56 assetString
+          decodePlutusAssetClass assetString symbol name
 
 --------------------------------------------------------------------------------
 -- BlockfrostTransactionOutput

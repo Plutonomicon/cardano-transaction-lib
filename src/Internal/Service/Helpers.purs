@@ -3,6 +3,7 @@ module Ctl.Internal.Service.Helpers
   , aesonString
   , aesonObject
   , decodeAssetClass
+  , decodePlutusAssetClass
   ) where
 
 import Prelude
@@ -16,6 +17,7 @@ import Aeson
   )
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.Value (CurrencySymbol, mkCurrencySymbol)
+import Ctl.Internal.Plutus.Types.CurrencySymbol as Plutus
 import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Data.Either (Either(Left), note)
@@ -53,6 +55,26 @@ decodeAssetClass assetString csString tnString =
   lift2 Tuple
     ( note (assetStringTypeMismatch "CurrencySymbol" csString)
         (mkCurrencySymbol =<< hexToByteArray csString)
+    )
+    ( note (assetStringTypeMismatch "TokenName" tnString)
+        (mkTokenName =<< hexToByteArray tnString)
+    )
+  where
+  assetStringTypeMismatch :: String -> String -> JsonDecodeError
+  assetStringTypeMismatch t actual =
+    TypeMismatch $
+      ("In " <> assetString <> ": Expected hex-encoded " <> t)
+        <> (", got: " <> actual)
+
+decodePlutusAssetClass
+  :: String
+  -> String
+  -> String
+  -> Either JsonDecodeError (Plutus.CurrencySymbol /\ TokenName)
+decodePlutusAssetClass assetString csString tnString =
+  lift2 Tuple
+    ( note (assetStringTypeMismatch "Plutus.CurrencySymbol" csString)
+        (Plutus.mkCurrencySymbol =<< hexToByteArray csString)
     )
     ( note (assetStringTypeMismatch "TokenName" tnString)
         (mkTokenName =<< hexToByteArray tnString)
