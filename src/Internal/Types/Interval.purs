@@ -50,6 +50,7 @@ module Ctl.Internal.Types.Interval
   , posixTimeRangeToSlotRange
   , posixTimeRangeToTransactionValidity
   , posixTimeToSlot
+  , explainPosixTimeToSlotError
   , singleton
   , slotRangeToPosixTimeRange
   , slotToPosixTime
@@ -860,6 +861,25 @@ derive instance Eq PosixTimeToSlotError
 
 instance Show PosixTimeToSlotError where
   show = genericShow
+
+explainPosixTimeToSlotError :: PosixTimeToSlotError -> String
+explainPosixTimeToSlotError = case _ of
+  CannotFindTimeInEraSummaries atime ->
+    "Time " <> show atime <> " is not in era summaries."
+  PosixTimeBeforeSystemStart t ->
+    "Time " <> show t <> " is before the system start."
+  StartTimeGreaterThanTime atime ->
+    "Time " <> show atime <> " is before the era start time."
+  EndSlotLessThanSlotOrModNonZero slot mtime ->
+    "Time is after the era end time. Calculated slot: " <> show slot
+      <> ", calculated residual time after end: "
+      <> show mtime
+  CannotGetBigIntFromNumber' ->
+    "Internal error: cannot convert a time to a usable value. " <>
+      "This should be impossible."
+  CannotGetBigNumFromBigInt' ->
+    "Internal error: cannot convert a slot number to a usable value. " <>
+      "This should be impossible."
 
 posixTimeToSlotErrorStr :: String
 posixTimeToSlotErrorStr = "posixTimeToSlotError"

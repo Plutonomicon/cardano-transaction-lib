@@ -76,6 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- Expose `ValidatorHashNotFound` constructor of `MkUnbalancedTxError`.
 - `scriptCurrencySymbol` no longer returns `Maybe`
   ([#1538](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1538)
 - **[IMPORTANT]** It is no more recommended to use `utxosAt` to get UTxOs at light wallet addresses. It may be a source of application bugs in some cases due to how wallets operate. Please see *Synchronization and wallet UTxO locking* section [here](./doc/query-layers.md) ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
