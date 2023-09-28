@@ -3,8 +3,8 @@ module Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
-  , currentEra
-  , mkTimeRangeWithinSummary
+  , getCurrentEra
+  , normalizeTimeInterval
   , module Chain
   , module TipChain
   , module ExportEraSummaries
@@ -113,19 +113,19 @@ import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 
 -- | Get a summary of the current era.
-currentEra :: Contract ExportEraSummaries.EraSummary
-currentEra = do
+getCurrentEra :: Contract ExportEraSummaries.EraSummary
+getCurrentEra = do
   eraSummaries <- getEraSummaries
   currentSlot <- getCurrentSlot
   logInfo' $ show eraSummaries
   logInfo' $ show currentSlot
   -- Assumes that eras are sorted: this may not be stable in the future.
   liftContractM "Could not find era summary"
-    $ find (go currentSlot)
+    $ find (slotInRange currentSlot)
     $ unwrap eraSummaries
   where
-  go :: Slot -> ExportEraSummaries.EraSummary -> Boolean
-  go currentSlot era =
+  slotInRange :: Slot -> ExportEraSummaries.EraSummary -> Boolean
+  slotInRange currentSlot era =
     let
       eraStartSlot = era # unwrap # _.start # unwrap # _.slot
       startNotAfterUs = eraStartSlot <= currentSlot
@@ -147,12 +147,12 @@ currentEra = do
       Chain.Tip (Chain.ChainTip { slot }) -> pure slot
 
 -- | Given a desired range, tighten it to fit onchain.
-mkTimeRangeWithinSummary
+normalizeTimeInterval
   :: Interval.Interval Interval.POSIXTime
   -> Contract (Interval.Interval Interval.POSIXTime)
-mkTimeRangeWithinSummary = case _ of
+normalizeTimeInterval = case _ of
   desired@(Interval.FiniteInterval start end) -> do
-    era <- currentEra
+    era <- getCurrentEra
     let params = unwrap (unwrap era).parameters
     slotLength <- liftContractM "Could not get slot length" $ BigInt.fromNumber
       $ unwrap params.slotLength
