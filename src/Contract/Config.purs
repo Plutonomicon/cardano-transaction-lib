@@ -82,6 +82,7 @@ import Ctl.Internal.Wallet.Spec
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , WalletSpec
       ( UseKeys
+      , UseMnemonic
       , ConnectToNami
       , ConnectToGero
       , ConnectToFlint
@@ -89,6 +90,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       , ConnectToNuFi
       , ConnectToLace
+      , ConnectToGenericCip30
       )
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))

@@ -109,6 +109,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Fixed
 
+- `UseMnemonic` and `ConnectToGenericCip30` constructors now exported from
+  `Contract.Config`
+  ([#1546])(https://github.com/Plutonomicon/cardano-transaction-lib/pull/1546))
 - `waitUntilSlot` can now be used with a slot far in the future ([#1490](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1490))
 - `Unable to convert Slot to POSIXTime` error of `waitUntilSlot` doesn't omit important error details anymore ([#1458](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1458))
 - Performance issues when using Eternl in multi-address mode ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
@@ -126,6 +129,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Removed
 
+- `mkUnbalancedTxM` and `balanceTxM`
+  ([#1547](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1547))
 - `E2E_SKIP_JQUERY_DOWNLOAD` configuration variable for [E2E test suite](./doc/e2e-testing.md). It is not needed, because it's expected value can be determined from the environment, and thus it can be an implementation detail ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `reindexSpentScriptRedeemers` function from the public API - if there is a need to modify the `Transaction` in a way that breaks redeemer indices, it should be done before balancing ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 - Typed scripts and constraints interface. In practice, it means that the following types now have no type-level arguments: `TxConstraints`, `ScriptLookups`.

@@ -2,7 +2,6 @@
 -- | transaction.
 module Contract.UnbalancedTx
   ( mkUnbalancedTx
-  , mkUnbalancedTxM
   , mkUnbalancedTxE
   , explainMkUnbalancedTxError
   , module X
@@ -55,8 +54,7 @@ import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups
   )
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
-import Data.Either (Either(Left, Right), hush)
-import Data.Maybe (Maybe)
+import Data.Either (Either(Left, Right))
 import Effect.Exception (error)
 
 -- | Create an `UnbalancedTx` given `ScriptLookups` and
@@ -134,12 +132,3 @@ explainMkUnbalancedTxError = case _ of
   X.CannotMintZero cs tn -> "Cannot mint zero of token " <> show tn
     <> " of currency "
     <> show cs
-
--- | Same as `mkUnbalancedTx` but hushes the error.
--- TODO: remove, reason: it's trivial
--- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1047
-mkUnbalancedTxM
-  :: ScriptLookups
-  -> TxConstraints
-  -> Contract (Maybe UnbalancedTx)
-mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
