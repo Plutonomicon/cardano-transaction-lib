@@ -3,7 +3,6 @@
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceTx
-  , balanceTxM
   , balanceTxWithConstraints
   , balanceTxs
   , balanceTxsWithConstraints
@@ -238,13 +237,12 @@ import Ctl.Internal.Types.VRFKeyHash
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.Either (Either, hush)
+import Data.Either (Either)
 import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
 import Data.Map (Map)
 import Data.Map (empty, insert) as Map
-import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, for_, traverse)
@@ -452,12 +450,6 @@ balanceTxs
   => t UnbalancedTx
   -> Contract (t FinalizedTransaction)
 balanceTxs = balanceTxsWithConstraints <<< map (flip Tuple mempty)
-
--- | Attempts to balance an `UnbalancedTx` hushing the error.
-balanceTxM
-  :: UnbalancedTx
-  -> Contract (Maybe FinalizedTransaction)
-balanceTxM = map hush <<< balanceTx
 
 balanceAndLockWithConstraints
   :: UnbalancedTx /\ BalanceTxConstraintsBuilder

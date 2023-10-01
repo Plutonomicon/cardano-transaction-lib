@@ -2,11 +2,8 @@
 -- | transaction.
 module Contract.ScriptLookups
   ( mkUnbalancedTx
-  , mkUnbalancedTxM
   , module X
   ) where
-
-import Prelude
 
 import Contract.Monad (Contract)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl) as PC
@@ -66,8 +63,7 @@ import Ctl.Internal.Types.ScriptLookups
   , validatorM
   ) as X
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
-import Data.Either (Either, hush)
-import Data.Maybe (Maybe)
+import Data.Either (Either)
 
 -- | Create an `UnbalancedTx` given `ScriptLookups` and
 -- | `TxConstraints`. You will probably want to use this version as it returns
@@ -79,10 +75,3 @@ mkUnbalancedTx
   -> TxConstraints
   -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTx = PC.mkUnbalancedTxImpl
-
--- | Same as `mkUnbalancedTx` but hushes the error.
-mkUnbalancedTxM
-  :: ScriptLookups
-  -> TxConstraints
-  -> Contract (Maybe UnbalancedTx)
-mkUnbalancedTxM lookups = map hush <<< mkUnbalancedTx lookups
