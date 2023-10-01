@@ -100,6 +100,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Fixed
 
+- `UseMnemonic` and `ConnectToGenericCip30` constructors now exported from
+  `Contract.Config`
+  ([#1546])(https://github.com/Plutonomicon/cardano-transaction-lib/pull/1546))
 - `waitUntilSlot` can now be used with a slot far in the future ([#1490](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1490))
 - `Unable to convert Slot to POSIXTime` error of `waitUntilSlot` doesn't omit important error details anymore ([#1458](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1458))
 - Performance issues when using Eternl in multi-address mode ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
