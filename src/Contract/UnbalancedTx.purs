@@ -45,6 +45,37 @@ import Ctl.Internal.ProcessConstraints.Error
       , ExpectedPlutusScriptGotNativeScript
       , CannotMintZero
       )
+  )
+import Ctl.Internal.ProcessConstraints.Error
+  ( MkUnbalancedTxError
+      ( CannotConvertPaymentPubKeyHash
+      , CannotFindDatum
+      , CannotQueryDatum
+      , CannotConvertPOSIXTimeRange
+      , CannotSolveTimeConstraints
+      , CannotGetMintingPolicyScriptIndex
+      , CannotGetValidatorHashFromAddress
+      , CannotHashDatum
+      , CannotHashMintingPolicy
+      , CannotHashValidator
+      , CannotMakeValue
+      , CannotWithdrawRewardsPubKey
+      , CannotWithdrawRewardsPlutusScript
+      , CannotWithdrawRewardsNativeScript
+      , DatumNotFound
+      , DatumWrongHash
+      , MintingPolicyHashNotCurrencySymbol
+      , MintingPolicyNotFound
+      , ModifyTx
+      , OwnPubKeyAndStakeKeyMissing
+      , TxOutRefNotFound
+      , TxOutRefWrongType
+      , WrongRefScriptHash
+      , ValidatorHashNotFound
+      , CannotSatisfyAny
+      , ExpectedPlutusScriptGotNativeScript
+      , CannotMintZero
+      )
   ) as X
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx)) as X
@@ -81,54 +112,82 @@ mkUnbalancedTxE lookups constraints =
 -- | Helper to pretty-print `MkUnbalancedTxError`s.
 explainMkUnbalancedTxError :: MkUnbalancedTxError -> String
 explainMkUnbalancedTxError = case _ of
-  X.CannotConvertPaymentPubKeyHash ppkh ->
+  CannotConvertPaymentPubKeyHash ppkh ->
     "Cannot convert payment pubkey hash: " <> show ppkh
-  X.CannotFindDatum -> "Cannot find datum."
-  X.CannotQueryDatum dh -> "Cannot query datum: " <> show dh
-  X.CannotConvertPOSIXTimeRange tr ttsErr ->
-    "Cannot convert POSIX time range: " <> show tr <> "\nReason: " <>
-      explainPosixTimeToSlotError ttsErr
-  X.CannotSolveTimeConstraints tr tr' ->
+  CannotFindDatum -> "Cannot find datum"
+  CannotQueryDatum dh ->
+    "Querying for datum by datum hash ("
+      <> show dh
+      <>
+        ") failed: no datum found"
+  CannotConvertPOSIXTimeRange tr ttsErr ->
+    "Cannot convert POSIX time range to slot time range.\nRange: "
+      <> show tr
+      <> "\nReason: "
+      <>
+        explainPosixTimeToSlotError ttsErr
+  CannotSolveTimeConstraints tr tr' ->
     "Unsolvable time constraints: " <> show tr <> " and " <> show tr' <>
       " do not overlap."
-  X.CannotGetMintingPolicyScriptIndex ->
-    "Cannot get minting policy script index. This should be impossible."
-  X.CannotGetValidatorHashFromAddress addr ->
+  CannotGetMintingPolicyScriptIndex ->
+    "Cannot get minting policy script index. This should be impossible.\n"
+      <> "Please report this as a bug here: "
+      <> bugTrackerLink
+  CannotGetValidatorHashFromAddress addr ->
     "Cannot get a validator hash from address " <> show addr
-  X.CannotHashDatum datum ->
+  CannotHashDatum datum ->
     "Cannot hash datum: " <> show datum
-  X.CannotHashMintingPolicy mp ->
+  CannotHashMintingPolicy mp ->
     "Cannot hash minting policy: " <> show mp
-  X.CannotHashValidator validator ->
+  CannotHashValidator validator ->
     "Cannot hash validator: " <> show validator
-  X.CannotMakeValue cs tn amount ->
-    "Cannot make " <> show amount <> " of token " <> show tn <> " of currency "
-      <> show cs
-  X.CannotWithdrawRewardsPubKey spkh ->
-    "Cannot withdraw rewards from staking pubkey " <> show spkh
-  X.CannotWithdrawRewardsPlutusScript pssv ->
+  CannotMakeValue _ tn _ ->
+    "Attempted to make an amount with the ADA currency symbol, and non-empty token name "
+      <> show tn
+      <>
+        ". This is not allowed, as the ADA currency symbol can only be combined with the empty token name."
+  CannotWithdrawRewardsPubKey spkh ->
+    "Cannot withdraw rewards, as pubkey " <> show spkh <> " is not registered"
+  CannotWithdrawRewardsPlutusScript pssv ->
     "Cannot withdraw rewards from Plutus staking script " <> show pssv
-  X.CannotWithdrawRewardsNativeScript nssv ->
+  CannotWithdrawRewardsNativeScript nssv ->
     "Cannot withdraw rewards from native staking script " <> show nssv
-  X.DatumNotFound hash -> "Datum with hash " <> show hash <> " not found."
-  X.DatumWrongHash hash datum -> "Datum " <> show datum
+  DatumNotFound hash -> "Datum with hash " <> show hash <> " not found."
+  DatumWrongHash hash datum -> "Datum " <> show datum
     <> " does not have the hash "
     <> show hash
-  X.MintingPolicyHashNotCurrencySymbol mph ->
+  MintingPolicyHashNotCurrencySymbol mph ->
     "Minting policy hash " <> show mph <>
       " is not the hash of a CurrencySymbol."
-  X.MintingPolicyNotFound mp -> "Minting policy not found: " <> show mp
-  X.ModifyTx modifyTxErr -> explainModifyTxError modifyTxErr
-  X.OwnPubKeyAndStakeKeyMissing -> "Own pubkey and staking key is missing."
-  X.TxOutRefNotFound ti -> "Cannot find transaction input: " <> show ti
-  X.TxOutRefWrongType ti ->
-    "Transaction input is missing an expected datum: " <> show ti
-  X.ValidatorHashNotFound vh -> "Cannot find validator hash: " <> show vh
-  X.WrongRefScriptHash msh ->
+  MintingPolicyNotFound mp -> "Minting policy not found: " <> show mp
+  ModifyTx modifyTxErr -> explainModifyTxError modifyTxErr
+  OwnPubKeyAndStakeKeyMissing ->
+    "Could not build own address: both payment pubkey and stake pubkey are missing"
+  TxOutRefNotFound ti ->
+    "Could not find a reference input ("
+      <> show ti
+      <>
+        "). It maybe have been consumed, or was never created."
+  TxOutRefWrongType ti ->
+    "Transaction output is missing an expected datum: "
+      <> show ti
+      <>
+        "\nContext: we were trying to spend a script output."
+  ValidatorHashNotFound vh -> "Cannot find validator hash: " <> show vh
+  WrongRefScriptHash msh ->
     "Output is missing a reference script hash: " <> show msh
-  X.CannotSatisfyAny -> "List of constraints is empty."
-  X.ExpectedPlutusScriptGotNativeScript mph ->
+  CannotSatisfyAny -> "One of the following happened:\n"
+    <> "1. List of constraints is empty.\n"
+    <>
+      "2. All alternatives of a 'mustSatisfyAnyOf' have failed."
+  ExpectedPlutusScriptGotNativeScript mph ->
     "Expected a Plutus script, but " <> show mph <> "is a native script."
-  X.CannotMintZero cs tn -> "Cannot mint zero of token " <> show tn
+  CannotMintZero cs tn -> "Cannot mint zero of token " <> show tn
     <> " of currency "
     <> show cs
+
+-- Helpers
+
+bugTrackerLink :: String
+bugTrackerLink =
+  "https://github.com/Plutonomicon/cardano-transaction-lib/issues"
