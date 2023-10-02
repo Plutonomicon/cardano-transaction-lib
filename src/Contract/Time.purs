@@ -6,7 +6,6 @@ module Contract.Time
   , getCurrentEra
   , normalizeTimeInterval
   , module Chain
-  , module TipChain
   , module ExportEraSummaries
   , module ExportOgmios
   , module ExportSystemStart
@@ -16,7 +15,7 @@ module Contract.Time
 
 import Prelude
 
-import Contract.Chain (getTip) as TipChain
+import Contract.Chain (getTip) as Chain
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Control.Monad.Reader.Class (asks)
