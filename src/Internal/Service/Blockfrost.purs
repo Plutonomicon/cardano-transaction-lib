@@ -61,6 +61,7 @@ module Ctl.Internal.Service.Blockfrost
   , utxosAt
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
+  , utxosInTransaction
   ) where
 
 import Prelude
@@ -251,6 +252,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Foreign.Object (Object)
+import Safe.Coerce (coerce)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -604,6 +606,14 @@ getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
       <#> handle404AsMempty <<< handleBlockfrostResponse
   traverse (ExceptT <<< resolveBlockfrostTxOutput)
     (snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap))
+
+utxosInTransaction
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+utxosInTransaction txHash = runExceptT $ do
+  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <- ExceptT $
+    entriesOnPage (\_ _ -> UtxosOfTransaction txHash) 1
+  ExceptT $ resolveBlockfrostUtxosAtAddress (coerce blockfrostUtxoMap)
 
 -- | Specialized function to get addresses only, without resolving script
 -- | references. Used internally.

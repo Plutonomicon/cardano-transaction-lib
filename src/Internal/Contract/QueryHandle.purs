@@ -25,6 +25,7 @@ import Ctl.Internal.QueryM.Kupo
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
+  , utxosInTransaction
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
   ) as Kupo
@@ -89,6 +90,7 @@ queryHandleForCtlBackend runQueryM params backend =
   , utxosWithAssetClass: \symbol -> runQueryM' <<< Kupo.utxosWithAssetClass
       symbol
   , utxosWithCurrencySymbol: runQueryM' <<< Kupo.utxosWithCurrencySymbol
+  , utxosInTransaction: runQueryM' <<< Kupo.utxosInTransaction
   }
 
   where
@@ -133,6 +135,7 @@ queryHandleForBlockfrostBackend logParams backend =
         $ Blockfrost.utxosWithAssetClass symbol name
   , utxosWithCurrencySymbol: runBlockfrostServiceM' <<<
       Blockfrost.utxosWithCurrencySymbol
+  , utxosInTransaction: runBlockfrostServiceM' <<< Blockfrost.utxosInTransaction
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a

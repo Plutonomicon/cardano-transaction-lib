@@ -4,6 +4,7 @@
 module Contract.Utxos
   ( getUtxo
   , utxosAt
+  , utxosInTransaction
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
   , module X
@@ -27,7 +28,7 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
 import Ctl.Internal.Types.TokenName (TokenName)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Maybe (Maybe)
 import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)
@@ -83,7 +84,7 @@ utxosWithAssetClass symbol name = do
   queryHandle <- getQueryHandle
   cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithAssetClass symbol
     name
-  liftContractM "utxosAt: failed to convert utxos"
+  liftContractM "utxosWithAssetClass: failed to convert utxos"
     $ toPlutusUtxoMap cardanoUtxoMap
 
 utxosWithCurrencySymbol :: CurrencySymbol -> Contract UtxoMap
@@ -91,5 +92,13 @@ utxosWithCurrencySymbol symbol = do
   queryHandle <- getQueryHandle
   cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosWithCurrencySymbol
     symbol
-  liftContractM "utxosAt: failed to convert utxos"
+  liftContractM "utxosWithCurrencySymbol: failed to convert utxos"
+    $ toPlutusUtxoMap cardanoUtxoMap
+
+utxosInTransaction :: TransactionHash -> Contract UtxoMap
+utxosInTransaction symbol = do
+  queryHandle <- getQueryHandle
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosInTransaction
+    symbol
+  liftContractM "utxosInTransaction: failed to convert utxos"
     $ toPlutusUtxoMap cardanoUtxoMap
