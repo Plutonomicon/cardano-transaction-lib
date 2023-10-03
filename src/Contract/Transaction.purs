@@ -71,7 +71,6 @@ import Ctl.Internal.BalanceTx.Error
       , UtxoMinAdaValueCalculationFailed
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
   , explainBalanceTxError
   ) as BalanceTxError

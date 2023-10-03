@@ -29,7 +29,6 @@ import Ctl.Internal.BalanceTx.Error
       , InsufficientUtxoBalanceToCoverAsset
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
@@ -356,7 +355,7 @@ runSelectionStep lens state
       let
         balanceInsufficientError :: BalanceTxError
         balanceInsufficientError =
-          InsufficientUtxoBalanceToCoverAsset Impossible lens.assetDisplayString
+          InsufficientUtxoBalanceToCoverAsset lens.assetDisplayString
       in
         lens.selectQuantityCover state
           >>= maybe (throwError balanceInsufficientError) (pure <<< Just)

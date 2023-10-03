@@ -19,7 +19,6 @@ module Ctl.Internal.BalanceTx.Error
       , UtxoMinAdaValueCalculationFailed
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
   , printTxEvaluationFailure
   , explainBalanceTxError
   ) where
@@ -30,6 +29,7 @@ import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
+  , TransactionOutput
   , _redeemers
   , _witnessSet
   )
@@ -49,6 +49,7 @@ import Ctl.Internal.QueryM.Ogmios
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
   ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
@@ -75,10 +76,10 @@ data BalanceTxError
   | CouldNotGetChangeAddress
   | CouldNotGetCollateral
   | CouldNotGetUtxos
-  | CollateralReturnError String
-  | CollateralReturnMinAdaValueCalcError
+  | CollateralReturnError
+  | CollateralReturnMinAdaValueCalcError CoinsPerUtxoUnit TransactionOutput
   | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
-  | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
+  | InsufficientUtxoBalanceToCoverAsset String
   | ReindexRedeemersError UnindexedRedeemer
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
@@ -96,30 +97,44 @@ explainBalanceTxError = case _ of
     "Insufficient balance. Expected: " <> show expected
       <> ", actual: "
       <> show actual
-      <> ". Context: "
+      <> ". All available: "
       <> show ctx
   CouldNotConvertScriptOutputToTxInput ->
-    "Could not convert script output to transaction input."
+    "Could not convert script output to transaction input"
   CouldNotGetChangeAddress ->
-    "Could not get change address."
-  CouldNotGetCollateral -> "Could not get collateral."
-  CouldNotGetUtxos -> "Could not get UTxOs."
-  CollateralReturnError err ->
-    "Collateral return error: " <> show err
-  CollateralReturnMinAdaValueCalcError ->
-    "Could not calculate minimum Ada for collateral return."
-  ExUnitsEvaluationFailed tx txEvalErr ->
-    "Script evaluation failure. Transaction: " <> show tx
-      <> "Error: "
-      <> show txEvalErr
-  InsufficientUtxoBalanceToCoverAsset _ asset ->
-    "Insufficient UTxO balance to cover asset " <> show asset
+    "Could not get change address"
+  CouldNotGetCollateral -> "Could not get collateral from wallet"
+  CouldNotGetUtxos -> "Could not get UTxOs"
+  CollateralReturnError ->
+    "Negative totalCollateral after covering min-utxo-ada requirement."
+      <> "This should be impossible: please report this as a bug to "
+      <>
+        bugTrackerLink
+  CollateralReturnMinAdaValueCalcError coinsPerUtxoUnit txOut ->
+    "Could not calculate minimum Ada for collateral return.\n"
+      <> "Coins per UTxO unit: "
+      <> show coinsPerUtxoUnit
+      <> "\nTransaction output: "
+      <>
+        show txOut
+  ExUnitsEvaluationFailed _ _ ->
+    "Script evaluation failure while trying to estimate ExUnits"
+  InsufficientUtxoBalanceToCoverAsset asset ->
+    "Insufficient UTxO balance to cover asset named "
+      <> asset
+      <> "\nThis should be impossible: please report this as a bug to "
+      <>
+        bugTrackerLink
   ReindexRedeemersError uir ->
-    "Could not reindex redeemer " <> show uir
+    "Could not reindex redeemer "
+      <> show uir
+      <> "\nThis should be impossible: please report this as a bug to "
+      <>
+        bugTrackerLink
   UtxoLookupFailedFor ti ->
     "Could not look up UTxO for " <> show ti
   UtxoMinAdaValueCalculationFailed ->
-    "Could not calculate min ADA for UTxO."
+    "Could not calculate min ADA for UTxO"
 
 newtype Actual = Actual Value
 
@@ -143,14 +158,6 @@ derive instance Generic Expected _
 derive instance Newtype Expected _
 
 instance Show Expected where
-  show = genericShow
-
--- | Indicates that an error should be impossible.
-data ImpossibleError = Impossible
-
-derive instance Generic ImpossibleError _
-
-instance Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------
@@ -280,3 +287,7 @@ printTxEvaluationFailure transaction e =
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString
   printScriptFailures ptr sfs = printRedeemer ptr <> bullet
     (foldMap printScriptFailure sfs)
+
+bugTrackerLink :: String
+bugTrackerLink =
+  "https://github.com/Plutonomicon/cardano-transaction-lib/issues"
