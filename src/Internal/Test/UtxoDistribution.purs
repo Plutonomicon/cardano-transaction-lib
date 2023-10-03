@@ -26,7 +26,6 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
-  , balanceTx
   , balanceTxE
   , signTransaction
   , submit

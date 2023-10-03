@@ -12,8 +12,7 @@ import Ctl.Internal.ProcessConstraints.Error
   )
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
-      ( CannotConvertPaymentPubKeyHash
-      , CannotFindDatum
+      ( CannotFindDatum
       , CannotQueryDatum
       , CannotConvertPOSIXTimeRange
       , CannotSolveTimeConstraints

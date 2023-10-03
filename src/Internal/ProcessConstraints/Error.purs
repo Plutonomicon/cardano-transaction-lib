@@ -8,7 +8,7 @@ import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Transaction (ModifyTxError)
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Interval (POSIXTimeRange, PosixTimeToSlotError)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
+import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy
   , MintingPolicyHash
@@ -25,8 +25,7 @@ import Data.Maybe (Maybe)
 import Data.Show.Generic (genericShow)
 
 data MkUnbalancedTxError
-  = CannotConvertPaymentPubKeyHash PaymentPubKeyHash
-  | CannotFindDatum
+  = CannotFindDatum
   | CannotQueryDatum DataHash
   | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
   | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange

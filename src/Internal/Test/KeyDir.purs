@@ -21,7 +21,6 @@ import Contract.Monad
 import Contract.TextEnvelope (decodeTextEnvelope)
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceTx
   , balanceTxE
   , signTransaction
   , submit

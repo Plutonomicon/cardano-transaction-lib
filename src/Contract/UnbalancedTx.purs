@@ -17,8 +17,7 @@ import Ctl.Internal.ProcessConstraints.Error
   )
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
-      ( CannotConvertPaymentPubKeyHash
-      , CannotFindDatum
+      ( CannotFindDatum
       , CannotQueryDatum
       , CannotConvertPOSIXTimeRange
       , CannotSolveTimeConstraints
@@ -48,8 +47,7 @@ import Ctl.Internal.ProcessConstraints.Error
   )
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
-      ( CannotConvertPaymentPubKeyHash
-      , CannotFindDatum
+      ( CannotFindDatum
       , CannotQueryDatum
       , CannotConvertPOSIXTimeRange
       , CannotSolveTimeConstraints
@@ -113,8 +111,6 @@ mkUnbalancedTx lookups constraints =
 -- | Helper to pretty-print `MkUnbalancedTxError`s.
 explainMkUnbalancedTxError :: MkUnbalancedTxError -> String
 explainMkUnbalancedTxError = case _ of
-  CannotConvertPaymentPubKeyHash ppkh ->
-    "Cannot convert payment pubkey hash: " <> show ppkh
   CannotFindDatum -> "Cannot find datum"
   CannotQueryDatum dh ->
     "Querying for datum by datum hash ("
