@@ -18,7 +18,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , CannotHashDatum
       , CannotHashMintingPolicy
       , CannotHashValidator
       , CannotMakeValue
@@ -54,10 +53,8 @@ import Ctl.Internal.Types.ScriptLookups
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  -- , paymentPubKeyM
   , unspentOutputs
   , unspentOutputsM
-  -- , unsafePaymentPubKey
   , validator
   , validatorM
   ) as X

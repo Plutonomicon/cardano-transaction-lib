@@ -31,7 +31,6 @@ data MkUnbalancedTxError
   | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | CannotHashDatum Datum
   | CannotHashMintingPolicy MintingPolicy
   | CannotHashValidator Validator
   | CannotMakeValue CurrencySymbol TokenName BigInt

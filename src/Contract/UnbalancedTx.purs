@@ -23,7 +23,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , CannotHashDatum
       , CannotHashMintingPolicy
       , CannotHashValidator
       , CannotMakeValue
@@ -53,7 +52,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , CannotHashDatum
       , CannotHashMintingPolicy
       , CannotHashValidator
       , CannotMakeValue
@@ -132,8 +130,6 @@ explainMkUnbalancedTxError = case _ of
       <> bugTrackerLink
   CannotGetValidatorHashFromAddress addr ->
     "Cannot get a validator hash from address " <> show addr
-  CannotHashDatum datum ->
-    "Cannot hash datum: " <> show datum
   CannotHashMintingPolicy mp ->
     "Cannot hash minting policy: " <> show mp
   CannotHashValidator validator ->
