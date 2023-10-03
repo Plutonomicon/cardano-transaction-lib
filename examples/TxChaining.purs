@@ -69,8 +69,7 @@ contract = do
         BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
     unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups1 constraints
-    balancedTx1 <-
-      liftedE $ balanceTxWithConstraints unbalancedTx1 balanceTxConstraints
+    balancedTx1 <- balanceTxWithConstraints unbalancedTx1 balanceTxConstraints
     balancedSignedTx1 <- signTransaction balancedTx1
 
     txId0 <- submit balancedSignedTx0

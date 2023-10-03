@@ -56,12 +56,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- `mkUnbalancedTxE`, as a 'throwing' version of `mkUnbalancedTx`. This version
-  throws an exception on failure, instead of returning in `Either`
+- `mkUnbalancedTxE`, as a non-'throwing' version of `mkUnbalancedTx`. This
+  version returns in `Either`, like `mkUnbalancedTx` used to
   ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
-- `balanceTxE` and `balanceTxWithConstraintsE`, as 'throwing' versions of
-  `balanceTx` and `balanceTxWithConstraints`. These throw exceptions on failure,
-  instead of returning in `Either`. ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
+- `balanceTxE` and `balanceTxWithConstraintsE`, as non-'throwing' versions of
+  `balanceTx` and `balanceTxWithConstraints`. These return in `Either`, like
+  `balanceTx` and `balanceTxWithConstraints` used to do ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 - `explainMkUnbalancedTxError` and `explainBalanceTxError`, which prettyprint
   `MkUnbalancedTxError` and `BalanceTxError` for a more human-readable output. ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 - Added `extraSources` and `data` features to CTL's Nix build function ([#1516](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1516))
@@ -134,7 +134,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `E2E_SKIP_JQUERY_DOWNLOAD` configuration variable for [E2E test suite](./doc/e2e-testing.md). It is not needed, because it's expected value can be determined from the environment, and thus it can be an implementation detail ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `reindexSpentScriptRedeemers` function from the public API - if there is a need to modify the `Transaction` in a way that breaks redeemer indices, it should be done before balancing ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 - Typed scripts and constraints interface. In practice, it means that the following types now have no type-level arguments: `TxConstraints`, `ScriptLookups`.
-- `ImpossibleError` (as it is no longer used)
+- `ImpossibleError` (as it is no longer used) ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 
 ## [v5.0.0]
 

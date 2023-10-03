@@ -13,7 +13,7 @@ import Contract.Monad (liftedE, runContract)
 import Contract.ScriptLookups (mkUnbalancedTx, unspentOutputs)
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceTx
+  , balanceTxE
   , signTransaction
   , submit
   )
@@ -121,7 +121,7 @@ run privateKey walletsDir = runContract config do
 
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
 
-  balancedTx <- liftedE $ balanceTx unbalancedTx
+  balancedTx <- liftedE $ balanceTxE unbalancedTx
   balancedSignedTx <- Array.foldM
     (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
     (wrap $ unwrap balancedTx)

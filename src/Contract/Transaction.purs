@@ -409,47 +409,51 @@ unUnbalancedTx
 -- | balancer constraints.
 -- |
 -- | This is a 'non-throwing' variant of this functionality. Use this when
--- | errors are expected, and graceful recovery is possible.
-balanceTxWithConstraints
+-- | errors are expected, and graceful recovery is possible. If you want a
+-- | 'throwing' variant, use `balanceTxWithConstraints` instead.
+balanceTxWithConstraintsE
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints tx =
+balanceTxWithConstraintsE tx =
   let
     tx' /\ ix = unUnbalancedTx tx
   in
     BalanceTx.balanceTxWithConstraints tx' ix
 
--- | 'Throwing' variant of `balanceTxWithConstraints`. Instead of returning in
+-- | 'Throwing' variant of `balanceTxWithConstraintsE`. Instead of returning in
 -- | `Either`, it throws an exception on failure. Use this when errors are not
 -- | expected, and graceful recovery is either impossible or wouldn't make
--- | sense.
-balanceTxWithConstraintsE
+-- | sense. If you want a non-'throwing' variant, use `balanceWithConstraintsE`
+-- | instead.
+balanceTxWithConstraints
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
   -> Contract FinalizedTransaction
-balanceTxWithConstraintsE tx bcb = do
-  result <- balanceTxWithConstraints tx bcb
+balanceTxWithConstraints tx bcb = do
+  result <- balanceTxWithConstraintsE tx bcb
   case result of
     Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
     Right ftx -> pure ftx
 
--- | Same as `balanceTxWithConstraints`, but uses the default balancer
+-- | Same as `balanceTxWithConstraintsE`, but uses the default balancer
 -- | constraints.
 -- |
 -- | This is a 'non-throwing' variant of this functionality. Use this when
--- | errors are expected, and graceful recovery is possible.
-balanceTx
+-- | errors are expected, and graceful recovery is possible. If you want a
+-- | 'throwing' variant, use `balanceTx` instead.
+balanceTxE
   :: UnbalancedTx
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTx = flip balanceTxWithConstraints mempty
+balanceTxE = flip balanceTxWithConstraintsE mempty
 
--- | 'Throwing' variant of `balanceTx`. Instead of returning in `Either`, it
+-- | 'Throwing' variant of `balanceTxE`. Instead of returning in `Either`, it
 -- | throws an exception on failure. Use this when errors are not expected, and
--- | graceful recovery is either impossible or wouldn't make sense.
-balanceTxE :: UnbalancedTx -> Contract FinalizedTransaction
-balanceTxE utx = do
-  result <- balanceTx utx
+-- | graceful recovery is either impossible or wouldn't make sense. If you want
+-- | a non-'throwing' variant, use `balanceTxE` instead.
+balanceTx :: UnbalancedTx -> Contract FinalizedTransaction
+balanceTx utx = do
+  result <- balanceTxE utx
   case result of
     Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
     Right ftx -> pure ftx
@@ -488,7 +492,7 @@ balanceAndLockWithConstraints
   -> Contract FinalizedTransaction
 balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
   balancedTx <-
-    liftedE $ balanceTxWithConstraints unbalancedTx constraints
+    liftedE $ balanceTxWithConstraintsE unbalancedTx constraints
   void $ withUsedTxOuts $
     lockTransactionInputs (unwrap balancedTx)
   pure balancedTx
@@ -555,7 +559,7 @@ submitTxFromConstraintsReturningFee
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTx unbalancedTx
+  balancedTx <- liftedE $ balanceTxE unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }

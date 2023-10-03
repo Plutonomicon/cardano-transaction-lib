@@ -27,6 +27,7 @@ import Contract.Transaction
   ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
   , balanceTx
+  , balanceTxE
   , signTransaction
   , submit
   )
@@ -215,7 +216,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< liftedE (balanceTx unbalancedTx)
+        signTransaction =<< liftedE (balanceTxE unbalancedTx)
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx

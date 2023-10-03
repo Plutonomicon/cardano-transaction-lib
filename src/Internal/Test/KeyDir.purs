@@ -22,6 +22,7 @@ import Contract.TextEnvelope (decodeTextEnvelope)
 import Contract.Transaction
   ( awaitTxConfirmed
   , balanceTx
+  , balanceTxE
   , signTransaction
   , submit
   , submitTxFromConstraints
@@ -387,7 +388,7 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
           lookups = unspentOutputs utxos
 
         unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
-        balancedTx <- liftedE $ balanceTx unbalancedTx
+        balancedTx <- liftedE $ balanceTxE unbalancedTx
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)

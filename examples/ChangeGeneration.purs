@@ -3,7 +3,7 @@ module Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution) where
 import Prelude
 
 import Contract.BalanceTxConstraints (mustSendChangeWithDatum)
-import Contract.Monad (Contract, liftedE)
+import Contract.Monad (Contract)
 import Contract.PlutusData
   ( Datum(Datum)
   , OutputDatum(OutputDatum)
@@ -64,8 +64,8 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
 
       lookups :: Lookups.ScriptLookups
       lookups = mempty
-    unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-    balancedTx <- liftedE $ balanceTxWithConstraints unbalancedTx
+    unbalancedTx <- mkUnbalancedTx lookups constraints
+    balancedTx <- balanceTxWithConstraints unbalancedTx
       -- just to check that attaching datums works
       ( mustSendChangeWithDatum $ OutputDatum $ Datum $ Integer $ BigInt.fromInt
           1000
