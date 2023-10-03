@@ -250,12 +250,13 @@ utxosInTransaction txHash = runExceptT do
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
   ExceptT $ resolveKupoUtxoMap kupoUtxoMap
 
-allOutputsWithCurrencySymbol :: CurrencySymbol -> QueryM (Either ClientError UtxoMap)
+allOutputsWithCurrencySymbol
+  :: CurrencySymbol -> QueryM (Either ClientError UtxoMap)
 allOutputsWithCurrencySymbol symbol = runExceptT do
   let
     pattern = encodedCurrencySymbol <> ".*"
-    -- both spent and unspent outputs will be queried. Note that 
-    parameters = [ ]
+    -- both spent and unspent outputs will be queried. Note that
+    parameters = []
     encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
     endpoint = "/matches/" <> pattern <> "?" <> mconcat parameters
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint

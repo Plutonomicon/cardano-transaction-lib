@@ -452,7 +452,8 @@ realizeEndpoint endpoint =
         encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
         encodedTokenName = byteArrayToHex $ getTokenName name
       in
-        "/assets/" <> encodedCurrencySymbol <> encodedTokenName <> "/transactions"
+        "/assets/" <> encodedCurrencySymbol <> encodedTokenName
+          <> "/transactions"
           <> "?page="
           <> show page
           <> ("&count=" <> show count)
@@ -717,9 +718,9 @@ allOutputsWithCurrencySymbol symbol = runExceptT $ do
     (entriesOnPage assetsOnPage 1)
   transactions :: BlockfrostAssetTransactions <-
     mconcat
-    <$> traverse
-      (ExceptT <<< uncurry assetTransactions)
-      (unwrap assets)
+      <$> traverse
+        (ExceptT <<< uncurry assetTransactions)
+        (unwrap assets)
   utxos <-
     traverse
       (ExceptT <<< utxosInTransaction)
@@ -1153,7 +1154,8 @@ instance DecodeAeson BlockfrostAssetAddresses where
 -- BlockfrostAssetTransactions
 --------------------------------------------------------------------------------
 
-newtype BlockfrostAssetTransactions = BlockfrostAssetTransactions (Array TransactionHash)
+newtype BlockfrostAssetTransactions = BlockfrostAssetTransactions
+  (Array TransactionHash)
 
 derive instance Generic BlockfrostAssetTransactions _
 derive instance Newtype BlockfrostAssetTransactions _

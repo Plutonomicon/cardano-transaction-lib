@@ -18,7 +18,8 @@ import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as Qu
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.Kupo
-  ( getDatumByHash
+  ( allOutputsWithCurrencySymbol
+  , getDatumByHash
   , getOutputAddressesByTxHash
   , getScriptByHash
   , getTxMetadata
@@ -28,7 +29,6 @@ import Ctl.Internal.QueryM.Kupo
   , utxosInTransaction
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
-  , allOutputsWithCurrencySymbol
   ) as Kupo
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitFail, SubmitTxSuccess))
 import Ctl.Internal.QueryM.Pools
@@ -92,7 +92,8 @@ queryHandleForCtlBackend runQueryM params backend =
       symbol
   , utxosWithCurrencySymbol: runQueryM' <<< Kupo.utxosWithCurrencySymbol
   , utxosInTransaction: runQueryM' <<< Kupo.utxosInTransaction
-  , allOutputsWithCurrencySymbol: runQueryM' <<< Kupo.allOutputsWithCurrencySymbol
+  , allOutputsWithCurrencySymbol: runQueryM' <<<
+      Kupo.allOutputsWithCurrencySymbol
   }
 
   where
