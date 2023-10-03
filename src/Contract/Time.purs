@@ -44,7 +44,10 @@ import Ctl.Internal.Types.EraSummaries
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
   ) as ExportEraSummaries
-import Ctl.Internal.Types.EraSummaries (EraSummaries)
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries
+  , EraSummary
+  )
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -113,7 +116,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 
 -- | Get a summary of the current era.
-getCurrentEra :: Contract ExportEraSummaries.EraSummary
+getCurrentEra :: Contract EraSummary
 getCurrentEra = do
   eraSummaries <- getEraSummaries
   currentSlot <- getCurrentSlot
@@ -124,10 +127,10 @@ getCurrentEra = do
     $ Array.sortBy (comparing getStartSlot)
     $ unwrap eraSummaries
   where
-  getStartSlot :: ExportEraSummaries.EraSummary -> Slot
+  getStartSlot :: EraSummary -> Slot
   getStartSlot = unwrap >>> _.start >>> unwrap >>> _.slot
 
-  slotInRange :: Slot -> ExportEraSummaries.EraSummary -> Boolean
+  slotInRange :: Slot -> EraSummary -> Boolean
   slotInRange currentSlot era =
     let
       eraStartSlot = getStartSlot era
