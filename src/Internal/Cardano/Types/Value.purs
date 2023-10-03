@@ -43,6 +43,8 @@ module Ctl.Internal.Cardano.Types.Value
   , numNonAdaCurrencySymbols
   , numTokenNames
   , posNonAdaAsset
+  , pprintNonAdaAsset
+  , pprintValue
   , scriptHashAsCurrencySymbol
   , split
   , sumTokenNameLengths
@@ -90,6 +92,7 @@ import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Ctl.Internal.Types.TokenName
   ( TokenName
   , adaToken
+  , fromTokenName
   , getTokenName
   , mkTokenName
   , mkTokenNames
@@ -100,6 +103,7 @@ import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
 import Data.BigInt (BigInt, fromInt, toNumber)
+import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
@@ -110,6 +114,8 @@ import Data.Int (ceil) as Int
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Map.Gen (genMap)
@@ -338,6 +344,15 @@ instance Equipartition NonAdaAsset where
         map (mkSingletonNonAdaAsset cs tn)
           (equipartition tokenQuantity numParts)
 
+pprintNonAdaAsset :: NonAdaAsset -> TagSet
+pprintNonAdaAsset mp = TagSet.fromArray $
+  Map.toUnfoldable (unwrapNonAdaAsset mp) <#> \(currency /\ tokens) ->
+    byteArrayToHex (getCurrencySymbol currency) `tagSetTag` TagSet.fromArray
+      ( Map.toUnfoldable tokens <#> \(tokenName /\ amount) ->
+          fromTokenName byteArrayToHex show tokenName `tag` BigInt.toString
+            amount
+      )
+
 -- | Partitions a `NonAdaAsset` into smaller `NonAdaAsset`s, where the
 -- | quantity of each token is equipartitioned across the resultant
 -- | `NonAdaAsset`s, with the goal that no token quantity in any of the
@@ -482,6 +497,16 @@ instance Equipartition Value where
     NEArray.zipWith mkValue
       (equipartition coin numParts)
       (equipartition nonAdaAssets numParts)
+
+pprintValue :: Value -> TagSet
+pprintValue value = TagSet.fromArray $
+  [ "ADA" `tag` BigInt.toString (unwrap (valueToCoin value)) ]
+    <>
+      if nonAdaAssets /= mempty then
+        [ "Assets" `tagSetTag` pprintNonAdaAsset nonAdaAssets ]
+      else []
+  where
+  nonAdaAssets = getNonAdaAsset value
 
 -- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the
 -- | quantity of each token is equipartitioned across the resultant `Value`s,

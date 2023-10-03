@@ -36,6 +36,9 @@ module.exports = env => {
           pathRewrite: { "^/kupo": "" },
         },
       },
+      client: {
+        overlay: false,
+      },
     },
 
     entry: env.entry,
