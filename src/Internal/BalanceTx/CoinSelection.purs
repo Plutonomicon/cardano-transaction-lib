@@ -29,7 +29,6 @@ import Ctl.Internal.BalanceTx.Error
       , InsufficientUtxoBalanceToCoverAsset
       )
   , Expected(Expected)
-  , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass(AssetClass), Coin, Value)
@@ -141,7 +140,6 @@ performMultiAssetSelection strategy utxoIndex requiredValue =
     BalanceInsufficientError
       (Expected $ toPlutusValue requiredValue)
       (Actual $ toPlutusValue availableValue)
-      (InvalidInContext $ toPlutusValue mempty)
 
   availableValue :: Value
   availableValue = balance (utxoIndexUniverse utxoIndex)

@@ -137,6 +137,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `ImpossibleError` (as it is no longer used) ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 - `CannotConvertPaymentPubKeyHash`, `CannotHashMintingPolicy`, `CannotHashValidator` and `CannotHashDatum` variants of `MkUnbalancedTxError` (no longer
   used) ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
+- `InvalidInContext` (not needed) ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 
 ## [v5.0.0]
 

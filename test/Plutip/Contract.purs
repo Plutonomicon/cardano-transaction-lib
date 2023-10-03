@@ -63,7 +63,6 @@ import Contract.Time (Slot(Slot), getEraSummaries)
 import Contract.Transaction
   ( BalanceTxError(BalanceInsufficientError)
   , DataHash
-  , InvalidInContext(InvalidInContext)
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , OutputDatum(OutputDatumHash, NoOutputDatum, OutputDatum)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
@@ -1188,9 +1187,7 @@ suite = do
           hasInsufficientBalance
             :: forall (a :: Type). Either BalanceTxError a -> Boolean
           hasInsufficientBalance = case _ of
-            Left (BalanceInsufficientError _ _ (InvalidInContext amount))
-              | amount == Value.lovelaceValueOf (BigInt.fromInt 50_000_000) ->
-                  true
+            Left (BalanceInsufficientError _ _) -> true
             _ -> false
 
         balanceWithDatum NoOutputDatum >>= flip shouldSatisfy isRight

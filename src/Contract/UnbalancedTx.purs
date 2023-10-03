@@ -14,9 +14,6 @@ import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl) as PC
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
-  )
-import Ctl.Internal.ProcessConstraints.Error
-  ( MkUnbalancedTxError
       ( CannotFindDatum
       , CannotQueryDatum
       , CannotConvertPOSIXTimeRange

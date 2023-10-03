@@ -71,7 +71,6 @@ import Ctl.Internal.BalanceTx.Error
       , UtxoMinAdaValueCalculationFailed
       )
   , Expected(Expected)
-  , InvalidInContext(InvalidInContext)
   , explainBalanceTxError
   ) as BalanceTxError
 import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
