@@ -60,4 +60,5 @@ type QueryHandle =
   , utxosWithAssetClass :: CurrencySymbol -> TokenName -> AffE UtxoMap
   , utxosWithCurrencySymbol :: CurrencySymbol -> AffE UtxoMap
   , utxosInTransaction :: TransactionHash -> AffE UtxoMap
+  , allOutputsWithCurrencySymbol :: CurrencySymbol -> AffE UtxoMap
   }

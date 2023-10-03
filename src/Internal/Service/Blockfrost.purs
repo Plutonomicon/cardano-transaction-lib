@@ -24,6 +24,7 @@ module Ctl.Internal.Service.Blockfrost
       , AssetAddresses
       , AssetsOfPolicy
       , AssetUtxosAtAddress
+      , AssetTransactions
       )
   , BlockfrostStakeCredential(BlockfrostStakeCredential)
   , BlockfrostEraSummaries(BlockfrostEraSummaries)
@@ -62,6 +63,7 @@ module Ctl.Internal.Service.Blockfrost
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
   , utxosInTransaction
+  , allOutputsWithCurrencySymbol
   ) where
 
 import Prelude
@@ -221,7 +223,7 @@ import Ctl.Internal.Types.Transaction
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   )
-import Data.Array (find, length) as Array
+import Data.Array (find, length, nub) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString, toNumber) as BigInt
@@ -365,6 +367,8 @@ data BlockfrostEndpoint
   | AssetsOfPolicy CurrencySymbol Int Int
   -- /addresses/{address}/utxos/{asset}?page={page}&count={count}
   | AssetUtxosAtAddress Address CurrencySymbol TokenName Int Int
+  -- /assets/{asset}/transactions
+  | AssetTransactions CurrencySymbol TokenName Int Int
 
 derive instance Generic BlockfrostEndpoint _
 derive instance Eq BlockfrostEndpoint
@@ -439,6 +443,16 @@ realizeEndpoint endpoint =
       in
         "/addresses/" <> encodedAddress <> "/utxos/" <> encodedCurrencySymbol
           <> encodedTokenName
+          <> "?page="
+          <> show page
+          <> ("&count=" <> show count)
+          <> "&order=asc"
+    AssetTransactions symbol name page count ->
+      let
+        encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+        encodedTokenName = byteArrayToHex $ getTokenName name
+      in
+        "/assets/" <> encodedCurrencySymbol <> encodedTokenName <> "/transactions"
           <> "?page="
           <> show page
           <> ("&count=" <> show count)
@@ -694,6 +708,35 @@ utxosWithCurrencySymbol symbol = runExceptT $ do
   where
   assetsOnPage :: Int -> Int -> BlockfrostEndpoint
   assetsOnPage = AssetsOfPolicy symbol
+
+allOutputsWithCurrencySymbol
+  :: CurrencySymbol
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+allOutputsWithCurrencySymbol symbol = runExceptT $ do
+  assets :: BlockfrostAssetsWithCurrencySymbol <- ExceptT
+    (entriesOnPage assetsOnPage 1)
+  transactions :: BlockfrostAssetTransactions <-
+    mconcat
+    <$> traverse
+      (ExceptT <<< uncurry assetTransactions)
+      (unwrap assets)
+  utxos <-
+    traverse
+      (ExceptT <<< utxosInTransaction)
+      $ Array.nub
+      $ unwrap transactions
+  pure $ Map.unions utxos
+  where
+  assetsOnPage :: Int -> Int -> BlockfrostEndpoint
+  assetsOnPage = AssetsOfPolicy symbol
+
+  assetTransactions
+    :: CurrencySymbol
+    -> TokenName
+    -> BlockfrostServiceM (Either ClientError BlockfrostAssetTransactions)
+  assetTransactions _ name = entriesOnPage
+    (AssetTransactions symbol name)
+    1
 
 --------------------------------------------------------------------------------
 -- Get datum by hash
@@ -1105,6 +1148,26 @@ instance DecodeAeson BlockfrostAssetAddresses where
       bech32Address <- getField obj "address"
       note (TypeMismatch "Expected bech32 encoded address")
         (addressFromBech32 bech32Address)
+
+--------------------------------------------------------------------------------
+-- BlockfrostAssetTransactions
+--------------------------------------------------------------------------------
+
+newtype BlockfrostAssetTransactions = BlockfrostAssetTransactions (Array TransactionHash)
+
+derive instance Generic BlockfrostAssetTransactions _
+derive instance Newtype BlockfrostAssetTransactions _
+derive newtype instance Semigroup BlockfrostAssetTransactions
+derive newtype instance Monoid BlockfrostAssetTransactions
+
+instance Show BlockfrostAssetTransactions where
+  show = genericShow
+
+instance DecodeAeson BlockfrostAssetTransactions where
+  decodeAeson = aesonArray (map wrap <<< traverse decodeTransactionEntry)
+    where
+    decodeTransactionEntry :: Aeson -> Either JsonDecodeError TransactionHash
+    decodeTransactionEntry = aesonObject $ \obj -> getField obj "tx_hash"
 
 --------------------------------------------------------------------------------
 -- BlockfrostAssetsWithCurrencySymbol

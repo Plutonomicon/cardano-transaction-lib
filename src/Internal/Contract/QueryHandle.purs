@@ -28,6 +28,7 @@ import Ctl.Internal.QueryM.Kupo
   , utxosInTransaction
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
+  , allOutputsWithCurrencySymbol
   ) as Kupo
 import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitFail, SubmitTxSuccess))
 import Ctl.Internal.QueryM.Pools
@@ -91,6 +92,7 @@ queryHandleForCtlBackend runQueryM params backend =
       symbol
   , utxosWithCurrencySymbol: runQueryM' <<< Kupo.utxosWithCurrencySymbol
   , utxosInTransaction: runQueryM' <<< Kupo.utxosInTransaction
+  , allOutputsWithCurrencySymbol: runQueryM' <<< Kupo.allOutputsWithCurrencySymbol
   }
 
   where
@@ -136,6 +138,8 @@ queryHandleForBlockfrostBackend logParams backend =
   , utxosWithCurrencySymbol: runBlockfrostServiceM' <<<
       Blockfrost.utxosWithCurrencySymbol
   , utxosInTransaction: runBlockfrostServiceM' <<< Blockfrost.utxosInTransaction
+  , allOutputsWithCurrencySymbol: runBlockfrostServiceM' <<<
+      Blockfrost.allOutputsWithCurrencySymbol
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a

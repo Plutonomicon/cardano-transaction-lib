@@ -8,6 +8,7 @@ module Contract.Utxos
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
   , utxosWithCurrencySymbolInTransaction
+  , allOutputsWithCurrencySymbol
   , module X
   ) where
 
@@ -125,3 +126,12 @@ utxosWithCurrencySymbolInTransaction symbol txHash =
   hasCurrencySymbol =
     view $ _output <<< _amount <<< to symbols <<< to (Array.elem symbol)
 
+allOutputsWithCurrencySymbol
+  :: CurrencySymbol
+  -> Contract UtxoMap
+allOutputsWithCurrencySymbol symbol = do
+  queryHandle <- getQueryHandle
+  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.allOutputsWithCurrencySymbol
+    symbol
+  liftContractM "allOutputsWithCurrencySymbol: failed to convert utxos"
+    $ toPlutusUtxoMap cardanoUtxoMap

@@ -10,6 +10,7 @@ module Ctl.Internal.QueryM.Kupo
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
   , utxosInTransaction
+  , allOutputsWithCurrencySymbol
   ) where
 
 import Prelude
@@ -246,6 +247,17 @@ utxosInTransaction txHash = runExceptT do
     pattern = "*@" <> encodedTxHash
     encodedTxHash = byteArrayToHex $ unwrap txHash
     endpoint = "/matches/" <> pattern
+  kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+  ExceptT $ resolveKupoUtxoMap kupoUtxoMap
+
+allOutputsWithCurrencySymbol :: CurrencySymbol -> QueryM (Either ClientError UtxoMap)
+allOutputsWithCurrencySymbol symbol = runExceptT do
+  let
+    pattern = encodedCurrencySymbol <> ".*"
+    -- both spent and unspent outputs will be queried. Note that 
+    parameters = [ ]
+    encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+    endpoint = "/matches/" <> pattern <> "?" <> mconcat parameters
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
   ExceptT $ resolveKupoUtxoMap kupoUtxoMap
 
