@@ -7,6 +7,7 @@ module Contract.Utxos
   , utxosInTransaction
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
+  , utxosWithCurrencySymbolInTransaction
   , module X
   ) where
 
@@ -25,10 +26,20 @@ import Ctl.Internal.Plutus.Conversion
   )
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
 import Ctl.Internal.Plutus.Types.CurrencySymbol (CurrencySymbol)
-import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
+import Ctl.Internal.Plutus.Types.Transaction
+  ( TransactionOutput
+  , TransactionOutputWithRefScript
+  , UtxoMap
+  , _amount
+  , _output
+  )
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
+import Ctl.Internal.Plutus.Types.Value (symbols)
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
+import Data.Array as Array
+import Data.Lens (to, view)
+import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)
@@ -102,3 +113,15 @@ utxosInTransaction symbol = do
     symbol
   liftContractM "utxosInTransaction: failed to convert utxos"
     $ toPlutusUtxoMap cardanoUtxoMap
+
+utxosWithCurrencySymbolInTransaction
+  :: CurrencySymbol
+  -> TransactionHash
+  -> Contract UtxoMap
+utxosWithCurrencySymbolInTransaction symbol txHash =
+  Map.filter hasCurrencySymbol <$> utxosInTransaction txHash
+  where
+  hasCurrencySymbol :: TransactionOutputWithRefScript -> Boolean
+  hasCurrencySymbol =
+    view $ _output <<< _amount <<< to symbols <<< to (Array.elem symbol)
+
