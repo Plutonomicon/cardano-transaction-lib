@@ -18,8 +18,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , CannotHashMintingPolicy
-      , CannotHashValidator
       , CannotMakeValue
       , CannotWithdrawRewardsPubKey
       , CannotWithdrawRewardsPlutusScript

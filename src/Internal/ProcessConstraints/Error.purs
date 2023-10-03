@@ -10,11 +10,9 @@ import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Interval (POSIXTimeRange, PosixTimeToSlotError)
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts
-  ( MintingPolicy
-  , MintingPolicyHash
+  ( MintingPolicyHash
   , NativeScriptStakeValidator
   , PlutusScriptStakeValidator
-  , Validator
   , ValidatorHash
   )
 import Ctl.Internal.Types.TokenName (TokenName)
@@ -31,8 +29,6 @@ data MkUnbalancedTxError
   | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | CannotHashMintingPolicy MintingPolicy
-  | CannotHashValidator Validator
   | CannotMakeValue CurrencySymbol TokenName BigInt
   | CannotWithdrawRewardsPubKey StakePubKeyHash
   | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator

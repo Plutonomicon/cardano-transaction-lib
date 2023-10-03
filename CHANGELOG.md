@@ -135,7 +135,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `reindexSpentScriptRedeemers` function from the public API - if there is a need to modify the `Transaction` in a way that breaks redeemer indices, it should be done before balancing ([#1462](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1462))
 - Typed scripts and constraints interface. In practice, it means that the following types now have no type-level arguments: `TxConstraints`, `ScriptLookups`.
 - `ImpossibleError` (as it is no longer used) ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
-- `CannotConvertPaymentPubKeyHash` and `CannotHashDatum` variants of `MkUnbalancedTxError` (no longer
+- `CannotConvertPaymentPubKeyHash`, `CannotHashMintingPolicy`, `CannotHashValidator` and `CannotHashDatum` variants of `MkUnbalancedTxError` (no longer
   used) ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 
 ## [v5.0.0]

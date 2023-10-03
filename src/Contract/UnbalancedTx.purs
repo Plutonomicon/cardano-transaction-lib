@@ -23,8 +23,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , CannotHashMintingPolicy
-      , CannotHashValidator
       , CannotMakeValue
       , CannotWithdrawRewardsPubKey
       , CannotWithdrawRewardsPlutusScript
@@ -52,8 +50,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex
       , CannotGetValidatorHashFromAddress
-      , CannotHashMintingPolicy
-      , CannotHashValidator
       , CannotMakeValue
       , CannotWithdrawRewardsPubKey
       , CannotWithdrawRewardsPlutusScript
@@ -130,10 +126,6 @@ explainMkUnbalancedTxError = case _ of
       <> bugTrackerLink
   CannotGetValidatorHashFromAddress addr ->
     "Cannot get a validator hash from address " <> show addr
-  CannotHashMintingPolicy mp ->
-    "Cannot hash minting policy: " <> show mp
-  CannotHashValidator validator ->
-    "Cannot hash validator: " <> show validator
   CannotMakeValue _ tn _ ->
     "Attempted to make an amount with the ADA currency symbol, and non-empty token name "
       <> show tn
