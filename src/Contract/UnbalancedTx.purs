@@ -125,7 +125,7 @@ explainMkUnbalancedTxError = case _ of
       <> "Please report this as a bug here: "
       <> bugTrackerLink
   CannotGetValidatorHashFromAddress addr ->
-    "Cannot get a validator hash from address " <> show addr
+    "Cannot get a payment validator hash from address " <> show addr
   CannotMakeValue _ tn _ ->
     "Attempted to make an amount with the ADA currency symbol, and non-empty token name "
       <> show tn
@@ -143,7 +143,7 @@ explainMkUnbalancedTxError = case _ of
     <> show hash
   MintingPolicyHashNotCurrencySymbol mph ->
     "Minting policy hash " <> show mph <>
-      " is not the hash of a CurrencySymbol."
+      " is not a CurrencySymbol. Please check the validity of the byte representation."
   MintingPolicyNotFound mp -> "Minting policy not found: " <> show mp
   ModifyTx modifyTxErr -> explainModifyTxError modifyTxErr
   OwnPubKeyAndStakeKeyMissing ->
