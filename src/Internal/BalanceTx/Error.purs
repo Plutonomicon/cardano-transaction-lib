@@ -102,9 +102,10 @@ explainBalanceTxError = case _ of
   CouldNotConvertScriptOutputToTxInput ->
     "Could not convert script output to transaction input"
   CouldNotGetChangeAddress ->
-    "Could not get change address"
+    "Could not get change address from the wallet or from the balancer constraints"
   CouldNotGetCollateral -> "Could not get collateral from wallet"
-  CouldNotGetUtxos -> "Could not get UTxOs"
+  CouldNotGetUtxos ->
+    "Could not get UTxOs from the wallet or the specified source addresses"
   CollateralReturnError ->
     "Negative totalCollateral after covering min-utxo-ada requirement."
       <> "This should be impossible: please report this as a bug to "
@@ -132,7 +133,12 @@ explainBalanceTxError = case _ of
       <>
         bugTrackerLink
   UtxoLookupFailedFor ti ->
-    "Could not look up UTxO for " <> show ti
+    "Could not look up UTxO for "
+      <> show ti
+      <> " from a given set of UTxOs.\n"
+      <> "This should be impossible: please report this as a bug to "
+      <>
+        bugTrackerLink
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
 
