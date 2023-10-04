@@ -11,6 +11,11 @@ import Prelude
 
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (throwError)
+import Ctl.Internal.Cardano.Types.Value (pprintValue)
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
+import Ctl.Internal.Plutus.Types.Transaction
+  ( TransactionOutput(TransactionOutput)
+  )
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl) as PC
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
@@ -69,12 +74,21 @@ import Ctl.Internal.ProcessConstraints.Error
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx)) as X
 import Ctl.Internal.Transaction (explainModifyTxError)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Interval (explainPosixTimeToSlotError)
+import Ctl.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
+import Ctl.Internal.Types.PlutusData (pprintPlutusData)
 import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups
   )
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Data.Either (Either(Left, Right))
+import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Log.Tag as TagSet
+import Data.Maybe (Maybe(Nothing, Just))
+import Data.Newtype (unwrap)
 import Effect.Exception (error)
 
 -- | Create an `UnbalancedTx` given `ScriptLookups` and
@@ -156,8 +170,12 @@ explainMkUnbalancedTxError = case _ of
       <>
         "\nContext: we were trying to spend a script output."
   ValidatorHashNotFound vh -> "Cannot find validator hash: " <> show vh
-  WrongRefScriptHash msh ->
-    "Output is missing a reference script hash: " <> show msh
+  WrongRefScriptHash msh tout ->
+    "Output is missing a reference script hash: "
+      <> show msh
+      <> "\nOutput: "
+      <>
+        prettyOutput tout
   CannotSatisfyAny -> "One of the following happened:\n"
     <> "1. List of constraints is empty.\n"
     <>
@@ -167,6 +185,44 @@ explainMkUnbalancedTxError = case _ of
   CannotMintZero cs tn -> "Cannot mint zero of token " <> show tn
     <> " of currency "
     <> show cs
+  where
+  prettyOutput :: TransactionOutput -> String
+  prettyOutput (TransactionOutput { address, amount, datum, referenceScript }) =
+    let
+      datumTagSets = map TagSet.fromArray $ case datum of
+        NoOutputDatum -> []
+        OutputDatumHash datumHash ->
+          [ [ "datumHash" `TagSet.tag` byteArrayToHex
+                (unwrap datumHash)
+            ]
+          ]
+        OutputDatum plutusData ->
+          [ [ "datum" `TagSet.tagSetTag`
+                pprintPlutusData (unwrap plutusData)
+            ]
+          ]
+      scriptRefTagSets = case referenceScript of
+        Nothing -> []
+        Just ref -> [ "Script Reference" `TagSet.tag` show ref ]
+      outputTagSet =
+        [ "amount" `TagSet.tagSetTag` pprintValue (fromPlutusValue amount)
+        , "address" `TagSet.tag` (show address)
+        ] <> datumTagSets <> scriptRefTagSets
+    in
+      foldMapWithIndex prettyEntry $ TagSet.fromArray outputTagSet
+
+  prettyEntry :: String -> TagSet.Tag -> String
+  prettyEntry k v = (k <> ": ")
+    <>
+      ( case v of
+          TagSet.StringTag s -> s
+          TagSet.NumberTag n -> show n
+          TagSet.IntTag i -> show i
+          TagSet.BooleanTag b -> show b
+          TagSet.JSDateTag date -> show date
+          TagSet.TagSetTag ts -> foldMapWithIndex prettyEntry ts
+      )
+    <> "\n"
 
 -- Helpers
 

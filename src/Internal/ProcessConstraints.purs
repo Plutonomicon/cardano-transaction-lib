@@ -477,6 +477,7 @@ processScriptRefUnspentOut scriptHash inputWithRefScript = do
 
       err :: ConstraintsM (Either MkUnbalancedTxError Unit)
       err = pure $ throwError $ WrongRefScriptHash refScriptHash
+        (unwrap output).output
     in
       if Just (unwrap scriptHash) /= refScriptHash then err
       else pure (Right unit)
@@ -484,8 +485,12 @@ processScriptRefUnspentOut scriptHash inputWithRefScript = do
 checkRefNative
   :: InputWithScriptRef
   -> ConstraintsM (Either MkUnbalancedTxError Boolean)
-checkRefNative scriptRef = pure $ note (WrongRefScriptHash Nothing) $ isNative
-  (unwrap (unwrap uout).output).scriptRef
+checkRefNative scriptRef =
+  let
+    out = (unwrap ((unwrap uout).output)).output
+  in
+    pure $ note (WrongRefScriptHash Nothing out) $ isNative
+      (unwrap (unwrap uout).output).scriptRef
   where
   isNative ref = ref >>=
     ( case _ of

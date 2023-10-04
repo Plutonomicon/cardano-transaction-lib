@@ -3,6 +3,7 @@ module Ctl.Internal.ProcessConstraints.Error where
 import Prelude
 
 import Ctl.Internal.Cardano.Types.Value (CurrencySymbol)
+import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Transaction (ModifyTxError)
@@ -42,7 +43,7 @@ data MkUnbalancedTxError
   | TxOutRefNotFound TransactionInput
   | TxOutRefWrongType TransactionInput
   | ValidatorHashNotFound ValidatorHash
-  | WrongRefScriptHash (Maybe ScriptHash)
+  | WrongRefScriptHash (Maybe ScriptHash) TransactionOutput
   | CannotSatisfyAny
   | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
   | CannotMintZero CurrencySymbol TokenName
