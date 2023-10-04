@@ -717,10 +717,16 @@ allOutputsWithCurrencySymbol symbol = runExceptT $ do
   assets :: BlockfrostAssetsWithCurrencySymbol <- ExceptT
     (entriesOnPage assetsOnPage 1)
   transactions :: BlockfrostAssetTransactions <-
-    mconcat
-      <$> traverse
-        (ExceptT <<< uncurry assetTransactions)
-        (unwrap assets)
+    map mconcat $ ExceptT $ LoggerT \logger ->
+      let
+        resolve
+          :: (CurrencySymbol /\ TokenName)
+          -> ExceptT ClientError (ReaderT BlockfrostServiceParams Aff)
+               BlockfrostAssetTransactions
+        resolve = ExceptT <<< flip runLoggerT logger <<< uncurry
+          assetTransactions
+      in
+        runExceptT $ parTraverse resolve $ unwrap assets
   utxos <-
     traverse
       (ExceptT <<< utxosInTransaction)
