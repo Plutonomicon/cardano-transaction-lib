@@ -100,6 +100,7 @@ import Contract.Wallet
 import Control.Monad.Error.Class (try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
+import Ctl.Examples.AdditionalUtxos (contract) as AdditionalUtxos
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
@@ -1034,6 +1035,26 @@ suite = do
       withWallets distribution \alice -> do
         checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
+
+    test "AdditionalUtxos example" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice $ AdditionalUtxos.contract false
+
+    test "Handles AdditionalUtxoOverlap exception (AdditionalUtxos example)" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice $ AdditionalUtxos.contract true
 
     test
       "Locking & unlocking on an always succeeding script (AlwaysSucceeds example)"
