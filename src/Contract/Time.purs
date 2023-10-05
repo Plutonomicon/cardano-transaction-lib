@@ -120,9 +120,9 @@ getCurrentEra :: Contract EraSummary
 getCurrentEra = do
   eraSummaries <- getEraSummaries
   currentSlot <- getCurrentSlot
-  logInfo' $ "getCurrentEra: " <> show eraSummaries
-  logInfo' $ "getCurrentEra: " <> show currentSlot
-  liftContractM "Could not find era summary"
+  logInfo' $ "getCurrentEra: era summaries: " <> show eraSummaries
+  logInfo' $ "getCurrentEra: current slot: " <> show currentSlot
+  liftContractM "getCurrentEra: Could not find era summary"
     $ find (slotInRange currentSlot)
     $ Array.sortBy (comparing getStartSlot)
     $ unwrap eraSummaries
@@ -171,7 +171,7 @@ normalizeTimeInterval = case _ of
     logInfo' $ "normalizeTimeInterval: desired range: " <> show desired
     logInfo' $ "normalizeTimeInterval: computed range: " <> show range
     pure range
-  i -> liftContractM ("Could not convert to start-end range: " <> show i)
+  i -> liftContractM ("normalizeTimeInterval: could not convert to start-end range: " <> show i)
     Nothing
 
 -- | Get the current Epoch.
