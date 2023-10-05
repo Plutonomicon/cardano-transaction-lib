@@ -43,10 +43,10 @@ contract = do
       fold $ halfArray (flattenNonAdaAssets tokenValue) <#>
         \(cs /\ tn /\ n) -> singleton cs tn n
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Helpers.mustPayToPubKey nullPaymentPubKeyHash tokenValueHalf
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints >>= awaitTxConfirmed

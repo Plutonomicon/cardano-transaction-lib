@@ -88,3 +88,4 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 
 - [How to use CTL-based apps from JS](./using-from-js.md)
 - [Managing Contract environment correctly](./contract-environment.md)
+- [Alternative setup with purs-nix instead of spago2nix](https://github.com/LovelaceAcademy/cardano-transaction-lib/tree/develop/templates/la-scaffold)

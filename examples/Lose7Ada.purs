@@ -17,7 +17,7 @@ import Contract.Address (scriptHashAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
@@ -61,14 +61,14 @@ example cfg = launchAff_ do
 payToAlwaysFails :: ValidatorHash -> Contract TransactionHash
 payToAlwaysFails vhash = do
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash unitDatum
         Constraints.DatumWitness
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -92,11 +92,11 @@ spendFromAlwaysFails vhash validator txId = do
     )
     (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
   let
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs utxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustNotBeValid

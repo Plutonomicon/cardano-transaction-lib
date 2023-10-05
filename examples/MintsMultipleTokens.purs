@@ -46,7 +46,7 @@ contract = do
   mp3 /\ cs3 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt3
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mconcat
       [ Constraints.mustMintValueWithRedeemer
           (Redeemer $ Integer (BigInt.fromInt 1))
@@ -59,7 +59,7 @@ contract = do
           (Value.singleton cs3 tn1 one <> Value.singleton cs3 tn2 one)
       ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups =
       Lookups.mintingPolicy mp1
         <> Lookups.mintingPolicy mp2

@@ -190,7 +190,6 @@ type ContractEnv =
   , handle :: QueryHandle
   , networkId :: NetworkId
   , logLevel :: LogLevel
-  , walletSpec :: Maybe WalletSpec
   , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
   , suppressLogs :: Boolean
   , hooks :: Hooks
@@ -260,7 +259,6 @@ mkContractEnv params = do
   constants =
     { networkId: params.networkId
     , logLevel: params.logLevel
-    , walletSpec: params.walletSpec
     , customLogger: params.customLogger
     , suppressLogs: params.suppressLogs
     , hooks: params.hooks

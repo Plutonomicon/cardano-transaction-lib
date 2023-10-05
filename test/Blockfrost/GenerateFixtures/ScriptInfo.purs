@@ -96,12 +96,12 @@ generateFixtures = do
     value :: Value
     value = Value.lovelaceValueOf $ BigInt.fromInt 2_000_000
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       mconcat $ scriptRefs <#>
         flip (mustPayToPubKeyStakeAddressWithScriptRef pkh skh) value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   txHash <- submitTxFromConstraints lookups constraints

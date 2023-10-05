@@ -65,14 +65,14 @@ contract = do
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mconcat
       [ Constraints.mustReferenceOutput oref
       , Helpers.mustPayToPubKeyStakeAddress pkh skh
           (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
       ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   void $ runChecks checks $ lift do

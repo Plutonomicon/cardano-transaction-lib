@@ -47,14 +47,14 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
       vhash = validatorHash validator
       value = Value.lovelaceValueOf $ BigInt.fromInt 1000001
 
-      constraintsToSelf :: TxConstraints Unit Unit
+      constraintsToSelf :: TxConstraints
       constraintsToSelf = fold <<< take outputsToSelf <<< fold
         $ replicate outputsToSelf
         $ zip pkhs skhs <#> \(Tuple pkh mbSkh) -> case mbSkh of
             Nothing -> Constraints.mustPayToPubKey pkh value
             Just skh -> Constraints.mustPayToPubKeyAddress pkh skh value
 
-      constraintsToScripts :: TxConstraints Unit Unit
+      constraintsToScripts :: TxConstraints
       constraintsToScripts = fold $ replicate outputsToScript
         $ Constraints.mustPayToScript vhash unitDatum
             Constraints.DatumWitness
@@ -62,7 +62,7 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
 
       constraints = constraintsToSelf <> constraintsToScripts
 
-      lookups :: Lookups.ScriptLookups PlutusData
+      lookups :: Lookups.ScriptLookups
       lookups = mempty
     unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
     balancedTx <- liftedE $ balanceTxWithConstraints unbalancedTx
