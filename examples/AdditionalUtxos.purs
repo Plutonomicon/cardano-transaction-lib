@@ -79,14 +79,14 @@ payToValidator vhash = do
     datum :: Datum
     datum = wrap $ Integer $ BigInt.fromInt 42
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash datum DatumWitness value
         <> Constraints.mustPayToScriptWithScriptRef vhash datum DatumInline
           scriptRef
           value
 
-    lookups :: ScriptLookups PlutusData
+    lookups :: ScriptLookups
     lookups = Lookups.datum datum
 
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
@@ -108,12 +108,12 @@ spendFromValidator validator additionalUtxos datum = do
     pubKeyOrefs =
       Array.fromFoldable $ Map.keys $ Map.difference additionalUtxos scriptUtxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       foldMap (flip Constraints.mustSpendScriptOutput unitRedeemer) scriptOrefs
         <> foldMap Constraints.mustSpendPubKeyOutput pubKeyOrefs
 
-    lookups :: ScriptLookups PlutusData
+    lookups :: ScriptLookups
     lookups =
       Lookups.validator validator
         <> Lookups.unspentOutputs additionalUtxos
