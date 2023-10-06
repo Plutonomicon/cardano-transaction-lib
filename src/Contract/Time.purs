@@ -3,7 +3,6 @@ module Contract.Time
   ( getCurrentEpoch
   , getEraSummaries
   , getSystemStart
-  , module Chain
   , module ExportEraSummaries
   , module ExportOgmios
   , module ExportSystemStart
@@ -13,12 +12,6 @@ module Contract.Time
 
 import Prelude
 
-import Contract.Chain
-  ( BlockHeaderHash(BlockHeaderHash)
-  , ChainTip(ChainTip)
-  , Tip(Tip, TipAtGenesis)
-  , getTip
-  ) as Chain
 import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))

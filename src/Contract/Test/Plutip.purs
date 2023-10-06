@@ -9,8 +9,6 @@ module Contract.Test.Plutip
 
 import Prelude
 
-import Contract.Monad (runContractInEnv) as X
-import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Plutip.Server (runPlutipContract, withPlutipContractEnv) as X
 import Ctl.Internal.Plutip.Server (testPlutipContracts) as Server

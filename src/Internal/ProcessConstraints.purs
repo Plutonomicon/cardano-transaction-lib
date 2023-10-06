@@ -4,7 +4,7 @@ module Ctl.Internal.ProcessConstraints
 
 import Prelude
 
-import Contract.Hashing (plutusScriptStakeValidatorHash)
+import Contract.Scripts (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)

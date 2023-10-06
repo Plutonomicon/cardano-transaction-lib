@@ -7,7 +7,6 @@ module Contract.Hashing
 
 import Prelude
 
-import Contract.Scripts (plutusScriptStakeValidatorHash) as X
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData
   , AuxiliaryDataHash

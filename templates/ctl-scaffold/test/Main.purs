@@ -10,10 +10,10 @@ import Contract.Test.Plutip
   , PlutipTest
   , defaultPlutipConfig
   , testPlutipContracts
-  , withKeyWallet
   , withWallets
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Contract.Wallet (withKeyWallet)
 import Data.BigInt (fromInt) as BigInt
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect.Aff

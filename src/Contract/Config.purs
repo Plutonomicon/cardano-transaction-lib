@@ -19,7 +19,6 @@ module Contract.Config
   , defaultSynchronizationParams
   , strictSynchronizationParams
   , defaultTimeParams
-  , module Contract.Address
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.Deserialization.Keys

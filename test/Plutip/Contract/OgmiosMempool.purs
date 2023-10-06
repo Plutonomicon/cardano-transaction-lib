@@ -13,9 +13,10 @@ import Contract.Backend.Ogmios.Mempool
   , withMempoolSnapshot
   )
 import Contract.Scripts (validatorHash)
-import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
+import Contract.Test (ContractTest, InitialUTxOs, withWallets)
 import Contract.Test.Mote (TestPlanM)
 import Contract.Transaction (awaitTxConfirmed)
+import Contract.Wallet (withKeyWallet)
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Data.Array (length)
 import Data.BigInt as BigInt

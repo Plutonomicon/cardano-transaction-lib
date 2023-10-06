@@ -2,7 +2,8 @@ module Test.Ctl.BalanceTx.ChangeGeneration (suite) where
 
 import Prelude
 
-import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
+import Contract.Test (ContractTest, InitialUTxOs, withWallets)
+import Contract.Wallet (withKeyWallet)
 import Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.BigInt (fromInt) as BigInt

@@ -2,7 +2,6 @@ module Contract.Test
   ( module X
   ) where
 
-import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
   , noWallet

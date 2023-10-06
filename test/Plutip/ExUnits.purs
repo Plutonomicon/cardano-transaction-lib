@@ -7,8 +7,9 @@ import Prelude
 
 import Contract.Log (logInfo')
 import Contract.Scripts (validatorHash)
-import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
+import Contract.Test (ContractTest, InitialUTxOs, withWallets)
 import Contract.Transaction (awaitTxConfirmed)
+import Contract.Wallet (withKeyWallet)
 import Ctl.Examples.ExUnits as ExUnits
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.BigInt as BigInt

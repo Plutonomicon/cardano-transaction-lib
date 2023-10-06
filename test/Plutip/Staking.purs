@@ -11,7 +11,7 @@ import Contract.Address
   )
 import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
-import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
+import Contract.Hashing (publicKeyHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedE, liftedM)
 import Contract.Numeric.BigNum as BigNum
@@ -27,6 +27,7 @@ import Contract.Scripts
   , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
   , ValidatorHash(ValidatorHash)
   , nativeScriptStakeValidatorHash
+  , plutusScriptStakeValidatorHash
   )
 import Contract.Staking
   ( getPoolIds

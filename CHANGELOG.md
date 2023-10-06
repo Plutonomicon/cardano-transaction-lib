@@ -98,6 +98,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - UTxO lists and combined input/output/mint/fee values are now being pretty-printed instead of logged using `Show` instance (in the balancer) ([#1531](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1531))
+- `Contract.Config` no longer re-exports `Contract.Address` identifiers
+- `Contract.Hashing` no longer re-exports `Contract.Scripts` identifiers
+- `Contract.Test` no longer re-exports `Contract.Wallet` identifiers
+- `Contract.Time` no longer re-exports `Contract.Chain` identifiers
+- `Contract.Test.Plutip` no longer re-exports `Contract.Monad` or
+  `Contract.Wallet` identifiers
 
 ### Fixed
 
