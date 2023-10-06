@@ -233,7 +233,7 @@ let additions =
           , "node-fs-aff"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-toppokki"
-        , version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb"
+        , version = "5992e93396a734c980ef61c74df5b6ab46108920"
         }
       , noble-secp256k1 =
         { dependencies =

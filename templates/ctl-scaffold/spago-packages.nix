@@ -1375,11 +1375,11 @@ let
 
     "toppokki" = pkgs.stdenv.mkDerivation {
         name = "toppokki";
-        version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
+        version = "5992e93396a734c980ef61c74df5b6ab46108920";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-toppokki";
-          rev = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
-          sha256 = "1kmqajf7n5l9lk4amyma3rhm60llrgamap5hi21kkqs52xm3fr2q";
+          rev = "5992e93396a734c980ef61c74df5b6ab46108920";
+          sha256 = "12sbs5x20rmr6xrh9y69aw7bmiwnmj8a0s5s9s1mh66fyh7gfh3s";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
