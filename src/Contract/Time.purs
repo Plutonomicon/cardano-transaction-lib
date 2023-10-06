@@ -171,7 +171,8 @@ normalizeTimeInterval = case _ of
     logInfo' $ "normalizeTimeInterval: desired range: " <> show desired
     logInfo' $ "normalizeTimeInterval: computed range: " <> show range
     pure range
-  i -> liftContractM ("normalizeTimeInterval: could not convert to start-end range: " <> show i)
+  i -> liftContractM
+    ("normalizeTimeInterval: could not convert to start-end range: " <> show i)
     Nothing
 
 -- | Get the current Epoch.
