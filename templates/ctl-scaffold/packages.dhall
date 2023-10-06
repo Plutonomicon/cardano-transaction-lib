@@ -144,8 +144,23 @@ let additions =
           , "uint"
           , "untagged-union"
           ]
-        , repo = "https://github.com/errfrom/purescript-aeson.git"
-        , version = "f614a840036aabb059017d03cf365f4199b9547b"
+        , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
+        , version = "e411566cf5e3adf05ea9ae866705886cfba4bfa6"
+        }
+      , bignumber =
+        { dependencies =
+          [ "console"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "functions"
+          , "integers"
+          , "partial"
+          , "prelude"
+          , "tuples"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-bignumber"
+        , version = "760d11b41ece31b8cdd3c53349c5c2fd48d3ff89"
         }
       , properties =
         { dependencies = [ "prelude", "console" ]
@@ -204,8 +219,8 @@ let additions =
           , "unordered-collections"
           , "unsafe-coerce"
           ]
-        , repo = "https://github.com/errfrom/medea-ps.git"
-        , version = "00981e4ce7249808413a6db8d88d849bbe85245a"
+        , repo = "https://github.com/mlabs-haskell/medea-ps.git"
+        , version = "9a03a7b7b983fc1d21c4e1fef4cf0748b42f3734"
         }
       , toppokki =
         { dependencies =
@@ -218,22 +233,21 @@ let additions =
           , "node-fs-aff"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-toppokki"
-        , version = "db0d3c12348da576b28a18782df4ae5d7cc44408"
+        , version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb"
         }
-      , bignumber =
+      , noble-secp256k1 =
         { dependencies =
-          [ "console"
+          [ "aff"
+          , "aff-promise"
           , "effect"
-          , "either"
-          , "exceptions"
-          , "functions"
-          , "integers"
-          , "partial"
           , "prelude"
+          , "spec"
           , "tuples"
+          , "unsafe-coerce"
           ]
-        , repo = "https://github.com/errfrom/purescript-bignumber"
-        , version = "9b3179ad07428d189e42a7a205aab9c7c4849d4a"
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
+        , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
         }
       , cardano-transaction-lib =
         { dependencies =
@@ -329,20 +343,6 @@ let additions =
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
         , version = "325665b19859bbf3e48e296e9aa717673f5f3d79"
-        }
-      , noble-secp256k1 =
-        { dependencies =
-          [ "aff"
-          , "aff-promise"
-          , "effect"
-          , "prelude"
-          , "spec"
-          , "tuples"
-          , "unsafe-coerce"
-          ]
-        , repo =
-            "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
-        , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
         }
       }
 

@@ -130,7 +130,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 
 to only one of the import variants.
 
-Our default [WebPack config](../webpack.config.js) uses `BROWSER_RUNTIME` environment variable to differentiate between two bundling options:
+Our default [WebPack config](../webpack.config.cjs) uses `BROWSER_RUNTIME` environment variable to differentiate between two bundling options:
 
 ```js
   plugins: [

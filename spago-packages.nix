@@ -7,10 +7,10 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "f614a840036aabb059017d03cf365f4199b9547b";
+        version = "e411566cf5e3adf05ea9ae866705886cfba4bfa6";
         src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/purescript-aeson.git";
-          rev = "f614a840036aabb059017d03cf365f4199b9547b";
+          url = "https://github.com/mlabs-haskell/purescript-aeson.git";
+          rev = "e411566cf5e3adf05ea9ae866705886cfba4bfa6";
           sha256 = "01wqbd9pz1pmz1f0z5w4gwaswbdnkr9md7fihg4d91vs690zf792";
         };
         phases = "installPhase";
@@ -199,10 +199,10 @@ let
 
     "bignumber" = pkgs.stdenv.mkDerivation {
         name = "bignumber";
-        version = "9b3179ad07428d189e42a7a205aab9c7c4849d4a";
+        version = "760d11b41ece31b8cdd3c53349c5c2fd48d3ff89";
         src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/purescript-bignumber";
-          rev = "9b3179ad07428d189e42a7a205aab9c7c4849d4a";
+          url = "https://github.com/mlabs-haskell/purescript-bignumber";
+          rev = "760d11b41ece31b8cdd3c53349c5c2fd48d3ff89";
           sha256 = "03py821gnkgi5p7zaxwr4rqsiv67v83y5c04i6x4v15nr6aaf7vz";
         };
         phases = "installPhase";
@@ -715,10 +715,10 @@ let
 
     "medea" = pkgs.stdenv.mkDerivation {
         name = "medea";
-        version = "00981e4ce7249808413a6db8d88d849bbe85245a";
+        version = "9a03a7b7b983fc1d21c4e1fef4cf0748b42f3734";
         src = pkgs.fetchgit {
-          url = "https://github.com/errfrom/medea-ps.git";
-          rev = "00981e4ce7249808413a6db8d88d849bbe85245a";
+          url = "https://github.com/mlabs-haskell/medea-ps.git";
+          rev = "9a03a7b7b983fc1d21c4e1fef4cf0748b42f3734";
           sha256 = "0sxv9l53hqjx5n7gdnpr5ydxp0zr2wv0ikk2sc0ch9whq5rridcy";
         };
         phases = "installPhase";
@@ -1363,11 +1363,11 @@ let
 
     "toppokki" = pkgs.stdenv.mkDerivation {
         name = "toppokki";
-        version = "db0d3c12348da576b28a18782df4ae5d7cc44408";
+        version = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-toppokki";
-          rev = "db0d3c12348da576b28a18782df4ae5d7cc44408";
-          sha256 = "1ck1g9mrm8kclmzkrg9hbm97gbvjbk0dcqnzby0c38pc2dqa7xwf";
+          rev = "f90f92f0ddf0eecc73705c1675db37918d18cbcb";
+          sha256 = "1kmqajf7n5l9lk4amyma3rhm60llrgamap5hi21kkqs52xm3fr2q";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
