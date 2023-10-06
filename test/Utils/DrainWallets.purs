@@ -10,7 +10,7 @@ import Contract.Config
   , testnetConfig
   )
 import Contract.Monad (liftedE, runContract)
-import Contract.ScriptLookups (ScriptLookups, mkUnbalancedTx, unspentOutputs)
+import Contract.ScriptLookups (mkUnbalancedTx, unspentOutputs)
 import Contract.Transaction
   ( awaitTxConfirmed
   , balanceTx
@@ -119,8 +119,7 @@ run privateKey walletsDir = runContract config do
       <> foldMap (_.pkh >>> mustBeSignedBy) usedWallets
     lookups = unspentOutputs utxos
 
-  unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: ScriptLookups Void)
-    constraints
+  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
 
   balancedTx <- liftedE $ balanceTx unbalancedTx
   balancedSignedTx <- Array.foldM

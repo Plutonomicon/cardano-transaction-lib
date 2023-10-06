@@ -305,7 +305,7 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
       \(wallet /\ walletDistr) -> flip foldMap walletDistr
         \value -> mustPayToKeyWallet wallet $ lovelaceValueOf value
 
-  txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
+  txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
   let fundTotal = Array.foldl (+) zero $ join distrArray
   -- Use log so we can see, regardless of suppression
@@ -387,8 +387,7 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTxImpl (lookups :: _ Void)
-          constraints
+        unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
         balancedTx <- liftedE $ balanceTx unbalancedTx
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
@@ -436,7 +435,7 @@ mustPayToKeyWallet
   :: forall (i :: Type) (o :: Type)
    . KeyWallet
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToKeyWallet wallet value =
   let
     convert = publicKeyHash <<< publicKeyFromPrivateKey

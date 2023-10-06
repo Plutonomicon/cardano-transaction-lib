@@ -58,7 +58,7 @@ datum = Datum $ Integer $ BigInt.fromInt 42
 payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
 payToIncludeDatum vhash =
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       ( Constraints.mustPayToScript vhash datum Constraints.DatumWitness
           $ Value.lovelaceValueOf
@@ -66,7 +66,7 @@ payToIncludeDatum vhash =
       )
         <> Constraints.mustIncludeDatum datum
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
   in
     submitTxFromConstraints lookups constraints
@@ -82,11 +82,11 @@ spendFromIncludeDatum vhash validator txId = do
   txInput <- liftContractM "no locked output at address"
     (view _input <$> head (lookupTxHash txId utxos))
   let
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs utxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustIncludeDatum datum

@@ -38,7 +38,7 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosTxIn
   , OgmiosTxId
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , PoolIdsR
@@ -768,11 +768,11 @@ instance Show ScriptFailure where
 
 -- The following cases are fine to fall through into unparsed error:
 -- IncompatibleEra
--- AdditionalUtxoOverlap
 -- NotEnoughSynced
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
   = UnparsedError String
+  | AdditionalUtxoOverlap (Array OgmiosTxOutRef)
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
 
 derive instance Generic TxEvaluationFailure _
@@ -852,7 +852,7 @@ instance DecodeAeson TxEvaluationFailure where
   decodeAeson = aesonObject $ runReaderT cases
     where
     cases :: ObjectParser TxEvaluationFailure
-    cases = decodeScriptFailures <|> defaultCase
+    cases = decodeScriptFailures <|> decodeAdditionalUtxoOverlap <|> defaultCase
 
     defaultCase :: ObjectParser TxEvaluationFailure
     defaultCase = ReaderT \o ->
@@ -867,6 +867,12 @@ instance DecodeAeson TxEvaluationFailure where
           v' <- decodeAeson v
           (_ /\ v') <$> decodeRedeemerPointer k
       pure $ ScriptFailures scriptFailures
+
+    decodeAdditionalUtxoOverlap :: ObjectParser TxEvaluationFailure
+    decodeAdditionalUtxoOverlap = ReaderT \o -> do
+      ogmiosOrefs <-
+        flip getField "AdditionalUtxoOverlap" =<< getField o "EvaluationFailure"
+      pure $ AdditionalUtxoOverlap ogmiosOrefs
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 

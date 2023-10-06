@@ -67,14 +67,14 @@ payToCheckDatumIsInline vhash = do
     datum :: Datum
     datum = Datum plutusData
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash datum
         Constraints.DatumInline
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -101,11 +101,11 @@ spendFromCheckDatumIsInline vhash validator txId = do
     redeemer :: Redeemer
     redeemer = Redeemer plutusData
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs utxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutput txInput redeemer
 
@@ -124,14 +124,14 @@ payToCheckDatumIsInlineWrong vhash = do
     datum :: Datum
     datum = Datum plutusData
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash datum
         Constraints.DatumWitness
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints

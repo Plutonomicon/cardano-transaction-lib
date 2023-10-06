@@ -32,6 +32,7 @@ import Ctl.Internal.Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
+import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Untagged.Castable (class Castable)
@@ -63,6 +64,7 @@ type SerializableData = Address
   |+| VRFKeyHash
   |+| Vkeywitness
   |+| Vkeywitnesses
+  |+| BigNum
 
 -- Add more as needed
 

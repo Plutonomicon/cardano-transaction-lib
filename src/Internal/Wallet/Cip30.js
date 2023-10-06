@@ -12,12 +12,13 @@ export function _getUtxos(maybe) {
 }
 
 export function _getCollateral(maybe) {
-  return conn => () =>
-    conn.experimental
-      .getCollateral()
-      .then(utxos =>
-        utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
-      );
+  return conn => requiredValue => () =>
+    (typeof conn.getCollateral === "function"
+      ? conn.getCollateral(requiredValue)
+      : conn.experimental.getCollateral(requiredValue)
+    ).then(utxos =>
+      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
+    );
 }
 
 export function _getBalance(conn) {

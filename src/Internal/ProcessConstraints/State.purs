@@ -47,11 +47,11 @@ import Type.Proxy (Proxy(Proxy))
 -- scriptlookups and a `defaultSlotConfig`.
 -- We write `ReaderT QueryConfig Aff` below since type synonyms need to be fully
 -- applied.
-type ConstraintsM (a :: Type) (b :: Type) =
-  StateT (ConstraintProcessingState a) Contract b
+type ConstraintsM (a :: Type) =
+  StateT ConstraintProcessingState Contract a
 
 -- This is the state for essentially creating an unbalanced transaction.
-type ConstraintProcessingState (a :: Type) =
+type ConstraintProcessingState =
   { transaction :: Transaction
   -- ^ The unbalanced transaction that we're building
   , usedUtxos :: Map TransactionInput TransactionOutput
@@ -65,7 +65,7 @@ type ConstraintProcessingState (a :: Type) =
   , redeemers :: Array UnindexedRedeemer
   -- ^ Unindexed redeemers that will be attached to the Tx later, on balancing
   -- stage.
-  , lookups :: ScriptLookups a
+  , lookups :: ScriptLookups
   -- ^ ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
   -- TODO: remove: https://github.com/Plutonomicon/cardano-transaction-lib/issues/843
@@ -75,44 +75,40 @@ type ConstraintProcessingState (a :: Type) =
   }
 
 _cpsTransaction
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Transaction
+  :: Lens' ConstraintProcessingState Transaction
 _cpsTransaction = prop (Proxy :: Proxy "transaction")
 
 _cpsUsedUtxos
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a)
+  :: Lens' ConstraintProcessingState
        (Map TransactionInput TransactionOutput)
 _cpsUsedUtxos = prop (Proxy :: Proxy "usedUtxos")
 
 _valueSpentBalancesInputs
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
+  :: Lens' ConstraintProcessingState ValueSpentBalances
 _valueSpentBalancesInputs = prop (Proxy :: Proxy "valueSpentBalancesInputs")
 
 _valueSpentBalancesOutputs
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) ValueSpentBalances
+  :: Lens' ConstraintProcessingState ValueSpentBalances
 _valueSpentBalancesOutputs = prop (Proxy :: Proxy "valueSpentBalancesOutputs")
 
 _datums
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (Array Datum)
+  :: Lens' ConstraintProcessingState (Array Datum)
 _datums = prop (Proxy :: Proxy "datums")
 
 _costModels
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) Costmdls
+  :: Lens' ConstraintProcessingState Costmdls
 _costModels = prop (Proxy :: Proxy "costModels")
 
 _redeemers
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a)
-       (Array UnindexedRedeemer)
+  :: Lens' ConstraintProcessingState (Array UnindexedRedeemer)
 _redeemers = prop (Proxy :: Proxy "redeemers")
 
 _lookups
-  :: forall (a :: Type). Lens' (ConstraintProcessingState a) (ScriptLookups a)
+  :: Lens' ConstraintProcessingState ScriptLookups
 _lookups = prop (Proxy :: Proxy "lookups")
 
 _refScriptsUtxoMap
-  :: forall (a :: Type)
-   . Lens' (ConstraintProcessingState a)
+  :: Lens' ConstraintProcessingState
        (Map TransactionInput Plutus.TransactionOutputWithRefScript)
 _refScriptsUtxoMap = prop (Proxy :: Proxy "refScriptsUtxoMap")
 
@@ -145,7 +141,7 @@ missingValueSpent (ValueSpentBalances { required, provided }) =
   in
     missing
 
-totalMissingValue :: forall (a :: Type). ConstraintProcessingState a -> Value
+totalMissingValue :: ConstraintProcessingState -> Value
 totalMissingValue { valueSpentBalancesInputs, valueSpentBalancesOutputs } =
   missingValueSpent valueSpentBalancesInputs `join`
     missingValueSpent valueSpentBalancesOutputs

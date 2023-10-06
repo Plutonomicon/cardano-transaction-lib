@@ -7,5 +7,5 @@ const config = {
   port: 4008,
   servedir: "dist/esbuild",
 };
-console.log('serving:', config);
+console.log("serving:", config);
 await ctx.serve(config);

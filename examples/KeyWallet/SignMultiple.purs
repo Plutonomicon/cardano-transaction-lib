@@ -34,11 +34,11 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   logInfo' "Running Examples.KeyWallet.SignMultiple"
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKey pkh $
       Value.lovelaceValueOf lovelace
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints

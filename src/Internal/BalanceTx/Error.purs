@@ -45,7 +45,7 @@ import Ctl.Internal.QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -173,6 +173,8 @@ printTxEvaluationFailure
 printTxEvaluationFailure transaction e =
   runPrettyString $ case e of
     Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
+    Ogmios.AdditionalUtxoOverlap utxos ->
+      line $ "AdditionalUtxoOverlap: " <> show utxos
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
   where
@@ -230,7 +232,9 @@ printTxEvaluationFailure transaction e =
     Ogmios.UnknownInputReferencedByRedeemer txIn -> line
       ("Unknown input referenced by redeemer: " <> show txIn)
     Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
-      ("Non script input referenced by redeemer: " <> show txIn)
+      ( "Non-script input, or input without datum, referenced by redeemer: " <>
+          show txIn
+      )
     Ogmios.IllFormedExecutionBudget Nothing -> line
       ("Ill formed execution budget: Execution budget missing")
     Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->

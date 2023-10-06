@@ -32,12 +32,12 @@ contract = do
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "TheToken"
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustMintValue
       $ Value.singleton cs tn
       $ BigInt.fromInt 100
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints

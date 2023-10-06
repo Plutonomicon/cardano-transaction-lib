@@ -6,6 +6,7 @@ module Ctl.Internal.Types.TokenName
   , mkTokenNames
   , tokenNameFromAssetName
   , assetNameName
+  , fromTokenName
   ) where
 
 import Prelude
