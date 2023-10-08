@@ -56,6 +56,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- `Contract.Time.getCurrentEra` and `Contract.Time.normalizeTimeInterval`,
+  providing an improved interface for eras and time ranges
+  ([#1542](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1542)).
 - Added `extraSources` and `data` features to CTL's Nix build function ([#1516](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1516))
 - Added several `Ring`-like numeric instances for `Coin` ([#1485](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1485))
 - Added `ToData` and `FromData` instances for `PoolPubKeyHash` ([#1483](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1483))
