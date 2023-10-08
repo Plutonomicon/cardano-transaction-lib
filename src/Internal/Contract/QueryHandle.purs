@@ -6,7 +6,7 @@ module Ctl.Internal.Contract.QueryHandle
 
 import Prelude
 
-import Contract.Log (logDebug', logWarn')
+import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend, CtlBackend)
@@ -40,7 +40,6 @@ import Ctl.Internal.Service.Blockfrost
 import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Data.Either (Either(Left, Right))
-import Data.Map as Map
 import Data.Maybe (fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
@@ -107,10 +106,8 @@ queryHandleForBlockfrostBackend logParams backend =
         Right epoch -> pure $ wrap epoch
         Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
-  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' do
-      unless (Map.isEmpty $ unwrap additionalUtxos) do
-        logWarn' "Blockfrost does not support explicit additional utxos"
-      Blockfrost.evaluateTx tx
+  , evaluateTx: \tx additionalUtxos ->
+      runBlockfrostServiceM' $ Blockfrost.evaluateTx tx additionalUtxos
   , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
   , getPubKeyHashDelegationsAndRewards: \networkId stakePubKeyHash ->

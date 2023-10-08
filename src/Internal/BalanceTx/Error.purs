@@ -47,7 +47,7 @@ import Ctl.Internal.QueryM.Ogmios
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
       )
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
@@ -240,6 +240,8 @@ printTxEvaluationFailure
 printTxEvaluationFailure transaction e =
   runPrettyString $ case e of
     Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
+    Ogmios.AdditionalUtxoOverlap utxos ->
+      line $ "AdditionalUtxoOverlap: " <> show utxos
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
   where
