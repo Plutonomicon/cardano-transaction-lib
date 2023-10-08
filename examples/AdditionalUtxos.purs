@@ -124,8 +124,7 @@ spendFromValidator validator additionalUtxos datum = do
       BalancerConstraints.mustUseAdditionalUtxos additionalUtxos
 
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTxWithConstraints unbalancedTx
-    balancerConstraints
+  balancedTx <- balanceTxWithConstraints unbalancedTx balancerConstraints
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
 
