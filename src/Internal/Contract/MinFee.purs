@@ -13,7 +13,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin)
-import Ctl.Internal.Contract (getProtocolParameters)
+import Ctl.Internal.Contract (getProtocolParametersImpl)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses, getWalletCollateral)
 import Ctl.Internal.Helpers (liftM, liftedM)
@@ -44,7 +44,7 @@ import Effect.Aff.Class (liftAff)
 calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
-  pparams <- getProtocolParameters
+  pparams <- getProtocolParametersImpl
   calculateMinFeeCsl pparams selfSigners tx
 
 getSelfSigners :: Transaction -> UtxoMap -> Contract (Set Ed25519KeyHash)

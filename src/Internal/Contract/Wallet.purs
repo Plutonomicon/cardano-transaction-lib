@@ -24,7 +24,7 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Value, valueToCoin)
 import Ctl.Internal.Cardano.Types.Value (geq, lovelaceValueOf) as Value
-import Ctl.Internal.Contract (getProtocolParameters)
+import Ctl.Internal.Contract (getProtocolParametersImpl)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
@@ -132,7 +132,8 @@ withWallet act = do
 
 getWalletCollateral :: Contract (Maybe (Array TransactionUnspentOutput))
 getWalletCollateral = do
-  { maxCollateralInputs, coinsPerUtxoUnit } <- unwrap <$> getProtocolParameters
+  { maxCollateralInputs, coinsPerUtxoUnit } <- unwrap <$>
+    getProtocolParametersImpl
   mbCollateralUTxOs <- getWallet >>= maybe (pure Nothing) do
     actionBasedOnWallet _.getCollateral \kw -> do
       queryHandle <- getQueryHandle

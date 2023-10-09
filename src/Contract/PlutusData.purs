@@ -6,18 +6,7 @@ module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
-  , module DataSchema
-  , module Datum
-  , module Hashing
-  , module IsData
-  , module Nat
-  , module PlutusData
-  , module Serialization
-  , module Deserialization
-  , module Redeemer
-  , module FromData
-  , module ToData
-  , module OutputDatum
+  , module X
   ) where
 
 import Prelude
@@ -25,7 +14,7 @@ import Prelude
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Deserialization.PlutusData (deserializeData) as Deserialization
+import Ctl.Internal.Deserialization.PlutusData (deserializeData) as X
 import Ctl.Internal.FromData
   ( class FromData
   , class FromDataArgs
@@ -43,9 +32,9 @@ import Ctl.Internal.FromData
   , fromDataArgsRec
   , fromDataWithSchema
   , genericFromData
-  ) as FromData
-import Ctl.Internal.Hashing (datumHash) as Hashing
-import Ctl.Internal.IsData (class IsData) as IsData
+  ) as X
+import Ctl.Internal.Hashing (datumHash) as X
+import Ctl.Internal.IsData (class IsData) as X
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class AllUnique2
   , class HasPlutusSchema
@@ -67,8 +56,8 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , PCons
   , PNil
   , PSchema
-  ) as DataSchema
-import Ctl.Internal.Serialization (serializeData) as Serialization
+  ) as X
+import Ctl.Internal.Serialization (serializeData) as X
 import Ctl.Internal.ToData
   ( class ToData
   , class ToDataArgs
@@ -81,22 +70,22 @@ import Ctl.Internal.ToData
   , toDataArgsRec
   , toDataArgsRec'
   , toDataWithSchema
-  ) as ToData
-import Ctl.Internal.TypeLevel.Nat (Nat, S, Z) as Nat
+  ) as X
+import Ctl.Internal.TypeLevel.Nat (Nat, S, Z) as X
 import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as Datum
+import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as X
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  ) as OutputDatum
+  ) as X
 import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
-  ) as PlutusData
+  ) as X
 import Ctl.Internal.Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)
   , redeemerHash
   , unitRedeemer
-  ) as Redeemer
+  ) as X
 import Data.Either (Either(Left, Right), hush)
 import Data.Map (Map)
 import Data.Map as Map

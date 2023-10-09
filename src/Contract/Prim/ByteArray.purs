@@ -1,8 +1,6 @@
 -- | Our domain type for byte arrays, a wrapper over `Uint8Array`.
 module Contract.Prim.ByteArray
-  ( module ByteArray
-  , module CborBytes
-  , module RawBytes
+  ( module X
   ) where
 
 import Ctl.Internal.Types.ByteArray
@@ -15,7 +13,7 @@ import Ctl.Internal.Types.ByteArray
   , byteLength
   , hexToByteArray
   , hexToByteArrayUnsafe
-  ) as ByteArray
+  ) as X
 import Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
   , cborBytesFromAscii
@@ -28,7 +26,7 @@ import Ctl.Internal.Types.CborBytes
   , hexToCborBytes
   , hexToCborBytesUnsafe
   , rawBytesAsCborBytes
-  ) as CborBytes
+  ) as X
 import Ctl.Internal.Types.RawBytes
   ( RawBytes(RawBytes)
   , hexToRawBytes
@@ -40,4 +38,4 @@ import Ctl.Internal.Types.RawBytes
   , rawBytesToByteArray
   , rawBytesToHex
   , rawBytesToIntArray
-  ) as RawBytes
+  ) as X

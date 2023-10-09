@@ -1,8 +1,6 @@
 -- | A module defining the `Contract` monad.
 module Contract.Monad
-  ( module ExportAff
-  , module ExportContract
-  , module ExportLogTag
+  ( module X
   , liftContractAffM
   , liftContractE
   , liftContractE'
@@ -26,7 +24,7 @@ import Ctl.Internal.Contract.Monad
   , runContract
   , runContractInEnv
   , withContractEnv
-  ) as ExportContract
+  ) as X
 import Ctl.Internal.Contract.Monad
   ( mkContractEnv
   , stopContractEnv
@@ -40,10 +38,10 @@ import Data.Log.Tag
   , numberTag
   , tag
   , tagSetTag
-  ) as ExportLogTag
+  ) as X
 import Data.Maybe (Maybe, maybe)
 import Effect.Aff (Aff)
-import Effect.Aff (Aff, launchAff_) as ExportAff
+import Effect.Aff (Aff, launchAff_) as X
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)

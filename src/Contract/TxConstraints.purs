@@ -1,6 +1,6 @@
 -- | A module for building `TxConstraints` te pair with the `ScriptLookups`
 -- | as part of an off-chain transaction.
-module Contract.TxConstraints (module TxConstraints) where
+module Contract.TxConstraints (module X) where
 
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumInline, DatumWitness)
@@ -63,4 +63,4 @@ import Ctl.Internal.Types.TxConstraints
   , requiredMonetaryPolicies
   , requiredSignatories
   , singleton
-  ) as TxConstraints
+  ) as X

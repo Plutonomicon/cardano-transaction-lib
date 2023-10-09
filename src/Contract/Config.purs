@@ -19,12 +19,6 @@ module Contract.Config
   , defaultSynchronizationParams
   , strictSynchronizationParams
   , defaultTimeParams
-  , module Data.Log.Level
-  , module Data.Log.Message
-  , module Ctl.Internal.Deserialization.Keys
-  , module Ctl.Internal.ServerConfig
-  , module Ctl.Internal.Wallet.Spec
-  , module Ctl.Internal.Wallet.Key
   , module X
   ) where
 
@@ -58,7 +52,7 @@ import Ctl.Internal.Contract.QueryBackend
   , mkSelfHostedBlockfrostBackendParams
   ) as X
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
+import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as X
 import Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig
@@ -68,11 +62,15 @@ import Ctl.Internal.ServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
+  ) as X
+import Ctl.Internal.ServerConfig
+  ( defaultKupoServerConfig
+  , defaultOgmiosWsConfig
   )
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
-  )
+  ) as X
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
   , MnemonicSource(MnemonicString, MnemonicFile)
@@ -91,9 +89,21 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLace
       , ConnectToGenericCip30
       )
+  ) as X
+import Ctl.Internal.Wallet.Spec
+  ( WalletSpec
+      ( ConnectToLace
+      , ConnectToNuFi
+      , ConnectToLode
+      , ConnectToEternl
+      , ConnectToNami
+      , ConnectToFlint
+      , ConnectToGero
+      )
   )
-import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
-import Data.Log.Message (Message)
+import Data.Log.Level (LogLevel(Trace))
+import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as X
+import Data.Log.Message (Message) as X
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Number (infinity)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))

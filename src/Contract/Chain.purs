@@ -1,23 +1,23 @@
 -- | A module for Chain-related querying.
 module Contract.Chain
   ( getTip
-  , module Chain
-  , module Contract.WaitUntilSlot
+  , module X
   ) where
 
 import Contract.Monad (Contract)
-import Ctl.Internal.Contract (getChainTip) as Contract
+import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.WaitUntilSlot
   ( currentSlot
   , currentTime
   , waitNSlots
   , waitUntilSlot
-  ) as Contract.WaitUntilSlot
+  ) as X
 import Ctl.Internal.Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
   , Tip(Tip, TipAtGenesis)
-  ) as Chain
+  ) as X
+import Ctl.Internal.Types.Chain (Tip)
 
-getTip :: Contract Chain.Tip
-getTip = Contract.getChainTip
+getTip :: Contract Tip
+getTip = getChainTip

@@ -1,4 +1,7 @@
-module Ctl.Internal.Contract (getChainTip, getProtocolParameters) where
+module Ctl.Internal.Contract
+  ( getChainTip
+  , getProtocolParametersImpl
+  ) where
 
 import Prelude
 
@@ -20,7 +23,7 @@ getChainTip = do
 
 -- | Returns the `ProtocolParameters` from the environment.
 -- | Note that this is not necessarily the current value from the ledger.
-getProtocolParameters :: Contract ProtocolParameters
-getProtocolParameters =
+getProtocolParametersImpl :: Contract ProtocolParameters
+getProtocolParametersImpl =
   asks $ _.ledgerConstants >>> _.pparams
 

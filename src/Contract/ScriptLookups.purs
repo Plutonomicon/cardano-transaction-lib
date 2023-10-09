@@ -55,10 +55,8 @@ import Ctl.Internal.Types.ScriptLookups
   , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
   , ownStakePubKeyHashM
-  -- , paymentPubKeyM
   , unspentOutputs
   , unspentOutputsM
-  -- , unsafePaymentPubKey
   , validator
   , validatorM
   ) as X

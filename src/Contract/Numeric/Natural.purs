@@ -1,5 +1,5 @@
 -- | Arbitrary precision natural numbers (backed by `BigInt`).
-module Contract.Numeric.Natural (module Natural) where
+module Contract.Numeric.Natural (module X) where
 
 import Ctl.Internal.Types.Natural
   ( Natural
@@ -12,4 +12,4 @@ import Ctl.Internal.Types.Natural
   , minus
   , toBigInt
   , (^-)
-  ) as Natural
+  ) as X

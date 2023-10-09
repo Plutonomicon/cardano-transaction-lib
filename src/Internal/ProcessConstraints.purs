@@ -48,7 +48,7 @@ import Ctl.Internal.Cardano.Types.Value
   , mkSingletonValue'
   , mpsSymbol
   )
-import Ctl.Internal.Contract (getProtocolParameters)
+import Ctl.Internal.Contract (getProtocolParametersImpl)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftEither, liftM)
@@ -283,7 +283,7 @@ runConstraintsM
   -> TxConstraints
   -> Contract (Either MkUnbalancedTxError ConstraintProcessingState)
 runConstraintsM lookups txConstraints = do
-  { costModels } <- unwrap <$> getProtocolParameters
+  { costModels } <- unwrap <$> getProtocolParametersImpl
   let
     initCps :: ConstraintProcessingState
     initCps =

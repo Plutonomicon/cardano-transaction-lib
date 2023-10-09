@@ -1,9 +1,6 @@
 -- | A module that defines tokens in Cardano and helpers.
 module Contract.Value
-  ( module CurrencySymbol
-  , module Scripts
-  , module TokenName
-  , module Value
+  ( module X
   ) where
 
 import Ctl.Internal.Plutus.Types.CurrencySymbol
@@ -14,7 +11,7 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   , mkCurrencySymbol
   , mpsSymbol
   , scriptHashAsCurrencySymbol
-  ) as CurrencySymbol
+  ) as X
 import Ctl.Internal.Plutus.Types.Value
   ( Coin(Coin)
   , Value
@@ -40,12 +37,12 @@ import Ctl.Internal.Plutus.Types.Value
   , valueOf
   , valueToCoin
   , valueToCoin'
-  ) as Value
-import Ctl.Internal.Scripts (scriptCurrencySymbol) as Scripts
+  ) as X
+import Ctl.Internal.Scripts (scriptCurrencySymbol) as X
 import Ctl.Internal.Types.TokenName
   ( TokenName
   , adaToken
   , getTokenName
   , mkTokenName
   , mkTokenNames
-  ) as TokenName
+  ) as X

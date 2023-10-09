@@ -5,11 +5,7 @@ module Contract.Time
   , getSystemStart
   , getCurrentEra
   , normalizeTimeInterval
-  , module ExportEraSummaries
-  , module ExportOgmios
-  , module ExportSystemStart
-  , module Interval
-  , module SerializationAddress
+  , module X
   ) where
 
 import Prelude
@@ -25,8 +21,8 @@ import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
 import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , OgmiosEraSummaries(OgmiosEraSummaries)
-  ) as ExportOgmios
-import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
+  ) as X
+import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as X
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.Chain
   ( ChainTip(ChainTip)
@@ -40,7 +36,7 @@ import Ctl.Internal.Types.EraSummaries
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  ) as ExportEraSummaries
+  ) as X
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries
   , EraSummary
@@ -99,9 +95,13 @@ import Ctl.Internal.Types.Interval
   , to
   , toOnchainPosixTimeRange
   , upperBound
-  ) as Interval
+  ) as X
+import Ctl.Internal.Types.Interval
+  ( Interval(FiniteInterval)
+  , POSIXTime(POSIXTime)
+  )
 import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
+import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as X
 import Data.Array as Array
 import Data.BigInt as BigInt
 import Data.Foldable (find)
@@ -151,19 +151,19 @@ getCurrentEra = do
 
 -- | Given a desired range, tighten it to fit onchain.
 normalizeTimeInterval
-  :: Interval.Interval Interval.POSIXTime
-  -> Contract (Interval.Interval Interval.POSIXTime)
+  :: Interval POSIXTime
+  -> Contract (Interval POSIXTime)
 normalizeTimeInterval = case _ of
-  desired@(Interval.FiniteInterval start end) -> do
+  desired@(FiniteInterval start end) -> do
     era <- getCurrentEra
     let params = unwrap (unwrap era).parameters
     slotLength <- liftContractM "Could not get slot length" $ BigInt.fromNumber
       $ unwrap params.slotLength
     let offset = unwrap params.safeZone + slotLength
-    let endTime = start + Interval.POSIXTime offset
-    let oneSecond = Interval.POSIXTime $ BigInt.fromInt 1_000
+    let endTime = start + POSIXTime offset
+    let oneSecond = POSIXTime $ BigInt.fromInt 1_000
     let
-      range = Interval.FiniteInterval (start + oneSecond)
+      range = FiniteInterval (start + oneSecond)
         (min end (endTime - oneSecond))
     logInfo' $ "normalizeTimeInterval: desired range: " <> show desired
     logInfo' $ "normalizeTimeInterval: computed range: " <> show range

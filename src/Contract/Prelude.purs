@@ -1,22 +1,7 @@
 -- | A custom Prelude that re-exports Purescript's prelude and further expands.
 module Contract.Prelude
   ( mconcat
-  , module Aff
-  , module Helpers
-  , module Console
-  , module Effect
-  , module Either
-  , module Enum
-  , module Foldable
-  , module Generic
-  , module Log.Level
-  , module Maybe
-  , module Newtype
-  , module PurescriptPrelude
-  , module Traversable
-  , module Tuple
-  , module TupleNested
-  , module Undefined
+  , module X
   ) where
 
 -- Imports for extra functions:
@@ -35,7 +20,7 @@ import Ctl.Internal.Helpers -- Could maybe move this somewhere better:
   , (</>)
   , (<<>>)
   , (<\>)
-  ) as Helpers
+  ) as X
 import Data.Either
   ( Either(Left, Right)
   , choose
@@ -49,7 +34,7 @@ import Data.Either
   , isRight
   , note
   , note'
-  ) as Either
+  ) as X
 import Data.Enum
   ( class BoundedEnum
   , class Enum
@@ -71,7 +56,7 @@ import Data.Enum
   , toEnumWithDefaults
   , upFrom
   , upFromIncluding
-  ) as Enum
+  ) as X
 import Data.Foldable
   ( class Foldable
   , all
@@ -107,10 +92,10 @@ import Data.Foldable
   , sum
   , surround
   , surroundMap
-  ) as Foldable
+  ) as X
 import Data.Foldable (class Foldable, foldr)
-import Data.Generic.Rep (class Generic) as Generic
-import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as Log.Level
+import Data.Generic.Rep (class Generic) as X
+import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error)) as X
 import Data.Maybe
   ( Maybe(Just, Nothing)
   , fromJust
@@ -121,8 +106,8 @@ import Data.Maybe
   , maybe
   , maybe'
   , optional
-  ) as Maybe
-import Data.Newtype (class Newtype, over, unwrap, wrap) as Newtype
+  ) as X
+import Data.Newtype (class Newtype, over, unwrap, wrap) as X
 import Data.Show.Generic (genericShow) as Generic
 -- A lot of this module is already re-exported from Data.Foldable
 import Data.Traversable
@@ -140,8 +125,8 @@ import Data.Traversable
   , traverse
   , traverseDefault
   , traverse_
-  ) as Traversable
-import Data.Tuple (Tuple(Tuple), curry, fst, snd, swap, uncurry) as Tuple
+  ) as X
+import Data.Tuple (Tuple(Tuple), curry, fst, snd, swap, uncurry) as X
 import Data.Tuple.Nested
   ( type (/\)
   , T10
@@ -215,12 +200,12 @@ import Data.Tuple.Nested
   , uncurry8
   , uncurry9
   , (/\)
-  ) as TupleNested
-import Effect (Effect) as Effect
-import Effect.Aff (Aff) as Aff
-import Effect.Aff.Class (liftAff) as Aff
-import Effect.Class (liftEffect) as Effect
-import Effect.Class.Console (log) as Console
+  ) as X
+import Effect (Effect) as X
+import Effect.Aff (Aff) as X
+import Effect.Aff.Class (liftAff) as X
+import Effect.Class (liftEffect) as X
+import Effect.Class.Console (log) as X
 -- We could potentially export `Effect.Exception`, `Effect.Aff` and `Effect`
 -- although there are conflicts in `Effect.Exception` and `Effect.Aff` for
 -- example, unless we prioritise one over the other.
@@ -333,8 +318,8 @@ import Prelude
   , (>>=)
   , (>>>)
   , (||)
-  ) as PurescriptPrelude
-import Undefined (undefined) as Undefined
+  ) as X
+import Undefined (undefined) as X
 
 mconcat
   :: forall (f :: Type -> Type) (m :: Type). Foldable f => Monoid m => f m -> m

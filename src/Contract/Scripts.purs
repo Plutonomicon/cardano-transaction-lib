@@ -4,10 +4,6 @@
 module Contract.Scripts
   ( getScriptByHash
   , getScriptsByHashes
-  , module ExportScripts
-  , module Hash
-  , module NativeScript
-  , module TypesScripts
   , module X
   ) where
 
@@ -25,7 +21,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockStart
       , TimelockExpiry
       )
-  ) as NativeScript
+  ) as X
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
@@ -34,9 +30,9 @@ import Ctl.Internal.Scripts
   , nativeScriptStakeValidatorHash
   , plutusScriptStakeValidatorHash
   , validatorHash
-  ) as ExportScripts
+  ) as X
 import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
+import Ctl.Internal.Serialization.Hash (ScriptHash) as X
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
@@ -47,7 +43,7 @@ import Ctl.Internal.Types.Scripts
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
-  ) as TypesScripts
+  ) as X
 import Data.Either (Either)
 import Data.Map (Map)
 import Data.Map as Map

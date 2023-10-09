@@ -1,6 +1,6 @@
 -- | Arbitrary precision rational numbers (backed by `BigInt`).
 module Contract.Numeric.Rational
-  ( module Rational
+  ( module X
   ) where
 
 import Ctl.Internal.Types.Rational
@@ -12,4 +12,4 @@ import Ctl.Internal.Types.Rational
   , recip
   , reduce
   , (%)
-  ) as Rational
+  ) as X

@@ -124,7 +124,7 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.Cardano.Types.Value as Value
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
-import Ctl.Internal.Contract (getProtocolParameters)
+import Ctl.Internal.Contract (getProtocolParametersImpl)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
@@ -184,7 +184,7 @@ balanceTxWithConstraints
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
-  pparams <- getProtocolParameters
+  pparams <- getProtocolParametersImpl
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
     let

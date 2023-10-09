@@ -2,7 +2,7 @@
 -- | These functions only work with Ogmios backend (not Blockfrost!).
 -- | https://ogmios.dev/mini-protocols/local-tx-monitor/
 module Contract.Backend.Ogmios.Mempool
-  ( module Ogmios
+  ( module X
   , acquireMempoolSnapshot
   , fetchMempoolTxs
   , mempoolSnapshotHasTx
@@ -28,11 +28,16 @@ import Ctl.Internal.QueryM
   , releaseMempool
   ) as QueryM
 import Ctl.Internal.QueryM.Ogmios
+  ( MempoolSizeAndCapacity
+  , MempoolSnapshotAcquired
+  , MempoolTransaction(MempoolTransaction)
+  )
+import Ctl.Internal.QueryM.Ogmios
   ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
   , TxHash
-  ) as Ogmios
+  ) as X
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
 import Data.List (List(Cons))
@@ -42,12 +47,12 @@ import Effect.Exception (error)
 -- | Establish a connection with the Local TX Monitor.
 -- | Instantly accquires the current mempool snapshot, and will wait for the next
 -- | mempool snapshot if used again before using `releaseMempool`.
-acquireMempoolSnapshot :: Contract Ogmios.MempoolSnapshotAcquired
+acquireMempoolSnapshot :: Contract MempoolSnapshotAcquired
 acquireMempoolSnapshot = wrapQueryM QueryM.acquireMempoolSnapshot
 
 -- | Check to see if a TxHash is present in the current mempool snapshot.
 mempoolSnapshotHasTx
-  :: Ogmios.MempoolSnapshotAcquired -> TransactionHash -> Contract Boolean
+  :: MempoolSnapshotAcquired -> TransactionHash -> Contract Boolean
 mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms <<<
   unwrap
 
@@ -55,11 +60,11 @@ mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms <<<
 -- | be recursively called to traverse the finger-tree of the mempool data set.
 -- | This will return `Nothing` once it has reached the end of the current mempool.
 mempoolSnapshotNextTx
-  :: Ogmios.MempoolSnapshotAcquired
+  :: MempoolSnapshotAcquired
   -> Contract (Maybe Transaction)
 mempoolSnapshotNextTx mempoolAcquired = do
   mbTx <- wrapQueryM $ QueryM.mempoolSnapshotNextTx mempoolAcquired
-  for mbTx \(Ogmios.MempoolTransaction { raw }) -> do
+  for mbTx \(MempoolTransaction { raw }) -> do
     byteArray <- liftMaybe (error "Failed to decode transaction")
       $ decodeBase64 raw
     liftMaybe (error "Failed to decode tx")
@@ -70,20 +75,20 @@ mempoolSnapshotNextTx mempoolAcquired = do
 -- | The acquired snapshot’s size (in bytes), number of transactions, and
 -- | capacity (in bytes).
 mempoolSnapshotSizeAndCapacity
-  :: Ogmios.MempoolSnapshotAcquired -> Contract Ogmios.MempoolSizeAndCapacity
+  :: MempoolSnapshotAcquired -> Contract MempoolSizeAndCapacity
 mempoolSnapshotSizeAndCapacity = wrapQueryM <<<
   QueryM.mempoolSnapshotSizeAndCapacity
 
 -- | Release the connection to the Local TX Monitor.
 releaseMempool
-  :: Ogmios.MempoolSnapshotAcquired -> Contract Unit
+  :: MempoolSnapshotAcquired -> Contract Unit
 releaseMempool = void <<< wrapQueryM <<< QueryM.releaseMempool
 
 -- | A bracket-style function for working with mempool snapshots - ensures
 -- | release in the presence of exceptions
 withMempoolSnapshot
   :: forall a
-   . (Ogmios.MempoolSnapshotAcquired -> Contract a)
+   . (MempoolSnapshotAcquired -> Contract a)
   -> Contract a
 withMempoolSnapshot f = do
   s <- acquireMempoolSnapshot
@@ -94,7 +99,7 @@ withMempoolSnapshot f = do
 -- | Recursively request the next TX in the mempool until Ogmios does not
 -- | respond with a new TX.
 fetchMempoolTxs
-  :: Ogmios.MempoolSnapshotAcquired
+  :: MempoolSnapshotAcquired
   -> Contract (Array Transaction)
 fetchMempoolTxs ms = Array.fromFoldable <$> go
   where

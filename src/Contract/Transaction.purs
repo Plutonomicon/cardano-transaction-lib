@@ -10,15 +10,6 @@ module Contract.Transaction
   , createAdditionalUtxos
   , getTxFinalFee
   , getTxMetadata
-  , module BalanceTxError
-  , module FinalizedTransaction
-  , module NativeScript
-  , module OutputDatum
-  , module PTransaction
-  , module PTransactionUnspentOutput
-  , module ScriptRef
-  , module Scripts
-  , module Transaction
   , module X
   , signTransaction
   , submit
@@ -49,7 +40,7 @@ import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx (FinalizedTransaction)
-import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
+import Ctl.Internal.BalanceTx (FinalizedTransaction(FinalizedTransaction)) as X
 import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Error
@@ -71,7 +62,10 @@ import Ctl.Internal.BalanceTx.Error
   , Expected(Expected)
   , ImpossibleError(Impossible)
   , InvalidInContext(InvalidInContext)
-  ) as BalanceTxError
+  ) as X
+import Ctl.Internal.BalanceTx.Error
+  ( BalanceTxError
+  )
 import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
@@ -82,11 +76,11 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockStart
       , TimelockExpiry
       )
-  ) as NativeScript
+  ) as X
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , scriptRefFromMintingPolicy
-  ) as ScriptRef
+  ) as X
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -152,11 +146,12 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _witnessSet
   , mkPoolPubKeyHash
   , poolPubKeyHashToBech32
-  ) as Transaction
+  ) as X
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , TransactionOutput
   , _body
+  , _fee
   , _outputs
   )
 import Ctl.Internal.Contract.AwaitTxConfirmed
@@ -185,7 +180,7 @@ import Ctl.Internal.Plutus.Conversion
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  ) as PTransaction
+  ) as X
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -193,7 +188,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   , _output
   , lookupTxHash
   , mkTxUnspentOut
-  ) as PTransactionUnspentOutput
+  ) as X
 import Ctl.Internal.Plutus.Types.Value (Coin)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Serialization (convertTransaction)
@@ -201,7 +196,7 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
-  ) as OutputDatum
+  ) as X
 import Ctl.Internal.Types.RewardAddress
   ( RewardAddress
   , rewardAddressFromBech32
@@ -214,12 +209,12 @@ import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , plutusV1Script
   , plutusV2Script
-  ) as Scripts
+  ) as X
 import Ctl.Internal.Types.Transaction
   ( DataHash(DataHash)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
-  ) as Transaction
+  ) as X
 import Ctl.Internal.Types.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -408,7 +403,7 @@ unUnbalancedTx
 balanceTxWithConstraints
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
-  -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTxWithConstraints tx =
   let
     tx' /\ ix = unUnbalancedTx tx
@@ -419,7 +414,7 @@ balanceTxWithConstraints tx =
 -- | constraints.
 balanceTx
   :: UnbalancedTx
-  -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError FinalizedTransaction)
 balanceTx = flip balanceTxWithConstraints mempty
 
 -- | Balances each transaction using specified balancer constraint sets and
@@ -478,7 +473,7 @@ instance Show BalancedSignedTransaction where
 
 getTxFinalFee :: BalancedSignedTransaction -> BigInt
 getTxFinalFee =
-  unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
+  unwrap <<< view (_body <<< _fee) <<< unwrap
 
 -- | Fetch transaction metadata.
 -- | Returns `Right` when the transaction exists and metadata was non-empty

@@ -8,7 +8,6 @@ module Contract.Address
   , addressFromBech32
   , addressToBech32
   , module X
-  , module TypeAliases
   , payPubKeyHashBaseAddress
   , payPubKeyHashEnterpriseAddress
   , payPubKeyHashRewardAddress
@@ -68,7 +67,7 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as X
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
+import Ctl.Internal.Types.Aliases (Bech32String) as X
 import Ctl.Internal.Types.PaymentPubKey (PaymentPubKey(PaymentPubKey)) as X
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash

@@ -1,5 +1,5 @@
 -- | A module with CBOR-related functionality.
-module Contract.CborBytes (module CborBytes) where
+module Contract.CborBytes (module X) where
 
 import Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
@@ -13,4 +13,4 @@ import Ctl.Internal.Types.CborBytes
   , cborBytesToIntArray
   , hexToCborBytes
   , hexToCborBytesUnsafe
-  ) as CborBytes
+  ) as X
