@@ -983,7 +983,8 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
     (throwError $ StartTimeGreaterThanTime at)
   let
     relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
-  -- This conversion cannot fail.
+  -- This conversion cannot fail: since 'relTime' is an offset from the start of
+  -- an era, we can't overflow the 64-bit limit.
   let
     relTimeBi = unsafePartial $ fromJust $ BigInt.fromNumber $ Math.trunc
       relTime
@@ -1011,22 +1012,6 @@ relSlotFromRelTime eraSummary (RelTime relTime) =
   toBigIntUnsafe :: Number -> BigInt
   toBigIntUnsafe x = unsafePartial $ fromJust $ BigInt.fromNumber x
 
-{-[
--- | Converts relative time to relative slot (using Euclidean division) and
--- | modulus for any leftover.
-relSlotFromRelTime
-  :: EraSummary -> RelTime -> Maybe (RelSlot /\ ModTime)
-relSlotFromRelTime eraSummary (RelTime relTime) =
-  let
-    slotLength = getSlotLength eraSummary
-    relSlot = wrap <$>
-      (BigInt.fromNumber <<< Math.trunc) (BigInt.toNumber relTime / slotLength)
-    modTime = wrap <$>
-      BigInt.fromNumber (BigInt.toNumber relTime Math.% slotLength)
-  in
-    (/\) <$> relSlot <*> modTime
-    -}
-
 slotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
 slotFromRelSlot
@@ -1045,7 +1030,8 @@ slotFromRelSlot
     endSlot = maybe (slot + one)
       (BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
       end
-  -- Slot numbers should convert without error.
+  -- Slot numbers should convert without error: they're meant to be 64-bit
+  -- integers anyway.
   let bnSlot = unsafePartial $ fromJust $ BigNum.fromBigInt slot
   -- Check we are less than the end slot, or if equal, there is no excess:
   unless (slot < endSlot || slot == endSlot && modTime == zero)
