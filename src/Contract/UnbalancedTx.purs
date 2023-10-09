@@ -157,8 +157,7 @@ explainMkUnbalancedTxError = case _ of
       " is not a CurrencySymbol. Please check the validity of the byte representation."
   MintingPolicyNotFound mp -> "Minting policy "
     <> show mp
-    <>
-      " not found in a set of minting policies"
+    <> " not found in a set of minting policies"
   ModifyTx modifyTxErr -> explainModifyTxError modifyTxErr
   OwnPubKeyAndStakeKeyMissing ->
     "Could not build own address: both payment pubkey and stake pubkey are missing"
