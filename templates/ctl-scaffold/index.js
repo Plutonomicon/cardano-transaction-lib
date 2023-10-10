@@ -6,5 +6,3 @@
 // imported here. From the repository root, run:
 //   spago bundle-module -m <MAIN> --to output.js
 import("./output.js").then(m => m.main());
-
-console.log("app starting");
