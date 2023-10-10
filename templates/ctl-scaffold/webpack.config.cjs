@@ -43,6 +43,9 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "bundle.js",
+    library: {
+      type: "module",
+    },
   },
 
   module: {
@@ -77,11 +80,6 @@ module.exports = {
       fs: false,
       readline: false,
       child_process: false,
-    },
-    alias: {
-      // You should update this path to the location of your compiled scripts,
-      // relative to `webpack.config.js`
-      Scripts: path.resolve(__dirname, "scripts"),
     },
   },
 
