@@ -95,8 +95,7 @@ import Effect.Exception (error)
 -- | `TxConstraints`. This should be called in conjuction with
 -- | `balanceTx` and  `signTransaction`.
 -- |
--- | This is a 'non-throwing' variant; use this when failure is expected, and
--- | can be handled gracefully. If you need the 'throwing' variant, use
+-- | This is a 'non-throwing' variant; if you need the 'throwing' variant, use
 -- | `mkUnbalancedTx` instead.
 mkUnbalancedTxE
   :: ScriptLookups
@@ -104,9 +103,7 @@ mkUnbalancedTxE
   -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTxE = PC.mkUnbalancedTxImpl
 
--- | As `mkUnbalancedTxE`, but 'throwing'; use this when failure is _not_
--- | expected, and graceful handling is either impossible, or wouldn't make
--- | sense.
+-- | As `mkUnbalancedTxE`, but 'throwing'.
 mkUnbalancedTx :: ScriptLookups -> TxConstraints -> Contract UnbalancedTx
 mkUnbalancedTx lookups constraints =
   mkUnbalancedTxE lookups constraints >>= case _ of

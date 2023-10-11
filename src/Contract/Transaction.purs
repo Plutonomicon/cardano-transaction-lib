@@ -407,8 +407,7 @@ unUnbalancedTx
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
 -- |
--- | This is a 'non-throwing' variant of this functionality. Use this when
--- | errors are expected, and graceful recovery is possible. If you want a
+-- | This is a 'non-throwing' variant of this functionality. If you want a
 -- | 'throwing' variant, use `balanceTxWithConstraints` instead.
 balanceTxWithConstraintsE
   :: UnbalancedTx
@@ -420,10 +419,9 @@ balanceTxWithConstraintsE tx =
   in
     BalanceTx.balanceTxWithConstraints tx' ix
 
--- | 'Throwing' variant of `balanceTxWithConstraintsE`. Instead of returning in
--- | `Either`, it throws an exception on failure. Use this when errors are not
--- | expected, and graceful recovery is either impossible or wouldn't make
--- | sense. If you want a non-'throwing' variant, use `balanceWithConstraintsE`
+-- | 'Throwing' variant of `balanceTxWithConstraintsE`.
+-- |
+-- | If you want a non-'throwing' variant, use `balanceWithConstraintsE`
 -- | instead.
 balanceTxWithConstraints
   :: UnbalancedTx
@@ -438,17 +436,13 @@ balanceTxWithConstraints tx bcb = do
 -- | Same as `balanceTxWithConstraintsE`, but uses the default balancer
 -- | constraints.
 -- |
--- | This is a 'non-throwing' variant of this functionality. Use this when
--- | errors are expected, and graceful recovery is possible. If you want a
--- | 'throwing' variant, use `balanceTx` instead.
+-- | This is a 'non-throwing' variant of this functionality.
 balanceTxE
   :: UnbalancedTx
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTxE = flip balanceTxWithConstraintsE mempty
 
--- | 'Throwing' variant of `balanceTxE`. Instead of returning in `Either`, it
--- | throws an exception on failure. Use this when errors are not expected, and
--- | graceful recovery is either impossible or wouldn't make sense. If you want
+-- | 'Throwing' variant of `balanceTxE`. If you want
 -- | a non-'throwing' variant, use `balanceTxE` instead.
 balanceTx :: UnbalancedTx -> Contract FinalizedTransaction
 balanceTx utx = do
