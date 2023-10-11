@@ -12,7 +12,6 @@ preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r 
 
 esbuild-bundle:
 	@spago build \
-		&& cp -rf fixtures dist/esbuild \
 		&& BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
 
 esbuild-serve: esbuild-bundle
@@ -85,3 +84,4 @@ clean:
 	@ rm -rf .spago2nix || true
 	@ rm -rf node_modules || true
 	@ rm -rf output || true
+	@ rm -rf dist || true

@@ -42,7 +42,7 @@ module.exports = env => {
 
     output: {
       path: path.resolve(__dirname, "dist/webpack"),
-      filename: "bundle.js",
+      filename: "index.js",
       library: {
         type: "module",
       }
@@ -90,11 +90,6 @@ module.exports = env => {
       new NodePolyfillPlugin(),
       new webpack.LoaderOptionsPlugin({
         debug: true,
-      }),
-      new HtmlWebpackPlugin({
-        title: "cardano-transaction-lib-examples",
-        template: "./examples/index.html",
-        inject: false, // See stackoverflow.com/a/38292765/3067181
       }),
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],

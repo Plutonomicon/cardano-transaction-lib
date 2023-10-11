@@ -157,9 +157,12 @@
         in
         rec {
           packages = {
-            ctl-example-bundle-web = project.bundlePursProject {
+            ctl-example-bundle-web = project.bundlePursProjectEsbuild {
               main = "Ctl.Examples.ByUrl";
-              entrypoint = "examples/index.js";
+            };
+
+            ctl-example-bundle-web-webpack = project.bundlePursProjectWebpack {
+              main = "Ctl.Examples.ByUrl";
             };
 
             ctl-runtime = pkgs.arion.build {
