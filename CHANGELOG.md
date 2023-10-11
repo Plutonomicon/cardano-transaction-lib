@@ -56,12 +56,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- `mkUnbalancedTxE`, as a non-'throwing' version of `mkUnbalancedTx`. This
-  version returns in `Either`, like `mkUnbalancedTx` used to
-  ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
-- `balanceTxE` and `balanceTxWithConstraintsE`, as non-'throwing' versions of
-  `balanceTx` and `balanceTxWithConstraints`. These return in `Either`, like
-  `balanceTx` and `balanceTxWithConstraints` used to do ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
+- `mkUnbalancedTxE`, `balanceTxE` and `balanceTxWithConstraintsE` as
+  non-throwing versions of `mkUnbalancedTx`, `balanceTx` and
+  `balanceTxWithConstraints` ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 - `explainMkUnbalancedTxError` and `explainBalanceTxError`, which prettyprint
   `MkUnbalancedTxError` and `BalanceTxError` for a more human-readable output. ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 - `Contract.Time.getCurrentEra` and `Contract.Time.normalizeTimeInterval`,
@@ -88,7 +85,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- Expose `ValidatorHashNotFound` constructor of `MkUnbalancedTxError`. ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 - `scriptCurrencySymbol` no longer returns `Maybe`
   ([#1538](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1538)
 - **[IMPORTANT]** It is no more recommended to use `utxosAt` to get UTxOs at light wallet addresses. It may be a source of application bugs in some cases due to how wallets operate. Please see *Synchronization and wallet UTxO locking* section [here](./doc/query-layers.md) ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
@@ -110,6 +106,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - UTxO lists and combined input/output/mint/fee values are now being pretty-printed instead of logged using `Show` instance (in the balancer) ([#1531](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1531))
+- `mkUnbalancedTx`, `balanceTx` and `balanceTxWithConstraints` now throw instead
+  of returning in `Either` ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
 
 ### Fixed
 
