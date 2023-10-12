@@ -26,7 +26,7 @@ import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Serialization
   ( convertTransactionUnspentOutput
   , convertValue
-  , publicKeyHash
+  , publicKeyHashImpl
   , toBytes
   )
 import Ctl.Internal.Serialization.Address
@@ -180,7 +180,7 @@ mkCip30Mock pKey mSKey = do
     mbRewardAddressHex = mSKey <#> \stakeKey ->
       let
         stakePubKey = publicKeyFromPrivateKey (unwrap stakeKey)
-        stakePubKeyHash = publicKeyHash stakePubKey
+        stakePubKeyHash = publicKeyHashImpl stakePubKey
         rewardAddress = stakePubKeyHashRewardAddress env.networkId
           $ StakePubKeyHash
           $ PubKeyHash stakePubKeyHash

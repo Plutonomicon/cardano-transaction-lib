@@ -171,7 +171,7 @@ import Ctl.Internal.Contract.QueryHandle.Error
       )
   ) as X
 import Ctl.Internal.Contract.Sign (signTransaction) as Contract
-import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Hashing (transactionHashImpl) as Hashing
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusUtxoMap
   , toPlutusCoin
@@ -497,7 +497,7 @@ createAdditionalUtxos
   -> Contract UtxoMap
 createAdditionalUtxos tx = do
   transactionId <-
-    liftEffect $ Hashing.transactionHash <$> convertTransaction (unwrap tx)
+    liftEffect $ Hashing.transactionHashImpl <$> convertTransaction (unwrap tx)
   let
     txOutputs :: Array TransactionOutput
     txOutputs = view (_body <<< _outputs) (unwrap tx)

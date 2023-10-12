@@ -82,7 +82,7 @@ exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
 
 exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
 
-exports.publicKeyHash = pk => pk.hash();
+exports.publicKeyHashImpl = pk => pk.hash();
 
 exports.transactionWitnessSetSetVkeys = setter("vkeys");
 

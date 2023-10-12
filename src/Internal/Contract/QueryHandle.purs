@@ -11,7 +11,7 @@ import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend, CtlBackend)
 import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
-import Ctl.Internal.Hashing (transactionHash) as Hashing
+import Ctl.Internal.Hashing (transactionHashImpl) as Hashing
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
@@ -64,7 +64,7 @@ queryHandleForCtlBackend runQueryM params backend =
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
   , submitTx: \tx -> runQueryM' do
       cslTx <- liftEffect $ Serialization.convertTransaction tx
-      let txHash = Hashing.transactionHash cslTx
+      let txHash = Hashing.transactionHashImpl cslTx
       logDebug' $ "Pre-calculated tx hash: " <> show txHash
       let txCborBytes = Serialization.toBytes cslTx
       result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes

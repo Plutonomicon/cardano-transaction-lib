@@ -34,7 +34,7 @@ import Ctl.Internal.Deserialization.Keys
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Serialization
-  ( publicKeyHash
+  ( publicKeyHashImpl
   )
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
@@ -133,11 +133,12 @@ privateKeysToAddress payKey mbStakeKey network = do
         baseAddressToAddress $
           baseAddress
             { network
-            , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
-            , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
+            , paymentCred: keyHashCredential $ publicKeyHashImpl $ pubPayKey
+            , delegationCred: keyHashCredential $ publicKeyHashImpl $
+                pubStakeKey
             }
 
-    Nothing -> pubPayKey # publicKeyHash
+    Nothing -> pubPayKey # publicKeyHashImpl
       >>> keyHashCredential
       >>> { network, paymentCred: _ }
       >>> enterpriseAddress

@@ -12,7 +12,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , convertPubKey
   )
-import Ctl.Internal.Serialization (publicKeyHash)
+import Ctl.Internal.Serialization (publicKeyHashImpl)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
@@ -33,4 +33,4 @@ paymentPubKeyToVkey (PaymentPubKey pk) = Vkey pk
 
 paymentPubKeyToRequiredSigner :: PaymentPubKey -> RequiredSigner
 paymentPubKeyToRequiredSigner (PaymentPubKey pk) =
-  RequiredSigner <<< publicKeyHash $ convertPubKey pk
+  RequiredSigner <<< publicKeyHashImpl $ convertPubKey pk

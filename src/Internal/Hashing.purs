@@ -10,7 +10,7 @@ module Ctl.Internal.Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
-  , transactionHash
+  , transactionHashImpl
   , scriptRefHash
   ) where
 
@@ -76,8 +76,8 @@ datumHash =
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
-transactionHash :: Serialization.Transaction -> TransactionHash
-transactionHash =
+transactionHashImpl :: Serialization.Transaction -> TransactionHash
+transactionHashImpl =
   wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash

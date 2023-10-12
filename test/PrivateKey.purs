@@ -15,7 +15,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
   )
-import Ctl.Internal.Serialization (publicKeyHash)
+import Ctl.Internal.Serialization (publicKeyHashImpl)
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.KeyFile
@@ -91,8 +91,8 @@ suite = do
       -- converting to pub key hashes to check equality isn't great
       -- but there aren't Eq instances for PrivateKeys or PublicKeys
       let
-        pkh = publicKeyHash $ publicKeyFromPrivateKey (unwrap key)
-        pkh2 = publicKeyHash $ publicKeyFromPrivateKey (unwrap key2)
+        pkh = publicKeyHashImpl $ publicKeyFromPrivateKey (unwrap key)
+        pkh2 = publicKeyHashImpl $ publicKeyFromPrivateKey (unwrap key2)
       pkh `shouldEqual` pkh2
     test "stakeKeyToFile round-trips" do
       key <- privateStakeKeyFromFile
@@ -105,6 +105,6 @@ suite = do
       liftEffect $ unlink
         "fixtures/test/parsing/PrivateKey/stake_round_trip.skey"
       let
-        pkh = publicKeyHash $ publicKeyFromPrivateKey (unwrap key)
-        pkh2 = publicKeyHash $ publicKeyFromPrivateKey (unwrap key2)
+        pkh = publicKeyHashImpl $ publicKeyFromPrivateKey (unwrap key)
+        pkh2 = publicKeyHashImpl $ publicKeyFromPrivateKey (unwrap key2)
       pkh `shouldEqual` pkh2
