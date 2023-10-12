@@ -18,7 +18,10 @@
 , extraSources ? [ ]
 , extraSourcesDir ? ".extras"
   # Data directory to add to the build and provide in the `devShell` as `dataDir`
+  # E.g. [ { name = "my-data"; path = ./. ; }]
+  # will be available at `data/my-data` in the `buildPursProject`s output,
 , data ? [ ]
+  # A directory to store `data` entries in.
 , dataDir ? "data"
   # Configuration that will be used to generate a `devShell` for the project
 , shell ? { }
@@ -181,10 +184,10 @@ let
     pkgs.stdenv.mkDerivation {
       inherit name;
       buildInputs = [
-        spagoPkgs.installSpagoStyle
-        pkgs.easy-ps.psa
       ];
       nativeBuildInputs = [
+        spagoPkgs.installSpagoStyle
+        pkgs.easy-ps.psa
         purs
         pkgs.easy-ps.spago
       ];
@@ -232,10 +235,10 @@ let
       inherit name src;
       buildInputs = [
         nodeModules
-        spagoPkgs.installSpagoStyle
-        pkgs.easy-ps.psa
       ];
       nativeBuildInputs = [
+        spagoPkgs.installSpagoStyle
+        pkgs.easy-ps.psa
         purs
         pkgs.easy-ps.spago
       ];
@@ -270,8 +273,7 @@ let
       # module)
       installPhase = ''
         mkdir $out
-        cp -r output/* $out/
-        cp -r $src/* $out/
+        cp -r output $out/
         ${pkgs.lib.optionalString hasExtraSources ''cp -r ./${extraSourcesDir} $out/''}
         ${pkgs.lib.optionalString hasData ''cp -r ./${dataDir} $out/''}
       '';
