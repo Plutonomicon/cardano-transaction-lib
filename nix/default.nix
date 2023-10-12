@@ -162,6 +162,50 @@ let
     ln -s ${data-drv} ./${dataDir}
   '';
 
+  # Compiles the dependencies of a Purescript project and copies the `output`
+  # and `.spago` directories into the Nix store.
+  # Intended to be used in `buildPursProject` to not recompile the entire
+  # package set every time.
+  buildPursDependencies =
+    {
+      # Can be used to override the name given to the resulting derivation
+      name ? "${projectName}-ps-deps"
+      # If warnings generated from project source files will trigger a build error.
+      # Controls `--strict` purescript-psa flag
+    , strictComp ? true
+      # Warnings from `purs` to silence during compilation, independent of `strictComp`
+      # Controls `--censor-codes` purescript-psa flag
+    , censorCodes ? [ "UserDefinedWarning" ]
+    , ...
+    }:
+    pkgs.stdenv.mkDerivation {
+      inherit name;
+      buildInputs = [
+        spagoPkgs.installSpagoStyle
+        pkgs.easy-ps.psa
+      ];
+      nativeBuildInputs = [
+        purs
+        pkgs.easy-ps.spago
+      ];
+      # Make the derivation independent of the source files.
+      # `src` is not needed
+      unpackPhase = "true";
+      buildPhase = ''
+        install-spago-style
+        psa ${pkgs.lib.optionalString strictComp "--strict" } \
+          --censor-lib \
+          --is-lib=.spago ".spago/*/*/src/**/*.purs" \
+          --censor-codes=${builtins.concatStringsSep "," censorCodes} \
+          -gsourcemaps,js
+      '';
+      installPhase = ''
+        mkdir $out
+        mv output $out/
+        mv .spago $out/
+      '';
+    };
+
   # Compiles your Purescript project and copies the `output` directory into the
   # Nix store. Also copies the local sources to be made available later as `purs`
   # does not include any external files to its `output` (if we attempted to refer
@@ -179,6 +223,9 @@ let
       # Warnings from `purs` to silence during compilation, independent of `strictComp`
       # Controls `--censor-codes` purescript-psa flag
     , censorCodes ? [ "UserDefinedWarning" ]
+    , pursDependencies ? buildPursDependencies {
+        inherit name strictComp censorCodes;
+      }
     , ...
     }:
     pkgs.stdenv.mkDerivation {
@@ -197,16 +244,24 @@ let
         export NODE_PATH="${nodeModules}/lib/node_modules"
         ln -sfn $NODE_PATH node_modules
         export PATH="${nodeModules}/bin:$PATH"
-        cp -r $src .
         ${linkExtraSources}
         ${linkData}
-        install-spago-style
+
+        # copy the dependency build artifacts and sources
+        # preserve the modification date so that we don't rebuild them
+        mkdir -p output .spago
+        cp -rp ${pursDependencies}/.spago/* .spago
+        cp -rp ${pursDependencies}/output/* output
+
+        # add write permissions for the PS compiler to use
+        # `output/cache-db.json`
+        chmod -R +w output/
       '';
       buildPhase = ''
         psa ${pkgs.lib.optionalString strictComp "--strict" } \
           --censor-lib \
           --is-lib=.spago ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''--is-lib=./${extraSourcesDir} "${extraSourcesDir}/*/**/*.purs"''} \
-          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./**/*.purs" \
+          --censor-codes=${builtins.concatStringsSep "," censorCodes} "$src/**/*.purs" \
           -gsourcemaps,js
       '';
       # We also need to copy all of `src` here, since compiled modules in `output`
@@ -215,7 +270,7 @@ let
       # module)
       installPhase = ''
         mkdir $out
-        mv output $out/
+        cp -r output/* $out/
         cp -r $src/* $out/
         ${pkgs.lib.optionalString hasExtraSources ''cp -r ./${extraSourcesDir} $out/''}
         ${pkgs.lib.optionalString hasData ''cp -r ./${dataDir} $out/''}
@@ -613,7 +668,7 @@ let
 in
 {
   inherit
-    buildPursProject runPursTest runPlutipTest runE2ETest
+    buildPursProject buildPursDependencies runPursTest runPlutipTest runE2ETest
     bundlePursProjectEsbuild bundlePursProjectWebpack
     buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
     purs nodejs mkNodeModules;
