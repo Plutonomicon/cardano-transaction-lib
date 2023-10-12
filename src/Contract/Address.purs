@@ -25,8 +25,8 @@ import Contract.Monad (Contract, liftContractM)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Address
-  ( addressPaymentValidatorHash
-  , addressStakeValidatorHash
+  ( addressPaymentValidatorHashImpl
+  , addressStakeValidatorHashImpl
   ) as Address
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
@@ -47,8 +47,8 @@ import Ctl.Internal.Plutus.Types.Address
   , toValidatorHash
   ) as X
 import Ctl.Internal.Scripts
-  ( validatorHashBaseAddress
-  , validatorHashEnterpriseAddress
+  ( validatorHashBaseAddressImpl
+  , validatorHashEnterpriseAddressImpl
   ) as Scripts
 import Ctl.Internal.Serialization.Address
   ( BlockId(BlockId)
@@ -80,13 +80,13 @@ import Ctl.Internal.Types.PubKeyHash
   , StakePubKeyHash(StakePubKeyHash)
   ) as X
 import Ctl.Internal.Types.PubKeyHash
-  ( payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
-  , payPubKeyHashRewardAddress
-  , pubKeyHashBaseAddress
-  , pubKeyHashEnterpriseAddress
-  , pubKeyHashRewardAddress
-  , stakePubKeyHashRewardAddress
+  ( payPubKeyHashBaseAddressImpl
+  , payPubKeyHashEnterpriseAddressImpl
+  , payPubKeyHashRewardAddressImpl
+  , pubKeyHashBaseAddressImpl
+  , pubKeyHashEnterpriseAddressImpl
+  , pubKeyHashRewardAddressImpl
+  , stakePubKeyHashRewardAddressImpl
   ) as PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Data.Maybe (Maybe)
@@ -143,14 +143,14 @@ addressFromBech32 str = do
 addressPaymentValidatorHash :: Address -> Maybe ValidatorHash
 addressPaymentValidatorHash =
   -- Network id does not matter here (#484)
-  Address.addressPaymentValidatorHash
+  Address.addressPaymentValidatorHashImpl
     <<< fromPlutusAddress MainnetId
 
 -- | Get the `ValidatorHash` component of a Plutus `Address`
 addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
 addressStakeValidatorHash =
   -- Network id does not matter here (#484)
-  Address.addressStakeValidatorHash
+  Address.addressStakeValidatorHashImpl
     <<< fromPlutusAddress MainnetId
 
 -- | Converts a Plutus `ValidatorHash` to a `Address` as a Plutus (`BaseAddress`)
@@ -159,7 +159,7 @@ validatorHashBaseAddress
   :: NetworkId -> ValidatorHash -> Maybe Address
 validatorHashBaseAddress networkId =
   toPlutusAddress
-    <<< Scripts.validatorHashBaseAddress networkId
+    <<< Scripts.validatorHashBaseAddressImpl networkId
 
 -- | Converts a Plutus `ValidatorHash` to a Plutus `Address` as an
 -- | `EnterpriseAddress`. This is likely what you will use since Plutus
@@ -169,31 +169,31 @@ validatorHashEnterpriseAddress
   :: NetworkId -> ValidatorHash -> Maybe Address
 validatorHashEnterpriseAddress networkId =
   toPlutusAddress
-    <<< Scripts.validatorHashEnterpriseAddress networkId
+    <<< Scripts.validatorHashEnterpriseAddressImpl networkId
 
 pubKeyHashBaseAddress
   :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Maybe Address
 pubKeyHashBaseAddress networkId pkh =
   toPlutusAddress
-    <<< PubKeyHash.pubKeyHashBaseAddress networkId pkh
+    <<< PubKeyHash.pubKeyHashBaseAddressImpl networkId pkh
 
 pubKeyHashRewardAddress
   :: NetworkId -> PubKeyHash -> Maybe Address
 pubKeyHashRewardAddress networkId =
   toPlutusAddress
-    <<< PubKeyHash.pubKeyHashRewardAddress networkId
+    <<< PubKeyHash.pubKeyHashRewardAddressImpl networkId
 
 pubKeyHashEnterpriseAddress
   :: NetworkId -> PubKeyHash -> Maybe Address
 pubKeyHashEnterpriseAddress networkId =
   toPlutusAddress
-    <<< PubKeyHash.pubKeyHashEnterpriseAddress networkId
+    <<< PubKeyHash.pubKeyHashEnterpriseAddressImpl networkId
 
 payPubKeyHashRewardAddress
   :: NetworkId -> PaymentPubKeyHash -> Maybe Address
 payPubKeyHashRewardAddress networkId =
   toPlutusAddress
-    <<< PubKeyHash.payPubKeyHashRewardAddress networkId
+    <<< PubKeyHash.payPubKeyHashRewardAddressImpl networkId
 
 payPubKeyHashBaseAddress
   :: NetworkId
@@ -202,16 +202,16 @@ payPubKeyHashBaseAddress
   -> Maybe Address
 payPubKeyHashBaseAddress networkId pkh =
   toPlutusAddress
-    <<< PubKeyHash.payPubKeyHashBaseAddress networkId pkh
+    <<< PubKeyHash.payPubKeyHashBaseAddressImpl networkId pkh
 
 payPubKeyHashEnterpriseAddress
   :: NetworkId -> PaymentPubKeyHash -> Maybe Address
 payPubKeyHashEnterpriseAddress networkId =
   toPlutusAddress
-    <<< PubKeyHash.payPubKeyHashEnterpriseAddress networkId
+    <<< PubKeyHash.payPubKeyHashEnterpriseAddressImpl networkId
 
 stakePubKeyHashRewardAddress
   :: NetworkId -> StakePubKeyHash -> Maybe Address
 stakePubKeyHashRewardAddress networkId =
   toPlutusAddress
-    <<< PubKeyHash.stakePubKeyHashRewardAddress networkId
+    <<< PubKeyHash.stakePubKeyHashRewardAddressImpl networkId

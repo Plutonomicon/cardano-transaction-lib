@@ -10,7 +10,7 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.Address (addressPaymentValidatorHash)
+import Ctl.Internal.Address (addressPaymentValidatorHashImpl)
 import Ctl.Internal.BalanceTx.RedeemerIndex
   ( RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
   , UnindexedRedeemer(UnindexedRedeemer)
@@ -116,7 +116,7 @@ import Ctl.Internal.Scripts
   ( mintingPolicyHash
   , nativeScriptStakeValidatorHash
   , validatorHash
-  , validatorHashEnterpriseAddress
+  , validatorHashEnterpriseAddressImpl
   )
 import Ctl.Internal.Serialization.Address
   ( NetworkId
@@ -146,9 +146,9 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Ctl.Internal.Types.PubKeyHash
-  ( payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
-  , stakePubKeyHashRewardAddress
+  ( payPubKeyHashBaseAddressImpl
+  , payPubKeyHashEnterpriseAddressImpl
+  , stakePubKeyHashRewardAddressImpl
   )
 import Ctl.Internal.Types.RewardAddress
   ( stakePubKeyHashRewardAddress
@@ -343,9 +343,11 @@ addMissingValueSpent = do
     -- Potential fix me: This logic may be suspect:
     txOutAddress <- case pkh', skh' of
       Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just skh -> pure $ payPubKeyHashBaseAddress networkId pkh skh
-      Just pkh, Nothing -> pure $ payPubKeyHashEnterpriseAddress networkId pkh
-      Nothing, Just skh -> pure $ stakePubKeyHashRewardAddress networkId skh
+      Just pkh, Just skh -> pure $ payPubKeyHashBaseAddressImpl networkId pkh
+        skh
+      Just pkh, Nothing -> pure $ payPubKeyHashEnterpriseAddressImpl networkId
+        pkh
+      Nothing, Just skh -> pure $ stakePubKeyHashRewardAddressImpl networkId skh
     let
       txOut = TransactionOutput
         { address: txOutAddress
@@ -553,7 +555,7 @@ processConstraint mpsMap osMap c = do
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
-              (addressPaymentValidatorHash address)
+              (addressPaymentValidatorHashImpl address)
             case scriptRefUnspentOut of
               Nothing -> do
                 plutusScript <-
@@ -668,8 +670,8 @@ processConstraint mpsMap osMap c = do
           pure $ outputDatum dat datp
         let
           address = case skh of
-            Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
-            Nothing -> payPubKeyHashEnterpriseAddress networkId pkh
+            Just skh' -> payPubKeyHashBaseAddressImpl networkId pkh skh'
+            Nothing -> payPubKeyHashEnterpriseAddressImpl networkId pkh
           txOut = TransactionOutput
             { address
             , amount
@@ -686,7 +688,7 @@ processConstraint mpsMap osMap c = do
           datum' = outputDatum dat datp
           txOut = TransactionOutput
             { address: case mbCredential of
-                Nothing -> validatorHashEnterpriseAddress networkId vlh
+                Nothing -> validatorHashEnterpriseAddressImpl networkId vlh
                 Just cred -> baseAddressToAddress $ baseAddress
                   { network: networkId
                   , paymentCred: scriptHashCredential (unwrap vlh)
@@ -707,7 +709,7 @@ processConstraint mpsMap osMap c = do
         let
           txOut = TransactionOutput
             { address: case mbCredential of
-                Nothing -> validatorHashEnterpriseAddress networkId
+                Nothing -> validatorHashEnterpriseAddressImpl networkId
                   (wrap $ unwrap nsh)
                 Just cred -> baseAddressToAddress $ baseAddress
                   { network: networkId

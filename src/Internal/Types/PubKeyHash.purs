@@ -2,13 +2,13 @@ module Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
-  , payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
-  , payPubKeyHashRewardAddress
-  , pubKeyHashBaseAddress
-  , pubKeyHashEnterpriseAddress
-  , pubKeyHashRewardAddress
-  , stakePubKeyHashRewardAddress
+  , payPubKeyHashBaseAddressImpl
+  , payPubKeyHashEnterpriseAddressImpl
+  , payPubKeyHashRewardAddressImpl
+  , pubKeyHashBaseAddressImpl
+  , pubKeyHashEnterpriseAddressImpl
+  , pubKeyHashRewardAddressImpl
+  , stakePubKeyHashRewardAddressImpl
   , ed25519RewardAddress
   ) where
 
@@ -89,18 +89,19 @@ ed25519RewardAddress network skh =
     , paymentCred: keyHashCredential (unwrap skh)
     }
 
-pubKeyHashBaseAddress :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Address
-pubKeyHashBaseAddress networkId pkh skh =
+pubKeyHashBaseAddressImpl
+  :: NetworkId -> PubKeyHash -> StakePubKeyHash -> Address
+pubKeyHashBaseAddressImpl networkId pkh skh =
   baseAddressToAddress $ paymentKeyHashStakeKeyHashAddress networkId
     (unwrap pkh)
     (unwrap $ unwrap skh)
 
-pubKeyHashRewardAddress :: NetworkId -> PubKeyHash -> Address
-pubKeyHashRewardAddress networkId =
+pubKeyHashRewardAddressImpl :: NetworkId -> PubKeyHash -> Address
+pubKeyHashRewardAddressImpl networkId =
   rewardAddressToAddress <<< ed25519RewardAddress networkId
 
-pubKeyHashEnterpriseAddress :: NetworkId -> PubKeyHash -> Address
-pubKeyHashEnterpriseAddress networkId =
+pubKeyHashEnterpriseAddressImpl :: NetworkId -> PubKeyHash -> Address
+pubKeyHashEnterpriseAddressImpl networkId =
   enterpriseAddressToAddress <<< ed25519EnterpriseAddress networkId
 
 newtype PaymentPubKeyHash = PaymentPubKeyHash PubKeyHash
@@ -136,19 +137,19 @@ derive newtype instance ToData StakePubKeyHash
 instance Show StakePubKeyHash where
   show = genericShow
 
-payPubKeyHashRewardAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashRewardAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashRewardAddress networkId pkh
+payPubKeyHashRewardAddressImpl :: NetworkId -> PaymentPubKeyHash -> Address
+payPubKeyHashRewardAddressImpl networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashRewardAddressImpl networkId pkh
 
-payPubKeyHashBaseAddress
+payPubKeyHashBaseAddressImpl
   :: NetworkId -> PaymentPubKeyHash -> StakePubKeyHash -> Address
-payPubKeyHashBaseAddress networkId (PaymentPubKeyHash pkh) skh =
-  pubKeyHashBaseAddress networkId pkh skh
+payPubKeyHashBaseAddressImpl networkId (PaymentPubKeyHash pkh) skh =
+  pubKeyHashBaseAddressImpl networkId pkh skh
 
-payPubKeyHashEnterpriseAddress :: NetworkId -> PaymentPubKeyHash -> Address
-payPubKeyHashEnterpriseAddress networkId (PaymentPubKeyHash pkh) =
-  pubKeyHashEnterpriseAddress networkId pkh
+payPubKeyHashEnterpriseAddressImpl :: NetworkId -> PaymentPubKeyHash -> Address
+payPubKeyHashEnterpriseAddressImpl networkId (PaymentPubKeyHash pkh) =
+  pubKeyHashEnterpriseAddressImpl networkId pkh
 
-stakePubKeyHashRewardAddress :: NetworkId -> StakePubKeyHash -> Address
-stakePubKeyHashRewardAddress networkId =
+stakePubKeyHashRewardAddressImpl :: NetworkId -> StakePubKeyHash -> Address
+stakePubKeyHashRewardAddressImpl networkId =
   rewardAddressToAddress <<< ed25519RewardAddress networkId <<< unwrap

@@ -1,7 +1,7 @@
 module Ctl.Internal.Address
   ( addressToOgmiosAddress
-  , addressPaymentValidatorHash
-  , addressStakeValidatorHash
+  , addressPaymentValidatorHashImpl
+  , addressStakeValidatorHashImpl
   , ogmiosAddressToAddress
   ) where
 
@@ -47,8 +47,8 @@ addressToOgmiosAddress = addressBech32
 
 -- | Get the `ValidatorHash` of an address (base or enterprise).
 -- | The value is extracted from the payment component.
-addressPaymentValidatorHash :: Address -> Maybe ValidatorHash
-addressPaymentValidatorHash = map ValidatorHash <<< addressPaymentScriptHash
+addressPaymentValidatorHashImpl :: Address -> Maybe ValidatorHash
+addressPaymentValidatorHashImpl = map ValidatorHash <<< addressPaymentScriptHash
 
 addressPaymentScriptHash :: Address -> Maybe ScriptHash
 addressPaymentScriptHash addr =
@@ -68,8 +68,8 @@ enterpriseAddressPaymentScriptHash =
 
 -- | Get the `StakeValidatorHash` of a base address.
 -- | The value is extracted from the stake component.
-addressStakeValidatorHash :: Address -> Maybe StakeValidatorHash
-addressStakeValidatorHash =
+addressStakeValidatorHashImpl :: Address -> Maybe StakeValidatorHash
+addressStakeValidatorHashImpl =
   map StakeValidatorHash <<< stakeCredentialToScriptHash
     <=< pure <<< baseAddressDelegationCred
     <=< baseAddressFromAddress

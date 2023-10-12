@@ -108,7 +108,7 @@ import Data.Maybe
   , optional
   ) as X
 import Data.Newtype (class Newtype, over, unwrap, wrap) as X
-import Data.Show.Generic (genericShow) as Generic
+import Data.Show.Generic (genericShow) as X
 -- A lot of this module is already re-exported from Data.Foldable
 import Data.Traversable
   ( class Traversable

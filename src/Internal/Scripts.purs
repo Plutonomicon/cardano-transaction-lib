@@ -5,8 +5,8 @@ module Ctl.Internal.Scripts
   , plutusScriptStakeValidatorHash
   , scriptCurrencySymbol
   , validatorHash
-  , validatorHashBaseAddress
-  , validatorHashEnterpriseAddress
+  , validatorHashBaseAddressImpl
+  , validatorHashEnterpriseAddressImpl
   ) where
 
 import Prelude
@@ -51,16 +51,16 @@ validatorHash :: Validator -> ValidatorHash
 validatorHash = wrap <<< plutusScriptHash <<< unwrap
 
 -- | Converts a Plutus-style `ValidatorHash` to a `Address` as a `BaseAddress`
-validatorHashBaseAddress :: NetworkId -> ValidatorHash -> Address
-validatorHashBaseAddress networkId =
+validatorHashBaseAddressImpl :: NetworkId -> ValidatorHash -> Address
+validatorHashBaseAddressImpl networkId =
   baseAddressToAddress <<< scriptAddress networkId <<< unwrap
 
 -- | Converts a Plutus-style `ValidatorHash` to an `Address` as an
 -- | `EnterpriseAddress`. This is likely what you will use since Plutus
 -- | currently uses `scriptHashAddress` on non-staking addresses which is
 -- | invoked in `validatorAddress`
-validatorHashEnterpriseAddress :: NetworkId -> ValidatorHash -> Address
-validatorHashEnterpriseAddress network valHash =
+validatorHashEnterpriseAddressImpl :: NetworkId -> ValidatorHash -> Address
+validatorHashEnterpriseAddressImpl network valHash =
   enterpriseAddressToAddress $
     enterpriseAddress
       { network
@@ -70,7 +70,7 @@ validatorHashEnterpriseAddress network valHash =
 -- | Converts a `NativeScriptHash` to an `Address` as an `EnterpriseAddress`.
 nativeScriptHashEnterpriseAddress :: NetworkId -> NativeScriptHash -> Address
 nativeScriptHashEnterpriseAddress network nsHash =
-  validatorHashEnterpriseAddress network (wrap $ unwrap nsHash)
+  validatorHashEnterpriseAddressImpl network (wrap $ unwrap nsHash)
 
 -- | Calculates a hash of a PlutusScript stake validator
 plutusScriptStakeValidatorHash
