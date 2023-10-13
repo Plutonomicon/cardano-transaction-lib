@@ -10,7 +10,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "325665b19859bbf3e48e296e9aa717673f5f3d79";
+      rev = "8014c940cf69516c0a00048eec79b2ba95fd94f3";
     };
     # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
@@ -118,12 +118,18 @@
         in
         {
           default = self.packages.${system}.ctl-scaffold-bundle-web;
-          ctl-scaffold-bundle-web = (psProjectFor pkgs).bundlePursProject {
+
+          ctl-scaffold-bundle-web-esbuild = (psProjectFor pkgs).bundlePursProjectEsbuild {
             main = "Scaffold.Main";
-            entrypoint = "index.js";
           };
+
+          ctl-scaffold-bundle-web-webpack = (psProjectFor pkgs).bundlePursProjectWebpack {
+            main = "Scaffold.Main";
+          };
+
           ctl-scaffold-runtime = pkgs.buildCtlRuntime runtimeConfig;
         });
+
 
       # `launchCtlRuntime` will generate a Nix expression from the provided
       # config, build it into a JSON file, and then run it with Arion
@@ -186,4 +192,6 @@
           default = (psProjectFor pkgs).devShell;
         });
     };
+
+  nixConfig.bash-prompt = "[\\[\\e[0;1m\\]\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 }

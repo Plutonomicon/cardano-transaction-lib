@@ -50,19 +50,6 @@ module.exports = env => {
       }
     },
 
-    module: {
-      rules: [
-        {
-          test: /\.(png|jpg|gif)$/i,
-          type: "asset",
-        },
-        {
-          test: /\.plutus$/i,
-          type: "asset/source",
-        },
-      ],
-    },
-
     resolve: {
       // We use node_modules provided by Nix shell via an environment variable
       modules: [process.env.NODE_PATH],
