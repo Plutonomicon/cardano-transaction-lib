@@ -2,7 +2,7 @@ SHELL := bash
 .ONESHELL:
 .PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint
 .SHELLFLAGS := -eu -o pipefail -c
-serve-port := 4008
+
 ps-sources := $(shell fd --no-ignore-parent -epurs)
 nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
 js-sources := $(shell fd --no-ignore-parent -ejs)
@@ -11,6 +11,7 @@ ps-entrypoint := Ctl.Examples.ByUrl
 ps-entrypoint-function := main
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
+serve-port := 4008
 
 spago-build:
 	@spago build
