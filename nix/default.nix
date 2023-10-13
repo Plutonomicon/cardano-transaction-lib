@@ -583,10 +583,9 @@ let
         mkdir -p ./dist
         echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
         ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
-        webpack --mode=production -c ${webpackConfig} -o ./dist \
-          --entry ./entrypoint.js
         mkdir $out
-        mv ./dist/* $out
+        webpack --mode=production -c ${webpackConfig} -o $out/ \
+          --entry ./entrypoint.js
       '';
 
   pursDocsSearchNpm =
