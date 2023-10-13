@@ -23,6 +23,9 @@ module.exports = env => {
     stats: { errorDetails: true },
 
     devServer: {
+      static: {
+        directory: path.join(__dirname, 'dist'),
+      },
       client: {
         overlay: false
       },
@@ -41,7 +44,7 @@ module.exports = env => {
     entry: env.entry,
 
     output: {
-      path: path.resolve(__dirname, "dist/webpack"),
+      path: path.resolve(__dirname, "dist"),
       filename: "index.js",
       library: {
         type: "module",

@@ -279,13 +279,13 @@ let
       '';
     };
 
-  project = buildPursProject { };
-
   # Runs a test written in Purescript using NodeJS.
   runPursTest =
     {
-      # The name of the main Purescript module
-      testMain ? "Test.Main"
+      # The main Purescript module
+      testMain
+      # The entry point function in the main PureScript module
+    , psEntryPoint ? "main"
       # Can be used to override the name of the resulting derivation
     , name ? "${projectName}-check"
       # Generated `node_modules` in the Nix store. Can be passed to have better
@@ -296,21 +296,30 @@ let
       # Passed through to the `buildInputs` of the derivation. Use this to add
       # additional packages to the test environment
     , buildInputs ? [ ]
+    , builtProject ? buildPursProject { main = testMain; }
     , ...
     }: pkgs.runCommand "${name}"
       (
         {
-          buildInputs = [ project nodeModules ] ++ buildInputs;
+          inherit src;
+          nativeBuildInputs = [ builtProject nodeModules ] ++ buildInputs;
           NODE_PATH = "${nodeModules}/lib/node_modules";
         } // env
       )
-      # spago will attempt to download things, which will fail in the
-      # sandbox, so we can just use node instead
-      # (idea taken from `plutus-playground-client`)
       ''
-        cp -r ${project}/* .
+        # Copy the purescript project files
+        cp -r ${builtProject}/* .
+
+        # The tests may depend on sources
+        cp -r $src/* .
+
+        # Provide NPM dependencies to the test suite scripts
         ln -sfn $NODE_PATH node_modules
-        ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.main())'
+
+        # Call the main module and execute the entry point function
+        ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.${psEntryPoint}())'
+
+        # Create output file to tell Nix we succeeded
         touch $out
       '';
 
@@ -338,8 +347,18 @@ let
 
   runE2ETest =
     {
-      # The name of the main Purescript module
-      testMain ? "Test.Ctl.E2E"
+      # The name of the main Purescript module for the runner
+      runnerMain
+      # Entry point function of the `runnerMain` module
+    , runnerPsEntryPoint ? "main"
+      # The name of the test module that will be bundled and served via a
+      # webserver
+    , testMain
+      # Environment file with E2E test definitions, relative to `src`
+    , envFile ? "test/e2e-ci.env"
+      # A file with empty settings for chromium, relative to `src`
+    , emptySettingsFile ? "test-data/empty-settings.tar.gz"
+    , testTimeout ? 200
       # Can be used to override the name of the resulting derivation
     , name ? "${projectName}-e2e"
       # Generated `node_modules` in the Nix store. Can be passed to have better
@@ -352,6 +371,9 @@ let
     , buildInputs ? [ ]
     , bundledPursProject ? (bundlePursProjectWebpack {
         main = testMain;
+      })
+    , builtRunnerProject ? (buildPursProject {
+        main = runnerMain;
       })
     , ...
     }@args:
@@ -403,8 +425,10 @@ let
     in
     pkgs.runCommand "${name}"
       ({
-        buildInputs = with pkgs; [
-          project
+        inherit src;
+        nativeBuildInputs = with pkgs; [
+          builtRunnerProject
+          bundledPursProject
           nodeModules
           ogmios
           kupo
@@ -421,27 +445,48 @@ let
       ''
         chmod -R +rw .
 
-        source ${project}/test/e2e-ci.env
+        # Load the test definitions from file
+        source $src/${envFile}
 
-        export E2E_SETTINGS_ARCHIVE="${project}/test-data/empty-settings.tar.gz"
+        export E2E_SETTINGS_ARCHIVE="$src/${emptySettingsFile}"
         export E2E_CHROME_USER_DATA="./test-data/chrome-user-data"
-        export E2E_TEST_TIMEOUT=200
+        export E2E_TEST_TIMEOUT=${toString testTimeout}
         export E2E_BROWSER=${chromium}/bin/chromium # use custom bwrap-ed chromium
         export E2E_NO_HEADLESS=false
         export PLUTIP_PORT=8087
         export OGMIOS_PORT=1345
         export E2E_EXTRA_BROWSER_ARGS="--disable-web-security"
 
-        python -m http.server 4008 --directory ${bundledPursProject} &
+        # Move bundle files to the served dir
+        mkdir -p serve
+        cp -r ${bundledPursProject}/* serve/
+
+        # Create an HTML that just serves entry point to the bundle
+        cat << EOF > serve/index.html
+        <!DOCTYPE html>
+        <html>
+          <body><script type="module" src="./index.js"></script></body>
+        </html>
+        EOF
+
+        # Launch a webserver and wait for the content to become available
+        python -m http.server 4008 --directory serve 2>/dev/null &
         until curl -S http://127.0.0.1:4008/index.html &>/dev/null; do
           echo "Trying to connect to webserver...";
           sleep 0.1;
         done;
 
-        mkdir project
-        cp -r ${project}/* project
         ln -sfn $NODE_PATH node_modules
-        ${nodejs}/bin/node --enable-source-maps -e 'import("./project/output/${testMain}/index.js").then(m => m.main())' e2e-test run
+
+        cp -r ${builtRunnerProject}/output .
+        cp -r $src/* .
+        chmod -R +rw .
+
+        ${nodejs}/bin/node \
+          --enable-source-maps \
+          -e 'import("./output/${runnerMain}/index.js").then(m => m.${runnerPsEntryPoint}())' \
+          e2e-test run
+
         mkdir $out
       ''
   ;
@@ -453,24 +498,28 @@ let
       name ? "${projectName}-bundle-" +
         (if browserRuntime then "web" else "nodejs")
       # The main Purescript module
-    , main ? "Main"
+    , main
+      # The entry point function in the main PureScript module
+    , psEntryPoint ? "main"
       # Whether this bundle is being produced for a browser environment or not
     , browserRuntime ? true
     , esbuildBundleScript ? "esbuild/bundle.js"
       # Generated `node_modules` in the Nix store. Can be passed to have better
       # control over individual project components
     , nodeModules ? projectNodeModules
+    , builtProject ? buildPursProject { inherit main; }
     , ...
     }: pkgs.runCommand "${name}"
       {
+        inherit src;
         buildInputs = [
           nodejs
           nodeModules
-          project
         ];
         nativeBuildInputs = [
           purs
           pkgs.easy-ps.spago
+          builtProject
         ];
       }
       ''
@@ -480,8 +529,10 @@ let
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
         chmod -R +rw .
-        cp -r ${project}/* .
-        node ${esbuildBundleScript} ./output/${main}/index.js dist/
+        cp -r ${builtProject}/* .
+        cp -r $src/* .
+        echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
+        node ${esbuildBundleScript} ./entrypoint.js dist/index.js
         mkdir $out
         mv dist/* $out
       '';
@@ -507,15 +558,17 @@ let
     , nodeModules ? projectNodeModules
       # If the spago bundle-module output should be included in the derivation
     , includeBundledModule ? false
+    , builtProject ? buildPursProject { inherit main; }
     , ...
     }: pkgs.runCommand "${name}"
       {
+        inherit src;
         buildInputs = [
         ];
         nativeBuildInputs = [
           nodejs
           nodeModules
-          project
+          builtProject
           purs
           pkgs.easy-ps.spago
         ];
@@ -525,7 +578,8 @@ let
         export NODE_PATH="${nodeModules}/lib/node_modules"
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-        cp -r ${project}/* .
+        cp -r ${builtProject}/* .
+        cp -r $src/* .
         chmod -R +rw .
         mkdir -p ./dist
         echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
@@ -675,6 +729,6 @@ in
     buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
     purs nodejs mkNodeModules;
   devShell = shellFor shell;
-  compiled = project;
+  compiled = buildPursProject { };
   nodeModules = projectNodeModules;
 }

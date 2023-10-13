@@ -1,20 +1,19 @@
 import * as esbuild from "esbuild";
 import { buildOptions } from "./config.js";
 
-if (process.argv.length < 7) {
-  throw `usage: nodejs serve.js PURESCRIPT_MODULE OUTPUT_DIR SERVE_DIR HOST PORT`;
+if (process.argv.length < 6) {
+  throw `usage: nodejs serve.js ENTRY_POINT OUTPUT_FILE SERVE_DIR PORT`;
 }
 
 const ctx = await esbuild.context(
   buildOptions({
-    pursEntryPoint: process.argv[2],
-    outputDir: process.argv[3],
+    entryPoint: process.argv[2],
+    outfile: process.argv[3],
   })
 );
 
 const config = {
-  host: process.argv[5],
-  port: process.argv[6],
+  port: parseInt(process.argv[5]),
   servedir: process.argv[4],
 };
 
