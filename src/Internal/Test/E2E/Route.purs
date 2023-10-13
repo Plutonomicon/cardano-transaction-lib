@@ -1,4 +1,4 @@
-module Ctl.Internal.E2E.Route
+module Ctl.Internal.Test.E2E.Route
   ( E2ETestName
   , E2EConfigName
   , route
