@@ -528,13 +528,12 @@ let
         ln -sfn $NODE_PATH node_modules
         export PATH="${nodeModules}/bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
-        chmod -R +rw .
         cp -r ${builtProject}/* .
         cp -r $src/* .
+        chmod -R +rw .
         echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
-        node ${esbuildBundleScript} ./entrypoint.js dist/index.js
         mkdir $out
-        mv dist/* $out
+        node ${esbuildBundleScript} ./entrypoint.js $out/index.js
       '';
 
   # Bundles a Purescript project using Webpack, typically for the browser
