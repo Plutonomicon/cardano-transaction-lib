@@ -29,7 +29,6 @@ import Ctl.Internal.Types.Natural as Natural
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Array (length, mapMaybe)
 import Data.Bifunctor (lmap)
-import Data.BigInt as BigInt
 import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right, Left), either)
 import Data.Foldable (maximum)
@@ -42,6 +41,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import Effect.Now (now)
+import JS.BigInt as BigInt
 
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> Contract Chain.Tip

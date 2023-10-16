@@ -45,8 +45,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, toString) as BigInt
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Map (empty, insert, isEmpty) as Map
@@ -58,6 +56,8 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, toString) as BigInt
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)

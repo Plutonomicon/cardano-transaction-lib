@@ -20,11 +20,11 @@ import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, fromString) as BigInt
 
 newtype Natural = Natural BigInt
 

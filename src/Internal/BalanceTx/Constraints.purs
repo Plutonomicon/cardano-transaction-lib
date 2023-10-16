@@ -38,7 +38,6 @@ import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton) as Array
-import Data.BigInt (BigInt)
 import Data.Function (applyFlipped)
 import Data.Lens (Lens')
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -49,6 +48,7 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (singleton) as Set
+import JS.BigInt (BigInt)
 import Type.Proxy (Proxy(Proxy))
 
 newtype BalanceTxConstraints = BalanceTxConstraints

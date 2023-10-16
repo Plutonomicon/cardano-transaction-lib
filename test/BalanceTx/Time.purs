@@ -29,9 +29,9 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromInt, toInt) as BigNum
 import Ctl.Internal.Types.Interval (Interval)
-import Data.BigInt (fromString) as BigInt
 import Effect.Aff (Aff)
 import Effect.Exception (error)
+import JS.BigInt (fromString) as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (fail, shouldEqual)

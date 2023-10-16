@@ -11,12 +11,12 @@ import Ctl.Internal.Plutus.Types.Value (Value) as Plutus
 import Ctl.Internal.Plutus.Types.Value as Plutus.Value
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (length, range, zip)
-import Data.BigInt (fromInt)
 import Data.Maybe (fromJust)
 import Data.Traversable (for_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
+import JS.BigInt (fromInt)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (currencySymbol1, tokenName1, tokenName2)

@@ -30,7 +30,6 @@ import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') 
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.BigNum (maxValue, toBigInt) as BigNum
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap, foldl)
 import Data.Lens.Setter ((?~))
@@ -38,6 +37,7 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Ord.Max (Max(Max))
 import Effect.Class (liftEffect)
+import JS.BigInt (BigInt)
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral collateral transaction =

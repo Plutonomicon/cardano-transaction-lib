@@ -44,7 +44,6 @@ import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (cons, foldMap, foldr)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold, foldl)
 import Data.Function (on)
@@ -57,6 +56,7 @@ import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
+import JS.BigInt as BigInt
 
 getUnusedAddresses :: Contract (Array Address)
 getUnusedAddresses = fold <$> do

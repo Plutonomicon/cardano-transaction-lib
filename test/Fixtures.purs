@@ -205,7 +205,6 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -215,6 +214,7 @@ import Data.Set (singleton) as Set
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
+import JS.BigInt as BigInt
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)

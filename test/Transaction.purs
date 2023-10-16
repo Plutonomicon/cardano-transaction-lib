@@ -31,7 +31,6 @@ import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, unwrap)
@@ -40,6 +39,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures.CostModels (costModelsFixture1)

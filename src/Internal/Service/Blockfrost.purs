@@ -211,8 +211,6 @@ import Ctl.Internal.Types.TransactionMetadata
   )
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromString, toNumber) as BigInt
 import Data.BigNumber (BigNumber, toFraction)
 import Data.BigNumber as BigNumber
 import Data.DateTime.Instant (instant, toDateTime)
@@ -241,6 +239,8 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Foreign.Object (Object)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromString, toNumber) as BigInt
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM

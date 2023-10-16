@@ -36,13 +36,13 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap as AssocMap
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (note)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\))
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 nftMetadataLabel :: BigInt
 nftMetadataLabel = BigInt.fromInt 721

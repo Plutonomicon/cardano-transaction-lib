@@ -16,12 +16,12 @@ import Control.Monad.Error.Class (class MonadError)
 import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Cardano.TextEnvelope (TextEnvelope)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
-import Data.BigInt (fromInt)
 import Data.List.Lazy (replicate)
 import Data.Profunctor.Choice (left)
 import Effect.Aff (Error, error, throwError)
 import Foreign.Object (Object)
 import Foreign.Object as Object
+import JS.BigInt (fromInt)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
 

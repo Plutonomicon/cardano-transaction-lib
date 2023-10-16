@@ -7,11 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "e411566cf5e3adf05ea9ae866705886cfba4bfa6";
+        version = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "e411566cf5e3adf05ea9ae866705886cfba4bfa6";
-          sha256 = "01wqbd9pz1pmz1f0z5w4gwaswbdnkr9md7fihg4d91vs690zf792";
+          rev = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82";
+          sha256 = "1brh39w3krjscnpsda5yk171yiq0ykf148bzapl1w21qc4g9ifpr";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -180,18 +180,6 @@ let
           url = "https://github.com/purescript/purescript-bifunctors.git";
           rev = "16ba2fb6dd7f05528ebd9e2f9ca3a068b325e5b3";
           sha256 = "1qz5aaiq5w4g1rhjb63z47h6nqhw8hw23x1zw5alam047pq4vfkg";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "bigints" = pkgs.stdenv.mkDerivation {
-        name = "bigints";
-        version = "v7.0.1";
-        src = pkgs.fetchgit {
-          url = "https://github.com/purescript-contrib/purescript-bigints.git";
-          rev = "e73f55b866e437c7bf04c7d262de7c205c47bbca";
-          sha256 = "0msh5sv6g0k69fi0qv4xi1g89bfwai099f0ycjb8a69mnjq8x21n";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -612,6 +600,18 @@ let
           url = "https://github.com/purescript/purescript-invariant.git";
           rev = "1d2a196d51e90623adb88496c2cfd759c6736894";
           sha256 = "07rqag47ykdiqc5yfbc1a64ijaqliljhcw1vgbv81m7ljzzd2xna";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "js-bigints" = pkgs.stdenv.mkDerivation {
+        name = "js-bigints";
+        version = "36a7d8ac75a7230043ae511f3145f9ed130954a9";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-js-bigints";
+          rev = "36a7d8ac75a7230043ae511f3145f9ed130954a9";
+          sha256 = "0q3j7jl6ga63ygw2hmfigxjq8nbj56p3bn94x7vnhnhq7996bkpd";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

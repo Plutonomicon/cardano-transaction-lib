@@ -23,12 +23,12 @@ import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Data.Array (head)
-import Data.BigInt as BigInt
 import Data.Either (isLeft, isRight)
 import Data.Newtype (wrap)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Test.Ctl.Fixtures (cip25MetadataFixture1)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)

@@ -15,7 +15,7 @@ You can edit this file as you like.
   , "arrays"
   , "avar"
   , "bifunctors"
-  , "bigints"
+  , "js-bigints"
   , "bignumber"
   , "checked-exceptions"
   , "console"

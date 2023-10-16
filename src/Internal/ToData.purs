@@ -35,8 +35,6 @@ import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.ArrayBuffer.Types (Uint8Array)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep as G
@@ -49,6 +47,8 @@ import Data.Symbol (class IsSymbol)
 import Data.TextEncoder (encodeUtf8)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.UInt (UInt)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Noble.Secp256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature

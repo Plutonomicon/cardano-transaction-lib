@@ -33,10 +33,10 @@ import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Lens (view)
 import Effect.Exception (error)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

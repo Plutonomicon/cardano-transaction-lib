@@ -36,11 +36,11 @@ import Contract.Wallet
   )
 import Control.Monad.Reader (asks)
 import Data.Array (head)
-import Data.BigInt as BigInt
 import Data.Map (Map, filter)
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
+import JS.BigInt as BigInt
 
 getLockedInputs
   :: Contract (Map TransactionHash (Set UInt))

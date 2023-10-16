@@ -21,7 +21,7 @@ import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
-import Data.BigInt as BigInt
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

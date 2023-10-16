@@ -41,8 +41,8 @@ import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (fromFoldable) as Array
-import Data.BigInt (fromInt) as BigInt
 import Data.Map (difference, filter, keys) as Map
+import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
 

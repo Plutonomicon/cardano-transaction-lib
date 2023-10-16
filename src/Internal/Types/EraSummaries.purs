@@ -22,11 +22,11 @@ import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Ctl.Internal.Types.Epoch (Epoch)
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------

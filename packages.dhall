@@ -117,7 +117,7 @@ let additions =
           , "argonaut-core"
           , "arrays"
           , "bifunctors"
-          , "bigints"
+          , "js-bigints"
           , "bignumber"
           , "const"
           , "control"
@@ -145,7 +145,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "e411566cf5e3adf05ea9ae866705886cfba4bfa6"
+        , version = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82"
         }
       , bignumber =
         { dependencies =
@@ -248,6 +248,15 @@ let additions =
         , repo =
             "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
         , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
+        }
+      , js-bigints =
+        { dependencies =
+          [ "integers"
+          , "maybe"
+          , "prelude"
+          ]
+        , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
+        , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
         }
       }
 

@@ -40,7 +40,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold)
 import Data.Maybe (isJust, isNothing)
@@ -50,6 +49,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
+import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Test.Ctl.Fixtures
   ( nativeScriptFixture1

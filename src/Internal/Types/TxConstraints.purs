@@ -134,7 +134,6 @@ import Ctl.Internal.Types.Scripts
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
 import Data.Array as Array
-import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, foldMap, foldl, foldr)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -145,6 +144,7 @@ import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt (BigInt)
 import Prim.TypeError (class Warn, Text)
 
 --------------------------------------------------------------------------------

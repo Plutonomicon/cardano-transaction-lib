@@ -19,8 +19,6 @@ import Data.Array.NonEmpty
   , zip
   , zipWith
   ) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, toInt) as BigInt
 import Data.Foldable (any, length, sum)
 import Data.Function (on)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -28,6 +26,8 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Ordering (invert) as Ordering
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, toInt) as BigInt
 import Partial.Unsafe (unsafePartial)
 
 class Partition (a :: Type) where

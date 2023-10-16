@@ -30,8 +30,8 @@ import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
-import Data.BigInt (fromInt) as BigInt
 import Effect.Exception (error)
+import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

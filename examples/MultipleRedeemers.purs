@@ -37,11 +37,11 @@ import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
   ( mintAlwaysMintsV2ToTheScript
   )
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
-import Data.BigInt as BigInt
 import Data.List as List
 import Data.Map as Map
 import Data.Traversable (sequence)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 
 contract :: Contract Unit
 contract = do

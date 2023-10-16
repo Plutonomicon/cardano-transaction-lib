@@ -117,7 +117,7 @@ let additions =
           , "argonaut-core"
           , "arrays"
           , "bifunctors"
-          , "bigints"
+          , "js-bigints"
           , "bignumber"
           , "const"
           , "control"
@@ -145,7 +145,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "e411566cf5e3adf05ea9ae866705886cfba4bfa6"
+        , version = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82"
         }
       , bignumber =
         { dependencies =
@@ -262,7 +262,7 @@ let additions =
           , "arrays"
           , "avar"
           , "bifunctors"
-          , "bigints"
+          , "js-bigints"
           , "bignumber"
           , "checked-exceptions"
           , "console"
@@ -343,6 +343,15 @@ let additions =
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
         , version = "325665b19859bbf3e48e296e9aa717673f5f3d79"
+        }
+      , js-bigints =
+        { dependencies =
+          [ "integers"
+          , "maybe"
+          , "prelude"
+          ]
+        , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
+        , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
         }
       }
 
