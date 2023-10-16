@@ -56,6 +56,9 @@ type QueryHandle =
       NetworkId -> StakePubKeyHash -> AffE (Maybe DelegationsAndRewards)
   , getValidatorHashDelegationsAndRewards ::
       NetworkId -> StakeValidatorHash -> AffE (Maybe DelegationsAndRewards)
+  -- endpoints from ctl-extra
   , utxosWithAssetClass :: CurrencySymbol -> TokenName -> AffE UtxoMap
   , utxosWithCurrencySymbol :: CurrencySymbol -> AffE UtxoMap
+  , utxosInTransaction :: TransactionHash -> AffE UtxoMap
+  , allOutputsWithCurrencySymbol :: CurrencySymbol -> AffE UtxoMap
   }

@@ -9,6 +9,8 @@ module Ctl.Internal.QueryM.Kupo
   , utxosAt
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
+  , utxosInTransaction
+  , allOutputsWithCurrencySymbol
   ) where
 
 import Prelude
@@ -234,6 +236,27 @@ utxosWithCurrencySymbol symbol = runExceptT do
   let
     pattern = encodedCurrencySymbol <> ".*"
     parameters = [ "unspent" ]
+    encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+    endpoint = "/matches/" <> pattern <> "?" <> mconcat parameters
+  kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+  ExceptT $ resolveKupoUtxoMap kupoUtxoMap
+
+utxosInTransaction :: TransactionHash -> QueryM (Either ClientError UtxoMap)
+utxosInTransaction txHash = runExceptT do
+  let
+    pattern = "*@" <> encodedTxHash
+    encodedTxHash = byteArrayToHex $ unwrap txHash
+    endpoint = "/matches/" <> pattern
+  kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
+  ExceptT $ resolveKupoUtxoMap kupoUtxoMap
+
+allOutputsWithCurrencySymbol
+  :: CurrencySymbol -> QueryM (Either ClientError UtxoMap)
+allOutputsWithCurrencySymbol symbol = runExceptT do
+  let
+    pattern = encodedCurrencySymbol <> ".*"
+    -- both spent and unspent outputs will be queried. Note that
+    parameters = []
     encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
     endpoint = "/matches/" <> pattern <> "?" <> mconcat parameters
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint

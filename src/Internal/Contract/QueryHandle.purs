@@ -18,13 +18,15 @@ import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as Qu
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.Kupo
-  ( getDatumByHash
+  ( allOutputsWithCurrencySymbol
+  , getDatumByHash
   , getOutputAddressesByTxHash
   , getScriptByHash
   , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
+  , utxosInTransaction
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
   ) as Kupo
@@ -89,6 +91,9 @@ queryHandleForCtlBackend runQueryM params backend =
   , utxosWithAssetClass: \symbol -> runQueryM' <<< Kupo.utxosWithAssetClass
       symbol
   , utxosWithCurrencySymbol: runQueryM' <<< Kupo.utxosWithCurrencySymbol
+  , utxosInTransaction: runQueryM' <<< Kupo.utxosInTransaction
+  , allOutputsWithCurrencySymbol: runQueryM' <<<
+      Kupo.allOutputsWithCurrencySymbol
   }
 
   where
@@ -133,6 +138,9 @@ queryHandleForBlockfrostBackend logParams backend =
         $ Blockfrost.utxosWithAssetClass symbol name
   , utxosWithCurrencySymbol: runBlockfrostServiceM' <<<
       Blockfrost.utxosWithCurrencySymbol
+  , utxosInTransaction: runBlockfrostServiceM' <<< Blockfrost.utxosInTransaction
+  , allOutputsWithCurrencySymbol: runBlockfrostServiceM' <<<
+      Blockfrost.allOutputsWithCurrencySymbol
   }
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a

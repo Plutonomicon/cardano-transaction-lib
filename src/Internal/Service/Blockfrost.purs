@@ -24,6 +24,7 @@ module Ctl.Internal.Service.Blockfrost
       , AssetAddresses
       , AssetsOfPolicy
       , AssetUtxosAtAddress
+      , AssetTransactions
       )
   , BlockfrostStakeCredential(BlockfrostStakeCredential)
   , BlockfrostEraSummaries(BlockfrostEraSummaries)
@@ -61,6 +62,8 @@ module Ctl.Internal.Service.Blockfrost
   , utxosAt
   , utxosWithAssetClass
   , utxosWithCurrencySymbol
+  , utxosInTransaction
+  , allOutputsWithCurrencySymbol
   ) where
 
 import Prelude
@@ -220,7 +223,7 @@ import Ctl.Internal.Types.Transaction
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   )
-import Data.Array (find, length) as Array
+import Data.Array (find, length, nub) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString, toNumber) as BigInt
@@ -251,6 +254,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Foreign.Object (Object)
+import Safe.Coerce (coerce)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -363,6 +367,8 @@ data BlockfrostEndpoint
   | AssetsOfPolicy CurrencySymbol Int Int
   -- /addresses/{address}/utxos/{asset}?page={page}&count={count}
   | AssetUtxosAtAddress Address CurrencySymbol TokenName Int Int
+  -- /assets/{asset}/transactions
+  | AssetTransactions CurrencySymbol TokenName Int Int
 
 derive instance Generic BlockfrostEndpoint _
 derive instance Eq BlockfrostEndpoint
@@ -437,6 +443,17 @@ realizeEndpoint endpoint =
       in
         "/addresses/" <> encodedAddress <> "/utxos/" <> encodedCurrencySymbol
           <> encodedTokenName
+          <> "?page="
+          <> show page
+          <> ("&count=" <> show count)
+          <> "&order=asc"
+    AssetTransactions symbol name page count ->
+      let
+        encodedCurrencySymbol = byteArrayToHex $ getCurrencySymbol symbol
+        encodedTokenName = byteArrayToHex $ getTokenName name
+      in
+        "/assets/" <> encodedCurrencySymbol <> encodedTokenName
+          <> "/transactions"
           <> "?page="
           <> show page
           <> ("&count=" <> show count)
@@ -605,6 +622,14 @@ getUtxoByOref oref@(TransactionInput { transactionId: txHash }) = runExceptT do
   traverse (ExceptT <<< resolveBlockfrostTxOutput)
     (snd <$> Array.find (eq oref <<< fst) (unwrap blockfrostUtxoMap))
 
+utxosInTransaction
+  :: TransactionHash
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+utxosInTransaction txHash = runExceptT $ do
+  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <- ExceptT $
+    entriesOnPage (\_ _ -> UtxosOfTransaction txHash) 1
+  ExceptT $ resolveBlockfrostUtxosAtAddress (coerce blockfrostUtxoMap)
+
 -- | Specialized function to get addresses only, without resolving script
 -- | references. Used internally.
 getOutputAddressesByTxHash
@@ -684,6 +709,41 @@ utxosWithCurrencySymbol symbol = runExceptT $ do
   where
   assetsOnPage :: Int -> Int -> BlockfrostEndpoint
   assetsOnPage = AssetsOfPolicy symbol
+
+allOutputsWithCurrencySymbol
+  :: CurrencySymbol
+  -> BlockfrostServiceM (Either ClientError UtxoMap)
+allOutputsWithCurrencySymbol symbol = runExceptT $ do
+  assets :: BlockfrostAssetsWithCurrencySymbol <- ExceptT
+    (entriesOnPage assetsOnPage 1)
+  transactions :: BlockfrostAssetTransactions <-
+    map mconcat $ ExceptT $ LoggerT \logger ->
+      let
+        resolve
+          :: (CurrencySymbol /\ TokenName)
+          -> ExceptT ClientError (ReaderT BlockfrostServiceParams Aff)
+               BlockfrostAssetTransactions
+        resolve = ExceptT <<< flip runLoggerT logger <<< uncurry
+          assetTransactions
+      in
+        runExceptT $ parTraverse resolve $ unwrap assets
+  utxos <-
+    traverse
+      (ExceptT <<< utxosInTransaction)
+      $ Array.nub
+      $ unwrap transactions
+  pure $ Map.unions utxos
+  where
+  assetsOnPage :: Int -> Int -> BlockfrostEndpoint
+  assetsOnPage = AssetsOfPolicy symbol
+
+  assetTransactions
+    :: CurrencySymbol
+    -> TokenName
+    -> BlockfrostServiceM (Either ClientError BlockfrostAssetTransactions)
+  assetTransactions _ name = entriesOnPage
+    (AssetTransactions symbol name)
+    1
 
 --------------------------------------------------------------------------------
 -- Get datum by hash
@@ -1095,6 +1155,27 @@ instance DecodeAeson BlockfrostAssetAddresses where
       bech32Address <- getField obj "address"
       note (TypeMismatch "Expected bech32 encoded address")
         (addressFromBech32 bech32Address)
+
+--------------------------------------------------------------------------------
+-- BlockfrostAssetTransactions
+--------------------------------------------------------------------------------
+
+newtype BlockfrostAssetTransactions = BlockfrostAssetTransactions
+  (Array TransactionHash)
+
+derive instance Generic BlockfrostAssetTransactions _
+derive instance Newtype BlockfrostAssetTransactions _
+derive newtype instance Semigroup BlockfrostAssetTransactions
+derive newtype instance Monoid BlockfrostAssetTransactions
+
+instance Show BlockfrostAssetTransactions where
+  show = genericShow
+
+instance DecodeAeson BlockfrostAssetTransactions where
+  decodeAeson = aesonArray (map wrap <<< traverse decodeTransactionEntry)
+    where
+    decodeTransactionEntry :: Aeson -> Either JsonDecodeError TransactionHash
+    decodeTransactionEntry = aesonObject $ \obj -> getField obj "tx_hash"
 
 --------------------------------------------------------------------------------
 -- BlockfrostAssetsWithCurrencySymbol
