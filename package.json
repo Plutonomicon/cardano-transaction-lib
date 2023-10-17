@@ -62,7 +62,6 @@
     "esbuild": "0.18.11",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "esbuild-plugin-wasm": "^1.1.0",
-    "html-webpack-plugin": "5.5.3",
     "node-polyfill-webpack-plugin": "2.0.1",
     "webpack": "5.88.1",
     "webpack-cli": "5.1.4",

@@ -11,7 +11,7 @@ files="
 .tidyrc.json
 LICENSE
 Makefile
-webpack.config.js
+webpack.config.cjs
 package.json
 doc/*.md
 examples/

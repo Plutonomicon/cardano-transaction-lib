@@ -1,32 +1,50 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports
+.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
 nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
 js-sources := $(shell fd --no-ignore-parent -ejs)
-ps-entrypoint := Ctl.Examples.ByUrl # points to one of the example PureScript modules in examples/
+# points to one of the example PureScript modules in examples/
+ps-entrypoint := Ctl.Examples.ByUrl
+ps-entrypoint-function := main
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
+serve-port := 4008
 
-esbuild-bundle:
-	@spago build \
-		&& cp -rf fixtures dist/esbuild \
-		&& BROWSER_RUNTIME=1 node esbuild/bundle.js ${ps-entrypoint}
+spago-build:
+	@spago build
 
-esbuild-serve: esbuild-bundle
-	BROWSER_RUNTIME=1 node esbuild/serve.js ${ps-entrypoint}
+create-bundle-entrypoint:
+	@mkdir -p dist/
+	@echo 'import("../output/${ps-entrypoint}/index.js").then(m => m.${ps-entrypoint-function}());' > ./dist/entrypoint.js
 
-webpack-bundle:
-	@spago build \
-		&& rm -rf dist/webpack/* \
-		&& cp -rf fixtures/* dist/webpack \
-		&& BROWSER_RUNTIME=1 webpack --mode=production --env entry=./output/${ps-entrypoint}/index.js
+create-html-entrypoint:
+	@mkdir -p dist/
+	@cat << EOF > dist/index.html
+	<!DOCTYPE html>
+	<html>
+	  <body><script type="module" src="./index.js"></script></body>
+	</html>
+	EOF
 
-webpack-serve:
-	@spago build \
-		&& BROWSER_RUNTIME=1 webpack-dev-server --progress --env entry=./output/${ps-entrypoint}/index.js
+esbuild-bundle: spago-build create-bundle-entrypoint
+	@mkdir -p dist/
+	@BROWSER_RUNTIME=1 node esbuild/bundle.js ./dist/entrypoint.js dist/index.js
+
+esbuild-serve: spago-build create-bundle-entrypoint create-html-entrypoint
+
+	BROWSER_RUNTIME=1 node esbuild/serve.js ./dist/entrypoint.js dist/index.js dist/ ${serve-port}
+
+webpack-bundle: spago-build create-bundle-entrypoint
+	BROWSER_RUNTIME=1 webpack --mode=production \
+		-o dist/ --env entry=./dist/entrypoint.js
+
+webpack-serve: spago-build create-bundle-entrypoint create-html-entrypoint
+	BROWSER_RUNTIME=1 webpack-dev-server --progress \
+		--port ${serve-port} \
+		-o dist/ --env entry=./dist/entrypoint.js
 
 .ONESHELL:
 check-explicit-exports:
@@ -85,3 +103,4 @@ clean:
 	@ rm -rf .spago2nix || true
 	@ rm -rf node_modules || true
 	@ rm -rf output || true
+	@ rm -rf dist || true

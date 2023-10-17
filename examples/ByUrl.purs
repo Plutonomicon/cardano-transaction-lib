@@ -78,64 +78,67 @@ main = do
   mbApiKey <- getBlockfrostApiKey
   let
     walletsWithBlockfrost =
-      wallets `Map.union` Map.fromFoldable
-        [ "blockfrost-nami-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToNami }
-            /\ Nothing
-        , "blockfrost-gero-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToGero }
-            /\ Nothing
-        , "blockfrost-eternl-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToEternl }
-            /\ Nothing
-        , "blockfrost-lode-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToLode }
-            /\ Nothing
-        , "blockfrost-flint-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToFlint }
-            /\ Nothing
-        , "blockfrost-nufi-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToNuFi }
-            /\ Nothing
-        , "blockfrost-lace-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToLace }
-            /\ Nothing
-        , "blockfrost-nami-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToNami }
-            /\ Nothing
-        , "blockfrost-gero-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToGero }
-            /\ Nothing
-        , "blockfrost-eternl-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToEternl }
-            /\ Nothing
-        , "blockfrost-lode-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToLode }
-            /\ Nothing
-        , "blockfrost-flint-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToFlint }
-            /\ Nothing
-        , "blockfrost-nufi-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToNuFi }
-            /\ Nothing
-        , "blockfrost-lace-preprod"
-            /\ (mkBlockfrostPreprodConfig mbApiKey)
-              { walletSpec = Just ConnectToLace }
-            /\ Nothing
-        ]
+      wallets `Map.union`
+        if isNothing mbApiKey then Map.empty
+        else
+          Map.fromFoldable
+            [ "blockfrost-nami-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToNami }
+                /\ Nothing
+            , "blockfrost-gero-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToGero }
+                /\ Nothing
+            , "blockfrost-eternl-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToEternl }
+                /\ Nothing
+            , "blockfrost-lode-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToLode }
+                /\ Nothing
+            , "blockfrost-flint-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToFlint }
+                /\ Nothing
+            , "blockfrost-nufi-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToNuFi }
+                /\ Nothing
+            , "blockfrost-lace-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToLace }
+                /\ Nothing
+            , "blockfrost-nami-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToNami }
+                /\ Nothing
+            , "blockfrost-gero-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToGero }
+                /\ Nothing
+            , "blockfrost-eternl-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToEternl }
+                /\ Nothing
+            , "blockfrost-lode-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToLode }
+                /\ Nothing
+            , "blockfrost-flint-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToFlint }
+                /\ Nothing
+            , "blockfrost-nufi-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToNuFi }
+                /\ Nothing
+            , "blockfrost-lace-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToLace }
+                /\ Nothing
+            ]
   addLinks walletsWithBlockfrost examples
   route walletsWithBlockfrost examples
 

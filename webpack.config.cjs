@@ -2,7 +2,6 @@
 
 const path = require("path");
 const webpack = require("webpack");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
 module.exports = env => {
@@ -23,6 +22,9 @@ module.exports = env => {
     stats: { errorDetails: true },
 
     devServer: {
+      static: {
+        directory: path.join(__dirname, 'dist'),
+      },
       client: {
         overlay: false
       },
@@ -41,24 +43,11 @@ module.exports = env => {
     entry: env.entry,
 
     output: {
-      path: path.resolve(__dirname, "dist/webpack"),
-      filename: "bundle.js",
+      path: path.resolve(__dirname, "dist"),
+      filename: "index.js",
       library: {
         type: "module",
       }
-    },
-
-    module: {
-      rules: [
-        {
-          test: /\.(png|jpg|gif)$/i,
-          type: "asset",
-        },
-        {
-          test: /\.plutus$/i,
-          type: "asset/source",
-        },
-      ],
     },
 
     resolve: {
@@ -90,11 +79,6 @@ module.exports = env => {
       new NodePolyfillPlugin(),
       new webpack.LoaderOptionsPlugin({
         debug: true,
-      }),
-      new HtmlWebpackPlugin({
-        title: "cardano-transaction-lib-examples",
-        template: "./examples/index.html",
-        inject: false, // See stackoverflow.com/a/38292765/3067181
       }),
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],

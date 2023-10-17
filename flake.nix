@@ -157,9 +157,14 @@
         in
         rec {
           packages = {
-            ctl-example-bundle-web = project.bundlePursProject {
+            ctl-purs-project = project.buildPursProject { };
+
+            ctl-example-bundle-web-esbuild = project.bundlePursProjectEsbuild {
               main = "Ctl.Examples.ByUrl";
-              entrypoint = "examples/index.js";
+            };
+
+            ctl-example-bundle-web-webpack = project.bundlePursProjectWebpack {
+              main = "Ctl.Examples.ByUrl";
             };
 
             ctl-runtime = pkgs.arion.build {
@@ -175,14 +180,13 @@
           checks = {
             ctl-e2e-test = project.runE2ETest {
               name = "ctl-e2e-test";
-              testMain = "Test.Ctl.E2E";
-              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+              runnerMain = "Test.Ctl.E2E";
+              testMain = "Ctl.Examples.ByUrl";
               buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
               testMain = "Test.Ctl.Plutip";
-              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
             };
             ctl-staking-test = project.runPlutipTest {
               name = "ctl-staking-test";
