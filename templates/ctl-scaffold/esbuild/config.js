@@ -1,9 +1,9 @@
 import { wasmLoader } from "esbuild-plugin-wasm";
 import { polyfillNode } from "esbuild-plugin-polyfill-node";
 
-export const buildOptions = {
-  entryPoints: [`output/${process.argv[2]}/index.js`],
-  outdir: "dist/esbuild",
+export const buildOptions = ({ entryPoint, outfile }) => ({
+  entryPoints: [entryPoint],
+  outfile: outfile,
   define: {
     BROWSER_RUNTIME: process.env.BROWSER_RUNTIME,
   },
@@ -23,5 +23,5 @@ export const buildOptions = {
   platform: "browser",
   format: "esm",
   treeShaking: true,
-  logLevel: "warning",
-};
+  logLevel: "error",
+});

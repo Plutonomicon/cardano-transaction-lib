@@ -15,14 +15,7 @@ result-*
 .node
 .node-cfg
 .projectile
-/dist/*
-!/dist/esbuild/
-/dist/esbuild/*
-!/dist/esbuild/index.html
-!/dist/esbuild/wrapper.js
-!/dist/webpack/
-/dist/webpack/*
-!/dist/webpack/.gitkeep
+/dist/
 output.js
 .DS_Store
 .idea/
@@ -34,5 +27,5 @@ test-data/keys
 tmp
 node_modules
 plutip-server/dist-newstyle/
+plutip-server/dist/
 plutip-server/.stack-work/
-
