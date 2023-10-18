@@ -483,8 +483,7 @@ balanceAndLockWithConstraints
   :: UnbalancedTx /\ BalanceTxConstraintsBuilder
   -> Contract FinalizedTransaction
 balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
-  balancedTx <-
-    liftedE $ balanceTxWithConstraintsE unbalancedTx constraints
+  balancedTx <- balanceTxWithConstraints unbalancedTx constraints
   void $ withUsedTxOuts $
     lockTransactionInputs (unwrap balancedTx)
   pure balancedTx
@@ -551,7 +550,7 @@ submitTxFromConstraintsReturningFee
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
   unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTxE unbalancedTx
+  balancedTx <- balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
