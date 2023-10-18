@@ -407,8 +407,7 @@ unUnbalancedTx
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
 -- |
--- | This is a 'non-throwing' variant of this functionality. If you want a
--- | 'throwing' variant, use `balanceTxWithConstraints` instead.
+-- | `balanceTxWithConstraints` is a throwing variant.
 balanceTxWithConstraintsE
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
@@ -419,10 +418,10 @@ balanceTxWithConstraintsE tx =
   in
     BalanceTx.balanceTxWithConstraints tx' ix
 
--- | 'Throwing' variant of `balanceTxWithConstraintsE`.
+-- | Attempts to balance an `UnbalancedTx` using the specified
+-- | balancer constraints.
 -- |
--- | If you want a non-'throwing' variant, use `balanceWithConstraintsE`
--- | instead.
+-- | 'Throwing' variant of `balanceTxWithConstraintsE`.
 balanceTxWithConstraints
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
@@ -433,17 +432,17 @@ balanceTxWithConstraints tx bcb = do
     Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
     Right ftx -> pure ftx
 
--- | Same as `balanceTxWithConstraintsE`, but uses the default balancer
--- | constraints.
+-- | Balance a transaction without providing balancer constraints.
 -- |
--- | This is a 'non-throwing' variant of this functionality.
+-- | `balanceTx` is a throwing variant.
 balanceTxE
   :: UnbalancedTx
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
 balanceTxE = flip balanceTxWithConstraintsE mempty
 
--- | 'Throwing' variant of `balanceTxE`. If you want
--- | a non-'throwing' variant, use `balanceTxE` instead.
+-- | Balance a transaction without providing balancer constraints.
+-- |
+-- | `balanceTxE` is a non-throwing version of this function.
 balanceTx :: UnbalancedTx -> Contract FinalizedTransaction
 balanceTx utx = do
   result <- balanceTxE utx
