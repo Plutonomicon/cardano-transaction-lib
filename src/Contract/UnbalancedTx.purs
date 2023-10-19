@@ -11,7 +11,20 @@ import Prelude
 
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (throwError)
-import Ctl.Internal.Cardano.Types.Value (pprintValue)
+import Ctl.Internal.Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  )
+import Ctl.Internal.Cardano.Types.Value
+  ( getCurrencySymbol
+  , pprintValue
+  )
 import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput(TransactionOutput)
@@ -73,6 +86,11 @@ import Ctl.Internal.ProcessConstraints.Error
   ) as X
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx)) as X
+import Ctl.Internal.Serialization.Address (addressBech32)
+import Ctl.Internal.Serialization.Hash
+  ( ed25519KeyHashToBytes
+  , scriptHashToBytes
+  )
 import Ctl.Internal.Transaction (explainModifyTxError)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Interval (explainPosixTimeToSlotError)
@@ -80,8 +98,15 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Ctl.Internal.Types.PlutusData (pprintPlutusData)
+import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups
+  )
+import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript))
+import Ctl.Internal.Types.TokenName (TokenName, fromTokenName)
+import Ctl.Internal.Types.Transaction
+  ( DataHash(DataHash)
+  , TransactionInput(TransactionInput)
   )
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Data.Either (Either(Left, Right))
@@ -89,6 +114,8 @@ import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Log.Tag as TagSet
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
+import Data.String as String
+import Data.Tuple.Nested ((/\))
 import Effect.Exception (error)
 
 -- | Create an `UnbalancedTx` given `ScriptLookups` and
@@ -114,9 +141,9 @@ mkUnbalancedTx lookups constraints =
 explainMkUnbalancedTxError :: MkUnbalancedTxError -> String
 explainMkUnbalancedTxError = case _ of
   CannotFindDatum -> "Cannot find datum"
-  CannotQueryDatum dh ->
+  CannotQueryDatum (DataHash dh) ->
     "Querying for datum by datum hash ("
-      <> show dh
+      <> byteArrayToHex dh
       <>
         ") failed: no datum found"
   CannotConvertPOSIXTimeRange tr ttsErr ->
@@ -133,46 +160,57 @@ explainMkUnbalancedTxError = case _ of
       <> "Please report this as a bug here: "
       <> bugTrackerLink
   CannotGetValidatorHashFromAddress addr ->
-    "Cannot get a payment validator hash from address " <> show addr
+    "Cannot get a payment validator hash from address " <>
+      addressBech32 addr
   CannotMakeValue _ tn _ ->
     "Attempted to make an amount with the ADA currency symbol, and non-empty token name "
-      <> show tn
+      <> prettyTokenName tn
       <>
         ". This is not allowed, as the ADA currency symbol can only be combined with the empty token name."
   CannotWithdrawRewardsPubKey spkh ->
-    "Cannot withdraw rewards, as pubkey " <> show spkh <> " is not registered"
+    "Cannot withdraw rewards, as pubkey "
+      <> rawBytesToHex (ed25519KeyHashToBytes $ unwrap $ unwrap spkh)
+      <>
+        " is not registered"
   CannotWithdrawRewardsPlutusScript pssv ->
-    "Cannot withdraw rewards from Plutus staking script " <> show pssv
+    "Cannot withdraw rewards from Plutus staking script " <>
+      prettyPlutusScript (unwrap pssv)
   CannotWithdrawRewardsNativeScript nssv ->
-    "Cannot withdraw rewards from native staking script " <> show nssv
-  DatumNotFound hash -> "Datum with hash " <> show hash <> " not found."
-  DatumWrongHash hash datum -> "Datum " <> show datum
+    "Cannot withdraw rewards from native staking script " <>
+      prettyNativeScript 0 (unwrap nssv)
+  DatumNotFound (DataHash hash) -> "Datum with hash " <> byteArrayToHex hash <>
+    " not found."
+  DatumWrongHash (DataHash dh) datum -> "Datum "
+    <> show datum
     <> " does not have the hash "
-    <> show hash
+    <> byteArrayToHex dh
   MintingPolicyHashNotCurrencySymbol mph ->
-    "Minting policy hash " <> show mph <>
-      " is not a CurrencySymbol. Please check the validity of the byte representation."
-  MintingPolicyNotFound mp -> "Minting policy "
-    <> show mp
+    "Minting policy hash "
+      <> rawBytesToHex (scriptHashToBytes $ unwrap mph)
+      <>
+        " is not a CurrencySymbol. Please check the validity of the byte representation."
+  MintingPolicyNotFound mp -> "Minting policy with hash "
+    <> rawBytesToHex (scriptHashToBytes $ unwrap mp)
     <> " not found in a set of minting policies"
   ModifyTx modifyTxErr -> explainModifyTxError modifyTxErr
   OwnPubKeyAndStakeKeyMissing ->
     "Could not build own address: both payment pubkey and stake pubkey are missing"
   TxOutRefNotFound ti ->
-    "Could not find a reference input ("
-      <> show ti
-      <>
-        "). It maybe have been consumed, or was never created."
+    "Could not find a reference input:\n"
+      <> prettyTxIn ti
+      <> "\nIt maybe have been consumed, or was never created."
   TxOutRefWrongType ti ->
-    "Transaction output is missing an expected datum: "
-      <> show ti
-      <>
-        "\nContext: we were trying to spend a script output."
-  ValidatorHashNotFound vh -> "Cannot find validator hash: " <> show vh
-  WrongRefScriptHash msh tout ->
-    "Output is missing a reference script hash: "
-      <> show msh
-      <> "\nOutput: "
+    "Transaction output is missing an expected datum:\n"
+      <> prettyTxIn ti
+      <> "\nContext: we were trying to spend a script output."
+  ValidatorHashNotFound vh -> "Cannot find validator hash: " <>
+    rawBytesToHex (scriptHashToBytes $ unwrap vh)
+  WrongRefScriptHash msh tout -> case msh of
+    Nothing -> "Output is missing a reference script hash.\nOutput:\n" <>
+      prettyOutput tout
+    Just missingHash -> "Output is missing reference script hash "
+      <> rawBytesToHex (scriptHashToBytes missingHash)
+      <> ".\nOutput:\n"
       <>
         prettyOutput tout
   CannotSatisfyAny -> "One of the following happened:\n"
@@ -180,10 +218,16 @@ explainMkUnbalancedTxError = case _ of
     <>
       "2. All alternatives of a 'mustSatisfyAnyOf' have failed."
   ExpectedPlutusScriptGotNativeScript mph ->
-    "Expected a Plutus script, but " <> show mph <> "is a native script."
-  CannotMintZero cs tn -> "Cannot mint zero of token " <> show tn
-    <> " of currency "
-    <> show cs
+    "Expected a Plutus script, but "
+      <> rawBytesToHex (scriptHashToBytes $ unwrap mph)
+      <>
+        " is a native script."
+  CannotMintZero cs tn ->
+    "Cannot mint zero of token "
+      <> prettyTokenName tn
+      <> " of currency "
+      <>
+        byteArrayToHex (getCurrencySymbol cs)
   where
   prettyOutput :: TransactionOutput -> String
   prettyOutput (TransactionOutput { address, amount, datum, referenceScript }) =
@@ -222,6 +266,46 @@ explainMkUnbalancedTxError = case _ of
           TagSet.TagSetTag ts -> foldMapWithIndex prettyEntry ts
       )
     <> "\n"
+
+  prettyTokenName :: TokenName -> String
+  prettyTokenName = fromTokenName byteArrayToHex identity
+
+  prettyPlutusScript :: PlutusScript -> String
+  prettyPlutusScript (PlutusScript (code /\ lang)) =
+    show lang <> ": " <> byteArrayToHex code
+
+  prettyTxIn :: TransactionInput -> String
+  prettyTxIn (TransactionInput ti) =
+    "Id: "
+      <> byteArrayToHex (unwrap ti.transactionId)
+      <> "\nIndex: "
+      <>
+        show ti.index
+
+  prettyNativeScript :: Int -> NativeScript -> String
+  prettyNativeScript indent script =
+    let
+      newIndent = indent + 1
+    in
+      case script of
+        ScriptPubkey kh -> rawBytesToHex $ ed25519KeyHashToBytes kh
+        ScriptAll scripts -> "All of:\n" <>
+          joinWithIndentNewline newIndent scripts
+        ScriptAny scripts -> "At least one of:\n" <>
+          joinWithIndentNewline newIndent scripts
+        ScriptNOfK n scripts -> "At least " <> show n <> " of:\n" <>
+          joinWithIndentNewline newIndent scripts
+        TimelockStart slot -> "Timelock start for slot " <> show (unwrap slot)
+        TimelockExpiry slot -> "Timelock expiry for slot " <> show (unwrap slot)
+
+  joinWithIndentNewline :: Int -> Array NativeScript -> String
+  joinWithIndentNewline indent = map (prettyNativeScript indent) >>>
+    String.joinWith ("\n" <> spaces (2 * indent))
+
+  spaces :: Int -> String
+  spaces n
+    | n <= 0 = ""
+    | otherwise = " " <> spaces (n - 1)
 
 -- Helpers
 
