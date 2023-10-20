@@ -124,7 +124,7 @@ CTL is being developed by MLabs. The following companies/funds have contributed 
 - [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)
 - [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791)
 - [Catalyst Fund10](https://cardano.ideascale.com/c/idea/101478)
-- [MLabs](https://mlabs.city/)
+- [MLabs](https://www.mlabs.city/)
 - [Indigo Protocol](https://indigoprotocol.io/)
 - [Equine](https://www.equine.gg/)
 - [Liqwid Labs](https://liqwid.finance/)
