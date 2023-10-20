@@ -8,7 +8,6 @@ import Contract.Monad
   ( Contract
   , launchAff_
   , liftContractM
-  , liftedE
   , liftedM
   , runContract
   )
@@ -31,6 +30,7 @@ import Contract.Transaction
   , submit
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (lovelaceValueOf) as Value
 import Contract.Wallet
   ( getWalletUtxos
@@ -76,7 +76,7 @@ contract = do
     lookups = mempty
 
   void $ runChecks checks $ lift do
-    unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    unbalancedTx <- mkUnbalancedTx lookups constraints
     balancedSignedTx <- signTransaction =<< balanceTx unbalancedTx
     txHash <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txHash

@@ -13,7 +13,7 @@ import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM)
+import Contract.Monad (Contract, liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
@@ -63,6 +63,7 @@ import Contract.TxConstraints
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
   )
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (lovelaceValueOf)
 import Contract.Wallet
   ( ownPaymentPubKeyHashes
@@ -157,7 +158,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Deregister stake key
@@ -170,7 +171,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
       test "PlutusScript" do
@@ -205,7 +206,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Deregister stake key
@@ -222,7 +223,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
       test "NativeScript" do
@@ -255,7 +256,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Deregister stake key
@@ -268,7 +269,7 @@ suite = do
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
     test "Pool registration & retirement" do
@@ -293,7 +294,7 @@ suite = do
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          ubTx <- mkUnbalancedTx lookups constraints
           balanceTx ubTx >>= signTransaction >>= submitAndLog
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
@@ -342,7 +343,7 @@ suite = do
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          ubTx <- mkUnbalancedTx lookups constraints
           balanceTx ubTx >>= signTransaction >>= submitAndLog
 
         -- List pools: the pool must appear in the list
@@ -369,7 +370,7 @@ suite = do
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          ubTx <- mkUnbalancedTx lookups constraints
           balanceTx ubTx >>= signTransaction >>= submitAndLog
 
         let
@@ -422,7 +423,7 @@ suite = do
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Register stake script
@@ -434,7 +435,7 @@ suite = do
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Select a pool
@@ -450,7 +451,7 @@ suite = do
                 lookups =
                   Lookups.ownPaymentPubKeyHash alicePkh <>
                     Lookups.ownStakePubKeyHash aliceStakePkh
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Wait until rewards
@@ -480,7 +481,7 @@ suite = do
                 lookups =
                   Lookups.ownPaymentPubKeyHash alicePkh <>
                     Lookups.ownStakePubKeyHash aliceStakePkh
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Check rewards.
@@ -537,7 +538,7 @@ suite = do
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Alice registers stake script (again, no need to validate it)
@@ -549,7 +550,7 @@ suite = do
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
 
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Bob performs operations with the stake script that require his
@@ -569,7 +570,7 @@ suite = do
                 lookups =
                   Lookups.ownPaymentPubKeyHash bobPkh <>
                     Lookups.ownStakePubKeyHash bobStakePkh
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Wait until rewards
@@ -599,7 +600,7 @@ suite = do
                 lookups =
                   Lookups.ownPaymentPubKeyHash bobPkh <>
                     Lookups.ownStakePubKeyHash bobStakePkh
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+              ubTx <- mkUnbalancedTx lookups constraints
               balanceTx ubTx >>= signTransaction >>= submitAndLog
 
             -- Check rewards.
@@ -635,7 +636,7 @@ suite = do
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Select a pool ID
@@ -651,7 +652,7 @@ suite = do
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Wait until rewards
@@ -684,7 +685,7 @@ suite = do
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Check rewards.

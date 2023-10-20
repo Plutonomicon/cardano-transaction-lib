@@ -108,6 +108,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - UTxO lists and combined input/output/mint/fee values are now being pretty-printed instead of logged using `Show` instance (in the balancer) ([#1531](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1531))
 - `mkUnbalancedTx`, `balanceTx` and `balanceTxWithConstraints` now throw instead
   of returning in `Either` ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
+- `mkUnbalancedTx` isn't exported from `Contract.ScriptLookups` anymore; get it
+  from `Contract.UnbalancedTx` instead.
+  ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545))
 
 ### Fixed
 

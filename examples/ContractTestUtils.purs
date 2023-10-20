@@ -23,7 +23,7 @@ import Contract.AuxiliaryData (setTxMetadata)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
 import Contract.Metadata (Cip25Metadata)
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
+import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (MintingPolicy)
@@ -54,6 +54,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (DatumPresence(DatumWitness))
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
@@ -159,7 +160,7 @@ mkContract p = do
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy p.mintingPolicy
 
-  unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx <- mkUnbalancedTx lookups constraints
   unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
   balancedTx <- balanceTx unbalancedTxWithMetadata
   balancedSignedTx <- signTransaction balancedTx

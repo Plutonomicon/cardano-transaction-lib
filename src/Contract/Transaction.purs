@@ -41,12 +41,11 @@ import Contract.Metadata (GeneralTransactionMetadata)
 import Contract.Monad
   ( Contract
   , liftContractM
-  , liftedE
   , liftedM
   , runContractInEnv
   )
-import Contract.ScriptLookups (mkUnbalancedTx)
 import Contract.TxConstraints (TxConstraints)
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
@@ -549,7 +548,7 @@ submitTxFromConstraintsReturningFee
   -> TxConstraints
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
-  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
+  unbalancedTx <- mkUnbalancedTx lookups constraints
   balancedTx <- balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
