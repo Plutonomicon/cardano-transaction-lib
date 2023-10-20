@@ -52,7 +52,7 @@ mkJsonRpc2Request service method = do
     $ Record.merge { id }
     $ Record.merge service method
 
--- | Structure of all json wsp websocket responses
+-- | Structure of all json rpc websocket responses
 -- described in: https://ogmios.dev/getting-started/basics/
 type JsonRpc2Response (a :: Type) =
   { jsonrpc :: String
@@ -68,7 +68,7 @@ newtype JsonRpc2Call :: Type -> Type -> Type
 newtype JsonRpc2Call (i :: Type) (o :: Type) = JsonRpc2Call
   (i -> Effect { body :: Aeson, id :: String })
 
--- | Creates a "jsonwsp call" which ties together request input and response output types
+-- | Creates a "jsonrpc call" which ties together request input and response output types
 -- | along with a way to create a request object.
 mkCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)

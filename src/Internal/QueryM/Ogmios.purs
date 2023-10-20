@@ -14,11 +14,12 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosBlockHeaderHash(OgmiosBlockHeaderHash)
   , OgmiosTxOut
   , OgmiosTxOutRef
+  , OgmiosProtocolParameters(OgmiosProtocolParameters)
   , PParamRational(PParamRational)
   , PoolParameters
   , PoolParametersR(PoolParametersR)
-  , OgmiosProtocolParameters(OgmiosProtocolParameters)
   , RedeemerPointer
+  , ReleasedMempool(ReleasedMempool)
   , ScriptFailure
       ( ExtraRedeemers
       , MissingRequiredDatums
@@ -71,72 +72,14 @@ module Ctl.Internal.QueryM.Ogmios
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch, MissingValue, AtKey)
-  , caseAesonArray
-  , caseAesonObject
-  , caseAesonString
-  , decodeAeson
-  , encodeAeson
-  , fromArray
-  , getField
-  , getFieldOptional
-  , getFieldOptional'
-  , isNull
-  , isString
-  , stringifyAeson
-  , toString
-  , (.:)
-  , (.:?)
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(TypeMismatch, MissingValue, AtKey, UnexpectedValue), caseAesonArray, caseAesonObject, caseAesonString, decodeAeson, encodeAeson, fromArray, getField, getFieldOptional, getFieldOptional', isNull, isString, stringifyAeson, toString, (.:), (.:?))
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
-import Ctl.Internal.Cardano.Types.NativeScript
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  )
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , ExUnitPrices
-  , ExUnits
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , PoolPubKeyHash
-  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
-  , SubCoin
-  , URL(URL)
-  , UnitInterval
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , NonAdaAsset
-  , Value
-  , flattenNonAdaValue
-  , getCurrencySymbol
-  , getLovelace
-  , getNonAdaAsset
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkValue
-  , valueToCoin
-  )
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry))
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
+import Ctl.Internal.Cardano.Types.Transaction (CostModel(CostModel), Costmdls(Costmdls), ExUnitPrices, ExUnits, Ipv4(Ipv4), Ipv6(Ipv6), PoolMetadata(PoolMetadata), PoolMetadataHash(PoolMetadataHash), PoolPubKeyHash, Relay(MultiHostName, SingleHostAddr, SingleHostName), SubCoin, URL(URL), UnitInterval)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), CurrencySymbol, NonAdaAsset, Value, flattenNonAdaValue, getCurrencySymbol, getLovelace, getNonAdaAsset, mkCurrencySymbol, mkNonAdaAsset, mkValue, valueToCoin)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call, JsonRpc2Request, mkCallType)
@@ -144,46 +87,24 @@ import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , hexToByteArray
-  )
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , EraSummaryParameters(EraSummaryParameters)
-  )
+import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters))
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.ProtocolParameters
-  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
-  , CostModelV1
-  , CostModelV2
-  , ProtocolParameters(ProtocolParameters)
-  , convertPlutusV1CostModel
-  , convertPlutusV2CostModel
-  )
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte), CostModelV1, CostModelV2, ProtocolParameters(ProtocolParameters), convertPlutusV1CostModel, convertPlutusV2CostModel)
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , PlutusScript(PlutusScript)
-  )
-import Ctl.Internal.Types.SystemStart
-  ( SystemStart
-  , sysStartFromOgmiosTimestamp
-  , sysStartToOgmiosTimestamp
-  )
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
+import Ctl.Internal.Types.SystemStart (SystemStart, sysStartFromOgmiosTimestamp, sysStartToOgmiosTimestamp)
 import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
+import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (catMaybes, index)
 import Data.Array (head, length, replicate) as Array
 import Data.Bifunctor (lmap)
@@ -198,14 +119,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String
-  ( Pattern(Pattern)
-  , Replacement(Replacement)
-  , indexOf
-  , split
-  , splitAt
-  , uncons
-  )
+import Data.String (Pattern(Pattern), Replacement(Replacement), indexOf, split, splitAt, uncons)
 import Data.String (replaceAll) as String
 import Data.String.Common (split) as String
 import Data.String.Utils as StringUtils
@@ -278,9 +192,9 @@ type OgmiosAddress = String
 submitTxCall :: JsonRpc2Call (TxHash /\ CborBytes) SubmitTxR
 submitTxCall = mkOgmiosCallType
   { method: "submitTransaction"
-  , params: \(_ /\ cbor) -> 
-    { transaction:  { cbor: cborBytesToHex cbor }
-    }
+  , params: \(_ /\ cbor) ->
+      { transaction: { cbor: cborBytesToHex cbor }
+      }
   }
 
 -- | Evaluates the execution units of scripts present in a given transaction,
@@ -289,7 +203,7 @@ evaluateTxCall :: JsonRpc2Call (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
   { method: "evaluateTransaction"
   , params: \(cbor /\ utxoqr) ->
-      { transaction:  { cbor: cborBytesToHex cbor }
+      { transaction: { cbor: cborBytesToHex cbor }
       , additionalUtxo: utxoqr
       }
   }
@@ -306,7 +220,7 @@ acquireMempoolSnapshotCall =
 mempoolSnapshotHasTxCall
   :: MempoolSnapshotAcquired -> JsonRpc2Call TxHash Boolean
 mempoolSnapshotHasTxCall _ = mkOgmiosCallType
-  { method: "hasTransacation"
+  { method: "hasTransaction"
   , params: { id: _ }
   }
 
@@ -323,7 +237,7 @@ mempoolSnpashotSizeAndCapacityCall _ =
   mkOgmiosCallTypeNoArgs "sizeOfMempool"
 
 releaseMempoolCall
-  :: MempoolSnapshotAcquired -> JsonRpc2Call Unit String
+  :: MempoolSnapshotAcquired -> JsonRpc2Call Unit ReleasedMempool
 releaseMempoolCall _ =
   mkOgmiosCallTypeNoArgs "releaseMempool"
 
@@ -338,8 +252,8 @@ instance Show MempoolSnapshotAcquired where
 
 instance DecodeAeson MempoolSnapshotAcquired where
   decodeAeson =
-    map AwaitAcquired <<< aesonObject
-      (flip getField "AwaitAcquired" >=> flip getField "slot")
+    -- todo: ignoring "acquired": "mempool"
+    map AwaitAcquired <<< aesonObject (flip getField "slot")
 
 -- | The acquired snapshot’s size (in bytes), number of transactions, and capacity
 -- | (in bytes).
@@ -377,8 +291,24 @@ instance Show MempoolTransaction where
 instance DecodeAeson MempoolTransaction where
   decodeAeson = aesonObject \o -> do
     id <- o .: "id"
-    raw <- o .: "raw"
+    raw <- o .: "cbor"
     pure $ MempoolTransaction { id, raw }
+
+data ReleasedMempool = ReleasedMempool
+
+derive instance Generic ReleasedMempool _
+
+instance Show ReleasedMempool where
+  show = genericShow
+
+instance DecodeAeson ReleasedMempool where
+  decodeAeson = aesonObject \o -> do
+    released <- o .: "released"
+    flip aesonString released $ \s ->
+      if s == "mempool" then
+        pure $ ReleasedMempool
+      else
+        Left (UnexpectedValue $ encodeString s)
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -479,8 +409,10 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- wrap <$> ((*) slotLengthFactor <$> 
-          (flip getField "seconds" =<< getField o "slotLength"))
+      slotLength <- wrap <$>
+        ( (*) slotLengthFactor <$>
+            (flip getField "seconds" =<< getField o "slotLength")
+        )
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -700,7 +632,8 @@ instance DecodeAeson TxEvaluationResult where
     TxEvaluationResult <<< Map.fromFoldable <$>
       traverse decodeRdmrPtrExUnitsItem array
     where
-    decodeRdmrPtrExUnitsItem :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
+    decodeRdmrPtrExUnitsItem
+      :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem elem = do
       (redeemerPtrRaw /\ exUnitsAeson) :: String /\ Aeson <- decodeAeson elem
       redeemerPtr <- decodeRedeemerPointer redeemerPtrRaw

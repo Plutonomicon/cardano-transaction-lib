@@ -42,7 +42,6 @@
         nixpkgs.follows = "nixpkgs";
         iohk-nix.follows = "iohk-nix";
         haskell-nix.follows = "haskell-nix";
-        hackage-nix.follows = "hackage-nix";
         cardano-node.follows = "cardano-node";
         ogmios-src.follows = "ogmios";
       };
