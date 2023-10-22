@@ -158,9 +158,7 @@ suite = group "Ogmios Aeson tests" do
             "eraSummaries" -> handle (Proxy :: _ O.OgmiosEraSummaries)
             "currentProtocolParameters" -> handle
               (Proxy :: _ O.OgmiosProtocolParameters)
-            "poolIds" -> handle
-              (Proxy :: _ O.PoolIdsR)
-            "poolParameters" -> handle
+            "stakePools" -> handle
               (Proxy :: _ O.PoolParametersR)
             "delegationsAndRewards" -> handle
               (Proxy :: _ O.DelegationsAndRewardsR)
