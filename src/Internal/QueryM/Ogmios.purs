@@ -44,8 +44,6 @@ module Ctl.Internal.QueryM.Ogmios
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
-  , UtxoQR(UtxoQR)
-  , UtxoQueryResult
   , acquireMempoolSnapshotCall
   , aesonArray
   , aesonObject
@@ -84,12 +82,8 @@ import Aeson
   , fromArray
   , fromString
   , getField
-  , getFieldOptional
-  , getFieldOptional'
   , isNull
-  , isString
   , stringifyAeson
-  , toString
   , (.:)
   , (.:?)
   )
@@ -126,16 +120,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
-  , CurrencySymbol
-  , NonAdaAsset
   , Value
-  , flattenNonAdaValue
   , getCurrencySymbol
   , getLovelace
   , getNonAdaAsset
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkValue
   , unwrapNonAdaAsset
   , valueToCoin
   )
@@ -143,7 +131,7 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call, JsonRpc2Request, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
 import Ctl.Internal.Types.ByteArray
@@ -180,11 +168,11 @@ import Ctl.Internal.Types.SystemStart
   , sysStartFromOgmiosTimestamp
   , sysStartToOgmiosTimestamp
   )
-import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
+import Ctl.Internal.Types.TokenName (getTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders (encodeString)
-import Data.Array (catMaybes, index)
-import Data.Array (head, length, replicate) as Array
+import Data.Array (catMaybes)
+import Data.Array (length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -194,30 +182,21 @@ import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String
-  ( Pattern(Pattern)
-  , Replacement(Replacement)
-  , indexOf
-  , split
-  , splitAt
-  , uncons
-  )
+import Data.String (Pattern(Pattern), Replacement(Replacement), split)
 import Data.String (replaceAll) as String
 import Data.String.Common (split) as String
 import Data.String.Utils as StringUtils
-import Data.Traversable (for, sequence, traverse)
-import Data.Tuple (Tuple(Tuple), uncurry)
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object (singleton, toUnfoldable) as ForeignObject
+import Foreign.Object (toUnfoldable) as ForeignObject
 import Foreign.Object as Object
-import Partial.Unsafe (unsafePartial)
-import Record.Builder (build, merge)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
@@ -1082,6 +1061,20 @@ derive instance Newtype AdditionalUtxoSet _
 
 derive newtype instance Show AdditionalUtxoSet
 
+-- Ogmios tx input
+type OgmiosTxOutRef =
+  { txId :: String
+  , index :: UInt.UInt
+  }
+
+type OgmiosTxOut =
+  { address :: OgmiosAddress
+  , value :: Value
+  , datumHash :: Maybe String
+  , datum :: Maybe String
+  , script :: Maybe ScriptRef
+  }
+
 type OgmiosUtxoMap = Map OgmiosTxOutRef OgmiosTxOut
 
 instance EncodeAeson AdditionalUtxoSet where
@@ -1150,51 +1143,6 @@ instance EncodeAeson AdditionalUtxoSet where
         (\m' (k /\ v) -> Map.insert (f k) v m')
         Map.empty
 
----------------- UTXO QUERY RESPONSE & PARSING
-
--- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
--- 
--- the outer result type for Utxo queries, newtyped so that it can have
--- appropriate instances to work with `parseJsonRpc2Response`
--- | Ogmios response for Utxo Query
-newtype UtxoQR = UtxoQR UtxoQueryResult
-
-derive instance Newtype UtxoQR _
-derive newtype instance Show UtxoQR
-
-instance DecodeAeson UtxoQR where
-  decodeAeson = map UtxoQR <<< parseUtxoQueryResult
-
--- the inner type for Utxo Queries
-type UtxoQueryResult = Map.Map OgmiosTxOutRef OgmiosTxOut
-
--- Ogmios tx input
-type OgmiosTxOutRef =
-  { txId :: String
-  , index :: UInt.UInt
-  }
-
--- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
-parseUtxoQueryResult :: Aeson -> Either JsonDecodeError UtxoQueryResult
-parseUtxoQueryResult = aesonArray $ foldl insertFunc (Right Map.empty)
-  where
-  insertFunc
-    :: Either JsonDecodeError UtxoQueryResult
-    -> Aeson
-    -> Either JsonDecodeError UtxoQueryResult
-  insertFunc acc = aesonArray inner
-    where
-    inner :: Array Aeson -> Either JsonDecodeError UtxoQueryResult
-    inner innerArray = do
-      txOutRefJson <-
-        note (TypeMismatch "missing 0th element, expected an OgmiosTxOutRef") $
-          index innerArray 0
-      txOutJson <- note (TypeMismatch "missing 1st element, expected a TxOut") $
-        index innerArray 1
-      txOutRef <- parseTxOutRef txOutRefJson
-      txOut <- parseTxOut txOutJson
-      Map.insert txOutRef txOut <$> acc
-
 -- helper for assuming we get an object
 aesonObject
   :: forall (a :: Type)
@@ -1218,159 +1166,3 @@ aesonString
   -> Aeson
   -> Either JsonDecodeError a
 aesonString = caseAesonString (Left (TypeMismatch "Expected String"))
-
--- parser for txOutRef
-parseTxOutRef :: Aeson -> Either JsonDecodeError OgmiosTxOutRef
-parseTxOutRef = aesonObject $ \o -> do
-  txId <- getField o "txId"
-  index <- getField o "index"
-  pure { txId, index }
-
-type OgmiosTxOut =
-  { address :: OgmiosAddress
-  , value :: Value
-  , datumHash :: Maybe String
-  , datum :: Maybe String
-  , script :: Maybe ScriptRef
-  }
-
--- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
--- 
--- Ogmios currently supplies the Raw OgmiosAddress in addr1 format, rather than the
--- cardano-serialization-lib 'OgmiosAddress' type,  perhaps this information can be
--- extracted.
-parseTxOut :: Aeson -> Either JsonDecodeError OgmiosTxOut
-parseTxOut = aesonObject $ \o -> do
-  address <- getField o "address"
-  value <- parseValue o
-  datumHash <- getFieldOptional' o "datumHash"
-  datum <- getFieldOptional' o "datum"
-  script <- getFieldOptional' o "script" >>= case _ of
-    Nothing -> pure Nothing
-    Just script -> Just <$> parseScript script
-  pure { address, value, datumHash, datum, script }
-
--- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
--- 
-parseScript :: Object Aeson -> Either JsonDecodeError ScriptRef
-parseScript script =
-  case Array.head $ ForeignObject.toUnfoldable script of
-    Just ("plutus:v1" /\ plutusScript) ->
-      parsePlutusScriptWithLang PlutusV1 plutusScript
-
-    Just ("plutus:v2" /\ plutusScript) ->
-      parsePlutusScriptWithLang PlutusV2 plutusScript
-
-    Just ("native" /\ nativeScript) ->
-      NativeScriptRef <$> parseNativeScript nativeScript
-
-    _ ->
-      Left $ TypeMismatch $
-        "Expected native or Plutus script, got: " <> show script
-  where
-  parsePlutusScriptWithLang
-    :: Language -> Aeson -> Either JsonDecodeError ScriptRef
-  parsePlutusScriptWithLang lang aeson = do
-    let
-      scriptTypeMismatch :: JsonDecodeError
-      scriptTypeMismatch = TypeMismatch
-        $ "Expected hex-encoded Plutus script, got: " <> show aeson
-
-    aeson # caseAesonString (Left scriptTypeMismatch)
-      \hexEncodedScript -> do
-        scriptBytes <- note scriptTypeMismatch (hexToByteArray hexEncodedScript)
-        pure $ PlutusScriptRef $ PlutusScript (scriptBytes /\ lang)
-
-  parseNativeScript :: Aeson -> Either JsonDecodeError NativeScript
-  parseNativeScript aeson
-    | isString aeson = do
-        let
-          pubKeyHashTypeMismatch :: JsonDecodeError
-          pubKeyHashTypeMismatch = TypeMismatch
-            $ "Expected hex-encoded pub key hash, got: " <> show aeson
-
-          pubKeyHashHex :: String
-          pubKeyHashHex = unsafePartial fromJust $ toString aeson
-
-        ScriptPubkey <$> note pubKeyHashTypeMismatch
-          (ed25519KeyHashFromBytes =<< hexToByteArray pubKeyHashHex)
-
-    | otherwise = aeson # aesonObject \obj -> do
-        let
-          scriptTypeMismatch :: JsonDecodeError
-          scriptTypeMismatch = TypeMismatch
-            $ "Expected native script, got: " <> show aeson
-
-        case (Array.head $ ForeignObject.toUnfoldable obj) of
-          Just ("any" /\ scripts) ->
-            scripts # aesonArray (map ScriptAny <<< traverse parseNativeScript)
-
-          Just ("all" /\ scripts) ->
-            scripts # aesonArray (map ScriptAll <<< traverse parseNativeScript)
-
-          Just ("expiresAt" /\ slot) ->
-            TimelockExpiry <$> decodeAeson slot
-
-          Just ("startsAt" /\ slot) ->
-            TimelockStart <$> decodeAeson slot
-
-          Just (atLeast /\ scripts) -> do
-            n <- note scriptTypeMismatch (Int.fromString atLeast)
-            scripts # aesonArray
-              (map (ScriptNOfK n) <<< traverse parseNativeScript)
-
-          _ -> Left scriptTypeMismatch
-
--- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
--- 
--- parses the `Value` type
-parseValue :: Object Aeson -> Either JsonDecodeError Value
-parseValue outer = do
-  o <- getField outer "value"
-  coins <- getField o "coins"
-    <|> Left (TypeMismatch "Expected 'coins' to be an Int or a BigInt")
-  Assets assetsMap <- fromMaybe (Assets Map.empty)
-    <$> getFieldOptional o "assets"
-  pure $ mkValue (wrap coins) (mkNonAdaAsset assetsMap)
-
-newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
-
--- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
--- 
-instance DecodeAeson Assets where
-  decodeAeson j = do
-    jsonRpc2Assets :: Array (String /\ BigInt) <-
-      ForeignObject.toUnfoldable <$> decodeAeson j
-    Assets <<< Map.fromFoldableWith (Map.unionWith (+)) <$> sequence
-      (uncurry decodeAsset <$> jsonRpc2Assets)
-    where
-    decodeAsset
-      :: String
-      -> BigInt
-      -> Either JsonDecodeError (CurrencySymbol /\ Map TokenName BigInt)
-    decodeAsset assetStr quantity = do
-      let
-        -- Ogmios encodes CurrencySymbol and TokenName to hex strings separated
-        -- with '.' TokenName part is optional
-        currSymStr /\ tnStr = case indexOf (Pattern ".") assetStr of
-          Nothing -> assetStr /\ ""
-          Just ix ->
-            let
-              { before, after } = splitAt ix assetStr
-              tn = fromMaybe "" $ after # uncons <#> _.tail
-            in
-              before /\ tn
-
-      currSymb <- note (assetStrError assetStr "CurrencySymbol" currSymStr)
-        $ mkCurrencySymbol =<< hexToByteArray currSymStr
-      tokenName <- note (assetStrError assetStr "TokenName" tnStr)
-        $ mkTokenName =<< hexToByteArray tnStr
-      pure $ currSymb /\ Map.singleton tokenName quantity
-
-    assetStrError str t v = TypeMismatch $
-      "In "
-        <> str
-        <> ": Expected hex-encoded "
-        <> t
-        <> ", got: "
-        <> v
