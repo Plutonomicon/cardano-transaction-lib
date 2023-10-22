@@ -4,7 +4,7 @@ module Test.Ctl.Ogmios.GenerateFixtures
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, stringifyAeson)
+import Aeson (class DecodeAeson, Aeson, stringifyAeson)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
@@ -27,7 +27,7 @@ import Ctl.Internal.QueryM
   , mkWebsocketDispatch
   )
 import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call)
-import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType, mkOgmiosCallTypeNoArgs)
+import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallTypeNoArgs)
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
@@ -91,15 +91,6 @@ mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
 
 data Query = Query (JsonRpc2Call Unit Aeson) String
 
-mkQuery
-  :: forall (params :: Type). EncodeAeson params => params -> String -> Query
-mkQuery params method = Query queryCall (sanitiseMethod method)
-  where
-  queryCall = mkOgmiosCallType
-    { method
-    , params: const { params }
-    }
-
 mkQuery' :: String -> Query
 mkQuery' method = Query (mkOgmiosCallTypeNoArgs method) (sanitiseMethod method)
 
@@ -114,27 +105,13 @@ main =
     WebSocket ws listeners <- mkWebSocketAff logLevel defaultOgmiosWsConfig
 
     let
-      addresses =
-        [ "addr_test1vpfwv0ezc5g8a4mkku8hhy3y3vp92t7s3ul8g778g5yegsgalc6gc"
-        , "addr_test1wqag3rt979nep9g2wtdwu8mr4gz6m4kjdpp5zp705km8wys6t2kla"
-        , "addr_test1vz5rd5hsead7gcgn6zx6nalqxz6zlvdmg89kswl935dfh8cqn5kcy"
-        , "addr_test1vrx0w7gndt6gk9svrksmpg23lmwmlcx2w2fre7rk27r8gdcyazwxm"
-        , "addr_test1vp842vatdp6qxqnhcfhh6w83t6c8c5udhua999slgzwcq2gvgpvm9"
-        , "addr_test1vrmet2lzexpmw78jpyqkuqs8ktg80x457h6wcnkp3z63etsx3pg70"
-        , "addr_test1qpsfwsr4eqjfe49md9wpnyp3ws5emf4z3k6xqagvm880zgnk2wgk4"
-            <> "wl2rz04eaqmq9fnxhyn56az0c4d3unvcvg2yw4qmkmv4t"
-        , "addr1q9d34spgg2kdy47n82e7x9pdd6vql6d2engxmpj20jmhuc2047yqd4xnh7"
-            <> "u6u5jp4t0q3fkxzckph4tgnzvamlu7k5psuahzcp"
-        ]
-    let
       queries =
         [ mkQuery' "queryLedgerState/protocolParameters"
         , mkQuery' "queryLedgerState/eraSummaries"
         , mkQuery' "queryLedgerState/epoch"
         , mkQuery' "queryNetwork/systemStart"
         , mkQuery' "queryNetwork/tip"
-        ] <> flip map addresses \addr -> mkQuery { utxo: [ addr ] }
-          "queryLedgerStat/utxo"
+        ]
 
     resps <- flip parTraverse queries \(Query qc method) -> do
       resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
