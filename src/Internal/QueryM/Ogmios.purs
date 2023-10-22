@@ -136,6 +136,7 @@ import Ctl.Internal.Cardano.Types.Value
   , mkCurrencySymbol
   , mkNonAdaAsset
   , mkValue
+  , unwrapNonAdaAsset
   , valueToCoin
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
@@ -216,6 +217,7 @@ import Foreign.Object (Object)
 import Foreign.Object (singleton, toUnfoldable) as ForeignObject
 import Foreign.Object as Object
 import Partial.Unsafe (unsafePartial)
+import Record.Builder (build, merge)
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
 
@@ -274,7 +276,7 @@ instance EncodeAeson StakePoolsQueryArgument where
 queryDelegationsAndRewards
   :: JsonRpc2Call (Array String) DelegationsAndRewardsR -- todo: whats string? git blame line below to restore
 queryDelegationsAndRewards = mkOgmiosCallType
-  { method: "rewardAccountSummaries"
+  { method: "queryLedgerState/rewardAccountSummaries"
   , params: \skhs ->
       { query:
           { delegationsAndRewards: skhs
@@ -390,10 +392,10 @@ instance Show MempoolSizeAndCapacity where
 
 instance DecodeAeson MempoolSizeAndCapacity where
   decodeAeson = aesonObject \o -> do
-    capacity <- getField o "capacity"
+    capacity <- getField o "maxCapacity"
     currentSize <- getField o "currentSize"
-    numberOfTxs <- getField o "numberOfTxs"
-
+    numberOfTxs <- (flip getField "transactions") >=> (flip getField "count") $
+      o
     pure $ wrap { capacity, currentSize, numberOfTxs }
 
 newtype MempoolTransaction = MempoolTransaction
@@ -1092,60 +1094,66 @@ instance EncodeAeson AdditionalUtxoSet where
 
     encode :: (OgmiosTxOutRef /\ OgmiosTxOut) -> Aeson
     encode (inp /\ out) = encodeAeson $
-      { "txId": inp.txId
+      { "transaction": { "id": inp.txId }
       , "index": inp.index
+      , "address": out.address
+      , "datumHash": out.datumHash
+      , "datum": out.datum
+      , "script": encodeScriptRef <$> out.script
+      , "value": encodeValue out.value
       }
-        /\
-          { "address": out.address
-          , "datumHash": out.datumHash
-          , "datum": out.datum
-          , "script": encodeScriptRef <$> out.script
-          , "value":
-              { "coins": out.value # valueToCoin # getLovelace
-              , "assets": out.value # getNonAdaAsset # encodeNonAdaAsset
-              }
-          }
 
     encodeNativeScript :: NativeScript -> Aeson
-    encodeNativeScript (ScriptPubkey s) = encodeAeson s
+    encodeNativeScript (ScriptPubkey s) =
+      encodeAeson { "clause": "signature", "from": encodeAeson s }
     encodeNativeScript (ScriptAll ss) =
-      encodeAeson { "all": encodeNativeScript <$> ss }
+      encodeAeson { "clause": "all", "from": encodeNativeScript <$> ss }
     encodeNativeScript (ScriptAny ss) =
-      encodeAeson { "any": encodeNativeScript <$> ss }
+      encodeAeson { "clause": "any", "from": encodeNativeScript <$> ss }
     encodeNativeScript (ScriptNOfK n ss) =
-      encodeAeson $
-        ForeignObject.singleton
-          (BigInt.toString $ BigInt.fromInt n)
-          (encodeNativeScript <$> ss)
-    encodeNativeScript (TimelockStart (Slot n)) = encodeAeson { "startsAt": n }
-    encodeNativeScript (TimelockExpiry (Slot n)) = encodeAeson
-      { "expiresAt": n }
+      encodeAeson
+        { "clause": "some"
+        , "atLeast": BigInt.fromInt n
+        , "from": encodeNativeScript <$> ss
+        }
+    encodeNativeScript (TimelockStart (Slot n)) =
+      encodeAeson { "clause": "after", "slot": n }
+    encodeNativeScript (TimelockExpiry (Slot n)) =
+      encodeAeson { "clause": "before", "slot": n }
 
     encodeScriptRef :: ScriptRef -> Aeson
     encodeScriptRef (NativeScriptRef s) =
-      encodeAeson { "native": encodeNativeScript s }
+      encodeAeson $
+        { "language": "native", "cbor": s, "json": (encodeNativeScript s) }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =
-      encodeAeson { "plutus:v1": s }
+      encodeAeson { "language": "plutus:v1", "cbor": byteArrayToHex s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
-      encodeAeson { "plutus:v2": s }
+      encodeAeson { "language": "plutus:v2", "cbor": byteArrayToHex s }
 
-    encodeNonAdaAsset :: NonAdaAsset -> Aeson
-    encodeNonAdaAsset assets = encodeMap $
-      foldl
-        (\m' (cs /\ tn /\ n) -> Map.insert (createKey cs tn) n m')
-        Map.empty
-        (flattenNonAdaValue assets)
+    encodeValue :: Value -> Aeson
+    encodeValue value = encodeMap $ Map.union adaPart nonAdaPart
       where
-      createKey cs tn =
-        if tn' == mempty then csHex else csHex <> "." <> tnHex
-        where
-        tn' = getTokenName tn
-        cs' = getCurrencySymbol cs
-        csHex = byteArrayToHex cs'
-        tnHex = byteArrayToHex tn'
+      adaPart = Map.fromFoldable
+        [ ( "ada" /\
+              ( Map.fromFoldable
+                  [ ("lovelace" /\ (value # valueToCoin # getLovelace)) ]
+              )
+          )
+        ]
+      nonAdaPart = mapKeys (byteArrayToHex <<< getCurrencySymbol)
+        $ map (mapKeys (byteArrayToHex <<< getTokenName))
+        $ unwrapNonAdaAsset
+        $ getNonAdaAsset value
+
+      mapKeys :: forall k1 k2 a. Ord k2 => (k1 -> k2) -> Map k1 a -> Map k2 a
+      mapKeys f = (Map.toUnfoldable :: Map k1 a -> Array (k1 /\ a)) >>> foldl
+        (\m' (k /\ v) -> Map.insert (f k) v m')
+        Map.empty
 
 ---------------- UTXO QUERY RESPONSE & PARSING
 
+-- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
+-- 
 -- the outer result type for Utxo queries, newtyped so that it can have
 -- appropriate instances to work with `parseJsonRpc2Response`
 -- | Ogmios response for Utxo Query
@@ -1166,6 +1174,7 @@ type OgmiosTxOutRef =
   , index :: UInt.UInt
   }
 
+-- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
 parseUtxoQueryResult :: Aeson -> Either JsonDecodeError UtxoQueryResult
 parseUtxoQueryResult = aesonArray $ foldl insertFunc (Right Map.empty)
   where
@@ -1225,6 +1234,8 @@ type OgmiosTxOut =
   , script :: Maybe ScriptRef
   }
 
+-- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
+-- 
 -- Ogmios currently supplies the Raw OgmiosAddress in addr1 format, rather than the
 -- cardano-serialization-lib 'OgmiosAddress' type,  perhaps this information can be
 -- extracted.
@@ -1239,6 +1250,8 @@ parseTxOut = aesonObject $ \o -> do
     Just script -> Just <$> parseScript script
   pure { address, value, datumHash, datum, script }
 
+-- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
+-- 
 parseScript :: Object Aeson -> Either JsonDecodeError ScriptRef
 parseScript script =
   case Array.head $ ForeignObject.toUnfoldable script of
@@ -1308,6 +1321,8 @@ parseScript script =
 
           _ -> Left scriptTypeMismatch
 
+-- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
+-- 
 -- parses the `Value` type
 parseValue :: Object Aeson -> Either JsonDecodeError Value
 parseValue outer = do
@@ -1320,6 +1335,8 @@ parseValue outer = do
 
 newtype Assets = Assets (Map CurrencySymbol (Map TokenName BigInt))
 
+-- [OGMIOS 5.6] Refers to Ogmios 5.6 datatype!
+-- 
 instance DecodeAeson Assets where
   decodeAeson j = do
     jsonRpc2Assets :: Array (String /\ BigInt) <-
