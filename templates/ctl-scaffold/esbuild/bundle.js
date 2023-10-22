@@ -2,7 +2,7 @@ import * as esbuild from "esbuild";
 import { buildOptions } from "./config.js";
 
 if (process.argv.length < 4) {
-  throw `usage: nodejs bundle.js ENTRY_POINT OUTPUT_FILENAME`;
+  throw `usage: node bundle.js ENTRY_POINT OUTPUT_FILENAME`;
 }
 
 esbuild.build(

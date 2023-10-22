@@ -4,10 +4,11 @@ const path = require("path");
 const webpack = require("webpack");
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
-module.exports = env => {
-  return {
-    mode: "development",
+const isBrowser = !!process.env.BROWSER_RUNTIME;
 
+module.exports = env => {
+  const config = {
+    mode: "development",
     experiments: {
       asyncWebAssembly: false,
       layers: false,
@@ -23,10 +24,10 @@ module.exports = env => {
 
     devServer: {
       static: {
-        directory: path.join(__dirname, 'dist'),
+        directory: path.join(__dirname, "dist"),
       },
       client: {
-        overlay: false
+        overlay: false,
       },
       port: 4008,
       proxy: {
@@ -47,14 +48,34 @@ module.exports = env => {
       filename: "index.js",
       library: {
         type: "module",
-      }
+      },
     },
 
     resolve: {
       // We use node_modules provided by Nix shell via an environment variable
       modules: [process.env.NODE_PATH],
       extensions: [".js"],
-      fallback: {
+    },
+
+    plugins: [
+      new webpack.DefinePlugin({
+        BROWSER_RUNTIME: isBrowser,
+      }),
+      new webpack.LoaderOptionsPlugin({
+        debug: true,
+      }),
+      // ContextReplacementPlugin is used just to suppress a webpack warning:
+      // "Critical dependency: the request of a dependency is an expression"
+      // See https://stackoverflow.com/a/59235546/17365145
+      new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
+      new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
+    ],
+  };
+
+  config.target = isBrowser ? "web" : "node18";
+  config.node = isBrowser ? {} : { __dirname: true };
+  config.resolve.fallback = isBrowser
+    ? {
         buffer: require.resolve("buffer/"),
         http: false,
         url: false,
@@ -69,25 +90,27 @@ module.exports = env => {
         fs: false,
         readline: false,
         child_process: false,
-      },
-    },
+      }
+    : {};
 
-    plugins: [
-      new webpack.DefinePlugin({
-        BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
-      }),
-      new NodePolyfillPlugin(),
-      new webpack.LoaderOptionsPlugin({
-        debug: true,
-      }),
+  // Preserves console.log calls in NodeJS
+  // https://stackoverflow.com/a/71024096/17365145
+  config.optimization = isBrowser
+    ? {}
+    : {
+        minimize: false,
+      };
+
+  if (isBrowser) {
+    // Provide top-level `Buffer`
+    config.plugins.push(
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],
-      }),
-      // ContextReplacementPlugin is used just to suppress a webpack warning:
-      // "Critical dependency: the request of a dependency is an expression"
-      // See https://stackoverflow.com/a/59235546/17365145
-      new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
-      new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
-    ],
-  };
+      })
+    );
+    // Provide NodeJS polyfills
+    config.plugins.push(new NodePolyfillPlugin());
+  }
+
+  return config;
 };

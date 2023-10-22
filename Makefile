@@ -1,14 +1,21 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint
+.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint delete-bundle-entrypoint
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
 nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
-js-sources := $(shell fd --no-ignore-parent -ejs)
-# points to one of the example PureScript modules in examples/
+js-sources := $(shell fd --no-ignore-parent -ejs -ecjs)
+
+### Bundler setup
+
+# The main Purescript module
 ps-entrypoint := Ctl.Examples.ByUrl
+# The entry point function in the main PureScript module
 ps-entrypoint-function := main
+# Whether to bundle for the browser
+browser-runtime := 1 # Use "1" for true and "" for false
+
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
 serve-port := 4008
@@ -19,6 +26,9 @@ spago-build:
 create-bundle-entrypoint:
 	@mkdir -p dist/
 	@echo 'import("../output/${ps-entrypoint}/index.js").then(m => m.${ps-entrypoint-function}());' > ./dist/entrypoint.js
+
+delete-bundle-entrypoint:
+	@rm -f ./dist/entrypoint.js
 
 create-html-entrypoint:
 	@mkdir -p dist/
@@ -31,15 +41,16 @@ create-html-entrypoint:
 
 esbuild-bundle: spago-build create-bundle-entrypoint
 	@mkdir -p dist/
-	@BROWSER_RUNTIME=1 node esbuild/bundle.js ./dist/entrypoint.js dist/index.js
+	BROWSER_RUNTIME=${browser-runtime} node esbuild/bundle.js ./dist/entrypoint.js dist/index.js
+	@make delete-bundle-entrypoint
 
 esbuild-serve: spago-build create-bundle-entrypoint create-html-entrypoint
-
 	BROWSER_RUNTIME=1 node esbuild/serve.js ./dist/entrypoint.js dist/index.js dist/ ${serve-port}
 
 webpack-bundle: spago-build create-bundle-entrypoint
-	BROWSER_RUNTIME=1 webpack --mode=production \
+	BROWSER_RUNTIME=${browser-runtime} webpack --mode=production \
 		-o dist/ --env entry=./dist/entrypoint.js
+	@make delete-bundle-entrypoint
 
 webpack-serve: spago-build create-bundle-entrypoint create-html-entrypoint
 	BROWSER_RUNTIME=1 webpack-dev-server --progress \
