@@ -170,7 +170,7 @@ import Ctl.Internal.Types.SystemStart
   )
 import Ctl.Internal.Types.TokenName (getTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
-import Data.Argonaut.Encode.Encoders (encodeString)
+import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
 import Data.Array (length, replicate) as Array
 import Data.Bifunctor (lmap)
@@ -408,7 +408,7 @@ instance DecodeAeson ReleasedMempool where
       if s == "mempool" then
         pure $ ReleasedMempool
       else
-        Left (UnexpectedValue $ encodeString s)
+        Left (UnexpectedValue $ Argonaut.encodeString s)
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
@@ -474,6 +474,8 @@ instance Show OgmiosEraSummaries where
   show = genericShow
 
 instance DecodeAeson OgmiosEraSummaries where
+  -- There is some differences between ogmios 6.0 spec and actual results 
+  -- in "start" "end" fields and "slotLength".
   decodeAeson = aesonArray (map (wrap <<< wrap) <<< traverse decodeEraSummary)
     where
     decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary

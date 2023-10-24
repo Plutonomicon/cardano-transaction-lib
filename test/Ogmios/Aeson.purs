@@ -40,16 +40,15 @@ import Type.Proxy (Proxy(Proxy))
 
 supported :: Array String
 supported =
-  [ "chainTip"
-  , "currentEpoch"
-  , "systemStart"
-  , "eraSummaries"
-  , "currentProtocolParameters"
-  , "poolIds"
-  , "poolParameters"
-  , "delegationsAndRewards"
-  , "SubmitTx"
-  , "EvaluateTx"
+  [ "queryNetwork/tip"
+  , "queryNetwork/startTime"
+  , "queryLedgerState/epoch"
+  , "queryLedgerState/eraSummaries"
+  , "queryLedgerState/protocolParameters"
+  , "queryLedgerState/stakePools"
+  , "queryLedgerState/rewardAccountSummaries"
+  , "submitTransaction"
+  , "evaluateTransaction"
   -- TODO Support plutus:v2 parameters
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
   -- , "currentProtocolParameters-noPlutusV1"
@@ -152,18 +151,18 @@ suite = group "Ogmios Aeson tests" do
               (const unit)
               (Aeson.decodeAeson aeson :: _ a)
           case query of
-            "chainTip" -> handle (Proxy :: _ O.ChainTipQR)
-            "currentEpoch" -> handle (Proxy :: _ O.CurrentEpoch)
-            "systemStart" -> handle (Proxy :: _ O.OgmiosSystemStart)
-            "eraSummaries" -> handle (Proxy :: _ O.OgmiosEraSummaries)
-            "currentProtocolParameters" -> handle
+            "queryNetwork/tip" -> handle (Proxy :: _ O.ChainTipQR)
+            "queryLedgerState/epoch" -> handle (Proxy :: _ O.CurrentEpoch)
+            "queryNetwork/startTime" -> handle (Proxy :: _ O.OgmiosSystemStart)
+            "queryLedgerState/eraSummaries" -> handle (Proxy :: _ O.OgmiosEraSummaries)
+            "queryLedgerState/protocolParameters" -> handle
               (Proxy :: _ O.OgmiosProtocolParameters)
-            "stakePools" -> handle
+            "queryLedgerState/stakePools" -> handle
               (Proxy :: _ O.PoolParametersR)
-            "delegationsAndRewards" -> handle
+            "queryLedgerState/rewardAccountSummaries" -> handle
               (Proxy :: _ O.DelegationsAndRewardsR)
-            "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationR)
-            "SubmitTx" -> handle (Proxy :: _ O.SubmitTxR)
+            "evaluateTransaction" -> handle (Proxy :: _ O.TxEvaluationR)
+            "submitTransaction" -> handle (Proxy :: _ O.SubmitTxR)
             _ -> liftEffect $ throw $ "Unknown case " <> bn
 
 main :: Effect Unit

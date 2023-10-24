@@ -106,11 +106,16 @@ main =
 
     let
       queries =
-        [ mkQuery' "queryLedgerState/protocolParameters"
-        , mkQuery' "queryLedgerState/eraSummaries"
+        [ 
+          mkQuery' "queryNetwork/tip"
+        , mkQuery' "queryNetwork/startTime"
         , mkQuery' "queryLedgerState/epoch"
-        , mkQuery' "queryNetwork/systemStart"
-        , mkQuery' "queryNetwork/tip"
+        , mkQuery' "queryLedgerState/eraSummaries"
+        , mkQuery' "queryLedgerState/protocolParameters"
+        , mkQuery' "queryLedgerState/stakePools"
+        -- , mkQuery' "queryLedgerState/rewardAccountSummaries" -- hangs (?)
+        -- , mkQuery' "submitTransaction"
+        -- , mkQuery' "evaluateTransaction"
         ]
 
     resps <- flip parTraverse queries \(Query qc method) -> do

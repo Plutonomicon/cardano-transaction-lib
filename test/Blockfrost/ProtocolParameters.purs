@@ -29,7 +29,7 @@ blockfrostFixture =
 
 ogmiosFixture :: String
 ogmiosFixture =
-  "ogmios/currentProtocolParameters-9f10850f285b1493955267e900008841.json"
+  "ogmios/queryLedgerState-protocolParameters-13365782430bcc1da07918d41b57dd73.json"
 
 loadFixture :: forall (a :: Type). DecodeAeson a => String -> Aff a
 loadFixture fixture =
