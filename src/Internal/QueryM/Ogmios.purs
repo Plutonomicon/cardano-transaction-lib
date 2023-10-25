@@ -517,7 +517,7 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummaryParameters (EraSummaryParameters params) =
       encodeAeson
         { "epochLength": params.epochLength
-        , "slotLength": params.slotLength
+        , "slotLength": { "seconds" : params.slotLength }
         , "safeZone": params.safeZone
         }
 

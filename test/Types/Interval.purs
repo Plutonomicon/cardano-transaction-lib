@@ -141,21 +141,21 @@ testPosixTimeToSlot eraSummaries sysStart = do
     -- Notice also how 93312000 - 92880000 is a relatively small period of
     -- time so I expect this will change to `null` once things stabilise.
     posixTimes = mkPosixTime <$>
-      [ "1603636353000"
-      , "1613636755000"
+      [ "1678100000000"
+      , "1698191999000"
       ]
   traverse_ (idTest eraSummaries sysStart identity) posixTimes
   -- With Milliseconds, we generally round down, provided the aren't at the
   -- end  with non-zero excess:
   idTest eraSummaries sysStart
-    (const $ mkPosixTime "1613636754000")
-    (mkPosixTime "1613636754999")
+    (const $ mkPosixTime "1666656000000")
+    (mkPosixTime "1666656000999")
   idTest eraSummaries sysStart
-    (const $ mkPosixTime "1613636754000")
-    (mkPosixTime "1613636754500")
+    (const $ mkPosixTime "1666656000000")
+    (mkPosixTime "1666656000500")
   idTest eraSummaries sysStart
-    (const $ mkPosixTime "1613636754000")
-    (mkPosixTime "1613636754499")
+    (const $ mkPosixTime "1666656000000")
+    (mkPosixTime "1666656000499")
   where
   idTest
     :: EraSummaries
@@ -176,10 +176,11 @@ testSlotToPosixTime eraSummaries sysStart = do
   -- how far into the future we test with slots when a hardfork occurs.
   let
     slots = mkSlot <$>
-      [ 58278567
-      , 48272312
-      , 39270783
+      [ 31535999
+      , 31535000
       , 957323
+      , 259200
+      , 258200
       , 34952
       , 7532
       , 232
