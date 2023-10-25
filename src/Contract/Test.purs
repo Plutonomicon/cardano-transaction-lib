@@ -8,6 +8,9 @@ import Ctl.Internal.Test.ContractTest
   , noWallet
   , withWallets
   ) as X
+import Ctl.Internal.Test.KeyDir
+  ( runContractTestsWithKeyDir
+  ) as X
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , InitialUTxODistribution
