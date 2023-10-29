@@ -631,8 +631,7 @@ resendPendingSubmitRequests
     where
     submitSuccessPartialResp :: Aeson
     submitSuccessPartialResp =
-      encodeAeson
-        { "result": { "SubmitSuccess": { "txId": txHash } } }
+      encodeAeson $ Ogmios.submitSuccessPartialResp txHash
 
 --------------------------------------------------------------------------------
 -- `MkServiceWebSocketLens` for ogmios

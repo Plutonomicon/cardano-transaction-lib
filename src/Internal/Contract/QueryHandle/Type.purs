@@ -46,7 +46,7 @@ type QueryHandle =
   , getChainTip :: AffE Chain.Tip
   , getCurrentEpoch :: Aff CurrentEpoch
   -- TODO Capture errors from all backends
-  , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
+  , submitTx :: Transaction -> AffE TransactionHash
   , evaluateTx :: Transaction -> AdditionalUtxoSet -> Aff TxEvaluationR
   , getEraSummaries :: AffE EraSummaries
   , getPoolIds :: AffE (Array PoolPubKeyHash)

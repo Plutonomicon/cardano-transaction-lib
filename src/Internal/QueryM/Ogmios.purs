@@ -62,6 +62,7 @@ module Ctl.Internal.QueryM.Ogmios
   , queryDelegationsAndRewards
   , releaseMempoolCall
   , submitTxCall
+  , submitSuccessPartialResp
   , slotLengthFactor
   , parseIpv6String
   , rationalToSubcoin
@@ -233,25 +234,6 @@ queryStakePoolsCall = mkOgmiosCallType
   , params: identity
   }
 
--- TODO: move below, when settled. keep one query to easy in listeners. unwrap to maybe if/when params changes to Maybe (->)
-
--- Nothing queries all pools, otherwise query selected pools.
-newtype StakePoolsQueryArgument = StakePoolsQueryArgument
-  (Maybe (Array PoolPubKeyHash))
-
-derive instance Newtype StakePoolsQueryArgument _
-
-instance EncodeAeson StakePoolsQueryArgument where
-  encodeAeson a = do
-    maybe
-      (encodeAeson {})
-      ( \poolPkhs -> encodeAeson
-          { stakePools: map (\pool -> { id: pool }) poolPkhs }
-      )
-      (unwrap a)
-
--- ----------------------
-
 queryDelegationsAndRewards
   :: JsonRpc2Call (Array String) DelegationsAndRewardsR -- todo: whats string? git blame line below to restore
 queryDelegationsAndRewards = mkOgmiosCallType
@@ -412,6 +394,10 @@ instance DecodeAeson ReleasedMempool where
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
+submitSuccessPartialResp :: 
+  TxHash -> { result :: { transaction :: { id :: TxHash } } }
+submitSuccessPartialResp txHash = { "result": { "transaction": { "id" : txHash } } }
+
 data SubmitTxR
   = SubmitTxSuccess TxHash
   | SubmitFail (Array Aeson)
@@ -546,6 +532,23 @@ instance DecodeAeson DelegationsAndRewardsR where
       delegate <- objParams .:? "delegate"
       pure $ k /\ { rewards, delegate }
     pure $ DelegationsAndRewardsR $ Map.fromFoldable kvs
+
+---------------- POOL PARAMETERS REQUEST & PARSING
+
+-- Nothing queries all pools, otherwise query selected pools.
+newtype StakePoolsQueryArgument = StakePoolsQueryArgument
+  (Maybe (Array PoolPubKeyHash))
+
+derive instance Newtype StakePoolsQueryArgument _
+
+instance EncodeAeson StakePoolsQueryArgument where
+  encodeAeson a = do
+    maybe
+      (encodeAeson {})
+      ( \poolPkhs -> encodeAeson
+          { stakePools: map (\pool -> { id: pool }) poolPkhs }
+      )
+      (unwrap a)
 
 ---------------- POOL PARAMETERS QUERY RESPONSE & PARSING
 
