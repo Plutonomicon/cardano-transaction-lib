@@ -105,9 +105,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Do not require light wallet collateral for all interactions ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
-- UTxO lists and combined input/output/mint/fee values are now being pretty-printed instead of logged using `Show` instance (in the balancer) ([#1531](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1531))
+- `runContractTestsWithKeyDir` now exposed from `Contract.Test`
+  ([#1549](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1549))
+- Pretty-printing improvements: UTxO lists and combined input/output/mint/fee values are now being pretty-printed instead `Show`n in the balancer ([#1531](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1531))
 - `mkUnbalancedTx`, `balanceTx` and `balanceTxWithConstraints` now throw instead
-  of returning in `Either` ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545)
+  of returning in `Either` ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545))
 - `mkUnbalancedTx` isn't exported from `Contract.ScriptLookups` anymore; get it
   from `Contract.UnbalancedTx` instead.
   ([#1545](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1545))
