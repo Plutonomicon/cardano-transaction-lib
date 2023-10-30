@@ -531,9 +531,20 @@ let
         cp -r ${builtProject}/* .
         cp -r $src/* .
         chmod -R +rw .
-        echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
+        ${
+          if isNull psEntryPoint
+          then ""
+          else
+            ''
+            echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
+            ''
+        }
         mkdir $out
-        node ${esbuildBundleScript} ./entrypoint.js $out/index.js
+        node ${esbuildBundleScript} ${
+          if isNull psEntryPoint
+          then "./output/${main}/index.js"
+          else "./entrypoint.js"
+        } $out/index.js
       '';
 
   # Bundles a Purescript project using Webpack, typically for the browser
@@ -581,11 +592,22 @@ let
         cp -r $src/* .
         chmod -R +rw .
         mkdir -p ./dist
-        echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
+        ${
+          if isNull psEntryPoint
+          then ""
+          else
+            ''
+            echo 'import("./output/${main}/index.js").then(m => m.${psEntryPoint}());' > entrypoint.js
+            ''
+        }
         ${pkgs.lib.optionalString includeBundledModule "cp ${bundledModuleName} ./dist"}
         mkdir $out
         webpack --mode=production -c ${webpackConfig} -o $out/ \
-          --entry ./entrypoint.js
+          --entry ${
+            if isNull psEntryPoint
+            then "./output/${main}/index.js"
+            else "./entrypoint.js"
+          }
       '';
 
   pursDocsSearchNpm =

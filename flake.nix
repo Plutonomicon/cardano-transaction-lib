@@ -160,11 +160,16 @@
             ctl-purs-project = project.buildPursProject { };
 
             ctl-example-bundle-web-esbuild = project.bundlePursProjectEsbuild {
-              main = "Ctl.Examples.ByUrl";
+              main = "Test.Ctl.Main";
+              psEntryPoint = null;
+              browserRuntime = false;
             };
 
             ctl-example-bundle-web-webpack = project.bundlePursProjectWebpack {
-              main = "Ctl.Examples.ByUrl";
+              # main = "Ctl.Examples.ByUrl";
+              main = "Test.Ctl.Main";
+              psEntryPoint = null;
+              browserRuntime = false;
             };
 
             ctl-runtime = pkgs.arion.build {
@@ -183,6 +188,17 @@
               runnerMain = "Test.Ctl.E2E";
               testMain = "Ctl.Examples.ByUrl";
               buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
+            };
+            # Same as ctl-e2e-test, but bundling is done via esbuild: tests
+            # correctness of esbuild bundling
+            ctl-e2e-test-esbuild = project.runE2ETest {
+              name = "ctl-e2e-test";
+              runnerMain = "Test.Ctl.E2E";
+              testMain = "Ctl.Examples.ByUrl";
+              buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
+              bundledPursProject = project.bundlePursProjectEsbuild {
+                main = "Ctl.Examples.ByUrl";
+              };
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";

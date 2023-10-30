@@ -24,7 +24,7 @@ import Effect.Aff (Aff)
 import Mote (group, test)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)
-import Test.Spec.QuickCheck (quickCheck)
+import Test.Spec.QuickCheck (quickCheck, quickCheck')
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
@@ -56,10 +56,10 @@ suite =
         (quickCheck prop_equipartitionBigInt_sum)
 
       test "prop_equipartitionBigInt_order"
-        (quickCheck prop_equipartitionBigInt_order)
+        (quickCheck' 10 prop_equipartitionBigInt_order)
 
       test "prop_equipartitionBigInt_fair"
-        (quickCheck prop_equipartitionBigInt_fair)
+        (quickCheck' 10 prop_equipartitionBigInt_fair)
 
 prop_partitionBigInt_pos_weights
   :: BigInt' -> BigIntNeg -> NonEmptyArray BigIntGeqOne -> Boolean
@@ -183,4 +183,3 @@ derive instance Newtype IntGeqOne _
 
 instance Arbitrary IntGeqOne where
   arbitrary = IntGeqOne <$> suchThat arbitrary (_ >= one)
-

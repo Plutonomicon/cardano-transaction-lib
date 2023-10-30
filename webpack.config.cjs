@@ -18,7 +18,7 @@ module.exports = env => {
       topLevelAwait: true,
     },
 
-    devtool: "eval-source-map",
+    devtool: "source-map",
 
     stats: { errorDetails: true },
 
