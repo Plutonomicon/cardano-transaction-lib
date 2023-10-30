@@ -91,6 +91,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Do not require light wallet collateral for all interactions ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
+- Ogmios updated to version 6.0.0. As a result types: EvaluationTxR, PoolParametersR,  changed.
 
 ### Fixed
 

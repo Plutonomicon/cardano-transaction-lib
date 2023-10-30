@@ -27,8 +27,8 @@ module Ctl.Internal.QueryM.Ogmios
       , ValidatorFailed
       , UnknownInputReferencedByRedeemer
       , NonScriptInputReferencedByRedeemer
-      , IllFormedExecutionBudget
       , NoCostModelForLanguage
+      , InternalLedgerTypeConversionError
       )
   , AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosUtxoMap
@@ -38,6 +38,7 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosSystemStart(OgmiosSystemStart)
   , OgmiosTxIn
   , OgmiosTxId
+  , OgmiosError
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , StakePoolsQueryArgument(StakePoolsQueryArgument)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
@@ -70,110 +71,40 @@ module Ctl.Internal.QueryM.Ogmios
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch, UnexpectedValue)
-  , caseAesonArray
-  , caseAesonObject
-  , caseAesonString
-  , decodeAeson
-  , encodeAeson
-  , fromArray
-  , fromString
-  , getField
-  , isNull
-  , stringifyAeson
-  , (.:)
-  , (.:?)
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonArray, caseAesonObject, caseAesonString, decodeAeson, encodeAeson, fromArray, fromString, getField, isNull, (.:), (.:?))
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Control.Monad.Reader.Trans (ReaderT(ReaderT), runReaderT)
-import Ctl.Internal.Cardano.Types.NativeScript
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  )
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , ExUnitPrices
-  , ExUnits
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , PoolPubKeyHash
-  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
-  , SubCoin
-  , URL(URL)
-  , UnitInterval
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , Value
-  , getCurrencySymbol
-  , getLovelace
-  , getNonAdaAsset
-  , unwrapNonAdaAsset
-  , valueToCoin
-  )
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry))
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
+import Ctl.Internal.Cardano.Types.Transaction (CostModel(CostModel), Costmdls(Costmdls), ExUnitPrices, ExUnits, Ipv4(Ipv4), Ipv6(Ipv6), PoolMetadata(PoolMetadata), PoolMetadataHash(PoolMetadataHash), PoolPubKeyHash, Relay(MultiHostName, SingleHostAddr, SingleHostName), SubCoin, URL(URL), UnitInterval)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value, getCurrencySymbol, getLovelace, getNonAdaAsset, unwrapNonAdaAsset, valueToCoin)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
-import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call, JsonRpc2Request, mkCallType)
+import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call, JsonRpc2Request, ParseResponse, anyResponse, mkCallType, successResponse)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , hexToByteArray
-  )
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , EraSummaryParameters(EraSummaryParameters)
-  )
+import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters))
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.ProtocolParameters
-  ( CoinsPerUtxoUnit(CoinsPerUtxoByte)
-  , ProtocolParameters(ProtocolParameters)
-  )
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit(CoinsPerUtxoByte), ProtocolParameters(ProtocolParameters))
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , PlutusScript(PlutusScript)
-  )
-import Ctl.Internal.Types.SystemStart
-  ( SystemStart
-  , sysStartFromOgmiosTimestamp
-  , sysStartToOgmiosTimestamp
-  )
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
+import Ctl.Internal.Types.SystemStart (SystemStart, sysStartFromOgmiosTimestamp, sysStartToOgmiosTimestamp)
 import Ctl.Internal.Types.TokenName (getTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
-import Data.Array (length, replicate) as Array
+import Data.Array (fromFoldable, length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
@@ -181,6 +112,8 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
+import Data.List (List)
+import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
@@ -196,7 +129,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
-import Foreign.Object (toUnfoldable) as ForeignObject
 import Foreign.Object as Object
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -255,7 +187,8 @@ type OgmiosAddress = String
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
 submitTxCall :: JsonRpc2Call (TxHash /\ CborBytes) SubmitTxR
-submitTxCall = mkOgmiosCallType
+submitTxCall = mkOgmiosCallTypeFull
+  parseSubmitTxR
   { method: "submitTransaction"
   , params: \(_ /\ cbor) ->
       { transaction: { cbor: cborBytesToHex cbor }
@@ -265,7 +198,8 @@ submitTxCall = mkOgmiosCallType
 -- | Evaluates the execution units of scripts present in a given transaction,
 -- | without actually submitting the transaction.
 evaluateTxCall :: JsonRpc2Call (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
-evaluateTxCall = mkOgmiosCallType
+evaluateTxCall = mkOgmiosCallTypeFull
+  (anyResponse (map (TxEvaluationR <<< Left) <<< decodeAeson) (map (TxEvaluationR <<< Right) <<< decodeAeson))
   { method: "evaluateTransaction"
   , params: \(cbor /\ utxoqr) ->
       { transaction: { cbor: cborBytesToHex cbor }
@@ -311,16 +245,26 @@ releaseMempoolCall _ =
 --------------------------------------------------------------------------------
 
 mkOgmiosCallTypeNoArgs
-  :: forall (o :: Type). String -> JsonRpc2Call Unit o
+  :: forall (o :: Type). DecodeAeson o => String -> JsonRpc2Call Unit o
 mkOgmiosCallTypeNoArgs method =
   mkOgmiosCallType { method, params: const {} }
 
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeAeson (JsonRpc2Request a)
+   . EncodeAeson (JsonRpc2Request a) 
+   => DecodeAeson o
   => { method :: String, params :: i -> a }
   -> JsonRpc2Call i o
 mkOgmiosCallType =
+  mkCallType { jsonrpc: "2.0" } successResponse
+
+mkOgmiosCallTypeFull
+  :: forall (a :: Type) (i :: Type) (o :: Type)
+   . EncodeAeson (JsonRpc2Request a)
+  => ParseResponse o
+    -> { method :: String, params :: i -> a }
+  -> JsonRpc2Call i o
+mkOgmiosCallTypeFull =
   mkCallType { jsonrpc: "2.0" }
 
 --------------------------------------------------------------------------------
@@ -400,7 +344,7 @@ submitSuccessPartialResp txHash = { "result": { "transaction": { "id" : txHash }
 
 data SubmitTxR
   = SubmitTxSuccess TxHash
-  | SubmitFail (Array Aeson)
+  | SubmitFail OgmiosError
 
 derive instance Generic SubmitTxR _
 
@@ -409,13 +353,20 @@ instance Show SubmitTxR where
 
 type TxHash = ByteArray
 
-instance DecodeAeson SubmitTxR where
-  decodeAeson = aesonObject $
-    \o ->
+type OgmiosError = { code :: Int, message :: String, data :: Aeson }
+
+parseSubmitTxR :: ParseResponse SubmitTxR
+parseSubmitTxR = anyResponse parseError (map SubmitTxSuccess <<< parseResult)
+  where 
+  
+  parseResult = aesonObject $ \o ->
       ( getField o "transaction" >>= flip getField "id" >>= hexToByteArray
-          >>> maybe (Left (TypeMismatch "Expected hexstring"))
-            (pure <<< SubmitTxSuccess)
-      ) <|> (SubmitFail <$> getField o "SubmitFail")
+        >>> maybe (Left (TypeMismatch "Expected hexstring")) pure
+      )
+
+  parseError aeson = do
+    err :: OgmiosError <- decodeAeson aeson
+    pure $ SubmitFail err
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
@@ -703,9 +654,6 @@ derive instance Generic TxEvaluationR _
 instance Show TxEvaluationR where
   show = genericShow
 
-instance DecodeAeson TxEvaluationR where
-  decodeAeson aeson = (wrap <<< Right <$> decodeAeson aeson) <|>
-    (wrap <<< Left <$> decodeAeson aeson)
 
 newtype TxEvaluationResult = TxEvaluationResult
   (Map RedeemerPointer ExecutionUnits)
@@ -720,16 +668,14 @@ instance DecodeAeson TxEvaluationResult where
   decodeAeson = aesonArray $ \array -> do
     TxEvaluationResult <<< Map.fromFoldable <$>
       traverse decodeRdmrPtrExUnitsItem array
+
     where
     decodeRdmrPtrExUnitsItem
       :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem elem = do
-      (redeemerPtrRaw /\ exUnitsAeson) :: String /\ Aeson <- decodeAeson elem
-      redeemerPtr <- decodeRedeemerPointer redeemerPtrRaw
-      flip aesonObject exUnitsAeson $ \exUnitsObj -> do
-        memory <- getField exUnitsObj "memory"
-        cpu <- getField exUnitsObj "cpu"
-        pure $ redeemerPtr /\ { memory, steps: cpu }
+      res :: { validator :: String, budget :: { memory :: Natural, cpu :: Natural} } <- decodeAeson elem
+      redeemerPtr <- decodeRedeemerPointer res.validator
+      pure $ redeemerPtr /\ { memory : res.budget.memory, steps: res.budget.cpu }
 
 redeemerPtrTypeMismatch :: JsonDecodeError
 redeemerPtrTypeMismatch = TypeMismatch
@@ -752,17 +698,14 @@ type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
 
 data ScriptFailure
   = ExtraRedeemers (Array RedeemerPointer)
-  | MissingRequiredDatums
-      { provided :: Maybe (Array OgmiosDatum), missing :: Array OgmiosDatum }
-  | MissingRequiredScripts
-      { resolved :: Map RedeemerPointer OgmiosScript
-      , missing :: Array OgmiosScript
-      }
+  | MissingRequiredDatums (Array OgmiosDatum)
+  | MissingRequiredScripts (Array RedeemerPointer)
   | ValidatorFailed { error :: String, traces :: Array String }
   | UnknownInputReferencedByRedeemer OgmiosTxIn
   | NonScriptInputReferencedByRedeemer OgmiosTxIn
-  | IllFormedExecutionBudget (Maybe ExecutionUnits)
-  | NoCostModelForLanguage String
+  -- | IllFormedExecutionBudget (Maybe ExecutionUnits)
+  | NoCostModelForLanguage (Array String)
+  | InternalLedgerTypeConversionError String
 
 derive instance Generic ScriptFailure _
 
@@ -775,7 +718,7 @@ instance Show ScriptFailure where
 -- NotEnoughSynced
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
-  = UnparsedError String
+  = UnparsedError OgmiosError
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
 
 derive instance Generic TxEvaluationFailure _
@@ -783,93 +726,54 @@ derive instance Generic TxEvaluationFailure _
 instance Show TxEvaluationFailure where
   show = genericShow
 
-type ObjectParser = ReaderT (Object Aeson) (Either JsonDecodeError)
-
-liftField
-  :: forall (a :: Type) (b :: Type)
-   . DecodeAeson a
-  => String
-  -> (a -> Either JsonDecodeError b)
-  -> ObjectParser b
-liftField f act = ReaderT (flip getField f >=> act)
-
 instance DecodeAeson ScriptFailure where
-  decodeAeson = aesonObject $ runReaderT cases
-    where
-    cases :: ObjectParser ScriptFailure
-    cases = decodeExtraRedeemers
-      <|> decodeMissingRequiredDatums
-      <|> decodeMissingRequiredScripts
-      <|> decodeValidatorFailed
-      <|> decodeUnknownInputReferencedByRedeemer
-      <|> decodeNonScriptInputReferencedByRedeemer
-      <|> decodeIllFormedExecutionBudget
-      <|> decodeNoCostModelForLanguage
-      <|> defaultCase
-
-    defaultCase :: ObjectParser ScriptFailure
-    defaultCase = ReaderT $ const $ Left $ TypeMismatch "Expected ScriptFailure"
-
-    decodeExtraRedeemers :: ObjectParser ScriptFailure
-    decodeExtraRedeemers = ExtraRedeemers <$> liftField "extraRedeemers"
-      (traverse decodeRedeemerPointer)
-
-    decodeMissingRequiredDatums :: ObjectParser ScriptFailure
-    decodeMissingRequiredDatums = liftField "missingRequiredDatums" \o -> do
-      pure $ MissingRequiredDatums o
-
-    decodeMissingRequiredScripts :: ObjectParser ScriptFailure
-    decodeMissingRequiredScripts = liftField "missingRequiredScripts" \o -> do
-      resolvedKV <- ForeignObject.toUnfoldable <$> getField o "resolved"
-      resolved <- Map.fromFoldable <$> for (resolvedKV :: Array _)
-        \(k /\ v) -> (_ /\ v) <$> decodeRedeemerPointer k
-      missing <- getField o "missing"
-      pure $ MissingRequiredScripts { resolved, missing }
-
-    decodeValidatorFailed :: ObjectParser ScriptFailure
-    decodeValidatorFailed = liftField "validatorFailed" \o -> do
-      pure $ ValidatorFailed o
-
-    decodeUnknownInputReferencedByRedeemer :: ObjectParser ScriptFailure
-    decodeUnknownInputReferencedByRedeemer = liftField
-      "unknownInputReferencedByRedeemer"
-      \o -> do
-        pure $ UnknownInputReferencedByRedeemer o
-
-    decodeNonScriptInputReferencedByRedeemer :: ObjectParser ScriptFailure
-    decodeNonScriptInputReferencedByRedeemer = liftField
-      "nonScriptInputReferencedByRedeemer"
-      \o -> do
-        pure $ NonScriptInputReferencedByRedeemer o
-
-    decodeIllFormedExecutionBudget :: ObjectParser ScriptFailure
-    decodeIllFormedExecutionBudget = liftField "illFormedExecutionBudget" \o ->
-      do
-        pure $ IllFormedExecutionBudget o
-
-    decodeNoCostModelForLanguage :: ObjectParser ScriptFailure
-    decodeNoCostModelForLanguage = liftField "noCostModelForLanguage" \o -> do
-      pure $ NoCostModelForLanguage o
+  decodeAeson aeson = do
+    error :: OgmiosError <- decodeAeson aeson
+    case error.code of
+      3011 -> do
+        res :: { missingScript :: Array String } <- decodeAeson error.data
+        MissingRequiredScripts <$> traverse decodeRedeemerPointer res.missingScript
+      3012 -> do
+        res :: { validationError :: String, traces :: Array String } <- decodeAeson error.data
+        pure $ ValidatorFailed {error : res.validationError, traces : res.traces}
+      3013 -> do 
+        res :: { unsuitableOutputReference :: { transaction :: { id :: String}, index :: Int} } <- decodeAeson error.data
+        pure $ NonScriptInputReferencedByRedeemer { index: res.unsuitableOutputReference.index, txId : res.unsuitableOutputReference.transaction.id }
+      3110 -> do 
+        res :: { extraneousRedeemers :: Array String } <- decodeAeson error.data
+        ExtraRedeemers <$> traverse decodeRedeemerPointer res.extraneousRedeemers
+      3111 -> do
+        res :: { missingDatums :: Array String } <- decodeAeson error.data
+        pure $ MissingRequiredDatums res.missingDatums
+      3117 -> do
+        res :: { unknownOutputReference :: { transaction :: { id :: String}, index :: Int} } <- decodeAeson error.data
+        let res' = res.unknownOutputReference
+        pure $ UnknownInputReferencedByRedeemer { index: res'.index, txId : res'.transaction.id }
+      3115 -> do
+        res :: { missingCostModels :: Array String } <- decodeAeson error.data
+        pure $ NoCostModelForLanguage res.missingCostModels
+      3999 -> pure $ InternalLedgerTypeConversionError error.message
+      _ -> Left $ TypeMismatch $ "Unknown ogmios error code: " <> show error.code
 
 instance DecodeAeson TxEvaluationFailure where
-  decodeAeson = aesonObject $ runReaderT cases
+  decodeAeson aeson = do
+    error :: OgmiosError <- decodeAeson aeson
+    case error.code of
+      -- ScriptExecutionFailure
+      3010 -> flip aesonArray error.data $ (\array ->
+        (ScriptFailures <<< map Array.fromFoldable <<< collectIntoMap <$> traverse parseElem array))
+      -- All other errors
+      _ -> pure $ UnparsedError error
+
     where
-    cases :: ObjectParser TxEvaluationFailure
-    cases = decodeScriptFailures <|> defaultCase
+    parseElem elem = do
+      res :: { validator :: String, error :: ScriptFailure } <- decodeAeson elem
+      (_ /\ res.error) <$> decodeRedeemerPointer res.validator
 
-    defaultCase :: ObjectParser TxEvaluationFailure
-    defaultCase = ReaderT \o ->
-      pure (UnparsedError (stringifyAeson (encodeAeson o)))
-
-    decodeScriptFailures :: ObjectParser TxEvaluationFailure
-    decodeScriptFailures = ReaderT \o -> do
-      scriptFailuresKV <- ForeignObject.toUnfoldable
-        <$> (getField o "EvaluationFailure" >>= flip getField "ScriptFailures")
-      scriptFailures <- Map.fromFoldable <$> for (scriptFailuresKV :: Array _)
-        \(k /\ v) -> do
-          v' <- decodeAeson v
-          (_ /\ v') <$> decodeRedeemerPointer k
-      pure $ ScriptFailures scriptFailures
+    collectIntoMap :: forall k v. Ord k => Array (k /\ v) -> Map k (List v)
+    collectIntoMap = foldl
+      (\m (k /\ v) -> Map.alter (maybe (Just $ List.singleton v) (Just <<< List.Cons v)) k m)
+      Map.empty
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
