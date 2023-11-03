@@ -88,6 +88,7 @@ import Aeson
   , fromString
   , getField
   , isNull
+  , stringifyAeson
   , (.:)
   , (.:?)
   )
@@ -839,7 +840,7 @@ instance Show ScriptFailure where
 -- NotEnoughSynced
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
-  = UnparsedError OgmiosError
+  = UnparsedError String
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
 
 derive instance Generic TxEvaluationFailure _
@@ -903,7 +904,7 @@ instance DecodeAeson TxEvaluationFailure where
             )
         )
       -- All other errors
-      _ -> pure $ UnparsedError error
+      _ -> pure $ UnparsedError $ stringifyAeson aeson
 
     where
     parseElem elem = do

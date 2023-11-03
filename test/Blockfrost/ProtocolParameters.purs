@@ -5,12 +5,8 @@ import Prelude
 import Aeson (class DecodeAeson, decodeJsonString)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.QueryM.Ogmios
-  ( OgmiosProtocolParameters(OgmiosProtocolParameters)
-  )
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostProtocolParameters(BlockfrostProtocolParameters)
-  )
+import Ctl.Internal.QueryM.Ogmios (OgmiosProtocolParameters(..))
+import Ctl.Internal.Service.Blockfrost (BlockfrostProtocolParameters(BlockfrostProtocolParameters))
 import Data.Bifunctor (lmap)
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
@@ -25,11 +21,11 @@ import Test.Spec.Runner (defaultConfig)
 
 blockfrostFixture :: String
 blockfrostFixture =
-  "blockfrost/getProtocolParameters/getProtocolParameters-7fe834fd628aa322eedeb3d8c7c1dd61.json"
+  "blockfrost/getProtocolParameters/getProtocolParameters-2d2ce3159a465c84058d7eab67b1b345.json"
 
 ogmiosFixture :: String
 ogmiosFixture =
-  "ogmios/queryLedgerState-protocolParameters-13365782430bcc1da07918d41b57dd73.json"
+  "ogmios/queryLedgerState-protocolParameters-68ba1141d17af9326cad70407ea3d7fb.json"
 
 loadFixture :: forall (a :: Type). DecodeAeson a => String -> Aff a
 loadFixture fixture =
@@ -48,6 +44,6 @@ suite = group "Blockfrost" do
   test "ProtocolParameter parsing verification" do
     BlockfrostProtocolParameters blockfrostFixture' <- loadFixture
       blockfrostFixture
-    OgmiosProtocolParameters ogmiosFixture' <- loadFixture ogmiosFixture
+    { result : OgmiosProtocolParameters ogmiosFixture' } :: { result :: OgmiosProtocolParameters } <- loadFixture ogmiosFixture
 
     blockfrostFixture' `shouldEqual` ogmiosFixture'

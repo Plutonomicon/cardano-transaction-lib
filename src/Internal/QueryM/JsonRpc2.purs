@@ -12,6 +12,7 @@ module Ctl.Internal.QueryM.JsonRpc2
   , OgmiosDecodeError(NoResultError, DecodingError, InvalidResponseError)
   , class DecodeOgmios
   , decodeOgmios
+  , decodeOgmiosResponse
   , parseJsonRpc2ResponseId
   , decodeAesonJsonRpc2Response
   ) where
@@ -124,22 +125,27 @@ data OgmiosDecodeError
   -- Parsing of JsonRpc2Response failed
   | InvalidResponseError JsonDecodeError
 
+instance Show OgmiosDecodeError where
+  show (DecodingError err) = show err
+  show (NoResultError err) =
+    "Server didn't respond with result. Responded with error: " <> maybe
+      ""
+      stringifyAeson
+      err
+  -- Parsing of JsonRpc2Response failed
+  show (InvalidResponseError err) =     "Couldn't parse the response: " <> show err
+
 ogmiosDecodeErrorToError :: OgmiosDecodeError -> Error
-ogmiosDecodeErrorToError (DecodingError err) = error $ show err
-ogmiosDecodeErrorToError (NoResultError err) =
-  error $ "Server didn't respond with result. Responded with error: " <> maybe
-    ""
-    stringifyAeson
-    err
--- Parsing of JsonRpc2Response failed
-ogmiosDecodeErrorToError (InvalidResponseError err) = error $
-  "Couldn't parse the response: " <> show err
+ogmiosDecodeErrorToError err = error $ show err
 
 -- | Variation of DecodeAeson for ogmios response, defines how to parse full ogmios reponse.
 -- We usually parse just the content of the "result" field, 
 -- but sometimes also "error" field, hence a class other than DecodeAeson.
 class DecodeOgmios o where
   decodeOgmios :: JsonRpc2Response -> Either OgmiosDecodeError o
+
+decodeOgmiosResponse :: forall o . DecodeOgmios o =>  Aeson -> Either OgmiosDecodeError o
+decodeOgmiosResponse = decodeOgmios <=< decodeAesonJsonRpc2Response
 
 -- | Decode "result" field of ogmios response with DecodeAeson.
 decodeResult

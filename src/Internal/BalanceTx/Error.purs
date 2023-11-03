@@ -26,9 +26,18 @@ module Ctl.Internal.BalanceTx.Error
 import Prelude
 
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
-import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer), Transaction, _redeemers, _witnessSet)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Redeemer(Redeemer)
+  , Transaction
+  , _redeemers
+  , _witnessSet
+  )
 import Ctl.Internal.Plutus.Types.Value (Value)
-import Ctl.Internal.QueryM.Ogmios (RedeemerPointer, ScriptFailure(..), TxEvaluationFailure(UnparsedError, ScriptFailures)) as Ogmios
+import Ctl.Internal.QueryM.Ogmios
+  ( RedeemerPointer
+  , ScriptFailure(..)
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  ) as Ogmios
 import Ctl.Internal.QueryM.Ogmios (showRedeemerPointer)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -155,7 +164,7 @@ printTxEvaluationFailure
   :: Transaction -> Ogmios.TxEvaluationFailure -> String
 printTxEvaluationFailure transaction e =
   runPrettyString $ case e of
-    Ogmios.UnparsedError error -> line $ "Unknown error: " <> show error
+    Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
   where
@@ -206,12 +215,14 @@ printTxEvaluationFailure transaction e =
       ("Unknown input referenced by redeemer: " <> show txIn)
     Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
       ("Non script input referenced by redeemer: " <> show txIn)
-    Ogmios.NoCostModelForLanguage languages -> 
-      line "No cost model for languages:" 
-      <> bullet (foldMap line languages)
-    Ogmios.InternalLedgerTypeConversionError error -> 
-      line $ "Internal ledger type conversion error, if you ever run into this, please report the issue as you've likely discoverd a critical bug: \""
-        <> error <> "\""
+    Ogmios.NoCostModelForLanguage languages ->
+      line "No cost model for languages:"
+        <> bullet (foldMap line languages)
+    Ogmios.InternalLedgerTypeConversionError error ->
+      line $
+        "Internal ledger type conversion error, if you ever run into this, please report the issue as you've likely discoverd a critical bug: \""
+          <> error
+          <> "\""
 
   printScriptFailures
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString

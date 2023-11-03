@@ -4,39 +4,19 @@ module Test.Ctl.Ogmios.GenerateFixtures
 
 import Prelude
 
-import Aeson (Aeson, stringifyAeson)
+import Aeson (Aeson, encodeAeson, stringifyAeson)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
-import Ctl.Internal.JsWebSocket
-  ( _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _wsClose
-  , _wsSend
-  )
-import Ctl.Internal.QueryM
-  ( ListenerSet
-  , WebSocket(WebSocket)
-  , WebsocketDispatch
-  , defaultMessageListener
-  , defaultOgmiosWsConfig
-  , mkListenerSet
-  , mkRequestAff
-  , mkWebsocketDispatch
-  )
-import Ctl.Internal.QueryM.JsonRpc2
-  ( class DecodeOgmios
-  , JsonRpc2Call
-  , decodeResult
-  )
+import Ctl.Internal.JsWebSocket (_mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsClose, _wsSend)
+import Ctl.Internal.QueryM (ListenerSet, WebSocket(WebSocket), WebsocketDispatch, defaultMessageListener, defaultOgmiosWsConfig, mkListenerSet, mkRequestAff, mkWebsocketDispatch)
+import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, JsonRpc2Call)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallTypeNoArgs)
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.String.Common (replace)
 import Data.String.Pattern (Pattern(Pattern), Replacement(Replacement))
 import Data.Traversable (for_, traverse_)
@@ -85,8 +65,6 @@ mkWebSocket lvl serverCfg cb = do
 
 mkWebSocketAff
   :: forall (a :: Type) (b :: Type)
-   
-  -- . Show b
   . DecodeOgmios b
   => LogLevel
   -> ServerConfig
@@ -94,14 +72,15 @@ mkWebSocketAff
 mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
 
-data Query = Query (JsonRpc2Call Unit AesonResult) String
+data Query = Query (JsonRpc2Call Unit AesonResponse) String
 
-newtype AesonResult = AesonResult Aeson
+newtype AesonResponse = AesonResponse Aeson
 
-derive instance Newtype AesonResult _
+derive instance Newtype AesonResponse _
 
-instance DecodeOgmios AesonResult where
-  decodeOgmios r = wrap <$> decodeResult r
+-- We decode and save the responses exactly.
+instance DecodeOgmios AesonResponse where
+  decodeOgmios = pure <<< AesonResponse <<< encodeAeson
 
 mkQuery' :: String -> Query
 mkQuery' method = Query (mkOgmiosCallTypeNoArgs method) (sanitiseMethod method)

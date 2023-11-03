@@ -84,16 +84,14 @@ loadOgmiosFixture query hash = do
 -- newly generated fixtures are stored in source control, i.e. git.
 
 eraSummariesFixture :: Effect EraSummaries
-eraSummariesFixture =
-  (unwrap :: OgmiosEraSummaries -> EraSummaries) <$>
-    loadOgmiosFixture "queryLedgerState-eraSummaries"
-      "722c02660cab6e7267fe330d2383582d"
+eraSummariesFixture = do
+  { result } :: { result :: OgmiosEraSummaries} <- loadOgmiosFixture "queryLedgerState-eraSummaries" "d8b19110b9580cddfa3895eea34c2139"
+  pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart
-systemStartFixture =
-  (unwrap :: OgmiosSystemStart -> SystemStart) <$>
-    loadOgmiosFixture "queryNetwork-startTime"
-      "7f144fea9c3d7f1998a96806e1b0efee"
+systemStartFixture = do
+  { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture "queryNetwork-startTime" "02fa6f9e7ed04ebfe3294c7648be54d5"
+  pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit
 testPosixTimeToSlot eraSummaries sysStart = do

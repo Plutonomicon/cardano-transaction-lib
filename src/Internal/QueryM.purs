@@ -49,15 +49,7 @@ module Ctl.Internal.QueryM
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  , stringifyAeson
-  )
+import Aeson (class DecodeAeson, Aeson, JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -65,12 +57,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
-import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
-  , liftEither
-  , throwError
-  )
+import Control.Monad.Error.Class (class MonadError, class MonadThrow, liftEither, throwError)
 import Control.Monad.Logger.Class (class MonadLogger)
 import Control.Monad.Reader.Class (class MonadAsk, class MonadReader)
 import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
@@ -78,77 +65,18 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.JsWebSocket
-  ( JsWebSocket
-  , Url
-  , _mkWebSocket
-  , _onWsConnect
-  , _onWsError
-  , _onWsMessage
-  , _removeOnWsError
-  , _wsClose
-  , _wsFinalize
-  , _wsSend
-  )
+import Ctl.Internal.JsWebSocket (JsWebSocket, Url, _mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _removeOnWsError, _wsClose, _wsFinalize, _wsSend)
 import Ctl.Internal.Logging (Logger, mkLogger)
-import Ctl.Internal.QueryM.Dispatcher
-  ( DispatchError(JsonError)
-  , Dispatcher
-  , GenericPendingRequests
-  , PendingRequests
-  , PendingSubmitTxRequests
-  , RequestBody
-  , WebsocketDispatch
-  , mkWebsocketDispatch
-  , newDispatcher
-  , newPendingRequests
-  )
-import Ctl.Internal.QueryM.Dispatcher
-  ( DispatchError(JsonError, FaultError, ListenerCancelled)
-  , Dispatcher
-  , GenericPendingRequests
-  , PendingRequests
-  , PendingSubmitTxRequests
-  , RequestBody
-  , WebsocketDispatch
-  , dispatchErrorToError
-  , mkWebsocketDispatch
-  , newDispatcher
-  , newPendingRequests
-  ) as ExportDispatcher
-import Ctl.Internal.QueryM.JsonRpc2
-  ( OgmiosDecodeError
-  , decodeAesonJsonRpc2Response
-  , decodeOgmios
-  , ogmiosDecodeErrorToError
-  )
+import Ctl.Internal.QueryM.Dispatcher (DispatchError(JsonError), Dispatcher, GenericPendingRequests, PendingRequests, PendingSubmitTxRequests, RequestBody, WebsocketDispatch, mkWebsocketDispatch, newDispatcher, newPendingRequests)
+import Ctl.Internal.QueryM.Dispatcher (DispatchError(JsonError, FaultError, ListenerCancelled), Dispatcher, GenericPendingRequests, PendingRequests, PendingSubmitTxRequests, RequestBody, WebsocketDispatch, dispatchErrorToError, mkWebsocketDispatch, newDispatcher, newPendingRequests) as ExportDispatcher
+import Ctl.Internal.QueryM.JsonRpc2 (OgmiosDecodeError, decodeOgmiosResponse, ogmiosDecodeErrorToError)
 import Ctl.Internal.QueryM.JsonRpc2 as JsonRpc2
-import Ctl.Internal.QueryM.Ogmios
-  ( AdditionalUtxoSet
-  , DelegationsAndRewardsR
-  , HasTxR
-  , MaybeMempoolTransaction
-  , OgmiosProtocolParameters
-  , PoolParametersR
-  , ReleasedMempool
-  , StakePoolsQueryArgument
-  , TxHash
-  )
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, DelegationsAndRewardsR, HasTxR, MaybeMempoolTransaction, OgmiosProtocolParameters, PoolParametersR, ReleasedMempool, StakePoolsQueryArgument, TxHash)
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultOgmiosWsConfig
-  , mkHttpUrl
-  , mkServerUrl
-  , mkWsUrl
-  ) as ExportServerConfig
+import Ctl.Internal.ServerConfig (Host, ServerConfig, defaultOgmiosWsConfig, mkHttpUrl, mkServerUrl, mkWsUrl) as ExportServerConfig
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
-import Ctl.Internal.Service.Error
-  ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
-  , ServiceError(ServiceOtherError)
-  )
+import Ctl.Internal.Service.Error (ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError), ServiceError(ServiceOtherError))
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
@@ -169,15 +97,7 @@ import Data.Traversable (for_, traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Canceler(Canceler)
-  , ParAff
-  , delay
-  , launchAff_
-  , makeAff
-  , runAff_
-  )
+import Effect.Aff (Aff, Canceler(Canceler), ParAff, delay, launchAff_, makeAff, runAff_)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
@@ -761,7 +681,7 @@ mkAddMessageListener dispatcher =
   \reflection handler ->
     flip Ref.modify_ dispatcher $
       Map.insert reflection
-        (\aeson -> handler $ decodeOgmios =<< decodeAesonJsonRpc2Response aeson)
+        (\aeson -> handler $ decodeOgmiosResponse aeson)
 
 mkRemoveMessageListener
   :: forall (requestData :: Type)

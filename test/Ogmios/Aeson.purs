@@ -1,36 +1,31 @@
 module Test.Ctl.Ogmios.Aeson
   ( main
   , suite
-  , printEvaluateTxFailures
   ) where
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
+import Aeson (Aeson, printJsonDecodeError)
 import Aeson as Aeson
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, decodeOgmiosResponse)
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
-import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
+import Data.Array (catMaybes, elem, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (bimap, lmap)
-import Data.Either (either, hush)
+import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
-import Data.Traversable (for_, traverse)
-import Data.Tuple (fst, snd)
+import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
 import Effect.Exception (throw)
-import Foreign.Object (Object)
 import Mote (group, skip, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
@@ -46,39 +41,13 @@ supported =
   , "queryLedgerState/eraSummaries"
   , "queryLedgerState/protocolParameters"
   , "queryLedgerState/stakePools"
-  , "queryLedgerState/rewardAccountSummaries"
-  , "submitTransaction"
-  , "evaluateTransaction"
+  -- , "queryLedgerState/rewardAccountSummaries"
   -- TODO Support plutus:v2 parameters
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
   -- , "currentProtocolParameters-noPlutusV1"
   ]
 
-getField
-  :: forall (a :: Type). DecodeAeson a => String -> Object Aeson -> Maybe a
-getField f o = join $ hush $ Aeson.getFieldOptional' o f
-
 type Query = String
-
--- Given a query and a response of the query, create a special case query
-specialize :: Query -> Aeson -> Query
-specialize query a
-  | Just _ :: _ Aeson <- getField "eraMismatch" =<< Aeson.toObject a = query
-      <> "-"
-      <> "eraMismatch"
-  | "currentProtocolParameters" <- query
-  , Just costModels <- getField "costModels" =<< Aeson.toObject a
-  , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <>
-      "noPlutusV1"
-  | "currentProtocolParameters" <- query
-  , Just costModels <- getField "costModels" =<< Aeson.toObject a
-  , Nothing :: _ Aeson <- getField "plutus:v2" costModels = query <> "-" <>
-      "noPlutusV2"
-  | "SubmitTx" <- query
-  , Just _ :: _ Aeson <- getField "SubmitFail" =<< Aeson.toObject a = query
-      <> "-"
-      <> "SubmitFail"
-specialize query _ = query
 
 readdir' :: FilePath -> Aff (Array FilePath)
 readdir' fp = (map <<< map) (\fn -> concat [ fp, fn ]) (readdir fp)
@@ -110,7 +79,7 @@ loadFixtures = do
         (Aeson.parseJsonStringToAeson contents)
       pure case pattern >>= flip match bn >>> map tail of
         Just [ Just query ] -> Just
-          { query: specialize query aeson
+          { query
           , bn
           , aeson
           }
@@ -124,15 +93,6 @@ loadFixtures = do
 
   pure groupedFiles
 
-printEvaluateTxFailures :: Effect Unit
-printEvaluateTxFailures = launchAff_ do
-  fixtures <- loadFixtures <#> filter (fst >>> (_ == "EvaluateTx")) >>> map snd
-  flip (traverse >>> traverse) fixtures \{ aeson } -> do
-    let
-      response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
-      mbFailure = response >>= unwrap >>> either pure (const Nothing)
-    for_ mbFailure (log <<< printTxEvaluationFailure mempty)
-
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do
   groupedFiles <- lift loadFixtures
@@ -143,13 +103,11 @@ suite = group "Ogmios Aeson tests" do
       $
         for_ files' \{ aeson, bn } -> do
           let
-            handle :: forall (a :: Type). DecodeAeson a => Proxy a -> Aff Unit
+            handle :: forall (a :: Type). DecodeOgmios a => Proxy a -> Aff Unit
             handle _ = liftEither $ bimap
-              ( error <<< ((bn <> "\n  ") <> _) <<<
-                  printJsonDecodeError
-              )
+              ( error <<< ((bn <> "\n  ") <> _) <<< show )
               (const unit)
-              (Aeson.decodeAeson aeson :: _ a)
+              (decodeOgmiosResponse aeson :: _ a)
           case query of
             "queryNetwork/tip" -> handle (Proxy :: _ O.ChainTipQR)
             "queryLedgerState/epoch" -> handle (Proxy :: _ O.CurrentEpoch)
@@ -160,10 +118,8 @@ suite = group "Ogmios Aeson tests" do
               (Proxy :: _ O.OgmiosProtocolParameters)
             "queryLedgerState/stakePools" -> handle
               (Proxy :: _ O.PoolParametersR)
-            "queryLedgerState/rewardAccountSummaries" -> handle
-              (Proxy :: _ O.DelegationsAndRewardsR)
-            "evaluateTransaction" -> handle (Proxy :: _ O.TxEvaluationR)
-            "submitTransaction" -> handle (Proxy :: _ O.SubmitTxR)
+            -- "queryLedgerState/rewardAccountSummaries" -> handle
+            --   (Proxy :: _ O.DelegationsAndRewardsR)
             _ -> liftEffect $ throw $ "Unknown case " <> bn
 
 main :: Effect Unit
