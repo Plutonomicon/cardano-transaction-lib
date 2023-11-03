@@ -4,7 +4,7 @@ module Test.Ctl.Ogmios.GenerateFixtures
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, stringifyAeson)
+import Aeson (Aeson, stringifyAeson)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
@@ -26,12 +26,17 @@ import Ctl.Internal.QueryM
   , mkRequestAff
   , mkWebsocketDispatch
   )
-import Ctl.Internal.QueryM.JsonRpc2 (JsonRpc2Call)
+import Ctl.Internal.QueryM.JsonRpc2
+  ( class DecodeOgmios
+  , JsonRpc2Call
+  , decodeResult
+  )
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallTypeNoArgs)
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.Common (replace)
 import Data.String.Pattern (Pattern(Pattern), Replacement(Replacement))
 import Data.Traversable (for_, traverse_)
@@ -48,8 +53,7 @@ import Node.Path (concat)
 -- A simple websocket for testing
 mkWebSocket
   :: forall (a :: Type) (b :: Type)
-   . DecodeAeson b
-  => Show b
+   . DecodeOgmios b
   => LogLevel
   -> ServerConfig
   -> (Either Error (WebSocket (ListenerSet a b)) -> Effect Unit)
@@ -81,15 +85,23 @@ mkWebSocket lvl serverCfg cb = do
 
 mkWebSocketAff
   :: forall (a :: Type) (b :: Type)
-   . DecodeAeson b
-  => Show b
+   
+  -- . Show b
+  . DecodeOgmios b
   => LogLevel
   -> ServerConfig
   -> Aff (WebSocket (ListenerSet a b))
 mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
 
-data Query = Query (JsonRpc2Call Unit Aeson) String
+data Query = Query (JsonRpc2Call Unit AesonResult) String
+
+newtype AesonResult = AesonResult Aeson
+
+derive instance Newtype AesonResult _
+
+instance DecodeOgmios AesonResult where
+  decodeOgmios r = wrap <$> decodeResult r
 
 mkQuery' :: String -> Query
 mkQuery' method = Query (mkOgmiosCallTypeNoArgs method) (sanitiseMethod method)
@@ -106,16 +118,12 @@ main =
 
     let
       queries =
-        [ 
-          mkQuery' "queryNetwork/tip"
+        [ mkQuery' "queryNetwork/tip"
         , mkQuery' "queryNetwork/startTime"
         , mkQuery' "queryLedgerState/epoch"
         , mkQuery' "queryLedgerState/eraSummaries"
         , mkQuery' "queryLedgerState/protocolParameters"
         , mkQuery' "queryLedgerState/stakePools"
-        -- , mkQuery' "queryLedgerState/rewardAccountSummaries" -- hangs (?)
-        -- , mkQuery' "submitTransaction"
-        -- , mkQuery' "evaluateTransaction"
         ]
 
     resps <- flip parTraverse queries \(Query qc method) -> do
@@ -123,7 +131,7 @@ main =
       pure { resp, method }
 
     for_ resps \{ resp, method } -> do
-      let resp' = stringifyAeson resp
+      let resp' = stringifyAeson $ unwrap resp
       respMd5 <- liftEffect $ md5HashHex resp'
       let
         fp = concat

@@ -26,27 +26,10 @@ module Ctl.Internal.BalanceTx.Error
 import Prelude
 
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
-  , Transaction
-  , _redeemers
-  , _witnessSet
-  )
+import Ctl.Internal.Cardano.Types.Transaction (Redeemer(Redeemer), Transaction, _redeemers, _witnessSet)
 import Ctl.Internal.Plutus.Types.Value (Value)
-import Ctl.Internal.QueryM.Ogmios
-  ( RedeemerPointer
-  , ScriptFailure
-      ( ExtraRedeemers
-      , MissingRequiredDatums
-      , MissingRequiredScripts
-      , ValidatorFailed
-      , UnknownInputReferencedByRedeemer
-      , NonScriptInputReferencedByRedeemer
-      , IllFormedExecutionBudget
-      , NoCostModelForLanguage
-      )
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
-  ) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (RedeemerPointer, ScriptFailure(..), TxEvaluationFailure(UnparsedError, ScriptFailures)) as Ogmios
+import Ctl.Internal.QueryM.Ogmios (showRedeemerPointer)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
@@ -172,7 +155,7 @@ printTxEvaluationFailure
   :: Transaction -> Ogmios.TxEvaluationFailure -> String
 printTxEvaluationFailure transaction e =
   runPrettyString $ case e of
-    Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
+    Ogmios.UnparsedError error -> line $ "Unknown error: " <> show error
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
   where
@@ -210,20 +193,12 @@ printTxEvaluationFailure transaction e =
   printScriptFailure = case _ of
     Ogmios.ExtraRedeemers ptrs -> line "Extra redeemers:" <> bullet
       (foldMap printRedeemer ptrs)
-    Ogmios.MissingRequiredDatums { provided, missing }
-    -> line "Supplied with datums:"
-      <> bullet (foldMap (foldMap line) provided)
-      <> line "But missing required datums:"
+    Ogmios.MissingRequiredDatums missing
+    -> line "Missing required datums:"
       <> bullet (foldMap line missing)
-    Ogmios.MissingRequiredScripts { resolved, missing }
-    -> line "Supplied with scripts:"
-      <> bullet
-        ( foldMapWithIndex
-            (\ptr scr -> printRedeemer ptr <> line ("Script: " <> scr))
-            resolved
-        )
-      <> line "But missing required scripts:"
-      <> bullet (foldMap line missing)
+    Ogmios.MissingRequiredScripts missing
+    -> line "Missing required scripts:"
+      <> bullet (foldMap (line <<< showRedeemerPointer) missing)
     Ogmios.ValidatorFailed { error, traces } -> line error <> line "Trace:" <>
       number
         (foldMap line traces)
@@ -231,16 +206,12 @@ printTxEvaluationFailure transaction e =
       ("Unknown input referenced by redeemer: " <> show txIn)
     Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
       ("Non script input referenced by redeemer: " <> show txIn)
-    Ogmios.IllFormedExecutionBudget Nothing -> line
-      ("Ill formed execution budget: Execution budget missing")
-    Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
-      line "Ill formed execution budget:"
-        <> bullet
-          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
-              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
-          )
-    Ogmios.NoCostModelForLanguage language -> line
-      ("No cost model for language \"" <> language <> "\"")
+    Ogmios.NoCostModelForLanguage languages -> 
+      line "No cost model for languages:" 
+      <> bullet (foldMap line languages)
+    Ogmios.InternalLedgerTypeConversionError error -> 
+      line $ "Internal ledger type conversion error, if you ever run into this, please report the issue as you've likely discoverd a critical bug: \""
+        <> error <> "\""
 
   printScriptFailures
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString

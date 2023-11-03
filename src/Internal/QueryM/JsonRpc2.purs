@@ -5,23 +5,37 @@ module Ctl.Internal.QueryM.JsonRpc2
   , JsonRpc2Request
   , buildRequest
   , mkCallType
-  , parseJsonRpc2Response
-  , ParseResponse(ParseResponse)
   , JsonRpc2Response
-  , successResponse
-  , anyResponse
+  , decodeResult
+  , decodeError
+  , ogmiosDecodeErrorToError
+  , OgmiosDecodeError(NoResultError, DecodingError, InvalidResponseError)
+  , class DecodeOgmios
+  , decodeOgmios
   , parseJsonRpc2ResponseId
-  )
-  where
+  , decodeAesonJsonRpc2Response
+  ) where
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(..), caseAesonObject, decodeAeson, encodeAeson, getField, getFieldOptional)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , getField
+  , getFieldOptional
+  , stringifyAeson
+  )
 import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
-import Control.Alt ((<|>))
-import Data.Either (Either(..))
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Bifunctor (bimap)
+import Data.Either (Either(Left), note)
+import Data.Maybe (Maybe, maybe)
 import Effect (Effect)
+import Effect.Aff (Error, error)
 import Foreign.Object (Object)
 import Record as Record
 
@@ -59,56 +73,11 @@ type JsonRpc2Response =
   , id :: ListenerId
   }
 
-data ParseResponse (o :: Type) = ParseResponse (JsonRpc2Response -> Either JsonDecodeError o)
-
-successResponse :: forall o. DecodeAeson o => ParseResponse o
-successResponse = ParseResponse $ \res -> do 
-  result <- fromMaybe (Left (AtKey "result" MissingValue)) (pure <$> res.result)
-  decodeAeson result
-
-anyResponse :: forall a. (Aeson -> Either JsonDecodeError a) -> (Aeson -> Either JsonDecodeError a) -> ParseResponse a
-anyResponse decodeError decodeResult = ParseResponse $ \{result, error} -> parseError error <|> parseResult result
-  where 
-  
-  parseResult result = do
-    res <- fromMaybe (Left $ AtKey "result" MissingValue) $ pure <$> result
-    decodeResult res
-
-  parseError error = do
-    err <- fromMaybe (Left $ AtKey "error" MissingValue) (pure <$> error)
-    decodeError err
-
--- | A wrapper for tying arguments and response types to request building.
-data JsonRpc2Call :: Type -> Type -> Type
-data JsonRpc2Call (i :: Type) (o :: Type) = JsonRpc2Call
-  (ParseResponse o) (i -> Effect { body :: Aeson, id :: String })
-
--- | Creates a "jsonrpc call" which ties together request input and response output types
--- | along with a way to create a request object.
-mkCallType
-  :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeAeson (JsonRpc2Request a)
-  => { jsonrpc :: String }
-  -> ParseResponse o
-  -> { method :: String, params :: i -> a }
-  -> JsonRpc2Call i o
-mkCallType service response { method, params }  = JsonRpc2Call response $ \i -> do
-  req <- mkJsonRpc2Request service { method, params: params i }
-  pure { body: encodeAeson req, id: req.id }
-
--- | Create a JsonRpc2 request body and id
-buildRequest
-  :: forall (i :: Type) (o :: Type)
-   . JsonRpc2Call i o
-  -> i
-  -> Effect { body :: Aeson, id :: String }
-buildRequest (JsonRpc2Call _ c) = c
-
--- | Polymorphic response parser
-parseJsonRpc2Response :: forall (i :: Type) (o :: Type)
-   . JsonRpc2Call i o -> Aeson -> Either JsonDecodeError o
-parseJsonRpc2Response (JsonRpc2Call (ParseResponse parse) _) aeson = do
-  res <- flip aesonObject aeson $ \o -> do
+decodeAesonJsonRpc2Response
+  :: Aeson -> Either OgmiosDecodeError JsonRpc2Response
+decodeAesonJsonRpc2Response aeson = bimap InvalidResponseError identity
+  $ flip aesonObject aeson
+  $ \o -> do
       jsonrpc <- getField o "jsonrpc"
       method <- getFieldOptional o "method"
       result <- getFieldOptional o "result"
@@ -121,7 +90,70 @@ parseJsonRpc2Response (JsonRpc2Call (ParseResponse parse) _) aeson = do
         , error
         , id
         }
-  parse res
+
+-- | A wrapper for tying arguments and response types to request building.
+newtype JsonRpc2Call :: Type -> Type -> Type
+newtype JsonRpc2Call (i :: Type) (o :: Type) = JsonRpc2Call
+  (i -> Effect { body :: Aeson, id :: String })
+
+-- | Creates a "jsonrpc call" which ties together request input and response output types
+-- | along with a way to create a request object.
+mkCallType
+  :: forall (a :: Type) (i :: Type) (o :: Type)
+   . EncodeAeson (JsonRpc2Request a)
+  => { jsonrpc :: String }
+  -> { method :: String, params :: i -> a }
+  -> JsonRpc2Call i o
+mkCallType service { method, params } = JsonRpc2Call \i -> do
+  req <- mkJsonRpc2Request service { method, params: params i }
+  pure { body: encodeAeson req, id: req.id }
+
+-- | Create a JsonRpc2 request body and id
+buildRequest
+  :: forall (i :: Type) (o :: Type)
+   . JsonRpc2Call i o
+  -> i
+  -> Effect { body :: Aeson, id :: String }
+buildRequest (JsonRpc2Call c) = c
+
+data OgmiosDecodeError
+  -- Server didn't respond with "result", responded with given "error".
+  = NoResultError (Maybe Aeson)
+  -- Parsing of result failed
+  | DecodingError JsonDecodeError
+  -- Parsing of JsonRpc2Response failed
+  | InvalidResponseError JsonDecodeError
+
+ogmiosDecodeErrorToError :: OgmiosDecodeError -> Error
+ogmiosDecodeErrorToError (DecodingError err) = error $ show err
+ogmiosDecodeErrorToError (NoResultError err) =
+  error $ "Server didn't respond with result. Responded with error: " <> maybe
+    ""
+    stringifyAeson
+    err
+-- Parsing of JsonRpc2Response failed
+ogmiosDecodeErrorToError (InvalidResponseError err) = error $
+  "Couldn't parse the response: " <> show err
+
+-- | Variation of DecodeAeson for ogmios response, defines how to parse full ogmios reponse.
+-- We usually parse just the content of the "result" field, 
+-- but sometimes also "error" field, hence a class other than DecodeAeson.
+class DecodeOgmios o where
+  decodeOgmios :: JsonRpc2Response -> Either OgmiosDecodeError o
+
+-- | Decode "result" field of ogmios response with DecodeAeson.
+decodeResult
+  :: forall o. DecodeAeson o => JsonRpc2Response -> Either OgmiosDecodeError o
+decodeResult response = do
+  result <- note (NoResultError response.error) $ response.result
+  bimap DecodingError identity $ decodeAeson result
+
+-- | Decode "error" field of ogmios response with DecodeAeson.
+decodeError
+  :: forall o. DecodeAeson o => JsonRpc2Response -> Either OgmiosDecodeError o
+decodeError response = bimap DecodingError identity $ do
+  error <- note (AtKey "error" MissingValue) response.error
+  decodeAeson error
 
 -- | Parse just ID from the response
 parseJsonRpc2ResponseId

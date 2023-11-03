@@ -154,7 +154,8 @@ suite = group "Ogmios Aeson tests" do
             "queryNetwork/tip" -> handle (Proxy :: _ O.ChainTipQR)
             "queryLedgerState/epoch" -> handle (Proxy :: _ O.CurrentEpoch)
             "queryNetwork/startTime" -> handle (Proxy :: _ O.OgmiosSystemStart)
-            "queryLedgerState/eraSummaries" -> handle (Proxy :: _ O.OgmiosEraSummaries)
+            "queryLedgerState/eraSummaries" -> handle
+              (Proxy :: _ O.OgmiosEraSummaries)
             "queryLedgerState/protocolParameters" -> handle
               (Proxy :: _ O.OgmiosProtocolParameters)
             "queryLedgerState/stakePools" -> handle
