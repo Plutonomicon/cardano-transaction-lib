@@ -1184,7 +1184,7 @@ instance EncodeAeson AdditionalUtxoSet where
       encodeAeson { "language": "plutus:v2", "cbor": byteArrayToHex s }
 
     encodeValue :: Value -> Aeson
-    encodeValue value = encodeMap $ Map.union adaPart nonAdaPart
+    encodeValue value = encodeMap $ map encodeMap $ Map.union adaPart nonAdaPart
       where
       adaPart = Map.fromFoldable
         [ ( "ada" /\

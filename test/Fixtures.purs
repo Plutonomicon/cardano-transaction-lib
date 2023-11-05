@@ -32,6 +32,8 @@ module Test.Ctl.Fixtures
   , nativeScriptFixture6
   , nativeScriptFixture7
   , nullPaymentPubKeyHash
+  , ogmiosEvaluateTxFailScriptErrorsFixture
+  , ogmiosEvaluateTxFailIncompatibleEraFixture
   , ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   , partiallyAppliedScriptFixture
@@ -1441,8 +1443,17 @@ ogmiosEvaluateTxValidRespFixture =
 
 ogmiosEvaluateTxInvalidPointerFormatFixture :: Effect Aeson
 ogmiosEvaluateTxInvalidPointerFormatFixture =
+  readJsonFixtureFile "test/Fixtures/ogmiosEvaluateTxInvalidPointerFormatFixture.json"
+
+ogmiosEvaluateTxFailIncompatibleEraFixture :: Effect Aeson
+ogmiosEvaluateTxFailIncompatibleEraFixture =
   readJsonFixtureFile
-    "test/Fixtures/OgmiosEvaluateTxInvalidPointerFormatFixture.json"
+    "test/Fixtures/ogmiosEvaluateTxFailIncompatibleEraFixture.json"
+
+ogmiosEvaluateTxFailScriptErrorsFixture :: Effect Aeson
+ogmiosEvaluateTxFailScriptErrorsFixture =
+  readJsonFixtureFile
+    "test/Fixtures/ogmiosEvaluateTxFailScriptErrorsFixture.json"
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

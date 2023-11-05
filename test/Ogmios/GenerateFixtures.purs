@@ -4,14 +4,14 @@ module Test.Ctl.Ogmios.GenerateFixtures
 
 import Prelude
 
-import Aeson (Aeson, encodeAeson, stringifyAeson)
+import Aeson (class EncodeAeson, Aeson, encodeAeson, stringifyAeson)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.JsWebSocket (_mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsClose, _wsSend)
 import Ctl.Internal.QueryM (ListenerSet, WebSocket(WebSocket), WebsocketDispatch, defaultMessageListener, defaultOgmiosWsConfig, mkListenerSet, mkRequestAff, mkWebsocketDispatch)
 import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, JsonRpc2Call)
-import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallTypeNoArgs)
+import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
@@ -29,6 +29,7 @@ import Effect.Ref as Ref
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
+import Test.Unit.Console (print)
 
 -- A simple websocket for testing
 mkWebSocket
@@ -53,7 +54,7 @@ mkWebSocket lvl serverCfg cb = do
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     void $ _onWsError ws \_ -> onError
-    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ _ -> pure unit)
+    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ str -> print str)
       [ messageDispatch ]
     void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
@@ -72,18 +73,23 @@ mkWebSocketAff
 mkWebSocketAff lvl = makeAff <<< map (map (Canceler <<< map liftEffect)) <<<
   mkWebSocket lvl
 
-data Query = Query (JsonRpc2Call Unit AesonResponse) String
+data Query = Query (JsonRpc2Call Aeson AesonResponse) String Aeson
 
 newtype AesonResponse = AesonResponse Aeson
 
 derive instance Newtype AesonResponse _
+instance Show AesonResponse where
+  show = show <<< unwrap
 
 -- We decode and save the responses exactly.
 instance DecodeOgmios AesonResponse where
   decodeOgmios = pure <<< AesonResponse <<< encodeAeson
 
+mkQueryWithArgs' :: forall a . EncodeAeson a =>  String -> a -> Query
+mkQueryWithArgs' method a = Query (mkOgmiosCallType { method , params : identity } ) (sanitiseMethod method) (encodeAeson a)
+
 mkQuery' :: String -> Query
-mkQuery' method = Query (mkOgmiosCallTypeNoArgs method) (sanitiseMethod method)
+mkQuery' method = mkQueryWithArgs' method {}
 
 -- | To avoid creating directories, replace slashes with dashes
 sanitiseMethod :: String -> String
@@ -97,7 +103,8 @@ main =
 
     let
       queries =
-        [ mkQuery' "queryNetwork/tip"
+        [ 
+          mkQuery' "queryNetwork/tip"
         , mkQuery' "queryNetwork/startTime"
         , mkQuery' "queryLedgerState/epoch"
         , mkQuery' "queryLedgerState/eraSummaries"
@@ -105,8 +112,8 @@ main =
         , mkQuery' "queryLedgerState/stakePools"
         ]
 
-    resps <- flip parTraverse queries \(Query qc method) -> do
-      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity unit
+    resps <- flip parTraverse queries \(Query qc method args) -> do
+      resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity args
       pure { resp, method }
 
     for_ resps \{ resp, method } -> do
