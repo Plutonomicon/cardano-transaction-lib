@@ -118,36 +118,31 @@ explainBalanceTxError = case _ of
   CollateralReturnError ->
     "Negative totalCollateral after covering min-utxo-ada requirement."
       <> "This should be impossible: please report this as a bug to "
-      <>
-        bugTrackerLink
+      <> bugTrackerLink
   CollateralReturnMinAdaValueCalcError coinsPerUtxoUnit txOut ->
     "Could not calculate minimum Ada for collateral return.\n"
       <> "Coins per UTxO unit: "
       <> show coinsPerUtxoUnit
       <> "\nTransaction output: "
-      <>
-        show txOut
+      <> show txOut
   ExUnitsEvaluationFailed _ _ ->
     "Script evaluation failure while trying to estimate ExUnits"
   InsufficientUtxoBalanceToCoverAsset asset ->
     "Insufficient UTxO balance to cover asset named "
       <> asset
       <> "\nThis should be impossible: please report this as a bug to "
-      <>
-        bugTrackerLink
+      <> bugTrackerLink
   ReindexRedeemersError uir ->
     "Could not reindex redeemer "
       <> show uir
       <> "\nThis should be impossible: please report this as a bug to "
-      <>
-        bugTrackerLink
+      <> bugTrackerLink
   UtxoLookupFailedFor ti ->
     "Could not look up UTxO for "
       <> show ti
       <> " from a given set of UTxOs.\n"
       <> "This should be impossible: please report this as a bug to "
-      <>
-        bugTrackerLink
+      <> bugTrackerLink
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
   where
