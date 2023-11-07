@@ -20,7 +20,7 @@ import Contract.Address
   , getNetworkId
   , payPubKeyHashEnterpriseAddress
   )
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
+import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
@@ -31,6 +31,7 @@ import Contract.Transaction
   , submit
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
 import Contract.Wallet
   ( getWalletAddresses
@@ -212,10 +213,10 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
-    unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    unbalancedTx <- mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< liftedE (balanceTx unbalancedTx)
+        signTransaction =<< balanceTx unbalancedTx
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx

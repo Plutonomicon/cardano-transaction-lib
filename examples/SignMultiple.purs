@@ -10,7 +10,6 @@ import Contract.Log (logInfo', logWarn')
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftedE
   , liftedM
   , runContract
   , throwContractError
@@ -27,6 +26,7 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (leq)
 import Contract.Value as Value
 import Contract.Wallet
@@ -72,8 +72,8 @@ contract = do
     lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- mkUnbalancedTx lookups constraints
 
   txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs

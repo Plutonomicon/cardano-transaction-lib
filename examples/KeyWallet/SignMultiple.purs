@@ -3,7 +3,7 @@ module Ctl.Examples.KeyWallet.SignMultiple where
 import Contract.Prelude
 
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, throwContractError)
+import Contract.Monad (Contract, throwContractError)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( BalancedSignedTransaction
@@ -14,6 +14,7 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (lovelaceValueOf) as Value
 import Control.Monad.Reader (asks)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
@@ -41,8 +42,8 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- mkUnbalancedTx lookups constraints
 
   txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs

@@ -10,9 +10,9 @@ import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder)
 import Contract.BalanceTxConstraints (mustUseAdditionalUtxos) as BalancerConstraints
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedE, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum, PlutusData(Integer), unitRedeemer)
-import Contract.ScriptLookups (ScriptLookups, UnbalancedTx, mkUnbalancedTx)
+import Contract.ScriptLookups (ScriptLookups, UnbalancedTx)
 import Contract.ScriptLookups (datum, unspentOutputs, validator) as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Sync (withoutSync)
@@ -36,6 +36,7 @@ import Contract.TxConstraints
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
   ) as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (UtxoMap)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
@@ -89,7 +90,7 @@ payToValidator vhash = do
     lookups :: ScriptLookups
     lookups = Lookups.datum datum
 
-  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
+  unbalancedTx <- mkUnbalancedTx lookups constraints
   pure { unbalancedTx, datum }
 
 spendFromValidator :: Validator -> UtxoMap -> Datum -> Contract Unit
@@ -123,9 +124,8 @@ spendFromValidator validator additionalUtxos datum = do
     balancerConstraints =
       BalancerConstraints.mustUseAdditionalUtxos additionalUtxos
 
-  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTxWithConstraints unbalancedTx
-    balancerConstraints
+  unbalancedTx <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTxWithConstraints unbalancedTx balancerConstraints
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
 
