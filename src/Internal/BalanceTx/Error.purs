@@ -33,7 +33,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Value (pprintValue)
-import Ctl.Internal.Helpers (bugTrackerLink)
+import Ctl.Internal.Helpers (bugTrackerLink, unsafePprintTagSet)
 import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
@@ -63,16 +63,6 @@ import Data.Function (applyN)
 import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
 import Data.Lens (non, (^.))
-import Data.Log.Tag
-  ( Tag
-      ( StringTag
-      , IntTag
-      , NumberTag
-      , BooleanTag
-      , JSDateTag
-      , TagSetTag
-      )
-  )
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
@@ -104,9 +94,9 @@ instance Show BalanceTxError where
 explainBalanceTxError :: BalanceTxError -> String
 explainBalanceTxError = case _ of
   BalanceInsufficientError expected actual ->
-    "Insufficient balance. Expected: " <> prettyValue expected
-      <> ", actual: "
-      <> prettyValue actual
+    "Insufficient balance. " <> prettyValue "Expected" (unwrap expected)
+      <> ", "
+      <> prettyValue "actual" (unwrap actual)
   CouldNotConvertScriptOutputToTxInput ->
     "Could not convert script output to transaction input"
   CouldNotGetChangeAddress ->
@@ -145,26 +135,8 @@ explainBalanceTxError = case _ of
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
   where
-  prettyValue
-    :: forall (a :: Type)
-     . Newtype a Value
-    => a
-    -> String
-  prettyValue = unwrap >>> fromPlutusValue >>> pprintValue >>>
-    foldMapWithIndex prettyEntry
-
-  prettyEntry :: String -> Tag -> String
-  prettyEntry k v = (k <> ": ")
-    <>
-      ( case v of
-          StringTag s -> s
-          NumberTag n -> show n
-          IntTag i -> show i
-          BooleanTag b -> show b
-          JSDateTag date -> show date
-          TagSetTag ts -> foldMapWithIndex prettyEntry ts
-      )
-    <> "\n"
+  prettyValue :: String -> Value -> String
+  prettyValue str = fromPlutusValue >>> pprintValue >>> unsafePprintTagSet str
 
 newtype Actual = Actual Value
 
