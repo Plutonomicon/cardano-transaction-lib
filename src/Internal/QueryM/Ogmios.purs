@@ -70,6 +70,8 @@ module Ctl.Internal.QueryM.Ogmios
   , parseIpv6String
   , rationalToSubcoin
   , showRedeemerPointer
+  , decodeRedeemerPointer
+  , redeemerPtrTypeMismatch
   ) where
 
 import Prelude
@@ -772,8 +774,6 @@ instance DecodeOgmios TxEvaluationR where
     ( (Right <$> decodeResult r)
         <|> (Left <$> decodeError r)
     )
-
--- (anyResponse (map (TxEvaluationR <<< Left) <<< decodeAeson) (map (TxEvaluationR <<< Right) <<< decodeAeson))
 
 newtype TxEvaluationResult = TxEvaluationResult
   (Map RedeemerPointer ExecutionUnits)
