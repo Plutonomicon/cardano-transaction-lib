@@ -33,6 +33,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _witnessSet
   )
 import Ctl.Internal.Cardano.Types.Value (pprintValue)
+import Ctl.Internal.Helpers (bugTrackerLink)
 import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
@@ -98,8 +99,6 @@ data BalanceTxError
 derive instance Generic BalanceTxError _
 
 instance Show BalanceTxError where
-  show (ExUnitsEvaluationFailed tx failure) =
-    "ExUnitsEvaluationFailed: " <> printTxEvaluationFailure tx failure
   show e = genericShow e
 
 explainBalanceTxError :: BalanceTxError -> String
@@ -312,7 +311,3 @@ printTxEvaluationFailure transaction e =
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString
   printScriptFailures ptr sfs = printRedeemer ptr <> bullet
     (foldMap printScriptFailure sfs)
-
-bugTrackerLink :: String
-bugTrackerLink =
-  "https://github.com/Plutonomicon/cardano-transaction-lib/issues"
