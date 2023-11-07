@@ -378,10 +378,9 @@ instance Show MempoolSizeAndCapacity where
 
 instance DecodeAeson MempoolSizeAndCapacity where
   decodeAeson = aesonObject \o -> do
-    capacity <- getField o "maxCapacity"
-    currentSize <- getField o "currentSize"
-    numberOfTxs <- (flip getField "transactions") >=> (flip getField "count") $
-      o
+    capacity <- getField o "maxCapacity" >>= flip getField "bytes"
+    currentSize <- getField o "currentSize" >>= flip getField "bytes"
+    numberOfTxs <- getField o "transactions" >>= flip getField "count"
     pure $ wrap { capacity, currentSize, numberOfTxs }
 
 instance DecodeOgmios MempoolSizeAndCapacity where
@@ -399,10 +398,14 @@ instance Show MempoolTransaction where
   show = genericShow
 
 instance DecodeAeson MempoolTransaction where
-  decodeAeson = aesonObject \o -> do
-    id <- o .: "id"
-    raw <- o .: "cbor"
-    pure $ MempoolTransaction { id, raw }
+  decodeAeson aeson = do
+    { transaction: tx }
+      :: { transaction ::
+             { id :: String
+             , raw :: String
+             }
+         } <- decodeAeson aeson
+    pure $ MempoolTransaction { id: tx.id, raw: tx.raw }
 
 newtype MaybeMempoolTransaction = MaybeMempoolTransaction
   (Maybe MempoolTransaction)
@@ -456,7 +459,19 @@ instance DecodeOgmios SubmitTxR where
     ( bimap DecodingError SubmitTxSuccess <<< decodeTxHash =<< decodeResult
         response
     )
-      <|> (SubmitFail <$> decodeError response)
+      <|>
+        ( SubmitFail <$>
+            ( do
+                -- With Ogmios 5.6 we failed with error on deserialization error, so we do now as well
+                err <- decodeError response
+                -- as of 7.11.23 it's in {3005} u [3100, 3159] range
+                if (3000 <= err.code && err.code <= 3999) then
+                  pure err
+                else
+                  Left $ DecodingError $ TypeMismatch
+                    "Expected error code in a range [3000, 3999]"
+            )
+        )
 
     where
     decodeTxHash :: Aeson -> Either JsonDecodeError TxHash
@@ -648,8 +663,8 @@ instance DecodeOgmios PoolParametersR where
 decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
 decodePoolParameters objParams = do
   vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrfVerificationKeyHash"
-  pledge <- objParams .: "pledge"
-  cost <- objParams .: "cost"
+  pledge <- objParams .: "pledge" >>= aesonObject (\obj -> obj .: "lovelace")
+  cost <- objParams .: "cost" >>= aesonObject (\obj -> obj .: "lovelace")
   margin <- decodeUnitInterval =<< objParams .: "margin"
   rewardAccount <- objParams .: "rewardAccount"
   poolOwners <- objParams .: "owners"
@@ -1177,7 +1192,13 @@ instance EncodeAeson AdditionalUtxoSet where
     encodeScriptRef :: ScriptRef -> Aeson
     encodeScriptRef (NativeScriptRef s) =
       encodeAeson $
-        { "language": "native", "cbor": s, "json": (encodeNativeScript s) }
+        { "language": "native"
+        ,
+          -- WARN: We pass empty cbor as an argument because we don't have it.
+          -- We pass the argument as json instead and seemingly ogmios accepts if only json is present.
+          "cbor": ""
+        , "json": (encodeNativeScript s)
+        }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =
       encodeAeson { "language": "plutus:v1", "cbor": byteArrayToHex s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =

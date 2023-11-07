@@ -133,7 +133,7 @@ instance Show OgmiosDecodeError where
       stringifyAeson
       err
   -- Parsing of JsonRpc2Response failed
-  show (InvalidResponseError err) =     "Couldn't parse the response: " <> show err
+  show (InvalidResponseError err) = "Couldn't parse the response: " <> show err
 
 ogmiosDecodeErrorToError :: OgmiosDecodeError -> Error
 ogmiosDecodeErrorToError err = error $ show err
@@ -144,7 +144,8 @@ ogmiosDecodeErrorToError err = error $ show err
 class DecodeOgmios o where
   decodeOgmios :: JsonRpc2Response -> Either OgmiosDecodeError o
 
-decodeOgmiosResponse :: forall o . DecodeOgmios o =>  Aeson -> Either OgmiosDecodeError o
+decodeOgmiosResponse
+  :: forall o. DecodeOgmios o => Aeson -> Either OgmiosDecodeError o
 decodeOgmiosResponse = decodeOgmios <=< decodeAesonJsonRpc2Response
 
 -- | Decode "result" field of ogmios response with DecodeAeson.

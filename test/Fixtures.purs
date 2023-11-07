@@ -1443,7 +1443,8 @@ ogmiosEvaluateTxValidRespFixture =
 
 ogmiosEvaluateTxInvalidPointerFormatFixture :: Effect Aeson
 ogmiosEvaluateTxInvalidPointerFormatFixture =
-  readJsonFixtureFile "test/Fixtures/ogmiosEvaluateTxInvalidPointerFormatFixture.json"
+  readJsonFixtureFile
+    "test/Fixtures/ogmiosEvaluateTxInvalidPointerFormatFixture.json"
 
 ogmiosEvaluateTxFailIncompatibleEraFixture :: Effect Aeson
 ogmiosEvaluateTxFailIncompatibleEraFixture =

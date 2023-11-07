@@ -85,12 +85,16 @@ loadOgmiosFixture query hash = do
 
 eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
-  { result } :: { result :: OgmiosEraSummaries} <- loadOgmiosFixture "queryLedgerState-eraSummaries" "d8b19110b9580cddfa3895eea34c2139"
+  { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
+    "queryLedgerState-eraSummaries"
+    "d8b19110b9580cddfa3895eea34c2139"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart
 systemStartFixture = do
-  { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture "queryNetwork-startTime" "02fa6f9e7ed04ebfe3294c7648be54d5"
+  { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture
+    "queryNetwork-startTime"
+    "02fa6f9e7ed04ebfe3294c7648be54d5"
   pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit

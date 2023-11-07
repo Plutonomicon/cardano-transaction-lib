@@ -105,7 +105,7 @@ suite = group "Ogmios Aeson tests" do
           let
             handle :: forall (a :: Type). DecodeOgmios a => Proxy a -> Aff Unit
             handle _ = liftEither $ bimap
-              ( error <<< ((bn <> "\n  ") <> _) <<< show )
+              (error <<< ((bn <> "\n  ") <> _) <<< show)
               (const unit)
               (decodeOgmiosResponse aeson :: _ a)
           case query of

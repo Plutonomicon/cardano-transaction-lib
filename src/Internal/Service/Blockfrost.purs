@@ -60,42 +60,126 @@ module Ctl.Internal.Service.Blockfrost
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, Finite, JsonDecodeError(TypeMismatch, MissingValue, AtKey), decodeAeson, decodeJsonString, encodeAeson, getField, getFieldOptional, getFieldOptional', isNull, parseJsonStringToAeson, stringifyAeson, unpackFinite, (.:), (.:!))
+import Aeson
+  ( class DecodeAeson
+  , Aeson
+  , Finite
+  , JsonDecodeError(TypeMismatch, MissingValue, AtKey)
+  , decodeAeson
+  , decodeJsonString
+  , encodeAeson
+  , getField
+  , getFieldOptional
+  , getFieldOptional'
+  , isNull
+  , parseJsonStringToAeson
+  , stringifyAeson
+  , unpackFinite
+  , (.:)
+  , (.:!)
+  )
 import Affjax (Error, Response, URL, defaultRequest, printError, request) as Affjax
 import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
-import Contract.RewardAddress (rewardAddressToBech32, stakePubKeyHashRewardAddress, stakeValidatorHashRewardAddress)
+import Contract.RewardAddress
+  ( rewardAddressToBech32
+  , stakePubKeyHashRewardAddress
+  , stakeValidatorHashRewardAddress
+  )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Logger.Class (log)
 import Control.Monad.Logger.Trans (LoggerT(LoggerT), runLoggerT)
 import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
-import Control.Monad.Reader (ReaderT(..))
+import Control.Monad.Reader (ReaderT(ReaderT))
 import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAll, ScriptAny, ScriptNOfK, ScriptPubkey, TimelockExpiry, TimelockStart))
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
-import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), PoolPubKeyHash, Transaction, TransactionOutput(TransactionOutput), UtxoMap, poolPubKeyHashToBech32)
+import Ctl.Internal.Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , ScriptPubkey
+      , TimelockExpiry
+      , TimelockStart
+      )
+  )
+import Ctl.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  )
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Costmdls(Costmdls)
+  , PoolPubKeyHash
+  , Transaction
+  , TransactionOutput(TransactionOutput)
+  , UtxoMap
+  , poolPubKeyHashToBech32
+  )
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
-import Ctl.Internal.Cardano.Types.Value (lovelaceValueOf, mkSingletonNonAdaAsset, mkValue) as Value
+import Ctl.Internal.Cardano.Types.Value
+  ( lovelaceValueOf
+  , mkSingletonNonAdaAsset
+  , mkValue
+  ) as Value
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
-import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError(GetTxMetadataTxNotFoundError, GetTxMetadataClientError, GetTxMetadataMetadataEmptyOrMissingError))
+import Ctl.Internal.Contract.QueryHandle.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataClientError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      )
+  )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
-import Ctl.Internal.Deserialization.Transaction (convertGeneralTransactionMetadata)
-import Ctl.Internal.QueryM.Ogmios (ExecutionUnits, OgmiosDatum, OgmiosScript, OgmiosTxIn, RedeemerPointer, ScriptFailure, TxEvaluationFailure(..), TxEvaluationR, TxEvaluationResult(..), decodeRedeemerPointer)
+import Ctl.Internal.Deserialization.Transaction
+  ( convertGeneralTransactionMetadata
+  )
+import Ctl.Internal.QueryM.Ogmios
+  ( ExecutionUnits
+  , OgmiosDatum
+  , OgmiosScript
+  , OgmiosTxIn
+  , RedeemerPointer
+  , ScriptFailure
+  , TxEvaluationFailure(ScriptFailures, UnparsedError)
+  , TxEvaluationR
+  , TxEvaluationResult(TxEvaluationResult)
+  , decodeRedeemerPointer
+  )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Address (Address, NetworkId, addressBech32, addressFromBech32)
-import Ctl.Internal.Serialization.Hash (ScriptHash, ed25519KeyHashFromBytes, scriptHashToBytes)
+import Ctl.Internal.Serialization.Address
+  ( Address
+  , NetworkId
+  , addressBech32
+  , addressFromBech32
+  )
+import Ctl.Internal.Serialization.Hash
+  ( ScriptHash
+  , ed25519KeyHashFromBytes
+  , scriptHashToBytes
+  )
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
-import Ctl.Internal.Service.Error (ClientError(ClientDecodeJsonError, ClientHttpError, ClientHttpResponseError, ClientOtherError), ServiceError(ServiceBlockfrostError))
-import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString, decodeAssetClass)
+import Ctl.Internal.Service.Error
+  ( ClientError
+      ( ClientDecodeJsonError
+      , ClientHttpError
+      , ClientHttpResponseError
+      , ClientOtherError
+      )
+  , ServiceError(ServiceBlockfrostError)
+  )
+import Ctl.Internal.Service.Helpers
+  ( aesonArray
+  , aesonObject
+  , aesonString
+  , decodeAssetClass
+  )
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
@@ -104,16 +188,39 @@ import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries (EraSummaries, EraSummary, EraSummaryParameters)
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum, OutputDatumHash))
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte), CostModelV1, CostModelV2, ProtocolParameters(ProtocolParameters), convertPlutusV1CostModel, convertPlutusV2CostModel)
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries
+  , EraSummary
+  , EraSummaryParameters
+  )
+import Ctl.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatum, OutputDatumHash)
+  )
+import Ctl.Internal.Types.ProtocolParameters
+  ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
+  , CostModelV1
+  , CostModelV2
+  , ProtocolParameters(ProtocolParameters)
+  , convertPlutusV1CostModel
+  , convertPlutusV2CostModel
+  )
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
-import Ctl.Internal.Types.Scripts (Language(PlutusV2, PlutusV1), StakeValidatorHash, plutusV1Script, plutusV2Script)
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV2, PlutusV1)
+  , StakeValidatorHash
+  , plutusV1Script
+  , plutusV2Script
+  )
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart))
-import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput(TransactionInput))
-import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata(GeneralTransactionMetadata))
+import Ctl.Internal.Types.Transaction
+  ( TransactionHash
+  , TransactionInput(TransactionInput)
+  )
+import Ctl.Internal.Types.TransactionMetadata
+  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
+  )
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
@@ -780,7 +887,8 @@ instance DecodeAeson BlockfrostEvaluateTx where
     where
     success :: Either JsonDecodeError (Either Aeson TxEvaluationR)
     success = do
-      { result : BlockfrostTxEvaluationR res } :: { result   :: BlockfrostTxEvaluationR } <- decodeAeson aeson
+      { result: BlockfrostTxEvaluationR res }
+        :: { result :: BlockfrostTxEvaluationR } <- decodeAeson aeson
       pure $ Right res
 
     failure :: Either JsonDecodeError (Either Aeson TxEvaluationR)
@@ -802,10 +910,13 @@ unwrapBlockfrostEvaluateTx (BlockfrostEvaluateTx ei) = ei
 newtype BlockfrostTxEvaluationR = BlockfrostTxEvaluationR TxEvaluationR
 
 instance DecodeAeson BlockfrostTxEvaluationR where
-  decodeAeson aeson = BlockfrostTxEvaluationR <$> ((wrap <<< Right <$> decodeBlockfrostTxEvaluationResult aeson) <|>
-    (wrap <<< Left <$> decodeBlockfrostTxEvaluationFailure aeson))
+  decodeAeson aeson = BlockfrostTxEvaluationR <$>
+    ( (wrap <<< Right <$> decodeBlockfrostTxEvaluationResult aeson) <|>
+        (wrap <<< Left <$> decodeBlockfrostTxEvaluationFailure aeson)
+    )
 
-decodeBlockfrostTxEvaluationResult :: Aeson -> Either JsonDecodeError TxEvaluationResult
+decodeBlockfrostTxEvaluationResult
+  :: Aeson -> Either JsonDecodeError TxEvaluationResult
 decodeBlockfrostTxEvaluationResult = aesonObject $ \obj -> do
   rdmrPtrExUnitsList :: Array (String /\ Aeson) <-
     ForeignObject.toUnfoldable <$> getField obj "EvaluationResult"
@@ -904,7 +1015,8 @@ instance DecodeAeson OldScriptFailure where
     decodeNoCostModelForLanguage = liftField "noCostModelForLanguage" \o -> do
       pure $ NoCostModelForLanguage o
 
-decodeBlockfrostTxEvaluationFailure :: Aeson -> Either JsonDecodeError TxEvaluationFailure
+decodeBlockfrostTxEvaluationFailure
+  :: Aeson -> Either JsonDecodeError TxEvaluationFailure
 decodeBlockfrostTxEvaluationFailure = aesonObject $ runReaderT cases
   where
   cases :: ObjectParser TxEvaluationFailure
@@ -918,14 +1030,20 @@ decodeBlockfrostTxEvaluationFailure = aesonObject $ runReaderT cases
   translateOldToNew :: OldScriptFailure -> Either JsonDecodeError ScriptFailure
   translateOldToNew x = case x of
     ExtraRedeemers ptrs -> pure $ Ogmios.ExtraRedeemers ptrs
-    MissingRequiredDatums { provided: _, missing } -> pure $ Ogmios.MissingRequiredDatums missing
+    MissingRequiredDatums { provided: _, missing } -> pure $
+      Ogmios.MissingRequiredDatums missing
     MissingRequiredScripts { resolved: _, missing } ->
       Ogmios.MissingRequiredScripts <$> traverse decodeRedeemerPointer missing
-    ValidatorFailed { error, traces } -> pure $ Ogmios.ValidatorFailed { error, traces }
-    UnknownInputReferencedByRedeemer txin -> pure $ Ogmios.UnknownInputReferencedByRedeemer txin
-    NonScriptInputReferencedByRedeemer txin -> pure $ Ogmios.NonScriptInputReferencedByRedeemer txin
+    ValidatorFailed { error, traces } -> pure $ Ogmios.ValidatorFailed
+      { error, traces }
+    UnknownInputReferencedByRedeemer txin -> pure $
+      Ogmios.UnknownInputReferencedByRedeemer txin
+    NonScriptInputReferencedByRedeemer txin -> pure $
+      Ogmios.NonScriptInputReferencedByRedeemer txin
     -- TODO: This is a stretch:
-    IllFormedExecutionBudget mexu -> pure $ Ogmios.InternalLedgerTypeConversionError ("NoCostModelForLanguage error: " <> show mexu)
+    IllFormedExecutionBudget mexu -> pure $
+      Ogmios.InternalLedgerTypeConversionError
+        ("NoCostModelForLanguage error: " <> show mexu)
     NoCostModelForLanguage lang -> pure $ Ogmios.NoCostModelForLanguage [ lang ]
 
   decodeScriptFailures :: ObjectParser TxEvaluationFailure
@@ -937,7 +1055,6 @@ decodeBlockfrostTxEvaluationFailure = aesonObject $ runReaderT cases
         v' <- traverse translateOldToNew =<< decodeAeson v
         (_ /\ v') <$> decodeRedeemerPointer k
     pure $ ScriptFailures scriptFailures
-
 
 --------------------------------------------------------------------------------
 -- BlockfrostUtxosAtAddress / BlockfrostUtxosOfTransaction

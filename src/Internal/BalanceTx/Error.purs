@@ -34,11 +34,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
-  ( RedeemerPointer
-  , ScriptFailure(..)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
-  ) as Ogmios
-import Ctl.Internal.QueryM.Ogmios (showRedeemerPointer)
+  ( showRedeemerPointer
+  )
+import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array

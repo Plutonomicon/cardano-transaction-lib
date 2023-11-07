@@ -6,7 +6,9 @@ import Aeson (class DecodeAeson, decodeJsonString)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.QueryM.Ogmios (OgmiosProtocolParameters(..))
-import Ctl.Internal.Service.Blockfrost (BlockfrostProtocolParameters(BlockfrostProtocolParameters))
+import Ctl.Internal.Service.Blockfrost
+  ( BlockfrostProtocolParameters(BlockfrostProtocolParameters)
+  )
 import Data.Bifunctor (lmap)
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
@@ -44,6 +46,7 @@ suite = group "Blockfrost" do
   test "ProtocolParameter parsing verification" do
     BlockfrostProtocolParameters blockfrostFixture' <- loadFixture
       blockfrostFixture
-    { result : OgmiosProtocolParameters ogmiosFixture' } :: { result :: OgmiosProtocolParameters } <- loadFixture ogmiosFixture
+    { result: OgmiosProtocolParameters ogmiosFixture' }
+      :: { result :: OgmiosProtocolParameters } <- loadFixture ogmiosFixture
 
     blockfrostFixture' `shouldEqual` ogmiosFixture'

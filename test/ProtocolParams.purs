@@ -19,5 +19,6 @@ suite = do
     "./fixtures/test/ogmios/queryLedgerState-protocolParameters-68ba1141d17af9326cad70407ea3d7fb.json"
   group "ProtocolParameters parser" $ do
     test "is able to parse ogmios response fixture" $
-      (decodeAeson aeson :: Either _ { result :: OgmiosProtocolParameters }) `shouldSatisfy`
-        isRight
+      (decodeAeson aeson :: Either _ { result :: OgmiosProtocolParameters })
+        `shouldSatisfy`
+          isRight

@@ -8,8 +8,24 @@ import Aeson (class EncodeAeson, Aeson, encodeAeson, stringifyAeson)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
-import Ctl.Internal.JsWebSocket (_mkWebSocket, _onWsConnect, _onWsError, _onWsMessage, _wsClose, _wsSend)
-import Ctl.Internal.QueryM (ListenerSet, WebSocket(WebSocket), WebsocketDispatch, defaultMessageListener, defaultOgmiosWsConfig, mkListenerSet, mkRequestAff, mkWebsocketDispatch)
+import Ctl.Internal.JsWebSocket
+  ( _mkWebSocket
+  , _onWsConnect
+  , _onWsError
+  , _onWsMessage
+  , _wsClose
+  , _wsSend
+  )
+import Ctl.Internal.QueryM
+  ( ListenerSet
+  , WebSocket(WebSocket)
+  , WebsocketDispatch
+  , defaultMessageListener
+  , defaultOgmiosWsConfig
+  , mkListenerSet
+  , mkRequestAff
+  , mkWebsocketDispatch
+  )
 import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, JsonRpc2Call)
 import Ctl.Internal.QueryM.Ogmios (mkOgmiosCallType)
 import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
@@ -29,7 +45,6 @@ import Effect.Ref as Ref
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
-import Test.Unit.Console (print)
 
 -- A simple websocket for testing
 mkWebSocket
@@ -54,7 +69,7 @@ mkWebSocket lvl serverCfg cb = do
       Ref.read pendingRequests >>= traverse_ sendRequest
   _onWsConnect ws do
     void $ _onWsError ws \_ -> onError
-    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ str -> print str)
+    _onWsMessage ws (logger Debug) $ defaultMessageListener (\_ _ -> pure unit)
       [ messageDispatch ]
     void $ _onWsError ws $ const onError
     cb $ Right $ WebSocket ws
@@ -66,7 +81,7 @@ mkWebSocket lvl serverCfg cb = do
 
 mkWebSocketAff
   :: forall (a :: Type) (b :: Type)
-  . DecodeOgmios b
+   . DecodeOgmios b
   => LogLevel
   -> ServerConfig
   -> Aff (WebSocket (ListenerSet a b))
@@ -85,8 +100,11 @@ instance Show AesonResponse where
 instance DecodeOgmios AesonResponse where
   decodeOgmios = pure <<< AesonResponse <<< encodeAeson
 
-mkQueryWithArgs' :: forall a . EncodeAeson a =>  String -> a -> Query
-mkQueryWithArgs' method a = Query (mkOgmiosCallType { method , params : identity } ) (sanitiseMethod method) (encodeAeson a)
+mkQueryWithArgs' :: forall a. EncodeAeson a => String -> a -> Query
+mkQueryWithArgs' method a = Query
+  (mkOgmiosCallType { method, params: identity })
+  (sanitiseMethod method)
+  (encodeAeson a)
 
 mkQuery' :: String -> Query
 mkQuery' method = mkQueryWithArgs' method {}
@@ -103,8 +121,7 @@ main =
 
     let
       queries =
-        [ 
-          mkQuery' "queryNetwork/tip"
+        [ mkQuery' "queryNetwork/tip"
         , mkQuery' "queryNetwork/startTime"
         , mkQuery' "queryLedgerState/epoch"
         , mkQuery' "queryLedgerState/eraSummaries"
