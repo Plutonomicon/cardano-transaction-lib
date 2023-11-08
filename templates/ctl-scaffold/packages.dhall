@@ -117,8 +117,6 @@ let additions =
           , "argonaut-core"
           , "arrays"
           , "bifunctors"
-          , "js-bigints"
-          , "bignumber"
           , "const"
           , "control"
           , "effect"
@@ -127,6 +125,7 @@ let additions =
           , "foldable-traversable"
           , "foreign-object"
           , "integers"
+          , "js-bigints"
           , "lists"
           , "maybe"
           , "mote"
@@ -145,7 +144,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82"
+        , version = "v2.0.0"
         }
       , bignumber =
         { dependencies =
@@ -345,11 +344,7 @@ let additions =
         , version = "6e4debe87ddbafaa3c77033888f9c998e28cd7ca"
         }
       , js-bigints =
-        { dependencies =
-          [ "integers"
-          , "maybe"
-          , "prelude"
-          ]
+        { dependencies = [ "integers", "maybe", "prelude" ]
         , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
         , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
         }

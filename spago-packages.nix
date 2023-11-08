@@ -7,11 +7,11 @@ let
 
     "aeson" = pkgs.stdenv.mkDerivation {
         name = "aeson";
-        version = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82";
+        version = "v2.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-aeson.git";
-          rev = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82";
-          sha256 = "1brh39w3krjscnpsda5yk171yiq0ykf148bzapl1w21qc4g9ifpr";
+          rev = "4fddd518a143de563299d484272a0ef18daa7dcd";
+          sha256 = "1bz1z9l6nwf5yk45sbbjllmqvci0n1l92cvk3lgmni19g9silbrl";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
