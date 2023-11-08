@@ -73,9 +73,9 @@ import Aeson
   , aesonNull
   , decodeAeson
   , encodeAeson
+  , finiteNumber
   , getField
   , isNull
-  , partialFiniteNumber
   , (.:)
   )
 import Control.Monad.Error.Class (throwError)
@@ -652,7 +652,7 @@ instance EncodeAeson SlotToPosixTimeError where
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
       -- We assume the numbers are finite
-      [ unsafePartial partialFiniteNumber absTime ]
+      [ unsafePartial $ fromJust $ finiteNumber absTime ]
   encodeAeson CannotGetBigIntFromNumber = do
     encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr

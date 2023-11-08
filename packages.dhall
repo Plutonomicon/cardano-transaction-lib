@@ -145,7 +145,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "1da04ea8ff3656a4954b3ae2414da2d6a73ade82"
+        , version = "e885fa483ba374f34416049b96be0bb0cd591c0b"
         }
       , bignumber =
         { dependencies =
@@ -250,11 +250,7 @@ let additions =
         , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
         }
       , js-bigints =
-        { dependencies =
-          [ "integers"
-          , "maybe"
-          , "prelude"
-          ]
+        { dependencies = [ "integers", "maybe", "prelude" ]
         , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
         , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
         }
