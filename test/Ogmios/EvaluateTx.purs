@@ -3,6 +3,7 @@ module Test.Ctl.Ogmios.EvaluateTx (suite) where
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
+import Contract.Numeric.Natural (Natural, fromBigInt')
 import Ctl.Internal.QueryM.JsonRpc2
   ( OgmiosDecodeError(DecodingError)
   , decodeOgmiosResponse
@@ -10,21 +11,25 @@ import Ctl.Internal.QueryM.JsonRpc2
 import Ctl.Internal.QueryM.Ogmios
   ( ExecutionUnits
   , RedeemerPointer
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
   , TxEvaluationR(TxEvaluationR)
   , TxEvaluationResult(TxEvaluationResult)
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Natural (fromInt')
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Mint, Spend))
+import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend, Cert, Mint))
+import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Map (fromFoldable) as Map
+import Data.Maybe (fromJust)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
--- import Test.Ctl.Fixtures (ogmiosEvaluateTxFailIncompatibleEraFixture, ogmiosEvaluateTxFailScriptErrorsFixture, ogmiosEvaluateTxInvalidPointerFormatFixture, ogmiosEvaluateTxValidRespFixture)
+import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures
-  ( ogmiosEvaluateTxInvalidPointerFormatFixture
+  ( ogmiosEvaluateTxFailIncompatibleEraFixture
+  , ogmiosEvaluateTxFailScriptErrorsFixture
+  , ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   )
 import Test.Spec.Assertions (shouldSatisfy)
@@ -49,22 +54,41 @@ suite = do
           Left (DecodingError (TypeMismatch _)) -> true
           _ -> false
 
--- test "Successfully decodes a failed execution response (Incompatible era)" do
---   txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
---     decodeOgmiosResponse <$> liftEffect ogmiosEvaluateTxFailIncompatibleEraFixture
---   (Map.toUnfoldable <<< unwrap <$> txEvalR) `shouldEqual`
---     Right (TxEvaluationResult ogmiosEvaluateTxValidRespDecoded)
+      test "Successfully decodes a failed execution response (Incompatible era)"
+        do
+          txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
+            decodeOgmiosResponse <$> liftEffect
+              ogmiosEvaluateTxFailIncompatibleEraFixture
+          txEvalR `shouldSatisfy` case _ of
+            Right (TxEvaluationR (Left (UnparsedError _))) -> true
+            _ -> false
 
--- test "Successfully decodes a failed execution response (Script errors)" do
---   txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
---     decodeOgmiosResponse <$> liftEffect ogmiosEvaluateTxFailScriptErrorsFixture
---   (Map.toUnfoldable <<< unwrap <$> txEvalR) `shouldEqual`
---     Right (TxEvaluationResult ogmiosEvaluateTxValidRespDecoded)
+      test "Successfully decodes a failed execution response (Script errors)" do
+        txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
+          decodeOgmiosResponse <$> liftEffect
+            ogmiosEvaluateTxFailScriptErrorsFixture
+        txEvalR `shouldSatisfy` case _ of
+          Right (TxEvaluationR (Left (ScriptFailures _))) -> true
+          _ -> false
 
 ogmiosEvaluateTxValidRespDecoded :: Array (RedeemerPointer /\ ExecutionUnits)
 ogmiosEvaluateTxValidRespDecoded =
   [ { redeemerTag: Mint, redeemerIndex: zero }
-      /\ { memory: fromInt' 1685698, steps: fromInt' 609724445 }
+      /\
+        { memory: naturalLiteral "4926587050210136942"
+        , steps: naturalLiteral "2982577810151428748"
+        }
   , { redeemerTag: Spend, redeemerIndex: one }
-      /\ { memory: fromInt' 1700, steps: fromInt' 476468 }
+      /\
+        { memory: naturalLiteral "2766916028110716146"
+        , steps: naturalLiteral "6325731070934221229"
+        }
+  , { redeemerTag: Cert, redeemerIndex: one + one + one }
+      /\
+        { memory: naturalLiteral "4926587050210136942"
+        , steps: naturalLiteral "2982577810151428748"
+        }
   ]
+
+naturalLiteral :: String -> Natural
+naturalLiteral x = fromBigInt' $ unsafePartial $ fromJust $ BigInt.fromString x

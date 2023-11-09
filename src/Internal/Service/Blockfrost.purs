@@ -1030,20 +1030,21 @@ decodeBlockfrostTxEvaluationFailure = aesonObject $ runReaderT cases
   translateOldToNew :: OldScriptFailure -> Either JsonDecodeError ScriptFailure
   translateOldToNew x = case x of
     ExtraRedeemers ptrs -> pure $ Ogmios.ExtraRedeemers ptrs
-    MissingRequiredDatums { provided: _, missing } -> pure $
-      Ogmios.MissingRequiredDatums missing
-    MissingRequiredScripts { resolved: _, missing } ->
-      Ogmios.MissingRequiredScripts <$> traverse decodeRedeemerPointer missing
+    MissingRequiredDatums { provided, missing } -> pure $
+      Ogmios.MissingRequiredDatums { missing, provided: provided }
+    MissingRequiredScripts { resolved: resolved0, missing: missing0 } -> do
+      missing <- traverse decodeRedeemerPointer missing0
+      resolved :: Map RedeemerPointer ScriptHash <- traverse decodeAeson
+        (map (encodeAeson :: String -> _) resolved0)
+      pure $ Ogmios.MissingRequiredScripts { missing, resolved: Just resolved }
     ValidatorFailed { error, traces } -> pure $ Ogmios.ValidatorFailed
       { error, traces }
     UnknownInputReferencedByRedeemer txin -> pure $
       Ogmios.UnknownInputReferencedByRedeemer txin
     NonScriptInputReferencedByRedeemer txin -> pure $
       Ogmios.NonScriptInputReferencedByRedeemer txin
-    -- TODO: This is a stretch:
     IllFormedExecutionBudget mexu -> pure $
-      Ogmios.InternalLedgerTypeConversionError
-        ("NoCostModelForLanguage error: " <> show mexu)
+      Ogmios.IllFormedExecutionBudget mexu
     NoCostModelForLanguage lang -> pure $ Ogmios.NoCostModelForLanguage [ lang ]
 
   decodeScriptFailures :: ObjectParser TxEvaluationFailure

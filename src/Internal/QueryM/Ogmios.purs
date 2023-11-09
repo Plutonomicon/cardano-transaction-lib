@@ -29,6 +29,7 @@ module Ctl.Internal.QueryM.Ogmios
       , NonScriptInputReferencedByRedeemer
       , NoCostModelForLanguage
       , InternalLedgerTypeConversionError
+      , IllFormedExecutionBudget
       )
   , AdditionalUtxoSet(AdditionalUtxoSet)
   , OgmiosUtxoMap
@@ -145,7 +146,7 @@ import Ctl.Internal.QueryM.JsonRpc2
   , mkCallType
   )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
 import Ctl.Internal.Types.ByteArray
@@ -834,15 +835,26 @@ type OgmiosScript = String
 type OgmiosTxId = String
 type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
 
+-- | Reason a script failed.
+-- 
+-- The type definition is a least common denominator between Ogmios v6 format used by ogmios backend
+-- and ogmios v5.6 format used by blockfrost backend
 data ScriptFailure
   = ExtraRedeemers (Array RedeemerPointer)
-  | MissingRequiredDatums (Array OgmiosDatum)
-  | MissingRequiredScripts (Array RedeemerPointer)
+  | MissingRequiredDatums
+      { missing :: (Array OgmiosDatum)
+      , provided :: Maybe (Array OgmiosDatum)
+      }
+  | MissingRequiredScripts
+      { missing :: Array RedeemerPointer
+      , resolved :: Maybe (Map RedeemerPointer ScriptHash)
+      }
   | ValidatorFailed { error :: String, traces :: Array String }
   | UnknownInputReferencedByRedeemer OgmiosTxIn
   | NonScriptInputReferencedByRedeemer OgmiosTxIn
   | NoCostModelForLanguage (Array String)
   | InternalLedgerTypeConversionError String
+  | IllFormedExecutionBudget (Maybe ExecutionUnits)
 
 derive instance Generic ScriptFailure _
 
@@ -869,8 +881,8 @@ instance DecodeAeson ScriptFailure where
     case error.code of
       3011 -> do
         res :: { missingScript :: Array String } <- decodeAeson error.data
-        MissingRequiredScripts <$> traverse decodeRedeemerPointer
-          res.missingScript
+        missing <- traverse decodeRedeemerPointer res.missingScript
+        pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
         res :: { validationError :: String, traces :: Array String } <-
           decodeAeson error.data
@@ -891,7 +903,8 @@ instance DecodeAeson ScriptFailure where
           res.extraneousRedeemers
       3111 -> do
         res :: { missingDatums :: Array String } <- decodeAeson error.data
-        pure $ MissingRequiredDatums res.missingDatums
+        pure $ MissingRequiredDatums
+          { missing: res.missingDatums, provided: Nothing }
       3117 -> do
         res
           :: { unknownOutputReference ::

@@ -34,9 +34,20 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
-  ( showRedeemerPointer
-  )
-import Ctl.Internal.QueryM.Ogmios as Ogmios
+  ( RedeemerPointer
+  , ScriptFailure
+      ( ExtraRedeemers
+      , MissingRequiredDatums
+      , MissingRequiredScripts
+      , ValidatorFailed
+      , UnknownInputReferencedByRedeemer
+      , NonScriptInputReferencedByRedeemer
+      , IllFormedExecutionBudget
+      , NoCostModelForLanguage
+      , InternalLedgerTypeConversionError
+      )
+  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
@@ -200,12 +211,22 @@ printTxEvaluationFailure transaction e =
   printScriptFailure = case _ of
     Ogmios.ExtraRedeemers ptrs -> line "Extra redeemers:" <> bullet
       (foldMap printRedeemer ptrs)
-    Ogmios.MissingRequiredDatums missing
-    -> line "Missing required datums:"
+    Ogmios.MissingRequiredDatums { provided, missing }
+    -> line "Supplied with datums:"
+      <> bullet (foldMap (foldMap line) provided)
+      <> line "But missing required datums:"
       <> bullet (foldMap line missing)
-    Ogmios.MissingRequiredScripts missing
-    -> line "Missing required scripts:"
-      <> bullet (foldMap (line <<< showRedeemerPointer) missing)
+    Ogmios.MissingRequiredScripts { resolved: mresolved, missing }
+    -> line "Supplied with scripts:"
+      <> bullet
+        ( foldMap
+            ( foldMapWithIndex
+                (\ptr scr -> printRedeemer ptr <> line ("Script: " <> show scr))
+            )
+            mresolved
+        )
+      <> line "But missing required scripts:"
+      <> bullet (foldMap printRedeemer missing)
     Ogmios.ValidatorFailed { error, traces } -> line error <> line "Trace:" <>
       number
         (foldMap line traces)
@@ -213,6 +234,14 @@ printTxEvaluationFailure transaction e =
       ("Unknown input referenced by redeemer: " <> show txIn)
     Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
       ("Non script input referenced by redeemer: " <> show txIn)
+    Ogmios.IllFormedExecutionBudget Nothing -> line
+      ("Ill formed execution budget: Execution budget missing")
+    Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
+      line "Ill formed execution budget:"
+        <> bullet
+          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
+              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
+          )
     Ogmios.NoCostModelForLanguage languages ->
       line "No cost model for languages:"
         <> bullet (foldMap line languages)
