@@ -88,7 +88,6 @@ import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
@@ -109,6 +108,7 @@ import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as Object
+import JS.BigInt (BigInt)
 
 --------------------------------------------------------------------------------
 -- Requests

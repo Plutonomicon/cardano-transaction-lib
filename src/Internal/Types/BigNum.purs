@@ -24,13 +24,13 @@ import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
 import Ctl.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
 import Ctl.Internal.Error (E, noteE)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromString, toString) as BigInt
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
 import Data.UInt (UInt)
 import Data.UInt (fromInt, fromString, toString) as UInt
+import JS.BigInt (BigInt)
+import JS.BigInt (fromString, toString) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Type.Row (type (+))
 

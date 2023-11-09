@@ -24,7 +24,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (length, range, replicate, zipWith) as Array
-import Data.BigInt (fromInt) as BigInt
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(Just))
@@ -36,6 +35,7 @@ import Data.UInt (UInt)
 import Data.UInt (fromInt, toInt) as UInt
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Test.Ctl.Fixtures
   ( currencySymbol1

@@ -18,7 +18,7 @@ import Contract.Test.Mote (TestPlanM)
 import Contract.Transaction (awaitTxConfirmed)
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Data.Array (length)
-import Data.BigInt as BigInt
+import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Test.Spec.Assertions (shouldEqual)
 

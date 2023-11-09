@@ -14,7 +14,6 @@ import Contract.Test.Plutip
   , withWallets
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Data.BigInt (fromInt) as BigInt
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect.Aff
   ( Milliseconds(Milliseconds)
@@ -22,6 +21,7 @@ import Effect.Aff
   , effectCanceler
   , launchAff
   )
+import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Scaffold (contract)
 import Test.Spec.Runner (defaultConfig)

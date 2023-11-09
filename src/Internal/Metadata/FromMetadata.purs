@@ -8,11 +8,11 @@ import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataList, Int, Bytes, Text)
   )
 import Data.Array (toUnfoldable, uncons) as Array
-import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
 import Data.Traversable (traverse)
 import Data.Unfoldable (class Unfoldable)
+import JS.BigInt (BigInt)
 
 --------------------------------------------------------------------------------
 -- FromMetadata

@@ -22,10 +22,10 @@ import Ctl.Internal.Types.BigNum
 import Ctl.Internal.Types.ProtocolParameters
   ( CoinsPerUtxoUnit(CoinsPerUtxoWord, CoinsPerUtxoByte)
   )
-import Data.BigInt (BigInt)
 import Data.Maybe (Maybe, fromJust)
 import Effect (Effect)
 import Effect.Exception (error)
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 
 foreign import minAdaForOutput

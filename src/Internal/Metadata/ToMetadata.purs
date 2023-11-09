@@ -10,12 +10,12 @@ import Ctl.Internal.Types.Int (Int, fromBigInt) as Int
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
   )
-import Data.BigInt (BigInt)
 import Data.Map (Map)
 import Data.Map (fromFoldable, toUnfoldable) as Map
 import Data.Maybe (fromJust)
 import Data.Profunctor.Strong ((***))
 import Data.Tuple (Tuple)
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------

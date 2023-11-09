@@ -73,9 +73,9 @@ import Aeson
   , aesonNull
   , decodeAeson
   , encodeAeson
+  , finiteNumber
   , getField
   , isNull
-  , partialFiniteNumber
   , (.:)
   )
 import Control.Monad.Error.Class (throwError)
@@ -120,8 +120,6 @@ import Data.Array (find, head, index, length)
 import Data.Array.NonEmpty (singleton) as NEArray
 import Data.Array.NonEmpty ((:))
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
@@ -137,6 +135,8 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
@@ -652,7 +652,7 @@ instance EncodeAeson SlotToPosixTimeError where
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
       -- We assume the numbers are finite
-      [ unsafePartial partialFiniteNumber absTime ]
+      [ unsafePartial $ fromJust $ finiteNumber absTime ]
   encodeAeson CannotGetBigIntFromNumber = do
     encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr

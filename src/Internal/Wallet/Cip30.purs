@@ -46,7 +46,6 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import Data.BigInt (fromInt) as BigInt
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
@@ -54,6 +53,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
+import JS.BigInt (fromInt) as BigInt
 
 type DataSignature =
   { key :: CborBytes

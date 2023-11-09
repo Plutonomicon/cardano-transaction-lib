@@ -95,7 +95,7 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson
-  , partialFiniteNumber
+  , finiteNumber
   )
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -147,7 +147,6 @@ import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
@@ -169,6 +168,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
 
@@ -605,10 +605,10 @@ instance EncodeAeson MoveInstantaneousReward where
   encodeAeson = case _ of
     ToOtherPot r -> encodeTagged' "ToOtherPot" r
       -- We assume the numbers are finite
-      { pot = unsafePartial partialFiniteNumber r.pot }
+      { pot = unsafePartial $ fromJust $ finiteNumber r.pot }
     ToStakeCreds r -> encodeTagged' "ToStakeCreds" r
       -- We assume the numbers are finite
-      { pot = unsafePartial partialFiniteNumber r.pot }
+      { pot = unsafePartial $ fromJust $ finiteNumber r.pot }
 
 type PoolRegistrationParams =
   { operator :: PoolPubKeyHash -- cwitness (cert)

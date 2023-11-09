@@ -117,8 +117,6 @@ let additions =
           , "argonaut-core"
           , "arrays"
           , "bifunctors"
-          , "bigints"
-          , "bignumber"
           , "const"
           , "control"
           , "effect"
@@ -127,6 +125,7 @@ let additions =
           , "foldable-traversable"
           , "foreign-object"
           , "integers"
+          , "js-bigints"
           , "lists"
           , "maybe"
           , "mote"
@@ -145,7 +144,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-aeson.git"
-        , version = "e411566cf5e3adf05ea9ae866705886cfba4bfa6"
+        , version = "v2.0.0"
         }
       , bignumber =
         { dependencies =
@@ -262,7 +261,7 @@ let additions =
           , "arrays"
           , "avar"
           , "bifunctors"
-          , "bigints"
+          , "js-bigints"
           , "bignumber"
           , "checked-exceptions"
           , "console"
@@ -343,6 +342,11 @@ let additions =
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
         , version = "6e4debe87ddbafaa3c77033888f9c998e28cd7ca"
+        }
+      , js-bigints =
+        { dependencies = [ "integers", "maybe", "prelude" ]
+        , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
+        , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
         }
       }
 

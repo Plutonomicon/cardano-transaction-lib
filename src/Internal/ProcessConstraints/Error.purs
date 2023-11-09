@@ -19,10 +19,10 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Show.Generic (genericShow)
+import JS.BigInt (BigInt)
 
 data MkUnbalancedTxError
   = CannotConvertPaymentPubKeyHash PaymentPubKeyHash

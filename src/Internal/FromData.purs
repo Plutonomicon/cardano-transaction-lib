@@ -41,7 +41,6 @@ import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.ArrayBuffer.Types (Uint8Array)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)
@@ -56,6 +55,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.UInt (UInt)
 import Data.Unfoldable (class Unfoldable)
+import JS.BigInt (BigInt)
 import Noble.Secp256k1.ECDSA
   ( ECDSASignature
   , MessageHash

@@ -64,7 +64,6 @@ import Ctl.Internal.Types.TransactionMetadata
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
-import Data.BigInt (fromInt, toString) as BigInt
 import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
@@ -77,6 +76,7 @@ import Data.Traversable (fold, for, sequence, traverse)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object, toUnfoldable) as FO
+import JS.BigInt (fromInt, toString) as BigInt
 import Partial.Unsafe (unsafePartial)
 
 -- | ```

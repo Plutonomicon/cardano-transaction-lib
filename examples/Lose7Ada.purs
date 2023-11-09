@@ -36,11 +36,11 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (getWalletBalance)
 import Control.Monad.Error.Class (liftMaybe)
-import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
 import Data.Map as Map
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit

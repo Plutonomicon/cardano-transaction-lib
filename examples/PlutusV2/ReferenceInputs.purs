@@ -40,10 +40,10 @@ import Contract.Wallet
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head) as Array
-import Data.BigInt (fromInt) as BigInt
 import Data.Lens.Getter ((^.))
 import Data.Map (member, toUnfoldable) as Map
 import Data.Set (member) as Set
+import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

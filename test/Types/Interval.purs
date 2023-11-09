@@ -33,13 +33,13 @@ import Ctl.Internal.Types.Interval
   )
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
-import Data.BigInt (fromInt, fromString) as BigInt
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse_)
 import Effect (Effect)
 import Effect.Exception (error)
+import JS.BigInt (fromInt, fromString) as BigInt
 import Mote (group, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)

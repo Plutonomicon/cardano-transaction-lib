@@ -81,7 +81,6 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
@@ -114,6 +113,7 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess

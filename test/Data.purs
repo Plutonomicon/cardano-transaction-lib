@@ -34,8 +34,6 @@ import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
@@ -47,6 +45,8 @@ import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Exception (Error)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck ((===))

@@ -37,7 +37,6 @@ import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (findIndex)
-import Data.BigInt as BigInt
 import Data.Either (Either, note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
@@ -48,6 +47,7 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
+import JS.BigInt as BigInt
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
 attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers

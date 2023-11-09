@@ -15,18 +15,18 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , encodeAeson
+  , finiteNumber
   , getField
-  , partialFiniteNumber
   )
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Ctl.Internal.Types.Epoch (Epoch)
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ derive newtype instance DecodeAeson RelativeTime
 instance EncodeAeson RelativeTime where
   encodeAeson (RelativeTime rt) =
     -- We assume the numbers are finite.
-    encodeAeson $ unsafePartial partialFiniteNumber rt
+    encodeAeson $ unsafePartial $ fromJust $ finiteNumber rt
 
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
@@ -170,7 +170,7 @@ derive newtype instance DecodeAeson SlotLength
 instance EncodeAeson SlotLength where
   encodeAeson (SlotLength sl) =
     -- We assume the numbers are finite.
-    encodeAeson $ unsafePartial partialFiniteNumber sl
+    encodeAeson $ unsafePartial $ fromJust $ finiteNumber sl
 
 instance Show SlotLength where
   show (SlotLength slotLength) = showWithParens "SlotLength" slotLength
@@ -189,4 +189,3 @@ derive newtype instance EncodeAeson SafeZone
 
 instance Show SafeZone where
   show (SafeZone sz) = showWithParens "SafeZone" sz
-

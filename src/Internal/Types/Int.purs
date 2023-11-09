@@ -22,10 +22,10 @@ import Aeson
 import Control.Alternative ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
-import Data.BigInt as BigInt
 import Data.Either (note)
 import Data.Function (on)
 import Data.Maybe (Maybe, fromJust)
+import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim as Prim
 

@@ -76,8 +76,6 @@ import Ctl.Internal.Types.TxConstraints
 import Ctl.Internal.Wallet (KeyWallet)
 import Data.Array (catMaybes)
 import Data.Array as Array
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, sum)
 import Data.Lens ((^.))
@@ -104,6 +102,8 @@ import Effect.Class (liftEffect)
 import Effect.Class.Console (info)
 import Effect.Exception (error, throw)
 import Effect.Ref as Ref
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Mote.Monad (mapTest)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (mkdir, readTextFile, readdir, writeTextFile)

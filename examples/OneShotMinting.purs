@@ -51,9 +51,9 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head, singleton) as Array
-import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error, throw)
+import JS.BigInt (BigInt)
 
 main :: Effect Unit
 main = example testnetNamiConfig

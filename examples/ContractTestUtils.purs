@@ -64,10 +64,10 @@ import Contract.Wallet
   )
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Lens (view)
 import Effect.Exception (throw)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 type ContractParams =
   { receiverPkh :: PaymentPubKeyHash
