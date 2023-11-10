@@ -32,7 +32,7 @@ import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
 import Data.Either (Either(Left, Right))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String.Common (replace)
 import Data.String.Pattern (Pattern(Pattern), Replacement(Replacement))
 import Data.Traversable (for_, traverse_)
@@ -96,9 +96,8 @@ derive instance Newtype AesonResponse _
 instance Show AesonResponse where
   show = show <<< unwrap
 
--- We decode and save the responses exactly.
 instance DecodeOgmios AesonResponse where
-  decodeOgmios = pure <<< AesonResponse <<< encodeAeson
+  decodeOgmios = pure <<< wrap
 
 mkQueryWithArgs' :: forall a. EncodeAeson a => String -> a -> Query
 mkQueryWithArgs' method a = Query

@@ -39,7 +39,6 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosSystemStart(OgmiosSystemStart)
   , OgmiosTxIn
   , OgmiosTxId
-  , OgmiosError
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , StakePoolsQueryArgument(StakePoolsQueryArgument)
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
@@ -81,7 +80,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch, UnexpectedValue)
+  , JsonDecodeError(AtKey, TypeMismatch, UnexpectedValue, MissingValue)
   , caseAesonArray
   , caseAesonObject
   , caseAesonString
@@ -140,8 +139,8 @@ import Ctl.Internal.QueryM.JsonRpc2
   ( class DecodeOgmios
   , JsonRpc2Call
   , JsonRpc2Request
-  , OgmiosDecodeError(DecodingError)
-  , decodeError
+  , OgmiosError
+  , decodeErrorOrResult
   , decodeResult
   , mkCallType
   )
@@ -188,7 +187,7 @@ import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, length, replicate) as Array
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
 import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, note)
@@ -348,7 +347,7 @@ newtype HasTxR = HasTxR Boolean
 derive instance Newtype HasTxR _
 
 instance DecodeOgmios HasTxR where
-  decodeOgmios r = HasTxR <$> decodeResult r
+  decodeOgmios = decodeResult (map HasTxR <<< decodeAeson)
 
 newtype MempoolSnapshotAcquired = AwaitAcquired Slot
 
@@ -361,7 +360,7 @@ instance DecodeAeson MempoolSnapshotAcquired where
     map AwaitAcquired <<< aesonObject (flip getField "slot")
 
 instance DecodeOgmios MempoolSnapshotAcquired where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 -- | The acquired snapshot’s size (in bytes), number of transactions, and capacity
 -- | (in bytes).
@@ -385,7 +384,7 @@ instance DecodeAeson MempoolSizeAndCapacity where
     pure $ wrap { capacity, currentSize, numberOfTxs }
 
 instance DecodeOgmios MempoolSizeAndCapacity where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 newtype MempoolTransaction = MempoolTransaction
   { id :: OgmiosTxId
@@ -403,10 +402,10 @@ instance DecodeAeson MempoolTransaction where
     { transaction: tx }
       :: { transaction ::
              { id :: String
-             , raw :: String
+             , cbor :: String
              }
          } <- decodeAeson aeson
-    pure $ MempoolTransaction { id: tx.id, raw: tx.raw }
+    pure $ MempoolTransaction { id: tx.id, raw: tx.cbor }
 
 newtype MaybeMempoolTransaction = MaybeMempoolTransaction
   (Maybe MempoolTransaction)
@@ -414,7 +413,7 @@ newtype MaybeMempoolTransaction = MaybeMempoolTransaction
 derive instance Newtype MaybeMempoolTransaction _
 
 instance DecodeOgmios MaybeMempoolTransaction where
-  decodeOgmios r = wrap <$> decodeResult r
+  decodeOgmios = decodeResult (map wrap <<< decodeAeson)
 
 data ReleasedMempool = ReleasedMempool
 
@@ -433,7 +432,7 @@ instance DecodeAeson ReleasedMempool where
         Left (UnexpectedValue $ Argonaut.encodeString s)
 
 instance DecodeOgmios ReleasedMempool where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
@@ -453,28 +452,24 @@ instance Show SubmitTxR where
 
 type TxHash = ByteArray
 
-type OgmiosError = { code :: Int, message :: String, data :: Aeson }
-
 instance DecodeOgmios SubmitTxR where
-  decodeOgmios response =
-    ( bimap DecodingError SubmitTxSuccess <<< decodeTxHash =<< decodeResult
-        response
-    )
-      <|>
-        ( SubmitFail <$>
-            ( do
-                -- With Ogmios 5.6 we failed with error on deserialization error, so we do now as well
-                err <- decodeError response
-                -- as of 7.11.23 it's in {3005} u [3100, 3159] range
-                if (3000 <= err.code && err.code <= 3999) then
-                  pure err
-                else
-                  Left $ DecodingError $ TypeMismatch
-                    "Expected error code in a range [3000, 3999]"
-            )
-        )
+  decodeOgmios = decodeErrorOrResult
+    { parseError: decodeError }
+    { parseResult: map SubmitTxSuccess <<< decodeTxHash }
 
     where
+
+    decodeError aeson = map SubmitFail do
+      -- With Ogmios 5.6 we failed with error on deserialization error, so we do now as well
+      err :: OgmiosError <- decodeAeson aeson
+      let code = (unwrap err).code
+      -- as of 7.11.23 it's in {3005} u [3100, 3159] range
+      if (3000 <= code && code <= 3999) then
+        pure err
+      else
+        Left $ TypeMismatch
+          "Expected error code in a range [3000, 3999]"
+
     decodeTxHash :: Aeson -> Either JsonDecodeError TxHash
     decodeTxHash = aesonObject $ \o ->
       ( getField o "transaction" >>= flip getField "id" >>= hexToByteArray
@@ -500,7 +495,7 @@ instance EncodeAeson OgmiosSystemStart where
   encodeAeson = encodeAeson <<< sysStartToOgmiosTimestamp <<< unwrap
 
 instance DecodeOgmios OgmiosSystemStart where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
 newtype CurrentEpoch = CurrentEpoch BigInt
@@ -516,7 +511,7 @@ instance Show CurrentEpoch where
   show (CurrentEpoch ce) = showWithParens "CurrentEpoch" ce
 
 instance DecodeOgmios CurrentEpoch where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 ---------------- ERA SUMMARY QUERY RESPONSE & PARSING
 
@@ -583,7 +578,7 @@ slotLengthFactor :: Number
 slotLengthFactor = 1000.0
 
 instance DecodeOgmios OgmiosEraSummaries where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 ---------------- DELEGATIONS & REWARDS QUERY RESPONSE & PARSING
 
@@ -607,7 +602,7 @@ instance DecodeAeson DelegationsAndRewardsR where
     pure $ DelegationsAndRewardsR $ Map.fromFoldable kvs
 
 instance DecodeOgmios DelegationsAndRewardsR where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 ---------------- POOL PARAMETERS REQUEST & PARSING
 
@@ -659,7 +654,7 @@ instance DecodeAeson PoolParametersR where
     pure $ PoolParametersR $ Map.fromFoldable kvs
 
 instance DecodeOgmios PoolParametersR where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
 decodePoolParameters objParams = do
@@ -786,10 +781,9 @@ instance Show TxEvaluationR where
   show = genericShow
 
 instance DecodeOgmios TxEvaluationR where
-  decodeOgmios r = wrap <$>
-    ( (Right <$> decodeResult r)
-        <|> (Left <$> decodeError r)
-    )
+  decodeOgmios = decodeErrorOrResult
+    { parseError: map (wrap <<< Left) <<< decodeAeson }
+    { parseResult: map (wrap <<< Right) <<< decodeAeson }
 
 newtype TxEvaluationResult = TxEvaluationResult
   (Map RedeemerPointer ExecutionUnits)
@@ -836,7 +830,7 @@ type OgmiosTxId = String
 type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
 
 -- | Reason a script failed.
--- 
+--
 -- The type definition is a least common denominator between Ogmios v6 format used by ogmios backend
 -- and ogmios v5.6 format used by blockfrost backend
 data ScriptFailure
@@ -850,7 +844,7 @@ data ScriptFailure
       , resolved :: Maybe (Map RedeemerPointer ScriptHash)
       }
   | ValidatorFailed { error :: String, traces :: Array String }
-  | UnknownInputReferencedByRedeemer OgmiosTxIn
+  | UnknownInputReferencedByRedeemer (Array OgmiosTxIn)
   | NonScriptInputReferencedByRedeemer OgmiosTxIn
   | NoCostModelForLanguage (Array String)
   | InternalLedgerTypeConversionError String
@@ -877,45 +871,48 @@ instance Show TxEvaluationFailure where
 
 instance DecodeAeson ScriptFailure where
   decodeAeson aeson = do
-    error :: OgmiosError <- decodeAeson aeson
+    err :: OgmiosError <- decodeAeson aeson
+    let error = unwrap err
+    errorData <- maybe (Left (AtKey "data" MissingValue)) pure error.data
     case error.code of
       3011 -> do
-        res :: { missingScript :: Array String } <- decodeAeson error.data
-        missing <- traverse decodeRedeemerPointer res.missingScript
+        res :: { missingScripts :: Array String } <- decodeAeson errorData
+        missing <- traverse decodeRedeemerPointer res.missingScripts
         pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
         res :: { validationError :: String, traces :: Array String } <-
-          decodeAeson error.data
+          decodeAeson errorData
         pure $ ValidatorFailed
           { error: res.validationError, traces: res.traces }
       3013 -> do
         res
           :: { unsuitableOutputReference ::
                  { transaction :: { id :: String }, index :: Int }
-             } <- decodeAeson error.data
+             } <- decodeAeson errorData
         pure $ NonScriptInputReferencedByRedeemer
           { index: res.unsuitableOutputReference.index
           , txId: res.unsuitableOutputReference.transaction.id
           }
       3110 -> do
-        res :: { extraneousRedeemers :: Array String } <- decodeAeson error.data
+        res :: { extraneousRedeemers :: Array String } <- decodeAeson errorData
         ExtraRedeemers <$> traverse decodeRedeemerPointer
           res.extraneousRedeemers
       3111 -> do
-        res :: { missingDatums :: Array String } <- decodeAeson error.data
+        res :: { missingDatums :: Array String } <- decodeAeson errorData
         pure $ MissingRequiredDatums
           { missing: res.missingDatums, provided: Nothing }
       3117 -> do
         res
-          :: { unknownOutputReference ::
-                 { transaction :: { id :: String }, index :: Int }
-             } <- decodeAeson error.data
-        let res' = res.unknownOutputReference
-        pure $ UnknownInputReferencedByRedeemer
-          { index: res'.index, txId: res'.transaction.id }
+          :: { unknownOutputReferences ::
+                 Array { transaction :: { id :: String }, index :: Int }
+             } <- decodeAeson errorData
+        pure $ UnknownInputReferencedByRedeemer $
+          map (\x -> { index: x.index, txId: x.transaction.id })
+            res.unknownOutputReferences
       3115 -> do
-        res :: { missingCostModels :: Array String } <- decodeAeson error.data
+        res :: { missingCostModels :: Array String } <- decodeAeson errorData
         pure $ NoCostModelForLanguage res.missingCostModels
+      -- this would actually fail at decoding error.data but it's good
       3999 -> pure $ InternalLedgerTypeConversionError error.message
       _ -> Left $ TypeMismatch $ "Unknown ogmios error code: " <> show
         error.code
@@ -923,9 +920,12 @@ instance DecodeAeson ScriptFailure where
 instance DecodeAeson TxEvaluationFailure where
   decodeAeson aeson = do
     error :: OgmiosError <- decodeAeson aeson
-    case error.code of
+    let code = (unwrap error).code
+    errorData <- maybe (Left (AtKey "data" MissingValue)) pure
+      (unwrap error).data
+    case code of
       -- ScriptExecutionFailure
-      3010 -> flip aesonArray error.data $
+      3010 -> flip aesonArray errorData $
         ( \array ->
             ( ScriptFailures <<< map Array.fromFoldable <<< collectIntoMap <$>
                 traverse parseElem array
@@ -1089,7 +1089,7 @@ instance DecodeAeson OgmiosProtocolParameters where
       pure { memPrice, stepPrice } -- ExUnits
 
 instance DecodeOgmios OgmiosProtocolParameters where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
 
@@ -1108,7 +1108,7 @@ instance DecodeAeson ChainTipQR where
     pure $ either CtChainOrigin CtChainPoint $ toEither1 r
 
 instance DecodeOgmios ChainTipQR where
-  decodeOgmios = decodeResult
+  decodeOgmios = decodeResult decodeAeson
 
 -- | A Blake2b 32-byte digest of an era-independent block header, serialized as
 -- CBOR in base16
@@ -1206,10 +1206,7 @@ instance EncodeAeson AdditionalUtxoSet where
     encodeScriptRef (NativeScriptRef s) =
       encodeAeson $
         { "language": "native"
-        ,
-          -- WARN: We pass empty cbor as an argument because we don't have it.
-          -- We pass the argument as json instead and seemingly ogmios accepts if only json is present.
-          "cbor": ""
+        -- NOTE: We omit the cbor argument.
         , "json": (encodeNativeScript s)
         }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =

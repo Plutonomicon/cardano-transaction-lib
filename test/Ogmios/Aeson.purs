@@ -10,7 +10,7 @@ import Aeson as Aeson
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, decodeOgmiosResponse)
+import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, decodeOgmios)
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, elem, groupAllBy, nubBy)
@@ -107,7 +107,7 @@ suite = group "Ogmios Aeson tests" do
             handle _ = liftEither $ bimap
               (error <<< ((bn <> "\n  ") <> _) <<< show)
               (const unit)
-              (decodeOgmiosResponse aeson :: _ a)
+              (decodeOgmios aeson :: _ a)
           case query of
             "queryNetwork/tip" -> handle (Proxy :: _ O.ChainTipQR)
             "queryLedgerState/epoch" -> handle (Proxy :: _ O.CurrentEpoch)

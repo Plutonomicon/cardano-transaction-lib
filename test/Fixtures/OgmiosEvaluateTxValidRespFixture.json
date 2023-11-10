@@ -15,13 +15,13 @@
               "memory": 4926587050210136942,
               "cpu": 2982577810151428748
           }
-      },      
+      },
       {
-          "validator": "withdrawal:8",
+          "validator": "withdrawal:0",
           "budget": {
               "memory": 3603965291794951667,
               "cpu": 937555587227912939
-          }
+            }
       }
   ],
   "id": "kuOpGfqeiHbY"

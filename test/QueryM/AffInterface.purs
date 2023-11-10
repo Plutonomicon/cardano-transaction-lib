@@ -39,7 +39,8 @@ suite = do
             void $ throwError $ error $
               "Unexpected success in testSubmitTxFailure"
           Left error -> do
-            (Pattern "Server responded with `fault`" `indexOf` show error)
+            (Pattern "Ogmios responded with error: " `indexOf` show error)
+              -- Error: (TypeMismatch "Expected error code in a range [3000, 3999]")
               `shouldSatisfy` isJust
 
 testGetChainTip :: QueryM Unit

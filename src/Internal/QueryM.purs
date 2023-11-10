@@ -118,7 +118,7 @@ import Ctl.Internal.QueryM.Dispatcher
   ) as ExportDispatcher
 import Ctl.Internal.QueryM.JsonRpc2
   ( OgmiosDecodeError
-  , decodeOgmiosResponse
+  , decodeOgmios
   , ogmiosDecodeErrorToError
   )
 import Ctl.Internal.QueryM.JsonRpc2 as JsonRpc2
@@ -154,7 +154,7 @@ import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
-import Data.Bifunctor (bimap, lmap)
+import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)
 import Data.Foldable (foldl)
 import Data.HTTP.Method (Method(POST))
@@ -760,7 +760,7 @@ mkAddMessageListener dispatcher =
   \reflection handler ->
     flip Ref.modify_ dispatcher $
       Map.insert reflection
-        (\aeson -> handler $ decodeOgmiosResponse aeson)
+        (\aeson -> handler $ decodeOgmios aeson)
 
 mkRemoveMessageListener
   :: forall (requestData :: Type)
@@ -870,7 +870,7 @@ mkRequestAff listeners' webSocket logger jsonRpc2Call getLs input = do
       _ <- respLs.addMessageListener id
         ( \res -> do
             respLs.removeMessageListener id
-            cont $ bimap ogmiosDecodeErrorToError identity res
+            cont $ lmap ogmiosDecodeErrorToError res
         )
       respLs.addRequest id (sBody /\ input)
       _wsSend webSocket (logger Debug) sBody

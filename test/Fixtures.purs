@@ -1444,17 +1444,17 @@ ogmiosEvaluateTxValidRespFixture =
 ogmiosEvaluateTxInvalidPointerFormatFixture :: Effect Aeson
 ogmiosEvaluateTxInvalidPointerFormatFixture =
   readJsonFixtureFile
-    "test/Fixtures/ogmiosEvaluateTxInvalidPointerFormatFixture.json"
+    "test/Fixtures/OgmiosEvaluateTxInvalidPointerFormatFixture.json"
 
 ogmiosEvaluateTxFailIncompatibleEraFixture :: Effect Aeson
 ogmiosEvaluateTxFailIncompatibleEraFixture =
   readJsonFixtureFile
-    "test/Fixtures/ogmiosEvaluateTxFailIncompatibleEraFixture.json"
+    "test/Fixtures/OgmiosEvaluateTxFailIncompatibleEraFixture.json"
 
 ogmiosEvaluateTxFailScriptErrorsFixture :: Effect Aeson
 ogmiosEvaluateTxFailScriptErrorsFixture =
   readJsonFixtureFile
-    "test/Fixtures/ogmiosEvaluateTxFailScriptErrorsFixture.json"
+    "test/Fixtures/OgmiosEvaluateTxFailScriptErrorsFixture.json"
 
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer

@@ -7,14 +7,16 @@ module Ctl.Internal.QueryM.JsonRpc2
   , mkCallType
   , JsonRpc2Response
   , decodeResult
-  , decodeError
   , ogmiosDecodeErrorToError
-  , OgmiosDecodeError(NoResultError, DecodingError, InvalidResponseError)
+  , OgmiosDecodeError(ResultDecodingError, InvalidResponse, ErrorResponse)
+  , OgmiosError(OgmiosError)
   , class DecodeOgmios
   , decodeOgmios
-  , decodeOgmiosResponse
+  , decodeErrorOrResult
   , parseJsonRpc2ResponseId
   , decodeAesonJsonRpc2Response
+  , pprintOgmiosDecodeError
+  , pprintOgmiosError
   ) where
 
 import Prelude
@@ -23,7 +25,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(AtKey, TypeMismatch, MissingValue)
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
   , encodeAeson
@@ -32,9 +34,15 @@ import Aeson
   , stringifyAeson
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
-import Data.Bifunctor (bimap)
-import Data.Either (Either(Left), note)
-import Data.Maybe (Maybe, maybe)
+import Data.Bifunctor (lmap)
+import Data.Either (Either(Left, Right))
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (Maybe(Just), maybe)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Show.Generic (genericShow)
+import Data.These (These(That, Both), theseLeft, theseRight)
+import Data.Traversable (sequence)
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Error, error)
 import Foreign.Object (Object)
@@ -75,22 +83,20 @@ type JsonRpc2Response =
   }
 
 decodeAesonJsonRpc2Response
-  :: Aeson -> Either OgmiosDecodeError JsonRpc2Response
-decodeAesonJsonRpc2Response aeson = bimap InvalidResponseError identity
-  $ flip aesonObject aeson
-  $ \o -> do
-      jsonrpc <- getField o "jsonrpc"
-      method <- getFieldOptional o "method"
-      result <- getFieldOptional o "result"
-      error <- getFieldOptional o "error"
-      id <- getField o "id"
-      pure
-        { jsonrpc
-        , method
-        , result
-        , error
-        , id
-        }
+  :: Aeson -> Either JsonDecodeError JsonRpc2Response
+decodeAesonJsonRpc2Response = aesonObject $ \o -> do
+  jsonrpc <- getField o "jsonrpc"
+  method <- getFieldOptional o "method"
+  result <- getFieldOptional o "result"
+  error <- getFieldOptional o "error"
+  id <- getField o "id"
+  pure
+    { jsonrpc
+    , method
+    , result
+    , error
+    , id
+    }
 
 -- | A wrapper for tying arguments and response types to request building.
 newtype JsonRpc2Call :: Type -> Type -> Type
@@ -117,50 +123,97 @@ buildRequest
   -> Effect { body :: Aeson, id :: String }
 buildRequest (JsonRpc2Call c) = c
 
+newtype OgmiosError = OgmiosError
+  { code :: Int, message :: String, data :: Maybe Aeson }
+
+derive instance Generic OgmiosError _
+derive instance Newtype OgmiosError _
+
+instance Show OgmiosError where
+  show = genericShow
+
+pprintOgmiosError :: OgmiosError -> String
+pprintOgmiosError (OgmiosError err) = stringifyAeson $ encodeAeson err
+
+instance DecodeAeson OgmiosError where
+  decodeAeson = aesonObject \o -> do
+    code <- getField o "code"
+    message <- getField o "message"
+    dat <- getFieldOptional o "data"
+    pure $ OgmiosError { code, message, data: dat }
+
 data OgmiosDecodeError
-  -- Server didn't respond with "result", responded with given "error".
-  = NoResultError (Maybe Aeson)
-  -- Parsing of result failed
-  | DecodingError JsonDecodeError
-  -- Parsing of JsonRpc2Response failed
-  | InvalidResponseError JsonDecodeError
+  -- Server responded with error.
+  = ErrorResponse (Maybe OgmiosError)
+  -- Server responded with result, parsing of which failed
+  | ResultDecodingError JsonDecodeError
+  -- Received JsonRpc2Response was not of the right format.
+  | InvalidResponse JsonDecodeError
+
+derive instance Generic OgmiosDecodeError _
 
 instance Show OgmiosDecodeError where
-  show (DecodingError err) = show err
-  show (NoResultError err) =
-    "Server didn't respond with result. Responded with error: " <> maybe
-      ""
-      stringifyAeson
-      err
-  -- Parsing of JsonRpc2Response failed
-  show (InvalidResponseError err) = "Couldn't parse the response: " <> show err
+  show = genericShow
+
+pprintOgmiosDecodeError :: OgmiosDecodeError -> String
+pprintOgmiosDecodeError (ErrorResponse err) = "Ogmios responded with error: " <>
+  maybe "<Actually no response>" (stringifyAeson <<< encodeAeson <<< unwrap) err
+pprintOgmiosDecodeError (ResultDecodingError err) =
+  "Failed to parse the result: " <> show err
+pprintOgmiosDecodeError (InvalidResponse err) =
+  "Ogmios response was not of the right format: " <> show err
 
 ogmiosDecodeErrorToError :: OgmiosDecodeError -> Error
-ogmiosDecodeErrorToError err = error $ show err
+ogmiosDecodeErrorToError err = error $ pprintOgmiosDecodeError err
 
 -- | Variation of DecodeAeson for ogmios response, defines how to parse full ogmios reponse.
--- We usually parse just the content of the "result" field, 
+-- We usually parse just the content of the "result" field,
 -- but sometimes also "error" field, hence a class other than DecodeAeson.
 class DecodeOgmios o where
-  decodeOgmios :: JsonRpc2Response -> Either OgmiosDecodeError o
+  decodeOgmios :: Aeson -> Either OgmiosDecodeError o
 
-decodeOgmiosResponse
-  :: forall o. DecodeOgmios o => Aeson -> Either OgmiosDecodeError o
-decodeOgmiosResponse = decodeOgmios <=< decodeAesonJsonRpc2Response
+-- | Given how to parse result or error fields,
+-- defines a parser of the full json2rpc response.
+makeDecodeOgmios
+  :: forall o
+   . These
+       { parseError :: Aeson -> Either JsonDecodeError o }
+       { parseResult :: Aeson -> Either JsonDecodeError o }
+  -> Aeson
+  -> Either OgmiosDecodeError o
+makeDecodeOgmios decoders aeson = do
+  json <- lmap InvalidResponse $ decodeAesonJsonRpc2Response aeson
+  let merr = _.parseError <$> theseLeft decoders <*> json.error
+  let mres = _.parseResult <$> theseRight decoders <*> json.result
+  case (mres /\ merr) of
+    -- Expected result, got it
+    Just (Right x) /\ _ -> pure x
+    -- Expected result, got it in a wrong format
+    Just (Left err) /\ _ -> Left $ ResultDecodingError err
+    -- Got an expected error
+    _ /\ Just (Right x) -> pure x
+    -- Got an unexpected error
+    _ -> do
+      err :: Maybe OgmiosError <- sequence $
+        lmap InvalidResponse <<< decodeAeson <$> json.error
+      Left $ ErrorResponse err
 
--- | Decode "result" field of ogmios response with DecodeAeson.
+-- | Decode "result" field of ogmios response.
 decodeResult
-  :: forall o. DecodeAeson o => JsonRpc2Response -> Either OgmiosDecodeError o
-decodeResult response = do
-  result <- note (NoResultError response.error) $ response.result
-  bimap DecodingError identity $ decodeAeson result
+  :: forall o
+   . (Aeson -> Either JsonDecodeError o)
+  -> Aeson
+  -> Either OgmiosDecodeError o
+decodeResult decodeAeson = makeDecodeOgmios $ That { parseResult: decodeAeson }
 
--- | Decode "error" field of ogmios response with DecodeAeson.
-decodeError
-  :: forall o. DecodeAeson o => JsonRpc2Response -> Either OgmiosDecodeError o
-decodeError response = bimap DecodingError identity $ do
-  error <- note (AtKey "error" MissingValue) response.error
-  decodeAeson error
+-- | Decode "result" field or if absent the error field of ogmios response.
+decodeErrorOrResult
+  :: forall o
+   . { parseError :: (Aeson -> Either JsonDecodeError o) }
+  -> { parseResult :: (Aeson -> Either JsonDecodeError o) }
+  -> Aeson
+  -> Either OgmiosDecodeError o
+decodeErrorOrResult err res = makeDecodeOgmios $ Both err res
 
 -- | Parse just ID from the response
 parseJsonRpc2ResponseId

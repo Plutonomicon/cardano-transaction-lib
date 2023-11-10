@@ -897,15 +897,15 @@ instance DecodeAeson BlockfrostEvaluateTx where
 unwrapBlockfrostEvaluateTx :: BlockfrostEvaluateTx -> Either Aeson TxEvaluationR
 unwrapBlockfrostEvaluateTx (BlockfrostEvaluateTx ei) = ei
 
--- 
+--
 -- TxEvaluationR parsing
--- 
+--
 
 -- | Wrapper for Aeson parsing.
--- 
+--
 -- Blockfrost returns on evaluateTx endpoint an ogmios response from the older Ogmios v5.6!
 -- Ogmios backed parses against Ogmios v6, here we parse using the previous code for Ogmios.
--- 
+--
 -- Note: TxEvaluationFailure as part of BlockfrostTxEvaluation doesn't parse with it's DecodeAeson instance.
 newtype BlockfrostTxEvaluationR = BlockfrostTxEvaluationR TxEvaluationR
 
@@ -1040,7 +1040,7 @@ decodeBlockfrostTxEvaluationFailure = aesonObject $ runReaderT cases
     ValidatorFailed { error, traces } -> pure $ Ogmios.ValidatorFailed
       { error, traces }
     UnknownInputReferencedByRedeemer txin -> pure $
-      Ogmios.UnknownInputReferencedByRedeemer txin
+      Ogmios.UnknownInputReferencedByRedeemer [ txin ]
     NonScriptInputReferencedByRedeemer txin -> pure $
       Ogmios.NonScriptInputReferencedByRedeemer txin
     IllFormedExecutionBudget mexu -> pure $
