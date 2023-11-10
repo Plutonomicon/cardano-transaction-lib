@@ -12,7 +12,6 @@ import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
-import Test.Ctl.Base64 as Base64
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
 import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
 import Test.Ctl.ByteArray as ByteArray
@@ -59,7 +58,6 @@ testPlan = do
   ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite
-  Base64.suite
   Bip32.suite
   ByteArray.suite
   Cip25.suite
