@@ -92,10 +92,14 @@ addTxCollateralReturn collateral transaction ownAddress =
     coinsPerUtxoUnit <- askCoinsPerUtxoUnit
 
     -- Calculate the required min ada value for the collateral return output:
-    minAdaValue <-
+    minAdaValue <- do
+      let returnAsTxOut = wrap collReturnOutputRec
       ExceptT $
-        liftEffect (utxoMinAdaValue coinsPerUtxoUnit (wrap collReturnOutputRec))
-          <#> note CollateralReturnMinAdaValueCalcError
+        liftEffect (utxoMinAdaValue coinsPerUtxoUnit returnAsTxOut)
+          <#> note
+            ( CollateralReturnMinAdaValueCalcError coinsPerUtxoUnit
+                returnAsTxOut
+            )
 
     let
       -- Determine the actual ada value of the collateral return output:
@@ -119,9 +123,7 @@ addTxCollateralReturn collateral transaction ownAddress =
           Right $
             transaction # _body <<< _collateralReturn ?~ collReturnOutput
               # _body <<< _totalCollateral ?~ wrap totalCollateral
-        false ->
-          Left $ CollateralReturnError
-            "Negative totalCollateral after covering min-utxo-ada requirement."
+        false -> Left CollateralReturnError
 
 --------------------------------------------------------------------------------
 -- Helpers

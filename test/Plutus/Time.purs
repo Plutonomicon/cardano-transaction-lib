@@ -28,7 +28,6 @@ import Ctl.Internal.Types.Interval
   , POSIXTime(POSIXTime)
   , PosixTimeToSlotError
       ( CannotFindTimeInEraSummaries
-      , CannotGetBigIntFromNumber'
       , EndSlotLessThanSlotOrModNonZero
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
@@ -251,7 +250,6 @@ suite = do
         absTimeFixture
       toFromAesonTest "EndSlotLessThanSlotOrModNonZero" $
         EndSlotLessThanSlotOrModNonZero slotFixture modTimeFixture
-      toFromAesonTest "CannotGetBigIntFromNumber'" $ CannotGetBigIntFromNumber'
     group "ToOnChainPosixTimeRangeError" do
       toFromAesonTest "PosixTimeToSlotError'" $ PosixTimeToSlotError'
         posixTimeToSlotErrFixture

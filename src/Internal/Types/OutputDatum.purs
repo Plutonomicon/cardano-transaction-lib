@@ -2,6 +2,7 @@ module Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
+  , pprintOutputDatum
   ) where
 
 import Prelude
@@ -26,11 +27,16 @@ import Ctl.Internal.Plutus.Types.DataSchema
   )
 import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
+import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Datum (Datum)
+import Ctl.Internal.Types.PlutusData (pprintPlutusData)
 import Ctl.Internal.Types.Transaction (DataHash)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap)
 import Data.Show.Generic (genericShow)
 
 data OutputDatum = NoOutputDatum | OutputDatumHash DataHash | OutputDatum Datum
@@ -81,6 +87,14 @@ instance DecodeAeson OutputDatum where
         tagValue -> do
           Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
             tagValue
+
+pprintOutputDatum :: OutputDatum -> TagSet
+pprintOutputDatum = TagSet.fromArray <<< case _ of
+  NoOutputDatum -> [ "datum" `tag` "none" ]
+  OutputDatumHash hash ->
+    [ "datumHash" `tag` byteArrayToHex (unwrap hash) ]
+  OutputDatum d ->
+    [ "datum" `tagSetTag` pprintPlutusData (unwrap d) ]
 
 outputDatumDataHash :: OutputDatum -> Maybe DataHash
 outputDatumDataHash (OutputDatumHash hash) = Just hash

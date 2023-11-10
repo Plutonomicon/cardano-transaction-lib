@@ -9,6 +9,7 @@ module Ctl.Internal.Helpers
   , appendMap
   , appendRightMap
   , bigIntToUInt
+  , bugTrackerLink
   , concatPaths
   , contentsProp
   , encodeMap
@@ -31,6 +32,7 @@ module Ctl.Internal.Helpers
   , showWithParens
   , tagProp
   , uIntToBigInt
+  , unsafePprintTagSet
   ) where
 
 import Prelude
@@ -45,8 +47,9 @@ import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
 import Data.Log.Formatter.Pretty (prettyFormatter)
-import Data.Log.Level (LogLevel)
+import Data.Log.Level (LogLevel(Info))
 import Data.Log.Message (Message)
+import Data.Log.Tag (TagSet)
 import Data.Map (Map, toUnfoldable)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
@@ -63,11 +66,22 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
+import Effect.Unsafe (unsafePerformEffect)
 import Foreign.Object as Obj
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
+
+bugTrackerLink :: String
+bugTrackerLink =
+  "https://github.com/Plutonomicon/cardano-transaction-lib/issues"
+
+unsafePprintTagSet :: String -> TagSet -> String
+unsafePprintTagSet message tags = unsafePerformEffect do
+  timestamp <- now
+  let msg = { level: Info, message, tags, timestamp }
+  prettyFormatter msg
 
 -- | Throws provided error on `Nothing`
 fromJustEff :: forall (a :: Type). String -> Maybe a -> Effect a

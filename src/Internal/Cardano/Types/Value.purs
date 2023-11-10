@@ -500,7 +500,7 @@ instance Equipartition Value where
 
 pprintValue :: Value -> TagSet
 pprintValue value = TagSet.fromArray $
-  [ "ADA" `tag` BigInt.toString (unwrap (valueToCoin value)) ]
+  [ "Lovelace" `tag` BigInt.toString (unwrap (valueToCoin value)) ]
     <>
       if nonAdaAssets /= mempty then
         [ "Assets" `tagSetTag` pprintNonAdaAsset nonAdaAssets ]

@@ -63,7 +63,6 @@ import Ctl.Internal.Types.Interval
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
       , EndSlotLessThanSlotOrModNonZero
-      , CannotGetBigIntFromNumber'
       )
   , RelTime(RelTime)
   , SlotRange

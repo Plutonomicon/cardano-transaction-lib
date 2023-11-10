@@ -5,6 +5,7 @@ module Ctl.Internal.Transaction
   , attachPlutusScript
   , attachNativeScript
   , setScriptDataHash
+  , explainModifyTxError
   ) where
 
 import Prelude
@@ -48,6 +49,12 @@ derive instance Eq ModifyTxError
 
 instance Show ModifyTxError where
   show = genericShow
+
+-- | Helper for showing `ModifyTxError` in a human-readable way.
+explainModifyTxError :: ModifyTxError -> String
+explainModifyTxError = case _ of
+  ConvertWitnessesError -> "Could not convert witnesses."
+  ConvertDatumError -> "Could not convert datum."
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction

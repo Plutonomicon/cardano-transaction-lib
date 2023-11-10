@@ -29,8 +29,6 @@ import Ctl.Internal.BalanceTx.Error
       , InsufficientUtxoBalanceToCoverAsset
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
-  , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass(AssetClass), Coin, Value)
@@ -142,7 +140,6 @@ performMultiAssetSelection strategy utxoIndex requiredValue =
     BalanceInsufficientError
       (Expected $ toPlutusValue requiredValue)
       (Actual $ toPlutusValue availableValue)
-      (InvalidInContext $ toPlutusValue mempty)
 
   availableValue :: Value
   availableValue = balance (utxoIndexUniverse utxoIndex)
@@ -356,7 +353,7 @@ runSelectionStep lens state
       let
         balanceInsufficientError :: BalanceTxError
         balanceInsufficientError =
-          InsufficientUtxoBalanceToCoverAsset Impossible lens.assetDisplayString
+          InsufficientUtxoBalanceToCoverAsset lens.assetDisplayString
       in
         lens.selectQuantityCover state
           >>= maybe (throwError balanceInsufficientError) (pure <<< Just)
