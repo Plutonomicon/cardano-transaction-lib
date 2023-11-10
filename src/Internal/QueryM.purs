@@ -430,9 +430,9 @@ mempoolSnapshotSizeAndCapacity ms =
 
 releaseMempool
   :: Ogmios.MempoolSnapshotAcquired
-  -> QueryM ReleasedMempool
+  -> QueryM Unit
 releaseMempool ms =
-  mkOgmiosRequest
+  unit <$ mkOgmiosRequest
     (Ogmios.releaseMempoolCall ms)
     _.releaseMempool
     unit

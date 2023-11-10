@@ -82,6 +82,7 @@ import Aeson
   , Aeson
   , JsonDecodeError(AtKey, TypeMismatch, UnexpectedValue, MissingValue)
   , caseAesonArray
+  , caseAesonNull
   , caseAesonObject
   , caseAesonString
   , decodeAeson
@@ -388,24 +389,25 @@ instance DecodeOgmios MempoolSizeAndCapacity where
 
 newtype MempoolTransaction = MempoolTransaction
   { id :: OgmiosTxId
-  , raw :: String
+  , raw :: String -- hex encoded transaction cbor
   }
 
 derive instance Generic MempoolTransaction _
 derive instance Newtype MempoolTransaction _
 
-instance Show MempoolTransaction where
-  show = genericShow
-
-instance DecodeAeson MempoolTransaction where
+instance DecodeAeson MaybeMempoolTransaction where
   decodeAeson aeson = do
-    { transaction: tx }
-      :: { transaction ::
-             { id :: String
-             , cbor :: String
-             }
-         } <- decodeAeson aeson
-    pure $ MempoolTransaction { id: tx.id, raw: tx.cbor }
+    { transaction: tx } :: { transaction :: Aeson } <- decodeAeson aeson
+    res <-
+      ( do
+          tx' :: { id :: String, cbor :: String } <- decodeAeson tx
+          pure $ Just $ MempoolTransaction { id: tx'.id, raw: tx'.cbor }
+      ) <|>
+        ( do
+            aesonNull tx
+            pure Nothing
+        )
+    pure $ MaybeMempoolTransaction $ res
 
 newtype MaybeMempoolTransaction = MaybeMempoolTransaction
   (Maybe MempoolTransaction)
@@ -413,7 +415,7 @@ newtype MaybeMempoolTransaction = MaybeMempoolTransaction
 derive instance Newtype MaybeMempoolTransaction _
 
 instance DecodeOgmios MaybeMempoolTransaction where
-  decodeOgmios = decodeResult (map wrap <<< decodeAeson)
+  decodeOgmios = decodeResult decodeAeson
 
 data ReleasedMempool = ReleasedMempool
 
@@ -1257,3 +1259,10 @@ aesonString
   -> Aeson
   -> Either JsonDecodeError a
 aesonString = caseAesonString (Left (TypeMismatch "Expected String"))
+
+-- Helper that decodes a null
+aesonNull
+  :: forall (a :: Type)
+   . Aeson
+  -> Either JsonDecodeError Unit
+aesonNull = caseAesonNull (Left (TypeMismatch "Expected Null")) pure

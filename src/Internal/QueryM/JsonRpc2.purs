@@ -31,6 +31,7 @@ import Aeson
   , encodeAeson
   , getField
   , getFieldOptional
+  , printJsonDecodeError
   , stringifyAeson
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
@@ -38,7 +39,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Just), maybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.These (These(That, Both), theseLeft, theseRight)
 import Data.Traversable (sequence)
@@ -157,11 +158,11 @@ instance Show OgmiosDecodeError where
 
 pprintOgmiosDecodeError :: OgmiosDecodeError -> String
 pprintOgmiosDecodeError (ErrorResponse err) = "Ogmios responded with error: " <>
-  maybe "<Actually no response>" (stringifyAeson <<< encodeAeson <<< unwrap) err
+  maybe "<Actually no response>" pprintOgmiosError err
 pprintOgmiosDecodeError (ResultDecodingError err) =
-  "Failed to parse the result: " <> show err
+  "Failed to parse the result: " <> printJsonDecodeError err
 pprintOgmiosDecodeError (InvalidResponse err) =
-  "Ogmios response was not of the right format: " <> show err
+  "Ogmios response was not of the right format: " <> printJsonDecodeError err
 
 ogmiosDecodeErrorToError :: OgmiosDecodeError -> Error
 ogmiosDecodeErrorToError err = error $ pprintOgmiosDecodeError err
