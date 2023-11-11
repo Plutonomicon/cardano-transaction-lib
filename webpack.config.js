@@ -31,6 +31,9 @@ module.exports = {
         changeOrigin: true,
         pathRewrite: { "^/kupo": "" }
       }
+    },
+    client: {
+      overlay: false
     }
   },
 

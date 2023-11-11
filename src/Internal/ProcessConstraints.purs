@@ -52,7 +52,6 @@ import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers (liftEither, liftM)
-import Ctl.Internal.IsData (class IsData)
 import Ctl.Internal.NativeScripts (nativeScriptHash)
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusTxOutputWithRefScript
@@ -88,9 +87,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , DatumNotFound
       , TxOutRefNotFound
       , CannotSolveTimeConstraints
-      , TypedTxOutHasNoDatumHash
-      , TypedValidatorMissing
-      , TypeCheckFailed
       , OwnPubKeyAndStakeKeyMissing
       )
   )
@@ -131,7 +127,6 @@ import Ctl.Internal.Serialization.Address
   , scriptHashCredential
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Transaction
   ( ModifyTxError
   , attachDatum
@@ -159,7 +154,7 @@ import Ctl.Internal.Types.RewardAddress
   ( stakePubKeyHashRewardAddress
   , stakeValidatorHashRewardAddress
   ) as RewardAddress
-import Ctl.Internal.Types.ScriptLookups (ScriptLookups(ScriptLookups))
+import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   , MintingPolicyHash
@@ -169,52 +164,42 @@ import Ctl.Internal.Types.Scripts
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
-  , InputConstraint(InputConstraint)
-  , InputWithScriptRef(RefInput, SpendInput)
-  , OutputConstraint(OutputConstraint)
+  , InputWithScriptRef(SpendInput, RefInput)
   , TxConstraint
-      ( MustBeSignedBy
-      , MustDelegateStakePubKey
-      , MustDelegateStakePlutusScript
-      , MustDelegateStakeNativeScript
-      , MustDeregisterStakePubKey
-      , MustDeregisterStakePlutusScript
-      , MustDeregisterStakeNativeScript
-      , MustHashDatum
-      , MustIncludeDatum
-      , MustMintValue
-      , MustNotBeValid
-      , MustPayToNativeScript
-      , MustPayToPubKeyAddress
-      , MustPayToScript
-      , MustProduceAtLeast
-      , MustReferenceOutput
-      , MustRegisterPool
-      , MustRegisterStakePubKey
-      , MustRegisterStakeScript
-      , MustRetirePool
+      ( MustNotBeValid
       , MustSatisfyAnyOf
-      , MustSpendAtLeast
-      , MustSpendNativeScriptOutput
-      , MustSpendPubKeyOutput
-      , MustSpendScriptOutput
-      , MustValidateIn
-      , MustWithdrawStakePubKey
-      , MustWithdrawStakePlutusScript
       , MustWithdrawStakeNativeScript
+      , MustWithdrawStakePlutusScript
+      , MustWithdrawStakePubKey
+      , MustDelegateStakeNativeScript
+      , MustDelegateStakePlutusScript
+      , MustDelegateStakePubKey
+      , MustRetirePool
+      , MustRegisterPool
+      , MustDeregisterStakeNativeScript
+      , MustDeregisterStakePlutusScript
+      , MustRegisterStakeScript
+      , MustDeregisterStakePubKey
+      , MustRegisterStakePubKey
+      , MustHashDatum
+      , MustPayToNativeScript
+      , MustPayToScript
+      , MustPayToPubKeyAddress
       , MustMintValueUsingNativeScript
+      , MustMintValue
+      , MustReferenceOutput
+      , MustSpendNativeScriptOutput
+      , MustSpendScriptOutput
+      , MustSpendPubKeyOutput
+      , MustProduceAtLeast
+      , MustSpendAtLeast
+      , MustBeSignedBy
+      , MustValidateIn
+      , MustIncludeDatum
       )
   , TxConstraints(TxConstraints)
   , utxoWithScriptRef
   )
-import Ctl.Internal.Types.TypedTxOut
-  ( mkTypedTxOut
-  , typeTxOutRef
-  , typedTxOutDatumHash
-  , typedTxOutRefValue
-  , typedTxOutTxOut
-  )
-import Ctl.Internal.Types.TypedValidator (class DatumType, class ValidatorTypes)
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (singleton, (:)) as Array
 import Data.Bifunctor (lmap)
@@ -237,7 +222,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import MedeaPrelude (mapMaybe)
 import Prelude (join) as Bind
-import Type.Proxy (Proxy(Proxy))
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall v. (FromData (DatumType v), ToData (DatumType v), ToData (RedeemerType v))`
@@ -251,14 +235,10 @@ import Type.Proxy (Proxy(Proxy))
 -- | Resolve some `TxConstraints` by modifying the `UnbalancedTx` in the
 -- | `ConstraintProcessingState`
 processLookupsAndConstraints
-  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => TxConstraints redeemer datum
-  -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
+  :: TxConstraints
+  -> ConstraintsM (Either MkUnbalancedTxError Unit)
 processLookupsAndConstraints
-  (TxConstraints { constraints, ownInputs, ownOutputs }) = runExceptT do
+  (TxConstraints { constraints }) = runExceptT do
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
   -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
   lookups <- use _lookups <#> unwrap
@@ -275,8 +255,6 @@ processLookupsAndConstraints
 
   ExceptT $ foldConstraints (processConstraint mpsMap osMap)
     timeConstraintsSolved
-  ExceptT $ foldConstraints (addOwnInput (Proxy :: Proxy datum)) ownInputs
-  ExceptT $ foldConstraints addOwnOutput ownOutputs
   ExceptT addFakeScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUsedUtxos
@@ -285,10 +263,10 @@ processLookupsAndConstraints
   -- Don't write the output in terms of ExceptT because we can't write a
   -- partially applied `ConstraintsM` meaning this is more readable.
   foldConstraints
-    :: forall (constr :: Type) (c :: Type)
-     . (constr -> ConstraintsM c (Either MkUnbalancedTxError Unit))
+    :: forall (constr :: Type)
+     . (constr -> ConstraintsM (Either MkUnbalancedTxError Unit))
     -> Array constr
-    -> ConstraintsM c (Either MkUnbalancedTxError Unit)
+    -> ConstraintsM (Either MkUnbalancedTxError Unit)
   foldConstraints handler =
     runExceptT <<< traverse_ (ExceptT <<< handler)
 
@@ -301,17 +279,13 @@ processLookupsAndConstraints
 -- Helper to run the stack and get back to `QueryM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
 runConstraintsM
-  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => ScriptLookups validator
-  -> TxConstraints redeemer datum
-  -> Contract (Either MkUnbalancedTxError (ConstraintProcessingState validator))
+  :: ScriptLookups
+  -> TxConstraints
+  -> Contract (Either MkUnbalancedTxError ConstraintProcessingState)
 runConstraintsM lookups txConstraints = do
   { costModels } <- unwrap <$> getProtocolParameters
   let
-    initCps :: ConstraintProcessingState validator
+    initCps :: ConstraintProcessingState
     initCps =
       { transaction: mempty
       , usedUtxos: Map.empty
@@ -327,9 +301,8 @@ runConstraintsM lookups txConstraints = do
       }
 
     unpackTuple
-      :: Either MkUnbalancedTxError Unit /\
-           (ConstraintProcessingState validator)
-      -> Either MkUnbalancedTxError (ConstraintProcessingState validator)
+      :: Either MkUnbalancedTxError Unit /\ ConstraintProcessingState
+      -> Either MkUnbalancedTxError ConstraintProcessingState
     unpackTuple (Left err /\ _) = Left err
     unpackTuple (_ /\ cps) = Right cps
   unpackTuple <$>
@@ -339,8 +312,7 @@ runConstraintsM lookups txConstraints = do
 -- | because ExUnits hasn't been estimated yet. It will serve as a
 -- | placeholder that will have the same size as the correct value.
 addFakeScriptDataHash
-  :: forall (a :: Type)
-   . ConstraintsM a (Either MkUnbalancedTxError Unit)
+  :: ConstraintsM (Either MkUnbalancedTxError Unit)
 addFakeScriptDataHash = runExceptT do
   dats <- use _datums
   costModels <- use _costModels
@@ -354,8 +326,7 @@ addFakeScriptDataHash = runExceptT do
 -- | Add the remaining balance of the total value that the tx must spend.
 -- | See note [Balance of value spent]
 addMissingValueSpent
-  :: forall (a :: Type)
-   . ConstraintsM a (Either MkUnbalancedTxError Unit)
+  :: ConstraintsM (Either MkUnbalancedTxError Unit)
 addMissingValueSpent = do
   missing <- gets totalMissingValue
   networkId <- getNetworkId
@@ -385,8 +356,7 @@ addMissingValueSpent = do
     _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
 
 updateUsedUtxos
-  :: forall (a :: Type)
-   . ConstraintsM a (Either MkUnbalancedTxError Unit)
+  :: ConstraintsM (Either MkUnbalancedTxError Unit)
 updateUsedUtxos = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   refScriptsUtxoMap <- use _refScriptsUtxoMap
@@ -398,63 +368,6 @@ updateUsedUtxos = runExceptT do
         <#> fromPlutusTxOutputWithRefScript networkId
   -- Left bias towards original map, hence `flip`:
   _cpsUsedUtxos %= flip union cTxOutputs
-
--- Note, we don't use the redeemer here, unlike Plutus because of our lack of
--- `TxIn` datatype.
--- | Add a typed input, checking the type of the output it spends. Return the value
--- | of the spent output.
-addOwnInput
-  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => Proxy datum
-  -> InputConstraint redeemer
-  -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
-addOwnInput _pd (InputConstraint { txOutRef }) = do
-  networkId <- getNetworkId
-  runExceptT do
-    ScriptLookups { txOutputs, typedValidator } <- use _lookups
-    -- Convert to Cardano type
-    let cTxOutputs = map (fromPlutusTxOutputWithRefScript networkId) txOutputs
-    inst <- liftM TypedValidatorMissing typedValidator
-    -- This line is to type check the `TransactionInput`. Plutus actually creates a `TxIn`
-    -- but we don't have such a datatype for our `TxBody`. Therefore, if we pass
-    -- this line, we just insert `TransactionInput` into the body.
-    typedTxOutRef <- ExceptT $ lift $
-      typeTxOutRef networkId (flip lookup cTxOutputs) inst txOutRef
-        <#> lmap TypeCheckFailed
-    let value = typedTxOutRefValue typedTxOutRef
-    -- Must be inserted in order. Hopefully this matches the order under CSL
-    _cpsTransaction <<< _body <<< _inputs %= Set.insert txOutRef
-    _valueSpentBalancesInputs <>= provideValue value
-
--- | Add a typed output and return its value.
-addOwnOutput
-  :: forall (validator :: Type) (datum :: Type)
-   . DatumType validator datum
-  => ToData datum
-  => OutputConstraint datum
-  -> ConstraintsM validator (Either MkUnbalancedTxError Unit)
-addOwnOutput (OutputConstraint { datum: d, value }) = do
-  queryHandle <- lift $ getQueryHandle
-  networkId <- getNetworkId
-  runExceptT do
-    ScriptLookups { typedValidator } <- use _lookups
-    inst <- liftM TypedValidatorMissing typedValidator
-    let
-      value' = fromPlutusValue value
-      typedTxOut = mkTypedTxOut networkId inst d value'
-      txOut = typedTxOutTxOut typedTxOut
-    -- We are erroring if we don't have a datumhash given the polymorphic datum
-    -- in the `OutputConstraint`:
-    dHash <- liftM TypedTxOutHasNoDatumHash (typedTxOutDatumHash typedTxOut)
-    dat <- ExceptT $ liftAff $ queryHandle.getDatumByHash dHash <#> hush
-      >>> Bind.join
-      >>> note (CannotQueryDatum dHash)
-    _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
-    ExceptT $ addDatum dat
-    _valueSpentBalancesOutputs <>= provideValue value'
 
 resumeTimeConstraints
   :: Array TxConstraint -> Either MkUnbalancedTxError (Array TxConstraint)
@@ -490,10 +403,9 @@ resumeTimeConstraints constraints = do
   isTimeConstraint _ = false
 
 lookupTxOutRef
-  :: forall (a :: Type)
-   . TransactionInput
+  :: TransactionInput
   -> Maybe InputWithScriptRef
-  -> ConstraintsM a (Either MkUnbalancedTxError TransactionOutput)
+  -> ConstraintsM (Either MkUnbalancedTxError TransactionOutput)
 lookupTxOutRef oref = case _ of
   Just inputWithRefScript ->
     lookup oref (utxoWithScriptRef inputWithRefScript)
@@ -505,14 +417,13 @@ lookupTxOutRef oref = case _ of
       lift $ convertTxOutput txOutput
   where
   convertTxOutput
-    :: Plutus.TransactionOutputWithRefScript -> ConstraintsM a TransactionOutput
+    :: Plutus.TransactionOutputWithRefScript -> ConstraintsM TransactionOutput
   convertTxOutput txOutput =
     flip fromPlutusTxOutputWithRefScript txOutput <$> getNetworkId
 
 lookupDatum
-  :: forall (a :: Type)
-   . DataHash
-  -> ConstraintsM a (Either MkUnbalancedTxError Datum)
+  :: DataHash
+  -> ConstraintsM (Either MkUnbalancedTxError Datum)
 lookupDatum dh = do
   otherDt <- use _lookups <#> unwrap >>> _.datums
   pure $ note (DatumNotFound dh) $ lookup dh otherDt
@@ -532,11 +443,11 @@ lookupValidator vh osMap =
   note (ValidatorHashNotFound vh) $ lookup vh osMap
 
 processScriptRefUnspentOut
-  :: forall (scriptHash :: Type) (a :: Type)
+  :: forall (scriptHash :: Type)
    . Newtype scriptHash ScriptHash
   => scriptHash
   -> InputWithScriptRef
-  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+  -> ConstraintsM (Either MkUnbalancedTxError Unit)
 processScriptRefUnspentOut scriptHash inputWithRefScript = do
   unspentOut <- case inputWithRefScript of
     SpendInput unspentOut -> do
@@ -552,30 +463,34 @@ processScriptRefUnspentOut scriptHash inputWithRefScript = do
   checkScriptRef unspentOut
   where
   updateRefScriptsUtxoMap
-    :: TransactionUnspentOutput -> ConstraintsM a Unit
+    :: TransactionUnspentOutput -> ConstraintsM Unit
   updateRefScriptsUtxoMap (TransactionUnspentOutput { input, output }) =
     _refScriptsUtxoMap %= Map.insert input output
 
   checkScriptRef
     :: TransactionUnspentOutput
-    -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+    -> ConstraintsM (Either MkUnbalancedTxError Unit)
   checkScriptRef (TransactionUnspentOutput { output }) =
     let
       refScriptHash :: Maybe ScriptHash
       refScriptHash = _.referenceScript $ unwrap $ (unwrap output).output
 
-      err :: ConstraintsM a (Either MkUnbalancedTxError Unit)
+      err :: ConstraintsM (Either MkUnbalancedTxError Unit)
       err = pure $ throwError $ WrongRefScriptHash refScriptHash
+        (unwrap output).output
     in
       if Just (unwrap scriptHash) /= refScriptHash then err
       else pure (Right unit)
 
 checkRefNative
-  :: forall (a :: Type)
-   . InputWithScriptRef
-  -> ConstraintsM a (Either MkUnbalancedTxError Boolean)
-checkRefNative scriptRef = pure $ note (WrongRefScriptHash Nothing) $ isNative
-  (unwrap (unwrap uout).output).scriptRef
+  :: InputWithScriptRef
+  -> ConstraintsM (Either MkUnbalancedTxError Boolean)
+checkRefNative scriptRef =
+  let
+    out = (unwrap ((unwrap uout).output)).output
+  in
+    pure $ note (WrongRefScriptHash Nothing out) $ isNative
+      (unwrap (unwrap uout).output).scriptRef
   where
   isNative ref = ref >>=
     ( case _ of
@@ -592,11 +507,10 @@ checkRefNative scriptRef = pure $ note (WrongRefScriptHash Nothing) $ isNative
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
 processConstraint
-  :: forall (a :: Type)
-   . Map MintingPolicyHash MintingPolicy
+  :: Map MintingPolicyHash MintingPolicy
   -> Map ValidatorHash Validator
   -> TxConstraint
-  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+  -> ConstraintsM (Either MkUnbalancedTxError Unit)
 processConstraint mpsMap osMap c = do
   queryHandle <- lift $ getQueryHandle
   case c of
@@ -934,7 +848,7 @@ processConstraint mpsMap osMap c = do
         -- seen in the base case.
         tryNext
           :: List (List TxConstraint)
-          -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+          -> ConstraintsM (Either MkUnbalancedTxError Unit)
         tryNext Nil = pure $ throwError CannotSatisfyAny
         tryNext (Cons ys zs) =
           -- Note this implicitly resets state to original cps upon failure (see
@@ -969,10 +883,10 @@ credentialToStakeCredential cred = case cred of
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
 attachToCps
-  :: forall (a :: Type) (b :: Type)
+  :: forall (a :: Type)
    . (a -> Transaction -> Effect (Either ModifyTxError Transaction))
   -> a -- Redeemer, Datum, or PlutusScript.
-  -> ConstraintsM b (Either MkUnbalancedTxError Unit)
+  -> ConstraintsM (Either MkUnbalancedTxError Unit)
 attachToCps handler object = do
   tx <- use _cpsTransaction
   newTx <- liftEffect $ handler object tx <#> lmap ModifyTx
@@ -983,9 +897,8 @@ attachToCps handler object = do
 
 -- Attaches datum to the transaction and to Array of datums in the state.
 addDatum
-  :: forall (a :: Type)
-   . Datum
-  -> ConstraintsM a (Either MkUnbalancedTxError Unit)
+  :: Datum
+  -> ConstraintsM (Either MkUnbalancedTxError Unit)
 addDatum dat = runExceptT do
   ExceptT $ attachToCps attachDatum dat
   _datums <>= Array.singleton dat
@@ -993,25 +906,20 @@ addDatum dat = runExceptT do
 -- | Returns an index pointing to the location of the newly inserted certificate
 -- | in the array of transaction certificates.
 addCertificate
-  :: forall (a :: Type)
-   . Certificate
-  -> ConstraintsM a Unit
+  :: Certificate
+  -> ConstraintsM Unit
 addCertificate cert = do
   _cpsTransaction <<< _body <<< _certs <<< non [] %= Array.(:) cert
 
 getNetworkId
-  :: forall (a :: Type)
-   . ConstraintsM a NetworkId
+  :: ConstraintsM NetworkId
 getNetworkId = use (_cpsTransaction <<< _body <<< _networkId)
   >>= maybe (asks _.networkId) pure
 
 mkUnbalancedTxImpl
   :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
-   . ValidatorTypes validator datum redeemer
-  => IsData datum
-  => IsData redeemer
-  => ScriptLookups validator
-  -> TxConstraints redeemer datum
+   . ScriptLookups
+  -> TxConstraints
   -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTxImpl scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map

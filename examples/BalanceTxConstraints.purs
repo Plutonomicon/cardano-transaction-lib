@@ -16,7 +16,7 @@ import Contract.BalanceTxConstraints
   , mustUseUtxosAtAddress
   ) as BalanceTxConstraints
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM)
+import Contract.Monad (Contract, liftedM)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
@@ -36,6 +36,7 @@ import Contract.Transaction
   , submit
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (singleton, valueOf) as Value
@@ -139,12 +140,12 @@ contract (ContractParams p) = do
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
   tn <- Helpers.mkTokenName "The Token"
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintValue (Value.singleton cs tn $ fromInt 11)
         <> foldMap Constraints.mustBeSignedBy [ alicePubKeyHash, bobPubKeyHash ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
     balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
@@ -155,11 +156,9 @@ contract (ContractParams p) = do
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
 
   void $ runChecks checks $ lift do
-    unbalancedTx <-
-      liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    unbalancedTx <- mkUnbalancedTx lookups constraints
 
-    balancedTx <-
-      liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
+    balancedTx <- balanceTxWithConstraints unbalancedTx balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

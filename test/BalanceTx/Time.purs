@@ -7,7 +7,6 @@ import Contract.Monad (Contract, runContract)
 import Contract.ScriptLookups
   ( ScriptLookups
   , UnbalancedTx
-  , mkUnbalancedTx
   )
 import Contract.Time
   ( POSIXTime
@@ -24,6 +23,7 @@ import Contract.Time
   , to
   )
 import Contract.TxConstraints (mustValidateIn)
+import Contract.UnbalancedTx (mkUnbalancedTxE)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -82,7 +82,7 @@ mkTestFromSingleInterval :: Interval POSIXTime -> Contract Unit
 mkTestFromSingleInterval interval = do
   let
     constraint = mustValidateIn interval
-  mutx <- mkUnbalancedTx emptyLookup constraint
+  mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left e -> fail $ show e
     Right utx ->
@@ -94,7 +94,7 @@ testEmptyInterval :: Contract Unit
 testEmptyInterval = do
   let
     constraint = mustValidateIn never
-  mutx <- mkUnbalancedTx emptyLookup constraint
+  mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left _ -> pure unit
     Right utx -> fail $ "Empty interval must fail : " <> show utx
@@ -107,7 +107,7 @@ testEmptyMultipleIntervals = do
       , mkFiniteInterval (now + mkPosixTime "3000") (now + mkPosixTime "4000")
       ]
     constraint = foldMap mustValidateIn intervals
-  mutx <- mkUnbalancedTx emptyLookup constraint
+  mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left _ -> pure unit
     Right utx -> fail $ "Empty interval must fail : " <> show utx
@@ -117,7 +117,7 @@ mkTestMultipleInterval
 mkTestMultipleInterval intervals expected = do
   let
     constraint = foldMap mustValidateIn intervals
-  mutx <- mkUnbalancedTx emptyLookup constraint
+  mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left e -> fail $ show e
     Right utx ->
@@ -129,7 +129,7 @@ mkTestMultipleInterval intervals expected = do
 -- Fixtures
 --------------------------------------------------------------------------------
 
-emptyLookup :: ScriptLookups Void
+emptyLookup :: ScriptLookups
 emptyLookup = mempty
 
 now :: POSIXTime

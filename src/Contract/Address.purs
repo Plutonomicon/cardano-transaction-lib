@@ -16,8 +16,6 @@ module Contract.Address
   , pubKeyHashEnterpriseAddress
   , pubKeyHashRewardAddress
   , stakePubKeyHashRewardAddress
-  , typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
   , validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) where
@@ -50,9 +48,7 @@ import Ctl.Internal.Plutus.Types.Address
   , toValidatorHash
   ) as X
 import Ctl.Internal.Scripts
-  ( typedValidatorBaseAddress
-  , typedValidatorEnterpriseAddress
-  , validatorHashBaseAddress
+  ( validatorHashBaseAddress
   , validatorHashEnterpriseAddress
   ) as Scripts
 import Ctl.Internal.Serialization.Address
@@ -94,7 +90,6 @@ import Ctl.Internal.Types.PubKeyHash
   , stakePubKeyHashRewardAddress
   ) as PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
-import Ctl.Internal.Types.TypedValidator (TypedValidator)
 import Data.Maybe (Maybe)
 import Effect.Exception (error)
 
@@ -158,29 +153,6 @@ addressStakeValidatorHash =
   -- Network id does not matter here (#484)
   Address.addressStakeValidatorHash
     <<< fromPlutusAddress MainnetId
-
--- | Converts a Plutus `TypedValidator` to a Plutus (`BaseAddress`) `Address`
-typedValidatorBaseAddress
-  :: forall (a :: Type)
-   . NetworkId
-  -> TypedValidator a
-  -> Maybe Address
-typedValidatorBaseAddress networkId =
-  toPlutusAddress
-    <<< Scripts.typedValidatorBaseAddress networkId
-
--- | Converts a Plutus `TypedValidator` to a Plutus (`EnterpriseAddress`) `Address`.
--- | This is likely what you will use since Plutus currently uses
--- | `scriptHashAddress` on non-staking addresses which is invoked in
--- | `validatorAddress`
-typedValidatorEnterpriseAddress
-  :: forall (a :: Type)
-   . NetworkId
-  -> TypedValidator a
-  -> Maybe Address
-typedValidatorEnterpriseAddress networkId =
-  toPlutusAddress
-    <<< Scripts.typedValidatorEnterpriseAddress networkId
 
 -- | Converts a Plutus `ValidatorHash` to a `Address` as a Plutus (`BaseAddress`)
 -- | `Address`

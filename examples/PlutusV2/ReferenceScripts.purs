@@ -11,7 +11,7 @@ import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (ValidatorHash, validatorHash)
 import Contract.Transaction
@@ -67,7 +67,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
   -- `mustPayToScriptAddressWithScriptRef`
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       case mbStakeKeyHash of
         Nothing ->
@@ -83,7 +83,7 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
             scriptRef
             (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -103,12 +103,12 @@ spendFromAlwaysSucceeds vhash txId = do
       $ find hasTransactionId (Map.toUnfoldable utxos :: Array _)
 
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
         (SpendInput $ mkTxUnspentOut txInput txOutput)
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   spendTxId <- submitTxFromConstraints lookups constraints

@@ -1,5 +1,5 @@
 module Ctl.Internal.Plutus.Types.CurrencySymbol
-  ( CurrencySymbol
+  ( CurrencySymbol(CurrencySymbol)
   , adaSymbol
   , currencyMPSHash
   , getCurrencySymbol

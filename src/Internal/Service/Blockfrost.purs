@@ -138,6 +138,7 @@ import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
+import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxEvaluationR)
 import Ctl.Internal.QueryM.Ogmios
   ( ExecutionUnits
   , OgmiosDatum
@@ -239,6 +240,7 @@ import Data.Map (Map)
 import Data.Map (empty, fromFoldable, isEmpty, unions) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.MediaType (MediaType(MediaType))
+import Data.MediaType.Common (applicationJSON) as MediaType
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
 import Data.Show.Generic (genericShow)
@@ -330,7 +332,7 @@ data BlockfrostEndpoint
   | DatumCbor DataHash
   -- /network/eras
   | EraSummaries
-  -- /utils/txs/evaluate
+  -- /utils/txs/evaluate/utxos
   | EvaluateTransaction
   -- /blocks/latest
   | LatestBlock
@@ -378,7 +380,7 @@ realizeEndpoint endpoint =
     EraSummaries ->
       "/network/eras"
     EvaluateTransaction ->
-      "/utils/txs/evaluate"
+      "/utils/txs/evaluate/utxos"
     LatestBlock ->
       "/blocks/latest"
     LatestEpoch ->
@@ -653,10 +655,10 @@ submitTx tx = do
     blockfrostPostRequest SubmitTransaction (MediaType "application/cbor")
       (Just $ Affjax.arrayView $ unwrap $ unwrap cbor)
 
-evaluateTx :: Transaction -> BlockfrostServiceM TxEvaluationR
-evaluateTx tx = do
-  cslTx <- liftEffect $ Serialization.convertTransaction tx
-  resp <- handleBlockfrostResponse <$> request (Serialization.toBytes cslTx)
+evaluateTx
+  :: Transaction -> AdditionalUtxoSet -> BlockfrostServiceM TxEvaluationR
+evaluateTx tx additionalUtxos = do
+  resp <- handleBlockfrostResponse <$> request
   case unwrapBlockfrostEvaluateTx <$> resp of
     Left err -> throwError $ error $ show err
     Right (Left err) ->
@@ -665,13 +667,16 @@ evaluateTx tx = do
         err
     Right (Right eval) -> pure eval
   where
-  -- Hex encoded, not binary like submission
-  request
-    :: CborBytes
-    -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
-  request cbor =
-    blockfrostPostRequest EvaluateTransaction (MediaType "application/cbor")
-      (Just $ Affjax.string $ cborBytesToHex cbor)
+  request :: BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
+  request = do
+    cslTx <- liftEffect $ Serialization.convertTransaction tx
+    blockfrostPostRequest EvaluateTransaction MediaType.applicationJSON
+      ( Just $ Affjax.string $ stringifyAeson $
+          encodeAeson
+            { cbor: cborBytesToHex $ Serialization.toBytes cslTx
+            , additionalUtxoSet: additionalUtxos
+            }
+      )
 
 --------------------------------------------------------------------------------
 -- Check transaction confirmation status

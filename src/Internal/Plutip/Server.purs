@@ -20,7 +20,7 @@ import Contract.Address (NetworkId(MainnetId))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
-import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
@@ -78,7 +78,7 @@ import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.BigInt as BigInt
-import Data.Either (Either(Left), either, isLeft)
+import Data.Either (Either(Left, Right), either, isLeft)
 import Data.Foldable (sum)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
@@ -103,7 +103,7 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (liftEffect)
-import Effect.Exception (error, throw)
+import Effect.Exception (error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Mote (bracket) as Mote
@@ -271,10 +271,11 @@ startPlutipContractEnv
        }
 startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
-  startPlutipServer'
-  ourKey /\ response <- startPlutipCluster'
-  startOgmios' response
-  startKupo' response
+  tryWithReport startPlutipServer' "Could not start Plutip server"
+  (ourKey /\ response) <- tryWithReport startPlutipCluster'
+    "Could not start Plutip cluster"
+  tryWithReport (startOgmios' response) "Could not start Ogmios"
+  tryWithReport (startKupo' response) "Could not start Kupo"
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
   pure
@@ -284,6 +285,17 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     , clearLogs
     }
   where
+  tryWithReport
+    :: forall (a :: Type)
+     . Aff a
+    -> String
+    -> Aff a
+  tryWithReport what prefix = do
+    result <- try what
+    case result of
+      Left err -> throwError $ error $ prefix <> ": " <> message err
+      Right result' -> pure result'
+
   -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
   -- later.
   bracket
@@ -625,7 +637,6 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , handle: mkQueryHandle plutipCfg backend
     , networkId: MainnetId
     , logLevel: plutipCfg.logLevel
-    , walletSpec: Nothing
     , customLogger: customLogger
     , suppressLogs: plutipCfg.suppressLogs
     , hooks: emptyHooks

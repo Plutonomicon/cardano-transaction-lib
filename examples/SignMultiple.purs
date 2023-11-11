@@ -10,7 +10,6 @@ import Contract.Log (logInfo', logWarn')
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftedE
   , liftedM
   , runContract
   , throwContractError
@@ -27,6 +26,7 @@ import Contract.Transaction
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (leq)
 import Contract.Value as Value
 import Contract.Wallet
@@ -64,16 +64,16 @@ contract = do
     createAdditionalUtxos
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKeyAddress pkh skh
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- mkUnbalancedTx lookups constraints
 
   txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs
@@ -122,7 +122,7 @@ createAdditionalUtxos = do
     ownStakePubKeyHashes
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustPayToPubKeyAddress pkh skh
         ( Value.lovelaceValueOf
@@ -133,7 +133,7 @@ createAdditionalUtxos = do
               $ BigInt.fromInt 2_000_000
           )
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   txId <- submitTxFromConstraints lookups constraints

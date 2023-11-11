@@ -4,6 +4,9 @@
             "pattern": "^https://gerowallet.io"
         },
         {
+            "pattern": "^https://singularitynet.io"
+        },
+        {
             "pattern": "^https://iohk.io"
         }
     ],

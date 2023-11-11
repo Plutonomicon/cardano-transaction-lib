@@ -41,7 +41,7 @@ module Ctl.Internal.QueryM.Ogmios
   , OgmiosTxId
   , SubmitTxR(SubmitTxSuccess, SubmitFail)
   , StakePoolsQueryArgument(StakePoolsQueryArgument)
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
   , TxHash
@@ -859,11 +859,11 @@ instance Show ScriptFailure where
 
 -- The following cases are fine to fall through into unparsed error:
 -- IncompatibleEra
--- AdditionalUtxoOverlap
 -- NotEnoughSynced
 -- CannotCreateEvaluationContext
 data TxEvaluationFailure
   = UnparsedError String
+  | AdditionalUtxoOverlap (Array OgmiosTxOutRef)
   | ScriptFailures (Map RedeemerPointer (Array ScriptFailure))
 
 derive instance Generic TxEvaluationFailure _
@@ -933,6 +933,15 @@ instance DecodeAeson TxEvaluationFailure where
                 traverse parseElem array
             )
         )
+      -- Overlapping AdditionalUtxo
+      3002 -> do
+        res
+          :: { overlappingOutputReferences ::
+                 Array { transaction :: { id :: String }, index :: UInt }
+             } <- decodeAeson errorData
+        pure $ AdditionalUtxoOverlap $ map
+          (\elem -> { txId: elem.transaction.id, index: elem.index })
+          res.overlappingOutputReferences
       -- All other errors
       _ -> pure $ UnparsedError $ stringifyAeson aeson
 
