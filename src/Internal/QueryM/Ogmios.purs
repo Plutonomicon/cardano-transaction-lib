@@ -395,6 +395,9 @@ newtype MempoolTransaction = MempoolTransaction
 derive instance Generic MempoolTransaction _
 derive instance Newtype MempoolTransaction _
 
+newtype MaybeMempoolTransaction = MaybeMempoolTransaction
+  (Maybe MempoolTransaction)
+
 instance DecodeAeson MaybeMempoolTransaction where
   decodeAeson aeson = do
     { transaction: tx } :: { transaction :: Aeson } <- decodeAeson aeson
@@ -408,9 +411,6 @@ instance DecodeAeson MaybeMempoolTransaction where
             pure Nothing
         )
     pure $ MaybeMempoolTransaction $ res
-
-newtype MaybeMempoolTransaction = MaybeMempoolTransaction
-  (Maybe MempoolTransaction)
 
 derive instance Newtype MaybeMempoolTransaction _
 

@@ -125,11 +125,20 @@
 
           function on_file () {
             local path=$1
-            local parent="$(basename "$(dirname "$path")")"
-            if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+            match_A=$(pcregrep -o1 'QueryLedgerState([a-zA-Z]+)\/' <<< "$path")
+            match_B=$(pcregrep -o1 '([a-zA-Z]+)Response' <<< "$path")
+            command=""
+            if [ ! -z $match_A ]
+            then
+              command="QueryLedgerState-$match_A"
+            elif [ ! -z $match_B ]
+            then
+              command="$match_B"
+            fi
+            if [ ! -z $command ]
             then
               echo "$path"
-              json=$(jq -c .result "$path")
+              json=$(cat "$path")
               md5=($(md5sum <<< "$json"))
               printf "%s" "$json" > "ogmios/$command-$md5.json"
             fi
