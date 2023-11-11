@@ -138,9 +138,9 @@ import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
   )
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet, TxEvaluationR)
 import Ctl.Internal.QueryM.Ogmios
-  ( ExecutionUnits
+  ( AdditionalUtxoSet
+  , ExecutionUnits
   , OgmiosDatum
   , OgmiosScript
   , OgmiosTxIn
