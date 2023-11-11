@@ -70,6 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [HD wallet support](./doc/key-management.md) with mnemonic seed phrases ([#1498](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1498))
 - Ogmios-specific functions for Local TX Monitor Ouroboros Mini-Protocol in `Contract.Backend.Ogmios` ([#1508](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1508/))
 - New `mustSendChangeWithDatum` balancer constraint that adds datum to all change outputs ([#1510](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1510/))
+- New `submitTxE`, an error returning variant of `submitTx`
 
 ### Changed
 
@@ -91,7 +92,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Do not require light wallet collateral for all interactions ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - Removed re-exports of wallet-related functions from `Contract.Utxos` and `Contract.Address` (use `Contract.Wallet`) ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
 - `ownPaymentPubKeysHashes` renamed to `ownPaymentPubKeyHashes`, `ownStakePubKeysHashes` renamed to `ownStakePubKeyHashes` and both moved to `Contract.Wallet` ([#1477](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1477))
-- Ogmios updated to version 6.0.0. As a result types: EvaluationTxR, PoolParametersR,  changed.
+- Types changed: `TxEvaluationFailure`, `PoolParametersR`, due to ogmios update ([#1532](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1532)).
+- Updated versions of `ctl-runtime` services: Ogmios to 6.0.0, Blockfrost to v1.7.0.
 
 ### Fixed
 
