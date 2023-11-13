@@ -43,7 +43,6 @@ You can edit this file as you like.
   , "lists"
   , "math"
   , "maybe"
-  , "medea"
   , "media-types"
   , "monad-logger"
   , "mote"
