@@ -314,7 +314,7 @@ let
         cp -r $src/* .
 
         # Provide NPM dependencies to the test suite scripts
-        ln -sfn $NODE_PATH node_modules
+        ln -sfn ${nodeModules}/lib/node_modules node_modules
 
         # Call the main module and execute the entry point function
         ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.${psEntryPoint}())'
