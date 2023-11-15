@@ -94,6 +94,8 @@ Time/slot conversion functions depend on `eraSummaries` [Ogmios local state quer
 
 When using Plutip, a solution may be [to increase the `epochSize` parameter](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1057#issuecomment-1450692539).
 
+Another way that is **really not recommended** is faking the EraSummaries data to trick CTL into believing that `EraSummaries` span infinitely into the future. The consequence of this is that in case the protocol parameters are changed, your time arithmetic may become completely wrong. See [`examples/FakeTime.purs`](../examples/FakeTime.purs).
+
 ### Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`
 
 Ensure your transaction's validity range does not go over `SafeZone` slots of the current era. The reason for this kind of errors is that time-related estimations are slot-based, and future forks may change slot lengths. So there is only a relatively small time window in the future during which it is known that forks cannot occur.
