@@ -118,7 +118,7 @@ import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
 import Data.Bifunctor (bimap, lmap)
 import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
+import Data.BigInt (fromNumber, fromString, toNumber) as BigInt
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
