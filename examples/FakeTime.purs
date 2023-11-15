@@ -17,6 +17,7 @@ import Contract.Time
   , getEraSummaries
   , getSystemStart
   , posixTimeToSlot
+  , slotToPosixTime
   )
 import Control.Monad.Reader (local)
 import Data.Array as Array
@@ -70,7 +71,7 @@ getSlotInOneYear = do
         )
     )
   where
-  oneYear = 3600.0 * 24.0 * 365.0
+  oneYear = 1000.0 * 3600.0 * 24.0 * 365.0
 
 contract :: Contract Unit
 contract = do
@@ -80,3 +81,8 @@ contract = do
   withInfiniteFakeTime do
     getSlotInOneYear >>= logInfo' <<< show
     getSlotInOneYear >>= flip shouldSatisfy isRight
+    getSlotInOneYear >>= traverse_ \slot -> do
+      systemStart <- getSystemStart
+      eraSummaries <- getEraSummaries
+      logInfo' $ show $ slotToPosixTime eraSummaries systemStart slot
+      slotToPosixTime eraSummaries systemStart slot `shouldSatisfy` isRight
