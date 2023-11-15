@@ -75,12 +75,16 @@ getSlotInOneYear = do
 
 contract :: Contract Unit
 contract = do
+  -- check that slot conversion fails WITHOUT the fix
+  -- with the correct error
   getSlotInOneYear >>= flip shouldSatisfy \x -> case x of
     Left (CannotFindTimeInEraSummaries _) -> true
     _ -> false
   withInfiniteFakeTime do
     getSlotInOneYear >>= logInfo' <<< show
+    -- check that it works with the hack applied
     getSlotInOneYear >>= flip shouldSatisfy isRight
+    -- check that we can also convert the slot back to POSIXTime
     getSlotInOneYear >>= traverse_ \slot -> do
       systemStart <- getSystemStart
       eraSummaries <- getEraSummaries
