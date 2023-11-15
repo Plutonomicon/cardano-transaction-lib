@@ -86,9 +86,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- **[IMPORTANT]** Ogmios has been updated and it must be started with `--include-transaction-cbor`. CTL relies on CBOR variants being available in the responses.
+- **[IMPORTANT]** It is no more recommended to use `utxosAt` to get UTxOs at light wallet addresses. It may be a source of application bugs in some cases due to how wallets operate. Please see *Synchronization and wallet UTxO locking* section [here](./doc/query-layers.md) ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - `scriptCurrencySymbol` no longer returns `Maybe`
   ([#1538](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1538)
-- **[IMPORTANT]** It is no more recommended to use `utxosAt` to get UTxOs at light wallet addresses. It may be a source of application bugs in some cases due to how wallets operate. Please see *Synchronization and wallet UTxO locking* section [here](./doc/query-layers.md) ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Slot to/from POSIXTime conversion functions now live outside of `Effect` ([#1490](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1490))
 - All uses of `utxosAt` call have been replaced with `getWalletUtxos` in the balancer ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440))
 - Naming changes in `Contract.Test.Assert` for consistency with other functions ([#1440](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1440)):
