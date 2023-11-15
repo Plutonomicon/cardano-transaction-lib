@@ -716,12 +716,6 @@ slotToPosixTime eraSummaries sysStart slot = runExcept do
   -- Add the system start time to the absolute time relative to system start
   -- to get overall POSIXTime
   pure $ wrap $ sysStartPosix + unwrap absTime
-  where
-  -- TODO: See https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/impl/src/Cardano/Ledger/Shelley/HardForks.hs#L57
-  -- translateTimeForPlutusScripts and ensure protocol version > 5 which would
-  -- mean converting to milliseconds
-  _transTime :: BigInt -> BigInt
-  _transTime = (*) $ BigInt.fromInt 1000
 
 -- | Finds the `EraSummary` an `Slot` lies inside (if any).
 findSlotEraSummary

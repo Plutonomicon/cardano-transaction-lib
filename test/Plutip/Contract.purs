@@ -110,6 +110,7 @@ import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.ECDSA as ECDSA
+import Ctl.Examples.FakeTime as FakeTime
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
@@ -204,6 +205,9 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
   group "Regressions" do
+    test "Allow faking time responses (dangerous!)" do
+      withWallets unit \_ -> do
+        FakeTime.contract
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
       do
