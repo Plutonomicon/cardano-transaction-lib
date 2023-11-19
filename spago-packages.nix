@@ -509,18 +509,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "freet" = pkgs.stdenv.mkDerivation {
-        name = "freet";
-        version = "v6.0.0";
-        src = pkgs.fetchgit {
-          url = "https://github.com/purescript-contrib/purescript-freet.git";
-          rev = "507c2edd9173cda5ad44dd0638133edd69fd9acd";
-          sha256 = "0f5bibw604sd9ffmp51b3jppka88r54mh7sdz91zy5b92wgsy5yr";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "functions" = pkgs.stdenv.mkDerivation {
         name = "functions";
         version = "v5.0.0";
@@ -737,18 +725,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "medea" = pkgs.stdenv.mkDerivation {
-        name = "medea";
-        version = "8b215851959aa8bbf33e6708df6bd683c89d1a5a";
-        src = pkgs.fetchgit {
-          url = "https://github.com/juspay/medea-ps.git";
-          rev = "8b215851959aa8bbf33e6708df6bd683c89d1a5a";
-          sha256 = "05gnar9l1li0v1vv12kga0sssskfm4f1x9y6smpmqbqg9396pmsq";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "media-types" = pkgs.stdenv.mkDerivation {
         name = "media-types";
         version = "v5.0.0";
@@ -792,18 +768,6 @@ let
           url = "https://github.com/garyb/purescript-mote";
           rev = "29aea4ad7b013d50b42629c87b01cf0202451abd";
           sha256 = "00nckcd7w4djx9jh1hmg0fma55k6k7cw6pdcb96w107gykxgv5r7";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "naturals" = pkgs.stdenv.mkDerivation {
-        name = "naturals";
-        version = "v3.0.0";
-        src = pkgs.fetchgit {
-          url = "https://github.com/LiamGoodacre/purescript-naturals.git";
-          rev = "53aaa11516cd1bb8429f33032802bf43a5b04644";
-          sha256 = "0jaly95g46rbb7xwfv655pgm2bsp11p1iriasa0w79ryv0p488hi";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1301,18 +1265,6 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "safely" = pkgs.stdenv.mkDerivation {
-        name = "safely";
-        version = "v4.0.1";
-        src = pkgs.fetchgit {
-          url = "https://github.com/paf31/purescript-safely.git";
-          rev = "19f854737e17b4d058e5a1504a960821db36e4ab";
-          sha256 = "1mrpz19smjsamz4cci287z89q715chzxna0gpbvdgivlca4z6879";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
     "sequences" = pkgs.stdenv.mkDerivation {
         name = "sequences";
         version = "v3.0.2";
@@ -1524,18 +1476,6 @@ let
           url = "https://github.com/purescript-contrib/purescript-unicode.git";
           rev = "2b66dcdb2ea533c7bc864574e860012c57ace2aa";
           sha256 = "0xh9wwyrl9nsw3h3wzalc1gaph39drj0i6k648cf9bnbb96nxa4z";
-        };
-        phases = "installPhase";
-        installPhase = "ln -s $src $out";
-      };
-
-    "unordered-collections" = pkgs.stdenv.mkDerivation {
-        name = "unordered-collections";
-        version = "v2.1.4";
-        src = pkgs.fetchgit {
-          url = "https://github.com/fehrenbach/purescript-unordered-collections.git";
-          rev = "1be289188cef093520098e318ec910cf3ea5b40d";
-          sha256 = "0vgfpdymxvgqf3sh8ji2w2b01w3s294v5mh04046s21qaywdi1jh";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

@@ -47,6 +47,7 @@ import Ctl.Internal.QueryM.Ogmios
       , NonScriptInputReferencedByRedeemer
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
+      , InternalLedgerTypeConversionError
       )
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
@@ -250,15 +251,17 @@ printTxEvaluationFailure transaction e =
       <> bullet (foldMap (foldMap line) provided)
       <> line "But missing required datums:"
       <> bullet (foldMap line missing)
-    Ogmios.MissingRequiredScripts { resolved, missing }
+    Ogmios.MissingRequiredScripts { resolved: mresolved, missing }
     -> line "Supplied with scripts:"
       <> bullet
-        ( foldMapWithIndex
-            (\ptr scr -> printRedeemer ptr <> line ("Script: " <> scr))
-            resolved
+        ( foldMap
+            ( foldMapWithIndex
+                (\ptr scr -> printRedeemer ptr <> line ("Script: " <> show scr))
+            )
+            mresolved
         )
       <> line "But missing required scripts:"
-      <> bullet (foldMap line missing)
+      <> bullet (foldMap printRedeemer missing)
     Ogmios.ValidatorFailed { error, traces } -> line error <> line "Trace:" <>
       number
         (foldMap line traces)
@@ -276,8 +279,14 @@ printTxEvaluationFailure transaction e =
           ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
               <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
           )
-    Ogmios.NoCostModelForLanguage language -> line
-      ("No cost model for language \"" <> language <> "\"")
+    Ogmios.NoCostModelForLanguage languages ->
+      line "No cost model for languages:"
+        <> bullet (foldMap line languages)
+    Ogmios.InternalLedgerTypeConversionError error ->
+      line $
+        "Internal ledger type conversion error, if you ever run into this, please report the issue as you've likely discoverd a critical bug: \""
+          <> error
+          <> "\""
 
   printScriptFailures
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString

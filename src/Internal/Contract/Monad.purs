@@ -90,12 +90,11 @@ import Data.Time.Duration (Milliseconds, Seconds)
 import Data.Traversable (for_, traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
-import Effect.Aff.Class (liftAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import MedeaPrelude (class MonadAff)
 import Record.Builder (build, merge)
 
 --------------------------------------------------------------------------------

@@ -28,7 +28,7 @@ exports.injectCip30Mock = walletName => mock => () => {
           getNetworkId: mock.getNetworkId,
           getUtxos: mock.getUtxos,
           experimental: {
-            getCollateral: mock.getCollateral,
+            getCollateral: mock.getCollateral
           },
           getBalance: mock.getBalance,
           getUsedAddresses: mock.getUsedAddresses,
@@ -36,10 +36,10 @@ exports.injectCip30Mock = walletName => mock => () => {
           getChangeAddress: mock.getChangeAddress,
           getRewardAddresses: mock.getRewardAddresses,
           signTx: mock.signTx,
-          signData: mock.signData,
+          signData: mock.signData
         })
       );
-    },
+    }
   };
 
   return () => {

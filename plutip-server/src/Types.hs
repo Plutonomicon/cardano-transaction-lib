@@ -41,10 +41,10 @@ import Control.Monad.Reader (MonadReader, ReaderT)
 import Data.Aeson (FromJSON, ToJSON, parseJSON)
 import Data.Kind (Type)
 import Data.Text (Text)
-import Data.Time (NominalDiffTime)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Numeric.Natural (Natural)
+import Plutip.Config (NominalDiffTimeMicro)
 import Plutip.Cluster (StopClusterRef)
 
 -- TVar is used for signaling by 'startCluster'/'stopCluster' (STM is used
@@ -88,7 +88,7 @@ instance FromJSON Lovelace where
 data StartClusterRequest = StartClusterRequest
   { keysToGenerate :: [[Lovelace]]
   -- ^ Lovelace amounts for each UTXO of each wallet
-  , slotLength :: Maybe NominalDiffTime
+  , slotLength :: Maybe NominalDiffTimeMicro
   -- ^ Set the SlotLength. If set to Nothing use the default
   , epochSize :: Maybe EpochSize
   -- ^ Set the EpochSize. If set to Nothing use the default

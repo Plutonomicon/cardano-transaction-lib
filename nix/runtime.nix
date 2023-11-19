@@ -170,6 +170,7 @@ rec {
                   --port ${toString ogmios.port} \
                   --node-socket /ipc/node.socket \
                   --node-config /config/cardano-node/config.json
+                  --include-transaction-cbor
               ''
             ];
           };

@@ -1,5 +1,5 @@
 module Ctl.Internal.QueryM.Dispatcher
-  ( DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
+  ( DispatchError(JsonError, FaultError, ListenerCancelled)
   , Dispatcher
   , GenericPendingRequests
   , PendingRequests
@@ -15,7 +15,7 @@ module Ctl.Internal.QueryM.Dispatcher
 import Prelude
 
 import Aeson (Aeson, JsonDecodeError, stringifyAeson)
-import Ctl.Internal.QueryM.JsonWsp (parseJsonWspResponseId)
+import Ctl.Internal.QueryM.JsonRpc2 (parseJsonRpc2ResponseId)
 import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
 import Data.Either (Either(Left, Right))
@@ -24,13 +24,12 @@ import Data.Map (empty, lookup) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
-import Effect.Exception (Error, error, message)
+import Effect.Exception (Error, error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read) as Ref
 
 data DispatchError
-  = JsError Error
-  | JsonError JsonDecodeError
+  = JsonError JsonDecodeError
   -- Server response has been parsed succesfully, but it contains error
   -- message
   | FaultError Aeson
@@ -38,14 +37,12 @@ data DispatchError
   | ListenerCancelled ListenerId
 
 instance Show DispatchError where
-  show (JsError err) = "(JsError (message " <> show (message err) <> "))"
   show (JsonError jsonErr) = "(JsonError " <> show jsonErr <> ")"
   show (FaultError aeson) = "(FaultError " <> show aeson <> ")"
   show (ListenerCancelled listenerId) =
     "(ListenerCancelled " <> show listenerId <> ")"
 
 dispatchErrorToError :: DispatchError -> Error
-dispatchErrorToError (JsError err) = err
 dispatchErrorToError (JsonError err) = error $ show err
 dispatchErrorToError (FaultError err) =
   error $ "Server responded with `fault`: " <> stringifyAeson err
@@ -64,7 +61,7 @@ newDispatcher = Ref.new Map.empty
 
 mkWebsocketDispatch :: Dispatcher -> WebsocketDispatch
 mkWebsocketDispatch dispatcher aeson = do
-  case parseJsonWspResponseId aeson of
+  case parseJsonRpc2ResponseId aeson of
     Left parseError ->
       pure $ Left $ JsonError parseError
     Right reflection -> do

@@ -25,8 +25,8 @@ Info in this section only applies to CTL backend services.
 The services that are currently **required** are:
 
 - [Ogmios](https://ogmios.dev)
-  - You **must** use Ogmios v5.2.0 or greater with CTL
-  - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v1.34.0 or greater is recommended
+  - You **must** use Ogmios v6 or greater with CTL with `--include-transaction-cbor` option
+  - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v8.1.1 or greater is recommended
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
 - [Kupo](https://github.com/CardanoSolutions/kupo)
   - Required to query UTxOs and resolve inline datums and reference scripts

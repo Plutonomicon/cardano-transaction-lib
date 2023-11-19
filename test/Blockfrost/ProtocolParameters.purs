@@ -25,11 +25,11 @@ import Test.Spec.Runner (defaultConfig)
 
 blockfrostFixture :: String
 blockfrostFixture =
-  "blockfrost/getProtocolParameters/getProtocolParameters-7fe834fd628aa322eedeb3d8c7c1dd61.json"
+  "blockfrost/getProtocolParameters/getProtocolParameters-2d2ce3159a465c84058d7eab67b1b345.json"
 
 ogmiosFixture :: String
 ogmiosFixture =
-  "ogmios/currentProtocolParameters-9f10850f285b1493955267e900008841.json"
+  "ogmios/queryLedgerState-protocolParameters-68ba1141d17af9326cad70407ea3d7fb.json"
 
 loadFixture :: forall (a :: Type). DecodeAeson a => String -> Aff a
 loadFixture fixture =
@@ -48,6 +48,7 @@ suite = group "Blockfrost" do
   test "ProtocolParameter parsing verification" do
     BlockfrostProtocolParameters blockfrostFixture' <- loadFixture
       blockfrostFixture
-    OgmiosProtocolParameters ogmiosFixture' <- loadFixture ogmiosFixture
+    { result: OgmiosProtocolParameters ogmiosFixture' }
+      :: { result :: OgmiosProtocolParameters } <- loadFixture ogmiosFixture
 
     blockfrostFixture' `shouldEqual` ogmiosFixture'

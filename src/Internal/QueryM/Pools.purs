@@ -1,6 +1,7 @@
 module Ctl.Internal.QueryM.Pools
   ( getPoolIds
   , getPoolParameters
+  , getPoolsParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   , module X
@@ -16,12 +17,11 @@ import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios
   ( DelegationsAndRewardsR(DelegationsAndRewardsR)
-  , PoolParametersR(PoolParametersR)
+  , PoolParameters
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.Hash
-  ( ed25519KeyHashToBech32
-  , ed25519KeyHashToBech32Unsafe
+  ( ed25519KeyHashToBech32Unsafe
   , ed25519KeyHashToBytes
   , scriptHashToBech32Unsafe
   , scriptHashToBytes
@@ -31,38 +31,49 @@ import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap, wrap)
+import Data.Tuple (fst)
 import Effect.Exception (error)
 import Record.Builder (build, merge)
 
-getPoolIds :: QueryM (Array PoolPubKeyHash)
-getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
-  _.poolIds
-  unit
+-- | Get pool parameters of all pools or of the provided pools.
+getStakePools
+  :: (Maybe (Array PoolPubKeyHash))
+  -> QueryM (Map PoolPubKeyHash PoolParameters)
+getStakePools selected = unwrap <$>
+  mkOgmiosRequest Ogmios.queryStakePoolsCall
+    _.stakePools
+    (wrap selected)
 
--- TODO: batched variant
+getPoolIds :: QueryM (Array PoolPubKeyHash)
+getPoolIds = (Map.toUnfoldableUnordered >>> map fst) <$>
+  getStakePools Nothing
+
 getPoolParameters :: PoolPubKeyHash -> QueryM PoolRegistrationParams
 getPoolParameters poolPubKeyHash = do
-  PoolParametersR params <- mkOgmiosRequest Ogmios.queryPoolParameters
-    _.poolParameters
-    [ poolPubKeyHash ]
-  poolIdStr <-
-    liftM (error "Unable to encode pool pubkey hash to bech32")
-      $ ed25519KeyHashToBech32 "pool"
-      $ unwrap
-      $ unwrap poolPubKeyHash
+  params <- getPoolsParameters [ poolPubKeyHash ]
   res <- liftM (error "Unable to find pool ID in the response") $ Map.lookup
-    poolIdStr
+    poolPubKeyHash
     params
-  pure $ build
-    ( merge
-        { operator: poolPubKeyHash
-        , poolOwners: res.poolOwners <#> wrap >>> wrap
-        }
+  pure res
+
+getPoolsParameters
+  :: Array PoolPubKeyHash -> QueryM (Map PoolPubKeyHash PoolRegistrationParams)
+getPoolsParameters poolPubKeyHashes = do
+  response <- getStakePools (Just poolPubKeyHashes)
+  pure $ Map.mapMaybeWithKey
+    ( \poolPkh params -> Just $ build
+        ( merge
+            { operator: poolPkh
+            , poolOwners: params.poolOwners <#> wrap >>> wrap
+            }
+        )
+        params
     )
-    res
+    response
 
 getValidatorHashDelegationsAndRewards
   :: StakeValidatorHash -> QueryM (Maybe DelegationsAndRewards)

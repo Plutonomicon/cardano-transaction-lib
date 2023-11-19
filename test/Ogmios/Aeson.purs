@@ -1,36 +1,45 @@
 module Test.Ctl.Ogmios.Aeson
   ( main
   , suite
-  , printEvaluateTxFailures
   ) where
 
 import Prelude
 
-import Aeson (class DecodeAeson, Aeson, printJsonDecodeError)
+import Aeson (Aeson, JsonDecodeError, encodeAeson, printJsonDecodeError)
 import Aeson as Aeson
+import Contract.Backend.Ogmios.Mempool (MempoolSizeAndCapacity)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.BalanceTx (printTxEvaluationFailure)
+import Ctl.Internal.QueryM.JsonRpc2
+  ( class DecodeOgmios
+  , OgmiosDecodeError(ErrorResponse)
+  , decodeOgmios
+  )
+import Ctl.Internal.QueryM.Ogmios
+  ( HasTxR
+  , SubmitTxR
+  , TxEvaluationR
+  , aesonObject
+  )
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
-import Data.Array (catMaybes, elem, filter, groupAllBy, nubBy)
+import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
-import Data.Bifunctor (bimap, lmap)
-import Data.Either (either, hush)
+import Data.Bifunctor (lmap)
+import Data.Either (Either(Left, Right), hush)
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.Newtype (unwrap)
+import Data.String (toLower)
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
-import Data.Traversable (for_, traverse)
-import Data.Tuple (fst, snd)
+import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)
-import Effect.Class.Console (log)
 import Effect.Exception (throw)
-import Foreign.Object (Object)
+import Foreign.Object (update) as Object
 import Mote (group, skip, test)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
@@ -38,48 +47,60 @@ import Node.Path (FilePath, basename, concat)
 import Node.Process (lookupEnv)
 import Type.Proxy (Proxy(Proxy))
 
-supported :: Array String
-supported =
-  [ "chainTip"
-  , "currentEpoch"
-  , "systemStart"
-  , "eraSummaries"
-  , "currentProtocolParameters"
-  , "poolIds"
-  , "poolParameters"
-  , "delegationsAndRewards"
-  , "SubmitTx"
-  , "EvaluateTx"
-  -- TODO Support plutus:v2 parameters
-  -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/567
-  -- , "currentProtocolParameters-noPlutusV1"
+type Check = String -> Aeson -> Aff Unit
+
+-- These fixtures are tested to decode to given types.
+-- Pay attention to update this if fixture filenames change, otherwise tests are going to be ignored.
+tested :: Array (String /\ Check)
+tested =
+  [ ("queryNetwork/tip" /\ check (Proxy :: _ O.ChainTipQR))
+  , ("queryNetwork/startTime" /\ check (Proxy :: _ O.CurrentEpoch))
+  , ("queryLedgerState/epoch" /\ check (Proxy :: _ O.OgmiosSystemStart))
+  , ("queryLedgerState/eraSummaries" /\ check (Proxy :: _ O.OgmiosEraSummaries))
+  , ( "queryLedgerState/protocolParameters" /\ check
+        (Proxy :: _ O.OgmiosProtocolParameters)
+    )
+  , ("queryLedgerState/stakePools" /\ check (Proxy :: _ O.PoolParametersR))
+  , ( "queryLedgerState/rewardAccountSummaries" /\ check
+        (Proxy :: _ O.DelegationsAndRewardsR)
+    )
+  , ("evaluateTransaction" /\ check (Proxy :: _ TxEvaluationR))
+  , ("submitTransaction" /\ check (Proxy :: _ SubmitTxR))
+  , ("hasTransaction" /\ check (Proxy :: _ HasTxR))
+  , ("sizeOfMempool" /\ check (Proxy :: _ MempoolSizeAndCapacity))
+  -- ignoring because response may lack tx cbor if not run with flag
+  -- This endpoint is tested with "fetchMempoolTXs" test (Test.Ctl.Plutip.Contract.OgmiosMempool)
+  -- , ("nextTransaction" /\ (Proxy :: _ MaybeMempoolTransaction ))
   ]
 
-getField
-  :: forall (a :: Type). DecodeAeson a => String -> Object Aeson -> Maybe a
-getField f o = join $ hush $ Aeson.getFieldOptional' o f
+-- Fixtures from ogmios repo have id set to "null", but we require it as string.
+addIdFieldHack :: Aeson -> Either JsonDecodeError Aeson
+addIdFieldHack = aesonObject $
+  ( pure <<< encodeAeson <<< Object.update
+      (const $ pure $ encodeAeson "My favourite id")
+      "id"
+  )
+
+-- Fail if we can't decode positive result
+check
+  :: forall (a :: Type)
+   . DecodeOgmios a
+  => Proxy a
+  -> String
+  -> Aeson
+  -> Aff Unit
+check _ bn aeson = liftEither $ lmap
+  (error <<< ((bn <> "\n  ") <> _))
+  ( do
+      aeson' <- lmap show (addIdFieldHack aeson)
+      case decodeOgmios aeson' of
+        -- we don't decode every error response, that's an expected fail
+        Left (ErrorResponse (Just _)) -> pure unit
+        Right (_ :: a) -> pure unit
+        Left e -> Left $ show e
+  )
 
 type Query = String
-
--- Given a query and a response of the query, create a special case query
-specialize :: Query -> Aeson -> Query
-specialize query a
-  | Just _ :: _ Aeson <- getField "eraMismatch" =<< Aeson.toObject a = query
-      <> "-"
-      <> "eraMismatch"
-  | "currentProtocolParameters" <- query
-  , Just costModels <- getField "costModels" =<< Aeson.toObject a
-  , Nothing :: _ Aeson <- getField "plutus:v1" costModels = query <> "-" <>
-      "noPlutusV1"
-  | "currentProtocolParameters" <- query
-  , Just costModels <- getField "costModels" =<< Aeson.toObject a
-  , Nothing :: _ Aeson <- getField "plutus:v2" costModels = query <> "-" <>
-      "noPlutusV2"
-  | "SubmitTx" <- query
-  , Just _ :: _ Aeson <- getField "SubmitFail" =<< Aeson.toObject a = query
-      <> "-"
-      <> "SubmitFail"
-specialize query _ = query
 
 readdir' :: FilePath -> Aff (Array FilePath)
 readdir' fp = (map <<< map) (\fn -> concat [ fp, fn ]) (readdir fp)
@@ -111,7 +132,7 @@ loadFixtures = do
         (Aeson.parseJsonStringToAeson contents)
       pure case pattern >>= flip match bn >>> map tail of
         Just [ Just query ] -> Just
-          { query: specialize query aeson
+          { query
           , bn
           , aeson
           }
@@ -125,48 +146,26 @@ loadFixtures = do
 
   pure groupedFiles
 
-printEvaluateTxFailures :: Effect Unit
-printEvaluateTxFailures = launchAff_ do
-  fixtures <- loadFixtures <#> filter (fst >>> (_ == "EvaluateTx")) >>> map snd
-  flip (traverse >>> traverse) fixtures \{ aeson } -> do
-    let
-      response = hush $ Aeson.decodeAeson aeson :: _ O.TxEvaluationR
-      mbFailure = response >>= unwrap >>> either pure (const Nothing)
-    for_ mbFailure (log <<< printTxEvaluationFailure mempty)
-
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Ogmios Aeson tests" do
   groupedFiles <- lift loadFixtures
+  let
+    (tested' :: Map.Map String Check) = Map.fromFoldable $ map
+      (\(q /\ c) -> (toLower q /\ c))
+      tested
 
   for_ groupedFiles \(query /\ files') ->
-    (if query `elem` supported then identity else skip)
-      $ test (query <> " (" <> show (length files') <> ")")
-      $
-        for_ files' \{ aeson, bn } -> do
-          let
-            handle :: forall (a :: Type). DecodeAeson a => Proxy a -> Aff Unit
-            handle _ = liftEither $ bimap
-              ( error <<< ((bn <> "\n  ") <> _) <<<
-                  printJsonDecodeError
-              )
-              (const unit)
-              (Aeson.decodeAeson aeson :: _ a)
-          case query of
-            "chainTip" -> handle (Proxy :: _ O.ChainTipQR)
-            "currentEpoch" -> handle (Proxy :: _ O.CurrentEpoch)
-            "systemStart" -> handle (Proxy :: _ O.OgmiosSystemStart)
-            "eraSummaries" -> handle (Proxy :: _ O.OgmiosEraSummaries)
-            "currentProtocolParameters" -> handle
-              (Proxy :: _ O.OgmiosProtocolParameters)
-            "poolIds" -> handle
-              (Proxy :: _ O.PoolIdsR)
-            "poolParameters" -> handle
-              (Proxy :: _ O.PoolParametersR)
-            "delegationsAndRewards" -> handle
-              (Proxy :: _ O.DelegationsAndRewardsR)
-            "EvaluateTx" -> handle (Proxy :: _ O.TxEvaluationR)
-            "SubmitTx" -> handle (Proxy :: _ O.SubmitTxR)
-            _ -> liftEffect $ throw $ "Unknown case " <> bn
+    let
+      query' = toLower query
+    in
+      let
+        test' ch = test (query <> " (" <> show (length files') <> ")") $ for_
+          files'
+          \{ aeson, bn } -> ch bn aeson
+      in
+        case Map.lookup query' tested' of
+          Nothing -> skip $ test' (\_ _ -> pure unit)
+          Just check' -> test' check'
 
 main :: Effect Unit
 main = launchAff_ do
