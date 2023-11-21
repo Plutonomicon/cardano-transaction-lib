@@ -6,6 +6,7 @@
     - [Configuring synchronization behavior](#configuring-synchronization-behavior)
     - [Synchronization and wallet UTxO locking](#synchronization-and-wallet-utxo-locking)
     - [Historical notes](#historical-notes)
+  - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -113,3 +114,7 @@ Initially we underestimated the problem of UTxO set inconsistency between query 
 Conceptually, the wallet is responsible for *owning* the UTxOs, so wallet developers may implement behaviors that would prevent us from making general assumptions about the wallet state.
 
 CTL `v5.1.0` introduces better consistency guarantees while not requiring the developer to change any code on their side - for the price of slight delays during the app runtime.
+
+## See also
+
+- [Optimising your app with custom query layers](./custom-query-layers.md)

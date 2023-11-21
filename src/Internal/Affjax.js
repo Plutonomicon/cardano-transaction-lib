@@ -14,7 +14,7 @@ const browserDriver = {
   },
   fixupUrl: function (url) {
     return url || "/";
-  },
+  }
 };
 
 async function nodeDriver() {
@@ -34,6 +34,6 @@ async function nodeDriver() {
       } else {
         return url || "/";
       }
-    },
+    }
   };
 }

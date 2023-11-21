@@ -201,7 +201,7 @@ import Ctl.Internal.Types.TxConstraints
   , utxoWithScriptRef
   )
 import Data.Array (cons, partition, toUnfoldable, zip)
-import Data.Array (singleton, (:)) as Array
+import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
@@ -220,7 +220,6 @@ import Effect (Effect)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import MedeaPrelude (mapMaybe)
 import Prelude (join) as Bind
 
 -- The constraints don't precisely match those of Plutus:
@@ -376,7 +375,7 @@ resumeTimeConstraints constraints = do
     { no: nonTimeConstraints, yes: timeConstraints } = partition
       isTimeConstraint
       constraints
-    intervals = mapMaybe constraintToInterval timeConstraints
+    intervals = Array.mapMaybe constraintToInterval timeConstraints
   newInterval <- foldM mergeIntervals always intervals
   pure $ cons (MustValidateIn newInterval) nonTimeConstraints
   where

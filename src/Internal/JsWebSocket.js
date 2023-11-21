@@ -26,7 +26,7 @@ export function _mkWebSocket(logger) {
         ws = new ReconnectingWebSocket(url);
       } else {
         ws = new ReconnectingWebSocket(url, [], {
-          WebSocket: NoPerMessageDeflateWebSocket,
+          WebSocket: NoPerMessageDeflateWebSocket
         });
       }
       ws.finalizers = [];

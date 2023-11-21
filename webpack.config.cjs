@@ -15,7 +15,7 @@ module.exports = env => {
       lazyCompilation: false,
       outputModule: true,
       syncWebAssembly: true,
-      topLevelAwait: true,
+      topLevelAwait: true
     },
 
     devtool: "eval-source-map",
@@ -24,10 +24,10 @@ module.exports = env => {
 
     devServer: {
       static: {
-        directory: path.join(__dirname, "dist"),
+        directory: path.join(__dirname, "dist")
       },
       client: {
-        overlay: false,
+        overlay: false
       },
       port: 4008,
       proxy: {
@@ -36,9 +36,9 @@ module.exports = env => {
           // service, otherwise all requests to Kupo will fail.
           target: process.env.KUPO_HOST || "http://localhost:1442",
           changeOrigin: true,
-          pathRewrite: { "^/kupo": "" },
-        },
-      },
+          pathRewrite: { "^/kupo": "" }
+        }
+      }
     },
 
     entry: env.entry,
@@ -47,29 +47,29 @@ module.exports = env => {
       path: path.resolve(__dirname, "dist"),
       filename: "index.js",
       library: {
-        type: "module",
-      },
+        type: "module"
+      }
     },
 
     resolve: {
       // We use node_modules provided by Nix shell via an environment variable
       modules: [process.env.NODE_PATH],
-      extensions: [".js"],
+      extensions: [".js"]
     },
 
     plugins: [
       new webpack.DefinePlugin({
-        BROWSER_RUNTIME: isBrowser,
+        BROWSER_RUNTIME: isBrowser
       }),
       new webpack.LoaderOptionsPlugin({
-        debug: true,
+        debug: true
       }),
       // ContextReplacementPlugin is used just to suppress a webpack warning:
       // "Critical dependency: the request of a dependency is an expression"
       // See https://stackoverflow.com/a/59235546/17365145
       new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
-      new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
-    ],
+      new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/)
+    ]
   };
 
   config.target = isBrowser ? "web" : "node18";
@@ -89,7 +89,7 @@ module.exports = env => {
         path: false,
         fs: false,
         readline: false,
-        child_process: false,
+        child_process: false
       }
     : {};
 
@@ -98,14 +98,14 @@ module.exports = env => {
   config.optimization = isBrowser
     ? {}
     : {
-        minimize: false,
+        minimize: false
       };
 
   if (isBrowser) {
     // Provide top-level `Buffer`
     config.plugins.push(
       new webpack.ProvidePlugin({
-        Buffer: ["buffer", "Buffer"],
+        Buffer: ["buffer", "Buffer"]
       })
     );
     // Provide NodeJS polyfills

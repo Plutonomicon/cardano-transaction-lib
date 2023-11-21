@@ -55,7 +55,6 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   , encodeAeson
-  , getFieldOptional
   , parseJsonStringToAeson
   , stringifyAeson
   )
@@ -95,18 +94,17 @@ import Ctl.Internal.JsWebSocket
   )
 import Ctl.Internal.Logging (Logger, mkLogger)
 import Ctl.Internal.QueryM.Dispatcher
-  ( DispatchError(JsError, JsonError, FaultError, ListenerCancelled)
+  ( DispatchError(JsonError)
   , Dispatcher
   , GenericPendingRequests
   , PendingRequests
   , PendingSubmitTxRequests
   , RequestBody
   , WebsocketDispatch
-  , dispatchErrorToError
   , mkWebsocketDispatch
   , newDispatcher
   , newPendingRequests
-  ) as ExportDispatcher
+  )
 import Ctl.Internal.QueryM.Dispatcher
   ( DispatchError(JsonError, FaultError, ListenerCancelled)
   , Dispatcher
@@ -119,16 +117,23 @@ import Ctl.Internal.QueryM.Dispatcher
   , mkWebsocketDispatch
   , newDispatcher
   , newPendingRequests
+  ) as ExportDispatcher
+import Ctl.Internal.QueryM.JsonRpc2
+  ( OgmiosDecodeError
+  , decodeOgmios
+  , ogmiosDecodeErrorToError
   )
-import Ctl.Internal.QueryM.JsonWsp as JsonWsp
+import Ctl.Internal.QueryM.JsonRpc2 as JsonRpc2
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , DelegationsAndRewardsR
+  , HasTxR
+  , MaybeMempoolTransaction
   , OgmiosProtocolParameters
-  , PoolIdsR
   , PoolParametersR
+  , ReleasedMempool
+  , StakePoolsQueryArgument
   , TxHash
-  , aesonObject
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
@@ -302,8 +307,8 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
   ogmiosChainTipToTip :: Ogmios.ChainTipQR -> Chain.Tip
   ogmiosChainTipToTip = case _ of
     Ogmios.CtChainOrigin _ -> Chain.TipAtGenesis
-    Ogmios.CtChainPoint { slot, hash } -> Chain.Tip $ wrap
-      { slot, blockHeaderHash: wrap $ unwrap hash }
+    Ogmios.CtChainPoint { slot, id } -> Chain.Tip $ wrap
+      { slot, blockHeaderHash: wrap $ unwrap id }
 
 --------------------------------------------------------------------------------
 -- Ogmios Local Tx Submission Protocol
@@ -361,9 +366,11 @@ mempoolSnapshotHasTxAff
   -> Ogmios.MempoolSnapshotAcquired
   -> TxHash
   -> Aff Boolean
-mempoolSnapshotHasTxAff ogmiosWs logger ms =
-  mkOgmiosRequestAff ogmiosWs logger (Ogmios.mempoolSnapshotHasTxCall ms)
+mempoolSnapshotHasTxAff ogmiosWs logger ms txh =
+  unwrap <$> mkOgmiosRequestAff ogmiosWs logger
+    (Ogmios.mempoolSnapshotHasTxCall ms)
     _.mempoolHasTx
+    txh
 
 mempoolSnapshotSizeAndCapacityAff
   :: OgmiosWebSocket
@@ -372,15 +379,15 @@ mempoolSnapshotSizeAndCapacityAff
   -> Aff Ogmios.MempoolSizeAndCapacity
 mempoolSnapshotSizeAndCapacityAff ogmiosWs logger ms =
   mkOgmiosRequestAff ogmiosWs logger
-    (Ogmios.mempoolSnpashotSizeAndCapacityCall ms)
-    _.mempoolSizeAndCapcity
+    (Ogmios.mempoolSnapshotSizeAndCapacityCall ms)
+    _.mempoolSizeAndCapacity -- todo: typo
     unit
 
 releaseMempoolAff
   :: OgmiosWebSocket
   -> Logger
   -> Ogmios.MempoolSnapshotAcquired
-  -> Aff String
+  -> Aff ReleasedMempool
 releaseMempoolAff ogmiosWs logger ms =
   mkOgmiosRequestAff ogmiosWs logger (Ogmios.releaseMempoolCall ms)
     _.releaseMempool
@@ -391,7 +398,7 @@ mempoolSnapshotNextTxAff
   -> Logger
   -> Ogmios.MempoolSnapshotAcquired
   -> Aff (Maybe Ogmios.MempoolTransaction)
-mempoolSnapshotNextTxAff ogmiosWs logger ms =
+mempoolSnapshotNextTxAff ogmiosWs logger ms = unwrap <$>
   mkOgmiosRequestAff ogmiosWs logger (Ogmios.mempoolSnapshotNextTxCall ms)
     _.mempoolNextTx
     unit
@@ -408,25 +415,26 @@ mempoolSnapshotHasTx
   :: Ogmios.MempoolSnapshotAcquired
   -> TxHash
   -> QueryM Boolean
-mempoolSnapshotHasTx ms =
-  mkOgmiosRequest
+mempoolSnapshotHasTx ms txh =
+  unwrap <$> mkOgmiosRequest
     (Ogmios.mempoolSnapshotHasTxCall ms)
     _.mempoolHasTx
+    txh
 
 mempoolSnapshotSizeAndCapacity
   :: Ogmios.MempoolSnapshotAcquired
   -> QueryM Ogmios.MempoolSizeAndCapacity
 mempoolSnapshotSizeAndCapacity ms =
   mkOgmiosRequest
-    (Ogmios.mempoolSnpashotSizeAndCapacityCall ms)
-    _.mempoolSizeAndCapcity
+    (Ogmios.mempoolSnapshotSizeAndCapacityCall ms)
+    _.mempoolSizeAndCapacity
     unit
 
 releaseMempool
   :: Ogmios.MempoolSnapshotAcquired
-  -> QueryM String
+  -> QueryM Unit
 releaseMempool ms =
-  mkOgmiosRequest
+  unit <$ mkOgmiosRequest
     (Ogmios.releaseMempoolCall ms)
     _.releaseMempool
     unit
@@ -435,7 +443,7 @@ mempoolSnapshotNextTx
   :: Ogmios.MempoolSnapshotAcquired
   -> QueryM (Maybe Ogmios.MempoolTransaction)
 mempoolSnapshotNextTx ms =
-  mkOgmiosRequest
+  unwrap <$> mkOgmiosRequest
     (Ogmios.mempoolSnapshotNextTxCall ms)
     _.mempoolNextTx
     unit
@@ -632,8 +640,7 @@ resendPendingSubmitRequests
     where
     submitSuccessPartialResp :: Aeson
     submitSuccessPartialResp =
-      encodeAeson
-        { "result": { "SubmitSuccess": { "txId": txHash } } }
+      encodeAeson $ Ogmios.submitSuccessPartialResp txHash
 
 --------------------------------------------------------------------------------
 -- `MkServiceWebSocketLens` for ogmios
@@ -679,13 +686,11 @@ mkOgmiosWebSocketLens logger isTxConfirmed = do
             mkListenerSet dispatcher pendingRequests
         , mempoolNextTx:
             mkListenerSet dispatcher pendingRequests
-        , mempoolSizeAndCapcity:
+        , mempoolSizeAndCapacity:
             mkListenerSet dispatcher pendingRequests
         , submit:
             mkSubmitTxListenerSet dispatcher pendingSubmitTxRequests
-        , poolIds:
-            mkListenerSet dispatcher pendingRequests
-        , poolParameters:
+        , stakePools:
             mkListenerSet dispatcher pendingRequests
         , delegationsAndRewards:
             mkListenerSet dispatcher pendingRequests
@@ -722,12 +727,11 @@ type OgmiosListeners =
   , currentEpoch :: ListenerSet Unit Ogmios.CurrentEpoch
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
-  , releaseMempool :: ListenerSet Unit String
-  , mempoolHasTx :: ListenerSet TxHash Boolean
-  , mempoolNextTx :: ListenerSet Unit (Maybe Ogmios.MempoolTransaction)
-  , mempoolSizeAndCapcity :: ListenerSet Unit Ogmios.MempoolSizeAndCapacity
-  , poolIds :: ListenerSet Unit PoolIdsR
-  , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
+  , releaseMempool :: ListenerSet Unit ReleasedMempool
+  , mempoolHasTx :: ListenerSet TxHash HasTxR
+  , mempoolNextTx :: ListenerSet Unit MaybeMempoolTransaction
+  , mempoolSizeAndCapacity :: ListenerSet Unit Ogmios.MempoolSizeAndCapacity
+  , stakePools :: ListenerSet StakePoolsQueryArgument PoolParametersR
   , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
   }
 
@@ -735,7 +739,7 @@ type OgmiosListeners =
 type ListenerSet (request :: Type) (response :: Type) =
   { addMessageListener ::
       ListenerId
-      -> (Either DispatchError response -> Effect Unit)
+      -> (Either OgmiosDecodeError response -> Effect Unit)
       -> Effect Unit
   , removeMessageListener :: ListenerId -> Effect Unit
   -- ^ Removes ID from dispatch map and pending requests queue.
@@ -748,20 +752,17 @@ type SubmitTxListenerSet = ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
 
 mkAddMessageListener
   :: forall (response :: Type)
-   . DecodeAeson response
+   . JsonRpc2.DecodeOgmios response
   => Dispatcher
   -> ( ListenerId
-       -> (Either DispatchError response -> Effect Unit)
+       -> (Either JsonRpc2.OgmiosDecodeError response -> Effect Unit)
        -> Effect Unit
      )
 mkAddMessageListener dispatcher =
   \reflection handler ->
     flip Ref.modify_ dispatcher $
-      Map.insert reflection \aeson -> handler $
-        case (aesonObject (flip getFieldOptional "result") aeson) of
-          Left err -> Left (JsonError err)
-          Right (Just result) -> Right result
-          Right Nothing -> Left (FaultError aeson)
+      Map.insert reflection
+        (\aeson -> handler $ decodeOgmios aeson)
 
 mkRemoveMessageListener
   :: forall (requestData :: Type)
@@ -777,7 +778,7 @@ mkRemoveMessageListener dispatcher pendingRequests =
 -- methods, this can be picked up by a query or cancellation function
 mkListenerSet
   :: forall (request :: Type) (response :: Type)
-   . DecodeAeson response
+   . JsonRpc2.DecodeOgmios response
   => Dispatcher
   -> PendingRequests
   -> ListenerSet request response
@@ -807,21 +808,21 @@ mkSubmitTxListenerSet dispatcher pendingRequests =
 -- | Builds an Ogmios request action using `QueryM`
 mkOgmiosRequest
   :: forall (request :: Type) (response :: Type)
-   . JsonWsp.JsonWspCall request response
+   . JsonRpc2.JsonRpc2Call request response
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkOgmiosRequest jsonWspCall getLs inp = do
+mkOgmiosRequest jsonRpc2Call getLs inp = do
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
-  mkRequest listeners' websocket jsonWspCall getLs inp
+  mkRequest listeners' websocket jsonRpc2Call getLs inp
 
 -- | Builds an Ogmios request action using `Aff`
 mkOgmiosRequestAff
   :: forall (request :: Type) (response :: Type)
    . OgmiosWebSocket
   -> Logger
-  -> JsonWsp.JsonWspCall request response
+  -> JsonRpc2.JsonRpc2Call request response
   -> (OgmiosListeners -> ListenerSet request response)
   -> request
   -> Aff response
@@ -833,13 +834,13 @@ mkRequest
   :: forall (request :: Type) (response :: Type) (listeners :: Type)
    . listeners
   -> JsWebSocket
-  -> JsonWsp.JsonWspCall request response
+  -> JsonRpc2.JsonRpc2Call request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> QueryM response
-mkRequest listeners' ws jsonWspCall getLs inp = do
+mkRequest listeners' ws jsonRpc2Call getLs inp = do
   logger <- getLogger
-  liftAff $ mkRequestAff listeners' ws logger jsonWspCall getLs inp
+  liftAff $ mkRequestAff listeners' ws logger jsonRpc2Call getLs inp
 
 getLogger :: QueryM Logger
 getLogger = do
@@ -852,13 +853,13 @@ mkRequestAff
    . listeners
   -> JsWebSocket
   -> Logger
-  -> JsonWsp.JsonWspCall request response
+  -> JsonRpc2.JsonRpc2Call request response
   -> (listeners -> ListenerSet request response)
   -> request
   -> Aff response
-mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
+mkRequestAff listeners' webSocket logger jsonRpc2Call getLs input = do
   { body, id } <-
-    liftEffect $ JsonWsp.buildRequest jsonWspCall input
+    liftEffect $ JsonRpc2.buildRequest jsonRpc2Call input
   let
     respLs :: ListenerSet request response
     respLs = getLs listeners'
@@ -869,11 +870,9 @@ mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
     affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
       _ <- respLs.addMessageListener id
-        ( \result -> do
+        ( \res -> do
             respLs.removeMessageListener id
-            case result of
-              Left (ListenerCancelled _) -> pure unit
-              _ -> cont (lmap dispatchErrorToError result)
+            cont $ lmap ogmiosDecodeErrorToError res
         )
       respLs.addRequest id (sBody /\ input)
       _wsSend webSocket (logger Debug) sBody

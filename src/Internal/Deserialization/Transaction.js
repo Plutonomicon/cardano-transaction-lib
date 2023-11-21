@@ -135,10 +135,6 @@ export function _unpackMint(containerhelper) {
   return containerhelper.unpackKeyIndexed;
 }
 
-export function _unpackMintAssets(containerhelper) {
-  return containerhelper.unpackKeyIndexed;
-}
-
 export function _convertCert(certConvHelper) {
   return cert => {
     switch (cert.kind()) {
@@ -217,7 +213,7 @@ export function _unpackProtocolParamUpdate(maybe) {
       maxBlockExUnits: optional(ppu.max_block_ex_units()),
       maxValueSize: optional(ppu.max_value_size()),
       collateralPercentage: optional(ppu.collateral_percentage()),
-      maxCollateralInputs: optional(ppu.max_collateral_inputs()),
+      maxCollateralInputs: optional(ppu.max_collateral_inputs())
     };
   };
 }
@@ -277,28 +273,28 @@ export function _convertMetadatum(metadataCtors) {
 export function _unpackExUnits(exunits) {
   return {
     mem: exunits.mem(),
-    steps: exunits.steps(),
+    steps: exunits.steps()
   };
 }
 
 export function _unpackUnitInterval(ui) {
   return {
     numerator: ui.numerator(),
-    denominator: ui.denominator(),
+    denominator: ui.denominator()
   };
 }
 
 export function _unpackProtocolVersion(cslPV) {
   return {
     major: cslPV.major(),
-    minor: cslPV.minor(),
+    minor: cslPV.minor()
   };
 }
 
 export function _unpackExUnitsPrices(cslEup) {
   return {
     memPrice: cslEup.mem_price(),
-    stepPrice: cslEup.step_price(),
+    stepPrice: cslEup.step_price()
   };
 }
 

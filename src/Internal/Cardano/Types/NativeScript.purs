@@ -50,8 +50,8 @@ data NativeScript
   | ScriptAll (Array NativeScript)
   | ScriptAny (Array NativeScript)
   | ScriptNOfK Int (Array NativeScript)
-  | TimelockStart Slot
-  | TimelockExpiry Slot
+  | TimelockStart Slot -- spend after
+  | TimelockExpiry Slot -- spend before
 
 derive instance Eq NativeScript
 derive instance Generic NativeScript _

@@ -68,6 +68,7 @@
     "webpack-dev-server": "4.15.1"
   },
   "prettier": {
-    "arrowParens": "avoid"
+    "arrowParens": "avoid",
+    "trailingComma": "none"
   }
 }

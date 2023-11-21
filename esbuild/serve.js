@@ -10,7 +10,7 @@ if (process.argv.length < 6) {
 const ctx = await esbuild.context(
   buildOptions({
     entryPoint: process.argv[2],
-    outfile: process.argv[3],
+    outfile: process.argv[3]
   })
 );
 
@@ -18,7 +18,7 @@ const config = {
   // Use the next port for esbuild server,
   // we need a port for our proxy (see below).
   port: parseInt(process.argv[5]) + 1,
-  servedir: process.argv[4],
+  servedir: process.argv[4]
 };
 
 let { host, port } = await ctx.serve(config);
@@ -36,7 +36,7 @@ http
       port: port,
       path: req.url,
       method: req.method,
-      headers: req.headers,
+      headers: req.headers
     };
 
     // Forward each incoming request to esbuild
@@ -49,7 +49,7 @@ http
           port: kupoPort,
           path: req.url.slice("/kupo".length),
           method: req.method,
-          headers: req.headers,
+          headers: req.headers
         };
         // Request the corresponding path
         http

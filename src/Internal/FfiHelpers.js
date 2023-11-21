@@ -41,6 +41,6 @@ export function _containerHelper(r) {
         res.insert(key, value);
       });
       return res;
-    },
+    }
   };
 }

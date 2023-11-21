@@ -42,7 +42,6 @@ You can edit this file as you like.
   , "lattice"
   , "lists"
   , "maybe"
-  , "medea"
   , "media-types"
   , "monad-logger"
   , "mote"

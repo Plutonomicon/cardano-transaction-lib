@@ -24,7 +24,7 @@ export function injectCip30Mock(walletName) {
             getNetworkId: mock.getNetworkId,
             getUtxos: mock.getUtxos,
             experimental: {
-              getCollateral: mock.getCollateral,
+              getCollateral: mock.getCollateral
             },
             getBalance: mock.getBalance,
             getUsedAddresses: mock.getUsedAddresses,
@@ -32,10 +32,10 @@ export function injectCip30Mock(walletName) {
             getChangeAddress: mock.getChangeAddress,
             getRewardAddresses: mock.getRewardAddresses,
             signTx: mock.signTx,
-            signData: mock.signData,
+            signData: mock.signData
           })
         );
-      },
+      }
     };
 
     return () => {

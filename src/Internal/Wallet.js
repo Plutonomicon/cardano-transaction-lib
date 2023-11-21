@@ -10,7 +10,7 @@ const getIsWalletAvailableTagName = wallet => {
     gerowallet: "GeroWallet",
     flint: "FlintWallet",
     LodeWallet: "LodeWallet",
-    eternl: "EternlWallet",
+    eternl: "EternlWallet"
   };
 
   return strs[wallet] || "is?WalletAvailable";

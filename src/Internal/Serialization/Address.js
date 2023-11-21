@@ -132,7 +132,7 @@ export function pointerAddressStakePointer(pa) {
   return {
     slot: pointerForeign.slot_bignum(),
     txIx: pointerForeign.tx_index_bignum(),
-    certIx: pointerForeign.cert_index_bignum(),
+    certIx: pointerForeign.cert_index_bignum()
   };
 }
 

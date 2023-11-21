@@ -8,18 +8,18 @@ export const buildOptions = ({ entryPoint, outfile }) => {
     entryPoints: [entryPoint],
     outfile: outfile,
     define: {
-      BROWSER_RUNTIME: isBrowser ? "true" : '""',
+      BROWSER_RUNTIME: isBrowser ? "true" : '""'
     },
     plugins: [
       wasmLoader({
-        mode: "deferred",
-      }),
+        mode: "deferred"
+      })
     ],
     bundle: true,
     platform: isBrowser ? "browser" : "node",
     format: "esm",
     treeShaking: true,
-    logLevel: "error",
+    logLevel: "error"
   };
 
   // https://esbuild.github.io/api/#packages
@@ -31,8 +31,8 @@ export const buildOptions = ({ entryPoint, outfile }) => {
         polyfills: {
           crypto: true,
           fs: true,
-          os: true,
-        },
+          os: true
+        }
       })
     );
   }

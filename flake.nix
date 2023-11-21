@@ -4,29 +4,57 @@
   nixConfig.bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 
   inputs = {
-    nixpkgs.follows = "ogmios/nixpkgs";
+    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    hackage-nix = {
+      url = "github:input-output-hk/hackage.nix";
+      flake = false;
+    };
+    haskell-nix = {
+      url = "github:input-output-hk/haskell.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.hackage.follows = "hackage-nix";
+    };
+    CHaP = {
+      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+      flake = false;
+    };
+    iohk-nix = {
+      url = "github:input-output-hk/iohk-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    ogmios.url = "github:mlabs-haskell/ogmios/a7687bc03b446bc74564abe1873fbabfa1aac196";
-    kupo-nixos.url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
-    kupo-nixos.inputs.kupo.follows = "kupo";
+    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
+
+    ogmios-nixos = {
+      url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        iohk-nix.follows = "iohk-nix";
+        haskell-nix.follows = "haskell-nix";
+        cardano-node.follows = "cardano-node";
+        ogmios-src.follows = "ogmios";
+      };
+    };
+
+    ogmios = {
+      url = "github:CardanoSolutions/ogmios/v6.0.0";
+      flake = false;
+    };
+
+    kupo-nixos = {
+      url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
+      inputs.kupo.follows = "kupo";
+    };
 
     kupo = {
       url = "github:CardanoSolutions/kupo/v2.2.0";
       flake = false;
     };
-
-    # ogmios nixos module (remove and replace with the above after merging and updating)
-    ogmios-nixos.url = "github:mlabs-haskell/ogmios";
-
-    cardano-node.follows = "ogmios-nixos/cardano-node";
-    # for new environments like preview and preprod. TODO: remove this when cardano-node is updated
-    iohk-nix-environments.url = "github:input-output-hk/iohk-nix";
-    cardano-node.inputs.iohkNix.follows = "iohk-nix-environments";
 
     # Repository with network parameters
     cardano-configurations = {
@@ -39,21 +67,19 @@
       flake = false;
     };
 
-    # TODO use a tag for blockfrost as soon as they tag a recent commit (we need it as a flake)
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/113ddfc2dbea9beba3a428aa274965237f31b858";
+    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
 
     # Plutip server related inputs
-    plutip.url = "github:mlabs-haskell/plutip/1d35f53c7e4938c6df0fdd3bea6c5e9d5f704158";
-    plutip-nixpkgs.follows = "plutip/nixpkgs";
-    haskell-nix.url = "github:mlabs-haskell/haskell.nix";
-    iohk-nix = {
-      follows = "plutip/iohk-nix";
-      flake = false;
-    };
-    CHaP = {
-      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
-      flake = false;
+    plutip = {
+      url = "github:mlabs-haskell/plutip/1bf0b547cd3689c727586abb8385c008fb2a3d1c";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        iohk-nix.follows = "iohk-nix";
+        haskell-nix.follows = "haskell-nix";
+        hackage-nix.follows = "hackage-nix";
+        cardano-node.follows = "cardano-node";
+      };
     };
   };
 
@@ -99,11 +125,20 @@
 
           function on_file () {
             local path=$1
-            local parent="$(basename "$(dirname "$path")")"
-            if command=$(pcregrep -o1 -o2 -o3 'Query\[(.*)\]|(EvaluateTx)|(SubmitTx)' <<< "$path")
+            match_A=$(pcregrep -o1 'QueryLedgerState([a-zA-Z]+)\/' <<< "$path")
+            match_B=$(pcregrep -o1 '([a-zA-Z]+)Response' <<< "$path")
+            command=""
+            if [ ! -z $match_A ]
+            then
+              command="QueryLedgerState-$match_A"
+            elif [ ! -z $match_B ]
+            then
+              command="$match_B"
+            fi
+            if [ ! -z $command ]
             then
               echo "$path"
-              json=$(jq -c .result "$path")
+              json=$(cat "$path")
               md5=($(md5sum <<< "$json"))
               printf "%s" "$json" > "ogmios/$command-$md5.json"
             fi
@@ -210,17 +245,17 @@
 
       plutipServerFor = system:
         let
-          pkgs = import inputs.plutip-nixpkgs {
+          pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [
               inputs.haskell-nix.overlay
-              (import "${inputs.iohk-nix}/overlays/crypto")
+              inputs.iohk-nix.overlays.crypto
             ];
           };
         in
         import ./plutip-server {
           inherit pkgs;
-          inherit (inputs) plutip CHaP iohk-nix;
+          inherit (inputs) plutip CHaP cardano-node;
           inherit (pkgs) system;
           src = ./plutip-server;
         };
@@ -270,7 +305,7 @@
               {
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios = ogmios.packages.${system}."ogmios:exe:ogmios";
+                ogmios = ogmios-nixos.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
@@ -468,10 +503,6 @@
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
           inputs.ogmios-nixos.nixosModules.ogmios
-          {
-            services.ogmios.package =
-              inputs.ogmios.packages.x86_64-linux."ogmios:exe:ogmios";
-          }
           inputs.kupo-nixos.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];

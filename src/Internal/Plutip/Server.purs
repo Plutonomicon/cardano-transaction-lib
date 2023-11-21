@@ -535,6 +535,7 @@ startOgmios cfg params = do
     , params.nodeSocketPath
     , "--node-config"
     , params.nodeConfigPath
+    , "--include-transaction-cbor"
     ]
 
 startKupo
