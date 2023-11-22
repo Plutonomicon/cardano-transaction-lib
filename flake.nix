@@ -81,6 +81,8 @@
         cardano-node.follows = "cardano-node";
       };
     };
+
+    hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
 
   outputs =
@@ -511,6 +513,20 @@
         };
       };
 
-      herculesCI.ciSystems = [ "x86_64-linux" ];
+      herculesCI = inputs.hercules-ci-effects.lib.mkHerculesCI { inherit inputs; } {
+        hercules-ci.flake-update = {
+          enable = true;
+          updateBranch = "updated-flake-lock";
+          createPullRequest = true;
+          autoMergeMethod = null;
+          when = {
+            minute = 00;
+            hour = 12;
+            dayOfWeek = "Sun";
+          };
+        };
+
+        herculesCI.ciSystems = [ "x86_64-linux" ];
+      };
     };
 }
