@@ -12,8 +12,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray, (:))
 import Data.Array.NonEmpty (length, singleton, sort, zip) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (all, foldMap, sum)
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (class Newtype, unwrap)
@@ -21,6 +19,8 @@ import Data.Ord.Max (Max(Max))
 import Data.Ord.Min (Min(Min))
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)

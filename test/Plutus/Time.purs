@@ -43,11 +43,11 @@ import Ctl.Internal.Types.Interval
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
 import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
-import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
+import JS.BigInt as BigInt
 import Mote (group)
 import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
 

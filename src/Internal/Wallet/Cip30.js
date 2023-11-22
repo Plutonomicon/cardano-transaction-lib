@@ -1,34 +1,56 @@
 /* global BROWSER_RUNTIME */
 
-exports._getNetworkId = conn => () => conn.getNetworkId();
+export function _getNetworkId(conn) {
+  return () => conn.getNetworkId();
+}
 
-exports._getUtxos = maybe => conn => () =>
-  conn.getUtxos().then(res => (res === null ? maybe.nothing : maybe.just(res)));
+export function _getUtxos(maybe) {
+  return conn => () =>
+    conn
+      .getUtxos()
+      .then(res => (res === null ? maybe.nothing : maybe.just(res)));
+}
 
-exports._getCollateral = maybe => conn => requiredValue => () =>
-  (typeof conn.getCollateral === "function"
-    ? conn.getCollateral(requiredValue)
-    : conn.experimental.getCollateral(requiredValue)
-  ).then(utxos =>
-    utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
-  );
+export function _getCollateral(maybe) {
+  return conn => requiredValue => () =>
+    (typeof conn.getCollateral === "function"
+      ? conn.getCollateral(requiredValue)
+      : conn.experimental.getCollateral(requiredValue)
+    ).then(utxos =>
+      utxos !== null && utxos.length ? maybe.just(utxos) : maybe.nothing
+    );
+}
 
-exports._getBalance = conn => () => conn.getBalance();
+export function _getBalance(conn) {
+  return () => conn.getBalance();
+}
 
-exports._getAddresses = conn => () => conn.getUsedAddresses();
+export function _getAddresses(conn) {
+  return conn.getUsedAddresses;
+}
 
-exports._getUnusedAddresses = conn => () => conn.getUnusedAddresses();
+export function _getUnusedAddresses(conn) {
+  return () => conn.getUnusedAddresses();
+}
 
-exports._getChangeAddress = conn => () => conn.getChangeAddress();
+export function _getChangeAddress(conn) {
+  return () => conn.getChangeAddress();
+}
 
-exports._getRewardAddresses = conn => () => conn.getRewardAddresses();
+export function _getRewardAddresses(conn) {
+  return () => conn.getRewardAddresses();
+}
 
-exports._signTx = txHex => conn => () =>
-  conn.signTx(txHex, true).catch(e => {
-    throw JSON.stringify(e);
-  });
+export function _signTx(txHex) {
+  return conn => () =>
+    conn.signTx(txHex, true).catch(e => {
+      throw JSON.stringify(e);
+    });
+}
 
-exports._signData = address => payload => conn => () =>
-  conn.signData(address, payload).catch(e => {
-    throw JSON.stringify(e);
-  });
+export function _signData(address) {
+  return payload => conn => () =>
+    conn.signData(address, payload).catch(e => {
+      throw JSON.stringify(e);
+    });
+}

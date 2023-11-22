@@ -21,12 +21,12 @@ import Ctl.Internal.Helpers
   )
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int (Int) as Int
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (empty) as Map
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import JS.BigInt (BigInt)
 
 newtype GeneralTransactionMetadata =
   GeneralTransactionMetadata

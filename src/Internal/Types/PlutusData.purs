@@ -24,8 +24,6 @@ import Control.Alt ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (TagSet, tag, tagSetTag)
@@ -35,6 +33,8 @@ import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 -- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData

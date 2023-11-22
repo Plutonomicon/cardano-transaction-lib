@@ -26,12 +26,12 @@ import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Ratio (Ratio)
 import Data.Ratio (denominator, numerator, (%)) as Ratio
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt) as BigInt
 
 -- | `Rational` is a newtype over `Ratio` with a smart constructor `reduce`
 -- | that allows to create a `Rational` safely. The constructor is not exposed.

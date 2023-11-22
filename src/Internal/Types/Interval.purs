@@ -72,9 +72,9 @@ import Aeson
   , aesonNull
   , decodeAeson
   , encodeAeson
+  , finiteNumber
   , getField
   , isNull
-  , partialFiniteNumber
   , (.:)
   )
 import Control.Monad.Error.Class (throwError)
@@ -116,9 +116,9 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
+import Data.Array.NonEmpty (singleton) as NEArray
+import Data.Array.NonEmpty ((:))
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
@@ -127,15 +127,15 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
-import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.NonEmpty ((:|))
+import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
-import Math (trunc, (%)) as Math
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
@@ -167,10 +167,17 @@ instance
     )
 
 instance ToData a => ToData (Extended a) where
-  toData = genericToData
+  toData = case _ of
+    Finite a -> genericToData $ Finite $ toData a
+    NegInf -> genericToData (NegInf :: Extended Void)
+    PosInf -> genericToData (PosInf :: Extended Void)
 
 instance FromData a => FromData (Extended a) where
-  fromData = genericFromData
+  fromData pd =
+    (genericFromData pd :: _ (Extended PlutusData)) >>= case _ of
+      Finite a -> Finite <$> fromData a
+      NegInf -> pure NegInf
+      PosInf -> pure PosInf
 
 derive instance Generic (Extended a) _
 derive instance Eq a => Eq (Extended a)
@@ -347,14 +354,13 @@ instance (DecodeAeson a, Ord a, Ring a) => DecodeAeson (Interval a) where
     pure $ haskIntervalToInterval haskInterval
 
 instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
-  arbitrary = frequency $ wrap $
+  arbitrary = frequency $
     (0.25 /\ genFiniteInterval arbitrary)
-      :| (0.25 /\ genUpperRay arbitrary)
-        : (0.25 /\ genLowerRay arbitrary)
-        : (0.1 /\ genSingletonInterval)
-        : (0.075 /\ pure always)
-        : (0.075 /\ pure never)
-        : Nil
+      : (0.25 /\ genUpperRay arbitrary)
+      : (0.25 /\ genLowerRay arbitrary)
+      : (0.1 /\ genSingletonInterval)
+      : (0.075 /\ pure always)
+      : NEArray.singleton (0.075 /\ pure never)
 
 -- | those accept a generator since we want to use them
 -- | for Positive Integers in tests
@@ -645,7 +651,7 @@ instance EncodeAeson SlotToPosixTimeError where
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
       -- We assume the numbers are finite
-      [ unsafePartial partialFiniteNumber absTime ]
+      [ unsafePartial $ fromJust $ finiteNumber absTime ]
   encodeAeson CannotGetBigIntFromNumber = do
     encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr

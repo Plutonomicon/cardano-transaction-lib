@@ -4,9 +4,9 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.Helpers (showWithParens)
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
+import JS.BigInt (BigInt)
 
 -- | An epoch number or length with greater precision for Ogmios than
 -- | `Cardano.Types.Epoch`. [ 0 .. 18446744073709552000 ]

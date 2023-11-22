@@ -105,7 +105,6 @@ import Ctl.Internal.Types.Interval
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Foldable (find)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
@@ -113,6 +112,7 @@ import Data.UInt as UInt
 import Effect.Aff (delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 
 -- | Get a summary of the current era.
 getCurrentEra :: Contract EraSummary

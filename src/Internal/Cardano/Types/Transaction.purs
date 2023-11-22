@@ -95,7 +95,7 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson
-  , partialFiniteNumber
+  , finiteNumber
   )
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
@@ -147,7 +147,6 @@ import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
@@ -165,12 +164,13 @@ import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
 import Data.String.Utils (startsWith)
-import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
+import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -605,10 +605,10 @@ instance EncodeAeson MoveInstantaneousReward where
   encodeAeson = case _ of
     ToOtherPot r -> encodeTagged' "ToOtherPot" r
       -- We assume the numbers are finite
-      { pot = unsafePartial partialFiniteNumber r.pot }
+      { pot = unsafePartial $ fromJust $ finiteNumber r.pot }
     ToStakeCreds r -> encodeTagged' "ToStakeCreds" r
       -- We assume the numbers are finite
-      { pot = unsafePartial partialFiniteNumber r.pot }
+      { pot = unsafePartial $ fromJust $ finiteNumber r.pot }
 
 type PoolRegistrationParams =
   { operator :: PoolPubKeyHash -- cwitness (cert)
@@ -703,56 +703,56 @@ instance EncodeAeson Certificate where
 --------------------------------------------------------------------------------
 
 _inputs :: Lens' TxBody (Set TransactionInput)
-_inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
+_inputs = _Newtype <<< prop (Proxy :: Proxy "inputs")
 
 _outputs :: Lens' TxBody (Array TransactionOutput)
-_outputs = _Newtype <<< prop (SProxy :: SProxy "outputs")
+_outputs = _Newtype <<< prop (Proxy :: Proxy "outputs")
 
 _fee :: Lens' TxBody (Coin)
-_fee = _Newtype <<< prop (SProxy :: SProxy "fee")
+_fee = _Newtype <<< prop (Proxy :: Proxy "fee")
 
 _ttl :: Lens' TxBody (Maybe Slot)
-_ttl = _Newtype <<< prop (SProxy :: SProxy "ttl")
+_ttl = _Newtype <<< prop (Proxy :: Proxy "ttl")
 
 _certs :: Lens' TxBody (Maybe (Array Certificate))
-_certs = _Newtype <<< prop (SProxy :: SProxy "certs")
+_certs = _Newtype <<< prop (Proxy :: Proxy "certs")
 
 _withdrawals :: Lens' TxBody (Maybe (Map RewardAddress Coin))
-_withdrawals = _Newtype <<< prop (SProxy :: SProxy "withdrawals")
+_withdrawals = _Newtype <<< prop (Proxy :: Proxy "withdrawals")
 
 _update :: Lens' TxBody (Maybe Update)
-_update = _Newtype <<< prop (SProxy :: SProxy "update")
+_update = _Newtype <<< prop (Proxy :: Proxy "update")
 
 _auxiliaryDataHash :: Lens' TxBody (Maybe AuxiliaryDataHash)
-_auxiliaryDataHash = _Newtype <<< prop (SProxy :: SProxy "auxiliaryDataHash")
+_auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
 
 _validityStartInterval :: Lens' TxBody (Maybe Slot)
 _validityStartInterval =
-  _Newtype <<< prop (SProxy :: SProxy "validityStartInterval")
+  _Newtype <<< prop (Proxy :: Proxy "validityStartInterval")
 
 _mint :: Lens' TxBody (Maybe Mint)
-_mint = _Newtype <<< prop (SProxy :: SProxy "mint")
+_mint = _Newtype <<< prop (Proxy :: Proxy "mint")
 
 _scriptDataHash :: Lens' TxBody (Maybe ScriptDataHash)
-_scriptDataHash = _Newtype <<< prop (SProxy :: SProxy "scriptDataHash")
+_scriptDataHash = _Newtype <<< prop (Proxy :: Proxy "scriptDataHash")
 
 _collateral :: Lens' TxBody (Maybe (Array TransactionInput))
-_collateral = _Newtype <<< prop (SProxy :: SProxy "collateral")
+_collateral = _Newtype <<< prop (Proxy :: Proxy "collateral")
 
 _requiredSigners :: Lens' TxBody (Maybe (Array RequiredSigner))
-_requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
+_requiredSigners = _Newtype <<< prop (Proxy :: Proxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
-_networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
+_networkId = _Newtype <<< prop (Proxy :: Proxy "networkId")
 
 _referenceInputs :: Lens' TxBody (Set TransactionInput)
-_referenceInputs = _Newtype <<< prop (SProxy :: SProxy "referenceInputs")
+_referenceInputs = _Newtype <<< prop (Proxy :: Proxy "referenceInputs")
 
 _collateralReturn :: Lens' TxBody (Maybe TransactionOutput)
-_collateralReturn = _Newtype <<< prop (SProxy :: SProxy "collateralReturn")
+_collateralReturn = _Newtype <<< prop (Proxy :: Proxy "collateralReturn")
 
 _totalCollateral :: Lens' TxBody (Maybe Coin)
-_totalCollateral = _Newtype <<< prop (SProxy :: SProxy "totalCollateral")
+_totalCollateral = _Newtype <<< prop (Proxy :: Proxy "totalCollateral")
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet`

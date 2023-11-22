@@ -2,345 +2,443 @@
 
 let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
 } else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
 }
-lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
 const setter = prop => obj => value => () => obj["set_" + prop](value);
 
-exports.hashTransaction = body => () => lib.hash_transaction(body);
+export function hashTransaction(body) {
+  return () => lib.hash_transaction(body);
+}
 
-exports.newValue = coin => () => lib.Value.new(coin);
+export function newValue(coin) {
+  return () => lib.Value.new(coin);
+}
 
-exports.newValueFromAssets = multiasset => () =>
-  lib.Value.new_from_assets(multiasset);
+export function newValueFromAssets(multiasset) {
+  return () => lib.Value.new_from_assets(multiasset);
+}
 
-exports.valueSetCoin = setter("coin");
+export const valueSetCoin = setter("coin");
 
-exports.newTransactionInput = transaction_id => index => () =>
-  lib.TransactionInput.new(transaction_id, index);
+export function newTransactionInput(transaction_id) {
+  return index => () => lib.TransactionInput.new(transaction_id, index);
+}
 
-exports.newTransactionInputs = () => lib.TransactionInputs.new();
+export function newTransactionInputs() {
+  return lib.TransactionInputs.new();
+}
 
-exports.addTransactionInput = inputs => input => () => inputs.add(input);
+export function addTransactionInput(inputs) {
+  return input => () => inputs.add(input);
+}
 
-exports.newTransactionOutput = address => amount => () =>
-  lib.TransactionOutput.new(address, amount);
+export function newTransactionOutput(address) {
+  return amount => () => lib.TransactionOutput.new(address, amount);
+}
 
-exports.newTransactionOutputs = () => lib.TransactionOutputs.new();
+export function newTransactionOutputs() {
+  return lib.TransactionOutputs.new();
+}
 
-exports.addTransactionOutput = outputs => output => () => outputs.add(output);
+export function addTransactionOutput(outputs) {
+  return output => () => outputs.add(output);
+}
 
-exports.newTransactionBody = inputs => outputs => fee => () =>
-  lib.TransactionBody.new_tx_body(inputs, outputs, fee);
+export function newTransactionBody(inputs) {
+  return outputs => fee => () =>
+    lib.TransactionBody.new_tx_body(inputs, outputs, fee);
+}
 
-exports.setTxIsValid = tx => isValid => () => tx.set_is_valid(isValid);
+export function setTxIsValid(tx) {
+  return isValid => () => tx.set_is_valid(isValid);
+}
 
-exports.newTransaction = body => witness_set => auxiliary_data => () =>
-  lib.Transaction.new(body, witness_set, auxiliary_data);
+export function newTransaction(body) {
+  return witness_set => auxiliary_data => () =>
+    lib.Transaction.new(body, witness_set, auxiliary_data);
+}
 
-exports.newTransaction_ = body => witness_set => () =>
-  lib.Transaction.new(body, witness_set);
+export function newTransaction_(body) {
+  return witness_set => () => lib.Transaction.new(body, witness_set);
+}
 
-exports.newTransactionUnspentOutput = input => output => () =>
-  lib.TransactionUnspentOutput.new(input, output);
+export function newTransactionUnspentOutput(input) {
+  return output => () => lib.TransactionUnspentOutput.new(input, output);
+}
 
-exports.newMultiAsset = () => lib.MultiAsset.new();
+export function newMultiAsset() {
+  return lib.MultiAsset.new();
+}
 
-exports.insertMultiAsset = multiasset => key => value => () =>
-  multiasset.insert(key, value);
+export function insertMultiAsset(multiasset) {
+  return key => value => () => multiasset.insert(key, value);
+}
 
-exports.newAssets = () => lib.Assets.new();
+export function newAssets() {
+  return lib.Assets.new();
+}
 
-exports.insertAssets = assets => key => value => () =>
-  assets.insert(key, value);
+export function insertAssets(assets) {
+  return key => value => () => assets.insert(key, value);
+}
 
-exports.newAssetName = name => () => lib.AssetName.new(name);
+export function newAssetName(name) {
+  return () => lib.AssetName.new(name);
+}
 
-exports.transactionOutputSetDataHash = setter("data_hash");
+export const transactionOutputSetDataHash = setter("data_hash");
+export const transactionOutputSetPlutusData = setter("plutus_data");
+export const transactionOutputSetScriptRef = setter("script_ref");
 
-exports.transactionOutputSetPlutusData = setter("plutus_data");
+export function scriptRefNewNativeScript(nativeScript) {
+  return lib.ScriptRef.new_native_script(nativeScript);
+}
 
-exports.transactionOutputSetScriptRef = setter("script_ref");
+export function scriptRefNewPlutusScript(plutusScript) {
+  return lib.ScriptRef.new_plutus_script(plutusScript);
+}
 
-exports.scriptRefNewNativeScript = nativeScript =>
-  lib.ScriptRef.new_native_script(nativeScript);
+export function newVkeywitnesses() {
+  return lib.Vkeywitnesses.new();
+}
 
-exports.scriptRefNewPlutusScript = plutusScript =>
-  lib.ScriptRef.new_plutus_script(plutusScript);
+export function makeVkeywitness(hash) {
+  return key => () => lib.make_vkey_witness(hash, key);
+}
 
-exports.newVkeywitnesses = () => lib.Vkeywitnesses.new();
+export function newVkeywitness(vkey) {
+  return signature => () => lib.Vkeywitness.new(vkey, signature);
+}
 
-exports.makeVkeywitness = hash => key => () => lib.make_vkey_witness(hash, key);
+export function addVkeywitness(witnesses) {
+  return witness => () => witnesses.add(witness);
+}
 
-exports.newVkeywitness = vkey => signature => () =>
-  lib.Vkeywitness.new(vkey, signature);
+export function newVkeyFromPublicKey(public_key) {
+  return () => lib.Vkey.new(public_key);
+}
 
-exports.addVkeywitness = witnesses => witness => () => witnesses.add(witness);
+export function publicKeyHash(pk) {
+  return pk.hash();
+}
 
-exports.newVkeyFromPublicKey = public_key => () => lib.Vkey.new(public_key);
+export const transactionWitnessSetSetVkeys = setter("vkeys");
 
-exports.publicKeyHash = pk => pk.hash();
+export function newCostmdls() {
+  return lib.Costmdls.new();
+}
 
-exports.transactionWitnessSetSetVkeys = setter("vkeys");
+export function defaultCostmdls() {
+  return lib.TxBuilderConstants.plutus_vasil_cost_models();
+}
 
-exports.newCostmdls = () => lib.Costmdls.new();
+export function costmdlsSetCostModel(cms) {
+  return lang => cm => () => cms.insert(lang, cm);
+}
 
-exports.defaultCostmdls = () =>
-  lib.TxBuilderConstants.plutus_vasil_cost_models();
+export function newCostModel() {
+  return lib.CostModel.new();
+}
 
-exports.costmdlsSetCostModel = cms => lang => cm => () => cms.insert(lang, cm);
+export function costModelSetCost(cm) {
+  return op => cost => () => cm.set(op, cost);
+}
 
-exports.newCostModel = () => lib.CostModel.new();
+export function newPlutusV1() {
+  return lib.Language.new_plutus_v1();
+}
 
-exports.costModelSetCost = cm => op => cost => () => cm.set(op, cost);
+export function newPlutusV2() {
+  return lib.Language.new_plutus_v2();
+}
 
-exports.newPlutusV1 = () => lib.Language.new_plutus_v1();
+export function _hashScriptData(rs) {
+  return cms => ds => () => {
+    const list = lib.PlutusList.new();
+    ds.forEach(d => list.add(d));
+    return lib.hash_script_data(rs, cms, list);
+  };
+}
 
-exports.newPlutusV2 = () => lib.Language.new_plutus_v2();
+export function _hashScriptDataNoDatums(rs) {
+  return cms => () => lib.hash_script_data(rs, cms);
+}
 
-exports._hashScriptData = rs => cms => ds => () => {
-  const list = lib.PlutusList.new();
-  ds.forEach(d => list.add(d));
-  return lib.hash_script_data(rs, cms, list);
-};
+export function newRedeemers() {
+  return lib.Redeemers.new();
+}
 
-exports._hashScriptDataNoDatums = rs => cms => () =>
-  lib.hash_script_data(rs, cms);
+export function addRedeemer(rs) {
+  return r => () => rs.add(r);
+}
 
-exports.newRedeemers = () => lib.Redeemers.new();
+export function setTxBodyReferenceInputs(txBody) {
+  return referenceInputs => () => txBody.set_reference_inputs(referenceInputs);
+}
 
-exports.addRedeemer = rs => r => () => rs.add(r);
+export const setTxBodyScriptDataHash = setter("script_data_hash");
+export const setTxBodyMint = setter("mint");
 
-exports.setTxBodyReferenceInputs = txBody => referenceInputs => () =>
-  txBody.set_reference_inputs(referenceInputs);
+export function newMint() {
+  return lib.Mint.new();
+}
 
-exports.setTxBodyScriptDataHash = setter("script_data_hash");
-
-exports.setTxBodyMint = setter("mint");
-
-exports.newMint = () => lib.Mint.new();
-
-exports._bigIntToInt = maybe => bigInt => {
-  try {
-    const str = bigInt.to_str();
-    if (str[0] == "-") {
-      return maybe.just(
-        lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
-      );
-    } else {
-      return maybe.just(lib.Int.new(lib.BigNum.from_str(str)));
+export function _bigIntToInt(maybe) {
+  return bigInt => {
+    try {
+      const str = bigInt.to_str();
+      if (str[0] == "-") {
+        return maybe.just(
+          lib.Int.new_negative(lib.BigNum.from_str(str.slice(1)))
+        );
+      } else {
+        return maybe.just(lib.Int.new(lib.BigNum.from_str(str)));
+      }
+    } catch (_) {
+      return maybe.nothing;
     }
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
+  };
+}
 
-exports.newMintAssets = lib.MintAssets.new;
+export const newMintAssets = lib.MintAssets.new;
 
-exports.insertMintAssets = mint => scriptHash => mintAssets => () =>
-  mint.insert(scriptHash, mintAssets);
+export function insertMintAssets(mint) {
+  return scriptHash => mintAssets => () => mint.insert(scriptHash, mintAssets);
+}
 
-exports.insertMintAsset = mintAssets => assetName => int => () =>
-  mintAssets.insert(assetName, int);
+export function insertMintAsset(mintAssets) {
+  return assetName => int => () => mintAssets.insert(assetName, int);
+}
 
-exports.networkIdTestnet = () => lib.NetworkId.testnet();
+export function networkIdTestnet() {
+  return lib.NetworkId.testnet();
+}
 
-exports.networkIdMainnet = () => lib.NetworkId.mainnet();
+export function networkIdMainnet() {
+  return lib.NetworkId.mainnet();
+}
 
-exports.setTxBodyCollateralReturn = txBody => collateralReturn => () =>
-  txBody.set_collateral_return(collateralReturn);
+export function setTxBodyCollateralReturn(txBody) {
+  return collateralReturn => () =>
+    txBody.set_collateral_return(collateralReturn);
+}
 
-exports.setTxBodyTotalCollateral = txBody => totalCollateral => () =>
-  txBody.set_total_collateral(totalCollateral);
+export function setTxBodyTotalCollateral(txBody) {
+  return totalCollateral => () => txBody.set_total_collateral(totalCollateral);
+}
 
-exports.setTxBodyTtl = setter("ttl");
+export const setTxBodyTtl = setter("ttl");
+export const setTxBodyCerts = setter("certs");
 
-exports.setTxBodyCerts = setter("certs");
+export function newCertificates() {
+  return lib.Certificates.new();
+}
 
-exports.newCertificates = () => lib.Certificates.new();
+export function newStakeRegistrationCertificate(stakeCredential) {
+  return () =>
+    lib.Certificate.new_stake_registration(
+      lib.StakeRegistration.new(stakeCredential)
+    );
+}
 
-exports.newStakeRegistrationCertificate = stakeCredential => () =>
-  lib.Certificate.new_stake_registration(
-    lib.StakeRegistration.new(stakeCredential)
-  );
+export function newStakeDeregistrationCertificate(stakeCredential) {
+  return () =>
+    lib.Certificate.new_stake_deregistration(
+      lib.StakeDeregistration.new(stakeCredential)
+    );
+}
 
-exports.newStakeDeregistrationCertificate = stakeCredential => () =>
-  lib.Certificate.new_stake_deregistration(
-    lib.StakeDeregistration.new(stakeCredential)
-  );
-
-exports.newStakeDelegationCertificate =
-  stakeCredential => ed25519KeyHash => () =>
+export function newStakeDelegationCertificate(stakeCredential) {
+  return ed25519KeyHash => () =>
     lib.Certificate.new_stake_delegation(
       lib.StakeDelegation.new(stakeCredential, ed25519KeyHash)
     );
+}
 
-exports.newPoolRegistrationCertificate =
-  operator =>
-  vrfKeyhash =>
-  pledge =>
-  cost =>
-  margin =>
-  reward_account =>
-  poolOwners =>
-  relays =>
-  poolMetadata =>
-  () =>
-    lib.Certificate.new_pool_registration(
-      lib.PoolRegistration.new(
-        lib.PoolParams.new(
-          operator,
-          vrfKeyhash,
-          pledge,
-          cost,
-          margin,
-          reward_account,
-          poolOwners,
-          relays,
-          poolMetadata
+export function newPoolRegistrationCertificate(operator) {
+  return vrfKeyhash =>
+    pledge =>
+    cost =>
+    margin =>
+    reward_account =>
+    poolOwners =>
+    relays =>
+    poolMetadata =>
+    () =>
+      lib.Certificate.new_pool_registration(
+        lib.PoolRegistration.new(
+          lib.PoolParams.new(
+            operator,
+            vrfKeyhash,
+            pledge,
+            cost,
+            margin,
+            reward_account,
+            poolOwners,
+            relays,
+            poolMetadata
+          )
         )
-      )
+      );
+}
+
+export function newUnitInterval(numerator) {
+  return denominator => () => lib.UnitInterval.new(numerator, denominator);
+}
+
+export function newPoolRetirementCertificate(poolKeyHash) {
+  return epoch => () =>
+    lib.Certificate.new_pool_retirement(
+      lib.PoolRetirement.new(poolKeyHash, epoch)
     );
+}
 
-exports.newUnitInterval = numerator => denominator => () =>
-  lib.UnitInterval.new(numerator, denominator);
-
-exports.newPoolRetirementCertificate = poolKeyHash => epoch => () =>
-  lib.Certificate.new_pool_retirement(
-    lib.PoolRetirement.new(poolKeyHash, epoch)
-  );
-
-exports.newGenesisKeyDelegationCertificate =
-  genesisHash => genesisDelegateHash => vrfKeyhash => () =>
+export function newGenesisKeyDelegationCertificate(genesisHash) {
+  return genesisDelegateHash => vrfKeyhash => () =>
     lib.Certificate.new_genesis_key_delegation(
       lib.GenesisKeyDelegation.new(genesisHash, genesisDelegateHash, vrfKeyhash)
     );
+}
 
-exports.addCert = certificates => certificate => () =>
-  certificates.add(certificate);
+export function addCert(certificates) {
+  return certificate => () => certificates.add(certificate);
+}
 
-exports.setTxBodyCollateral = setter("collateral");
+export const setTxBodyCollateral = setter("collateral");
+export const setTxBodyNetworkId = setter("network_id");
 
-exports.setTxBodyNetworkId = setter("network_id");
-
-exports.transactionBodySetRequiredSigners =
-  containerHelper => body => keyHashes => () =>
+export function transactionBodySetRequiredSigners(containerHelper) {
+  return body => keyHashes => () =>
     body.set_required_signers(
       containerHelper.pack(lib.Ed25519KeyHashes, keyHashes)
     );
+}
 
-exports.transactionBodySetValidityStartInterval = setter(
+export const transactionBodySetValidityStartInterval = setter(
   "validity_start_interval_bignum"
 );
 
-exports.transactionBodySetAuxiliaryDataHash = txBody => hash => () =>
-  txBody.set_auxiliary_data_hash(hash);
+export function transactionBodySetAuxiliaryDataHash(txBody) {
+  return hash => () => txBody.set_auxiliary_data_hash(hash);
+}
 
-exports.convertPoolOwners = containerHelper => keyHashes => () =>
-  containerHelper.pack(lib.Ed25519KeyHashes, keyHashes);
+export function convertPoolOwners(containerHelper) {
+  return keyHashes => () =>
+    containerHelper.pack(lib.Ed25519KeyHashes, keyHashes);
+}
 
-exports.packRelays = containerHelper => relays =>
-  containerHelper.pack(lib.Relays, relays);
+export function packRelays(containerHelper) {
+  return relays => containerHelper.pack(lib.Relays, relays);
+}
 
-exports.newIpv4 = data => () => lib.Ipv4.new(data);
+export function newIpv4(data) {
+  return () => lib.Ipv4.new(data);
+}
 
-exports.newIpv6 = data => () => lib.Ipv6.new(data);
+export function newIpv6(data) {
+  return () => lib.Ipv6.new(data);
+}
 
-exports.newSingleHostAddr = port => ipv4 => ipv6 => () =>
-  lib.Relay.new_single_host_addr(lib.SingleHostAddr.new(port, ipv4, ipv6));
+export function newSingleHostAddr(port) {
+  return ipv4 => ipv6 => () =>
+    lib.Relay.new_single_host_addr(lib.SingleHostAddr.new(port, ipv4, ipv6));
+}
 
-exports.newSingleHostName = port => dnsName => () =>
-  lib.Relay.new_single_host_name(
-    lib.SingleHostName.new(port, lib.DNSRecordAorAAAA.new(dnsName))
-  );
+export function newSingleHostName(port) {
+  return dnsName => () =>
+    lib.Relay.new_single_host_name(
+      lib.SingleHostName.new(port, lib.DNSRecordAorAAAA.new(dnsName))
+    );
+}
 
-exports.newMultiHostName = dnsName => () =>
-  lib.Relay.new_multi_host_name(
-    lib.MultiHostName.new(lib.DNSRecordSRV.new(dnsName))
-  );
+export function newMultiHostName(dnsName) {
+  return () =>
+    lib.Relay.new_multi_host_name(
+      lib.MultiHostName.new(lib.DNSRecordSRV.new(dnsName))
+    );
+}
 
-exports.newPoolMetadata = url => hash => () =>
-  lib.PoolMetadata.new(lib.URL.new(url), hash);
+export function newPoolMetadata(url) {
+  return hash => () => lib.PoolMetadata.new(lib.URL.new(url), hash);
+}
 
-exports.newMoveInstantaneousRewardToOtherPot = pot => amount => () =>
-  lib.MoveInstantaneousReward.new_to_other_pot(pot, amount);
+export function newMoveInstantaneousRewardToOtherPot(pot) {
+  return amount => () =>
+    lib.MoveInstantaneousReward.new_to_other_pot(pot, amount);
+}
 
-exports.newMoveInstantaneousRewardToStakeCreds = pot => amounts => () =>
-  lib.MoveInstantaneousReward.new_to_stake_creds(pot, amounts);
+export function newMoveInstantaneousRewardToStakeCreds(pot) {
+  return amounts => () =>
+    lib.MoveInstantaneousReward.new_to_stake_creds(pot, amounts);
+}
 
-exports.newMIRToStakeCredentials = containerHelper => entries => () =>
-  containerHelper.packMap(lib.MIRToStakeCredentials, entries);
+export function newMIRToStakeCredentials(containerHelper) {
+  return entries => () =>
+    containerHelper.packMap(lib.MIRToStakeCredentials, entries);
+}
 
-exports.newMoveInstantaneousRewardsCertificate = mir => () =>
-  lib.Certificate.new_move_instantaneous_rewards_cert(
-    lib.MoveInstantaneousRewardsCert.new(mir)
-  );
+export function newMoveInstantaneousRewardsCertificate(mir) {
+  return () =>
+    lib.Certificate.new_move_instantaneous_rewards_cert(
+      lib.MoveInstantaneousRewardsCert.new(mir)
+    );
+}
 
-exports.newWithdrawals = containerHelper => entries => () =>
-  containerHelper.packMap(lib.Withdrawals, entries);
+export function newWithdrawals(containerHelper) {
+  return entries => () => containerHelper.packMap(lib.Withdrawals, entries);
+}
 
-exports.setTxBodyWithdrawals = setter("withdrawals");
+export const setTxBodyWithdrawals = setter("withdrawals");
+export const setTxBodyUpdate = setter("update");
 
-exports.setTxBodyUpdate = setter("update");
+export function newUpdate(ppUpdates) {
+  return epoch => () => lib.Update.new(ppUpdates, epoch);
+}
 
-exports.newUpdate = ppUpdates => epoch => () =>
-  lib.Update.new(ppUpdates, epoch);
+export const ppuSetMinfeeA = setter("minfee_a");
+export const ppuSetMinfeeB = setter("minfee_b");
+export const ppuSetMaxBlockBodySize = setter("max_block_body_size");
+export const ppuSetMaxTxSize = setter("max_tx_size");
+export const ppuSetMaxBlockHeaderSize = setter("max_block_header_size");
+export const ppuSetKeyDeposit = setter("key_deposit");
+export const ppuSetPoolDeposit = setter("pool_deposit");
+export const ppuSetMaxEpoch = setter("max_epoch");
+export const ppuSetNOpt = setter("n_opt");
+export const ppuSetPoolPledgeInfluence = setter("pool_pledge_influence");
+export const ppuSetExpansionRate = setter("expansion_rate");
+export const ppuSetTreasuryGrowthRate = setter("treasury_growth_rate");
 
-exports.ppuSetMinfeeA = setter("minfee_a");
+export function newProtocolVersion(major) {
+  return minor => () => lib.ProtocolVersion.new(major, minor);
+}
 
-exports.ppuSetMinfeeB = setter("minfee_b");
+export function ppuSetProtocolVersion(ppu) {
+  return version => () => ppu.set_protocol_version(version);
+}
 
-exports.ppuSetMaxBlockBodySize = setter("max_block_body_size");
+export const ppuSetMinPoolCost = setter("min_pool_cost");
+export const ppuSetAdaPerUtxoByte = setter("ada_per_utxo_byte");
+export const ppuSetCostModels = setter("cost_models");
 
-exports.ppuSetMaxTxSize = setter("max_tx_size");
+export function newExUnitPrices(mem_price) {
+  return step_price => () => lib.ExUnitPrices.new(mem_price, step_price);
+}
 
-exports.ppuSetMaxBlockHeaderSize = setter("max_block_header_size");
+export const ppuSetExecutionCosts = setter("execution_costs");
+export const ppuSetMaxTxExUnits = setter("max_tx_ex_units");
+export const ppuSetMaxBlockExUnits = setter("max_block_ex_units");
+export const ppuSetMaxValueSize = setter("max_value_size");
+export const ppuSetCollateralPercentage = setter("collateral_percentage");
+export const ppuSetMaxCollateralInputs = setter("max_collateral_inputs");
 
-exports.ppuSetKeyDeposit = setter("key_deposit");
+export function newProtocolParamUpdate() {
+  return lib.ProtocolParamUpdate.new();
+}
 
-exports.ppuSetPoolDeposit = setter("pool_deposit");
-
-exports.ppuSetMaxEpoch = setter("max_epoch");
-
-exports.ppuSetNOpt = setter("n_opt");
-
-exports.ppuSetPoolPledgeInfluence = setter("pool_pledge_influence");
-
-exports.ppuSetExpansionRate = setter("expansion_rate");
-
-exports.ppuSetTreasuryGrowthRate = setter("treasury_growth_rate");
-
-exports.newProtocolVersion = major => minor => () =>
-  lib.ProtocolVersion.new(major, minor);
-
-exports.ppuSetProtocolVersion = ppu => version => () =>
-  ppu.set_protocol_version(version);
-
-exports.ppuSetMinPoolCost = setter("min_pool_cost");
-
-exports.ppuSetAdaPerUtxoByte = setter("ada_per_utxo_byte");
-
-exports.ppuSetCostModels = setter("cost_models");
-
-exports.newExUnitPrices = mem_price => step_price => () =>
-  lib.ExUnitPrices.new(mem_price, step_price);
-
-exports.ppuSetExecutionCosts = setter("execution_costs");
-
-exports.ppuSetMaxTxExUnits = setter("max_tx_ex_units");
-
-exports.ppuSetMaxBlockExUnits = setter("max_block_ex_units");
-
-exports.ppuSetMaxValueSize = setter("max_value_size");
-
-exports.ppuSetCollateralPercentage = setter("collateral_percentage");
-
-exports.ppuSetMaxCollateralInputs = setter("max_collateral_inputs");
-
-exports.newProtocolParamUpdate = () => lib.ProtocolParamUpdate.new();
-
-exports.newProposedProtocolParameterUpdates = containerHelper => kvs => () =>
-  containerHelper.packMap(lib.ProposedProtocolParameterUpdates, kvs);
+export function newProposedProtocolParameterUpdates(containerHelper) {
+  return kvs => () =>
+    containerHelper.packMap(lib.ProposedProtocolParameterUpdates, kvs);
+}

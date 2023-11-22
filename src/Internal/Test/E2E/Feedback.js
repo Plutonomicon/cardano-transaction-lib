@@ -1,1 +1,3 @@
-exports._publishTestFeedback = value => () => (window.ctlTestFeedback = value);
+export function _publishTestFeedback(value) {
+  return () => (window.ctlTestFeedback = value);
+}

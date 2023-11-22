@@ -27,11 +27,11 @@ import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Data.Array (fold, length, replicate, take, zip)
-import Data.BigInt (fromInt) as BigInt
 import Data.Lens (to, (^.))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.Tuple (Tuple(Tuple))
+import JS.BigInt (fromInt) as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
 -- | A contract that creates `outputsToScript` number of outputs at a script address,

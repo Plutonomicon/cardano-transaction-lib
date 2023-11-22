@@ -38,9 +38,9 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -161,10 +161,10 @@ readFromCheckDatumIsInline vhash txId = do
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
-foreign import checkDatumIsInline :: String
-
 checkDatumIsInlineScript :: Contract Validator
-checkDatumIsInlineScript =
+checkDatumIsInlineScript = do
   liftMaybe (error "Error decoding checkDatumIsInline") do
     envelope <- decodeTextEnvelope checkDatumIsInline
     Validator <$> plutusScriptV2FromEnvelope envelope
+
+foreign import checkDatumIsInline :: String

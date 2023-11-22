@@ -41,8 +41,6 @@ import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Right), either)
 import Data.Function (on)
@@ -70,6 +68,8 @@ import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Effect.Unsafe (unsafePerformEffect)
 import Foreign.Object as Obj
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 

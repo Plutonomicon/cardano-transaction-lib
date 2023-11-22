@@ -49,7 +49,7 @@ import Contract.Wallet
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithDatum)
 import Data.Array (head)
-import Data.BigInt (fromInt) as BigInt
+import JS.BigInt (fromInt) as BigInt
 
 type ContractResult =
   { address :: Address

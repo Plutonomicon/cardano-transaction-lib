@@ -194,8 +194,6 @@ import Ctl.Internal.Types.TransactionMetadata
   )
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
@@ -208,6 +206,8 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Type.Row (type (+))
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.

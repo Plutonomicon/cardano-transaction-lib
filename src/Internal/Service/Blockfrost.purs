@@ -63,7 +63,6 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , Aeson
-  , Finite
   , JsonDecodeError(TypeMismatch, MissingValue, AtKey)
   , decodeAeson
   , decodeJsonString
@@ -74,11 +73,10 @@ import Aeson
   , isNull
   , parseJsonStringToAeson
   , stringifyAeson
-  , unpackFinite
   , (.:)
   , (.:!)
   )
-import Affjax (Error, Response, URL, defaultRequest, printError, request) as Affjax
+import Affjax (Error, Response, URL, defaultRequest, printError) as Affjax
 import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
@@ -98,6 +96,7 @@ import Control.Monad.Reader (ReaderT(ReaderT))
 import Control.Monad.Reader.Class (ask, asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptAll
@@ -224,12 +223,10 @@ import Ctl.Internal.Types.TransactionMetadata
   )
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromString, toNumber) as BigInt
 import Data.BigNumber (BigNumber, toFraction)
 import Data.BigNumber as BigNumber
 import Data.DateTime.Instant (instant, toDateTime)
-import Data.Either (Either(Left, Right), either, note)
+import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET, POST))
@@ -256,6 +253,8 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Foreign.Object (Object)
 import Foreign.Object as ForeignObject
+import JS.BigInt (BigInt)
+import JS.BigInt (fromString, toNumber) as BigInt
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -1413,13 +1412,24 @@ blockfrostStakeCredentialToBech32 = case _ of
 -- BlockfrostProtocolParameters
 --------------------------------------------------------------------------------
 
--- | `Stringed a` decodes an `a` who was encoded as a `String`
+-- | `Stringed a` decodes an `a` that was encoded as a `String`
 newtype Stringed a = Stringed a
 
 derive instance Newtype (Stringed a) _
 
 instance DecodeAeson a => DecodeAeson (Stringed a) where
   decodeAeson = decodeAeson >=> decodeJsonString >=> Stringed >>> pure
+
+newtype FiniteBigNumber = FiniteBigNumber BigNumber
+
+derive instance Newtype FiniteBigNumber _
+
+instance DecodeAeson FiniteBigNumber where
+  decodeAeson aeson = do
+    number <- decodeAeson aeson
+    map FiniteBigNumber $ note (TypeMismatch "BigNumber") $ hush
+      $ BigNumber.parseBigNumber
+      $ show (number :: Number)
 
 type BlockfrostProtocolParametersRaw =
   { "min_fee_a" :: UInt
@@ -1431,9 +1441,9 @@ type BlockfrostProtocolParametersRaw =
   , "pool_deposit" :: Stringed BigInt
   , "e_max" :: BigInt
   , "n_opt" :: UInt
-  , "a0" :: Finite BigNumber
-  , "rho" :: Finite BigNumber
-  , "tau" :: Finite BigNumber
+  , "a0" :: FiniteBigNumber
+  , "rho" :: FiniteBigNumber
+  , "tau" :: FiniteBigNumber
   , "protocol_major_ver" :: UInt
   , "protocol_minor_ver" :: UInt
   , "min_pool_cost" :: Stringed BigInt
@@ -1441,8 +1451,8 @@ type BlockfrostProtocolParametersRaw =
       { "PlutusV1" :: { | CostModelV1 }
       , "PlutusV2" :: { | CostModelV2 }
       }
-  , "price_mem" :: Finite BigNumber
-  , "price_step" :: Finite BigNumber
+  , "price_mem" :: FiniteBigNumber
+  , "price_step" :: FiniteBigNumber
   , "max_tx_ex_mem" :: Stringed BigInt
   , "max_tx_ex_steps" :: Stringed BigInt
   , "max_block_ex_mem" :: Stringed BigInt
@@ -1454,15 +1464,15 @@ type BlockfrostProtocolParametersRaw =
   , "coins_per_utxo_word" :: Maybe (Stringed BigInt)
   }
 
-toFraction' :: Finite BigNumber -> String /\ String
+toFraction' :: BigNumber -> String /\ String
 toFraction' bn =
   (BigNumber.toString numerator /\ BigNumber.toString denominator)
   where
-  (numerator /\ denominator) = toFraction (unpackFinite bn)
+  (numerator /\ denominator) = toFraction bn
     (BigNumber.fromNumber infinity)
 
-bigNumberToRational :: Finite BigNumber -> Either JsonDecodeError Rational
-bigNumberToRational bn = note (TypeMismatch "Rational") do
+bigNumberToRational :: FiniteBigNumber -> Either JsonDecodeError Rational
+bigNumberToRational (FiniteBigNumber bn) = note (TypeMismatch "Rational") do
   numerator <- BigInt.fromString numerator'
   denominator <- BigInt.fromString denominator'
   reduce numerator denominator
@@ -1470,9 +1480,9 @@ bigNumberToRational bn = note (TypeMismatch "Rational") do
   (numerator' /\ denominator') = toFraction' bn
 
 bigNumberToPrice
-  :: Finite BigNumber
+  :: FiniteBigNumber
   -> Either JsonDecodeError { numerator :: BigNum, denominator :: BigNum }
-bigNumberToPrice bn = note (TypeMismatch "Rational") do
+bigNumberToPrice (FiniteBigNumber bn) = note (TypeMismatch "Rational") do
   numerator <- BigNum.fromString numerator'
   denominator <- BigNum.fromString denominator'
   pure { numerator, denominator }

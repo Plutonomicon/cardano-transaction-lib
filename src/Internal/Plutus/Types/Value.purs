@@ -57,8 +57,6 @@ import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Data.Array (concatMap, filter, replicate)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left))
 import Data.Foldable (all, fold)
 import Data.Generic.Rep (class Generic)
@@ -69,6 +67,8 @@ import Data.These (These(Both, That, This), these)
 import Data.Traversable (sequence)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt)
 

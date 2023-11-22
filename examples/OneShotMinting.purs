@@ -51,9 +51,9 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head, singleton) as Array
-import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error, throw)
+import JS.BigInt (BigInt)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -112,8 +112,6 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee }
 
-foreign import oneShotMinting :: String
-
 oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicy =
   map PlutusMintingPolicy <<< oneShotMintingPolicyScript
@@ -135,3 +133,5 @@ mkOneShotMintingPolicy unappliedMintingPolicy oref =
     mintingPolicyArgs = Array.singleton (toData oref)
   in
     applyArgs unappliedMintingPolicy mintingPolicyArgs
+
+foreign import oneShotMinting :: String

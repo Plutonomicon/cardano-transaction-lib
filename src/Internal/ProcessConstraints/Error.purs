@@ -34,7 +34,6 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName, fromTokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
-import Data.BigInt (BigInt)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (tagSetTag)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -42,6 +41,7 @@ import Data.Newtype (unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
+import JS.BigInt (BigInt)
 
 data MkUnbalancedTxError
   = CannotFindDatum

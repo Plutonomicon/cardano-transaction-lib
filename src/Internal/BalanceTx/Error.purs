@@ -56,7 +56,6 @@ import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
-import Data.BigInt (toString) as BigInt
 import Data.Either (Either(Left, Right), either, isLeft)
 import Data.Foldable (find, foldMap, foldl, length)
 import Data.FoldableWithIndex (foldMapWithIndex)
@@ -71,6 +70,7 @@ import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
 import Data.String.Common (joinWith, split) as String
 import Data.String.Utils (padEnd)
+import JS.BigInt (toString) as BigInt
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError

@@ -8,9 +8,9 @@ import Prelude
 import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (appendArray, replicate, singleton) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, toInt) as BigInt
 import Data.Maybe (fromJust)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, toInt) as BigInt
 import Partial.Unsafe (unsafePartial)
 
 -- | Represents types whose values can be equally divided into several parts.

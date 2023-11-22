@@ -7,12 +7,13 @@ module Ctl.Internal.Test.E2E.Runner
 
 import Prelude
 
-import Affjax (defaultRequest, request) as Affjax
+import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -80,7 +81,6 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
@@ -113,6 +113,7 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
@@ -127,8 +128,9 @@ import Node.ChildProcess
   )
 import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
-import Node.FS.Aff (exists, stat, writeFile)
+import Node.FS.Aff (stat, writeFile)
 import Node.FS.Stats (isDirectory)
+import Node.FS.Sync (exists)
 import Node.Path (FilePath, concat, dirname, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
@@ -172,7 +174,7 @@ runE2ECommand = case _ of
 
 ensureDir :: FilePath -> Aff Unit
 ensureDir dir = do
-  dirExists <- exists dir
+  dirExists <- liftEffect $ exists dir
   unless dirExists $ do
     liftEffect $ log $ "Creating directory " <> dir
     void $ spawnAndCollectOutput "mkdir" [ "-p", dir ]
@@ -635,7 +637,7 @@ findSettingsArchive testOptions = do
       )
       pure $ testOptions.settingsArchive
 
-  doesExist <- exists settingsArchive
+  doesExist <- liftEffect $ exists settingsArchive
 
   unless doesExist $ do
     -- Download settings archive from URL if file does not exist
@@ -665,7 +667,7 @@ findChromeProfile testOptions = do
       )
       pure $ testOptions.chromeUserDataDir
 
-  doesExist <- exists chromeDataDir
+  doesExist <- liftEffect $ exists chromeDataDir
   unless doesExist $
     ensureChromeUserDataDir chromeDataDir
   isDir <- isDirectory <$> stat chromeDataDir
@@ -725,7 +727,7 @@ readExtensionParams extName wallets = do
     case crxFile, password, extensionId of
       Nothing, Nothing, Nothing -> pure Nothing
       Just crx, Just pwd, Just extId -> do
-        doesExist <- exists crx
+        doesExist <- liftEffect $ exists crx
         unless doesExist $ do
           -- Download from specified URL if crx file does not exist
           crxFileUrl <-
@@ -759,7 +761,7 @@ packSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 packSettings settingsArchive userDataDir = do
   -- Passing a non-existent directory to tar will error,
   -- but we can't rely on the existence of these directories.
-  paths <- filterExistingPaths userDataDir
+  paths <- liftEffect $ filterExistingPaths userDataDir
     [ "./Default/IndexedDB/"
     , "./Default/Local Storage/"
     , "./Default/Extension State"
@@ -786,7 +788,7 @@ packSettings settingsArchive userDataDir = do
         defaultErrorReader
 
 -- | Filter out non-existing paths, relative to the given directory
-filterExistingPaths :: FilePath -> Array FilePath -> Aff (Array FilePath)
+filterExistingPaths :: FilePath -> Array FilePath -> Effect (Array FilePath)
 filterExistingPaths base paths = do
   catMaybes <$> for paths \path -> do
     exists (concat [ base, path ]) >>= case _ of

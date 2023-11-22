@@ -29,7 +29,6 @@ import Ctl.Internal.Service.Blockfrost
 import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Data.Array ((!!))
 import Data.Bifunctor (lmap)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), fromRight, isRight)
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Log.Formatter.Pretty (prettyFormatter)
@@ -40,6 +39,7 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class.Console (log)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Process (argv)
 import Partial.Unsafe (unsafePartial)

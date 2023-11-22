@@ -100,7 +100,6 @@ import Ctl.Internal.Plutus.Types.Transaction
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (foldr)
 import Data.Array (fromFoldable, length, mapWithIndex, partition) as Array
-import Data.BigInt (BigInt)
 import Data.Either (Either, either, hush)
 import Data.Foldable (fold, foldMap, null, sum)
 import Data.Generic.Rep (class Generic)
@@ -118,6 +117,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, message, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
+import JS.BigInt (BigInt)
 import Type.Proxy (Proxy(Proxy))
 
 -- | Monad allowing for accumulation of assertion failures.

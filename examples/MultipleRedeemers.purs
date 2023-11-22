@@ -37,11 +37,11 @@ import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
   ( mintAlwaysMintsV2ToTheScript
   )
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
-import Data.BigInt as BigInt
 import Data.List as List
 import Data.Map as Map
 import Data.Traversable (sequence)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 
 contract :: Contract Unit
 contract = do
@@ -118,26 +118,27 @@ spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   pure $ constraints /\
     (Lookups.unspentOutputs utxo <> Lookups.validator validator)
 
---- Importing validation scripts
-
-foreign import vredeemerInt1 :: String
-foreign import vredeemerInt2 :: String
-foreign import vredeemerInt3 :: String
+foreign import redeemerIs1Script :: String
+foreign import redeemerIs2Script :: String
+foreign import redeemerIs3Script :: String
 
 -- | checks whether redeemer is 1
 redeemerIs1Validator :: Contract Validator
-redeemerIs1Validator = liftMaybe (error "Error decoding vredeemerInt1") do
-  envelope <- decodeTextEnvelope vredeemerInt1
-  Validator <$> plutusScriptV1FromEnvelope envelope
+redeemerIs1Validator = do
+  liftMaybe (error "Error decoding redeemerIs1Script") do
+    envelope <- decodeTextEnvelope redeemerIs1Script
+    Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 2
 redeemerIs2Validator :: Contract Validator
-redeemerIs2Validator = liftMaybe (error "Error decoding vredeemerInt2") do
-  envelope <- decodeTextEnvelope vredeemerInt2
-  Validator <$> plutusScriptV1FromEnvelope envelope
+redeemerIs2Validator = do
+  liftMaybe (error "Error decoding redeemerIs2Script") do
+    envelope <- decodeTextEnvelope redeemerIs2Script
+    Validator <$> plutusScriptV1FromEnvelope envelope
 
 -- | checks whether redeemer is 3
 redeemerIs3Validator :: Contract Validator
-redeemerIs3Validator = liftMaybe (error "Error decoding vredeemerInt3") do
-  envelope <- decodeTextEnvelope vredeemerInt3
-  Validator <$> plutusScriptV1FromEnvelope envelope
+redeemerIs3Validator = do
+  liftMaybe (error "Error decoding redeemerIs3Script") do
+    envelope <- decodeTextEnvelope redeemerIs3Script
+    Validator <$> plutusScriptV1FromEnvelope envelope

@@ -36,11 +36,11 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (getWalletBalance)
 import Control.Monad.Error.Class (liftMaybe)
-import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
 import Data.Map as Map
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -115,10 +115,18 @@ spendFromAlwaysFails vhash validator txId = do
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
-foreign import alwaysFails :: String
-
 alwaysFailsScript :: Contract Validator
-alwaysFailsScript =
+alwaysFailsScript = do
   liftMaybe (error "Error decoding alwaysFails") do
     envelope <- decodeTextEnvelope alwaysFails
     Validator <$> plutusScriptV1FromEnvelope envelope
+
+alwaysFails :: String
+alwaysFails =
+  """
+{
+    "type": "PlutusScriptV1",
+    "description": "",
+    "cborHex": "581e581c01000033223232222350040071235002353003001498498480048005"
+}
+"""

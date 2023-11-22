@@ -2,7 +2,7 @@ module Test.Ctl.E2E.Route where
 
 import Prelude
 
-import Ctl.Internal.E2E.Route (parseRoute)
+import Ctl.Internal.Test.E2E.Route (parseRoute)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Either (isRight)
 import Effect.Aff (Aff)

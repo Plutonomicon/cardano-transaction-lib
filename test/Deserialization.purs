@@ -9,7 +9,6 @@ import Contract.TextEnvelope
   , decodeTextEnvelope
   )
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
-import Ctl.Examples.OtherTypeTextEnvelope (otherTypeTextEnvelope)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
 import Ctl.Internal.Cardano.Types.Transaction (Vkeywitness)
@@ -41,7 +40,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Foldable (fold)
 import Data.Maybe (isJust, isNothing)
@@ -51,6 +49,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (Error, error)
+import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Test.Ctl.Fixtures
   ( nativeScriptFixture1
@@ -247,6 +246,15 @@ suite = do
       test "fixture #4" $ witnessSetRoundTrip witnessSetFixture4
     group "TextEnvelope decoding" do
       test "Decoding TestEnvelope with some other type" do
+        let
+          otherTypeTextEnvelope =
+            """
+              {
+                "cborHex": "484701000022120011",
+                "description": "other-type-text-envelope",
+                "type": "SomeOtherType"
+              }
+              """
         TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
           decodeTextEnvelope otherTypeTextEnvelope
         envelope.type_ `shouldEqual` (Other "SomeOtherType")

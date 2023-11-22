@@ -1,5 +1,9 @@
 /* global BROWSER_RUNTIME */
 
+function getWindow() {
+  return typeof window != "undefined" ? window : global.window_;
+}
+
 const getIsWalletAvailableTagName = wallet => {
   const strs = {
     nami: "NamiWallet",
@@ -18,19 +22,21 @@ const nodeEnvError = new Error(
 );
 
 const checkNotNode = () => {
-  if (typeof window != "object") {
+  if (typeof getWindow() != "object") {
     throw nodeEnvError;
   }
 };
 
 const enableWallet = wallet => () => {
   if (isWalletAvailable(wallet)()) {
-    return window.cardano[wallet].enable().catch(e => {
-      throw new Error(
-        "enableWallet failed: " +
-          (typeof e.info == "string" ? e.info : e.toString())
-      );
-    });
+    return getWindow()
+      .cardano[wallet].enable()
+      .catch(e => {
+        throw new Error(
+          "enableWallet failed: " +
+            (typeof e.info == "string" ? e.info : e.toString())
+        );
+      });
   } else {
     throw new Error(
       "Wallet is not available. Use `isWalletAvailable " +
@@ -40,47 +46,55 @@ const enableWallet = wallet => () => {
   }
 };
 
-exports._enableWallet = enableWallet;
+export { enableWallet as _enableWallet };
 
 const isWalletAvailable = walletName => () => {
   checkNotNode();
   return (
-    typeof window.cardano != "undefined" &&
-    typeof window.cardano[walletName] != "undefined" &&
-    typeof window.cardano[walletName].enable == "function"
+    typeof getWindow().cardano != "undefined" &&
+    typeof getWindow().cardano[walletName] != "undefined" &&
+    typeof getWindow().cardano[walletName].enable == "function"
   );
 };
 
-exports._isWalletAvailable = isWalletAvailable;
+export { isWalletAvailable as _isWalletAvailable };
 
-exports._isEnabled = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].isEnabled();
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _isEnabled(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return getWindow().cardano[walletName].isEnabled();
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}
 
-exports._apiVersion = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].apiVersion;
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _apiVersion(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return getWindow().cardano[walletName].apiVersion;
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}
 
-exports._name = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].name;
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _name(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return getWindow().cardano[walletName].name;
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}
 
-exports._icon = walletName => () => {
-  if (isWalletAvailable(walletName)()) {
-    return window.cardano[walletName].icon;
-  } else {
-    throw new Error("Wallet `" + walletName + "` is not available");
-  }
-};
+export function _icon(walletName) {
+  return () => {
+    if (isWalletAvailable(walletName)()) {
+      return getWindow().cardano[walletName].icon;
+    } else {
+      throw new Error("Wallet `" + walletName + "` is not available");
+    }
+  };
+}

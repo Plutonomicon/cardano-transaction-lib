@@ -2,13 +2,15 @@
 
 const bytesFromKey = key => key.as_bytes();
 
-exports.bytesFromPublicKey = bytesFromKey;
-exports.bytesFromPrivateKey = bytesFromKey;
+export { bytesFromKey as bytesFromPublicKey };
+export { bytesFromKey as bytesFromPrivateKey };
 
-exports.publicKeyFromPrivateKey = private_key => private_key.to_public();
+export function publicKeyFromPrivateKey(private_key) {
+  return private_key.to_public();
+}
 
 const bech32FromX = key => key.to_bech32();
 
-exports.bech32FromPublicKey = bech32FromX;
-exports.bech32FromPrivateKey = bech32FromX;
-exports.bech32FromEd25519Signature = bech32FromX;
+export { bech32FromX as bech32FromPublicKey };
+export { bech32FromX as bech32FromPrivateKey };
+export { bech32FromX as bech32FromEd25519Signature };

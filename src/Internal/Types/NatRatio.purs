@@ -23,8 +23,8 @@ import Ctl.Internal.Types.Rational
   , numerator
   , (%)
   ) as Rational
-import Data.BigInt (BigInt)
 import Data.Maybe (Maybe(Nothing))
+import JS.BigInt (BigInt)
 
 -- | `NatRatio` is a newtype over `Rational` with smart constructors to create a
 -- | `NatRatio` safely. Therefore, the data constructor is not exported.

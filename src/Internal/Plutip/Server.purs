@@ -12,7 +12,7 @@ module Ctl.Internal.Plutip.Server
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
-import Affjax as Affjax
+import Affjax (defaultRequest) as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
@@ -24,6 +24,7 @@ import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
@@ -77,7 +78,6 @@ import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), either, isLeft)
 import Data.Foldable (sum)
 import Data.HTTP.Method as Method
@@ -106,6 +106,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
+import JS.BigInt as BigInt
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)

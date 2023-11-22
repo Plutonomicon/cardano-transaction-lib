@@ -23,12 +23,12 @@ import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Data.Array (head)
-import Data.BigInt as BigInt
 import Data.Either (isLeft, isRight)
 import Data.Newtype (wrap)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Test.Ctl.Fixtures (cip25MetadataFixture1)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
@@ -102,7 +102,7 @@ suite = do
             ContractTestUtils.mkContract params
           eiResult `shouldSatisfy` isRight
           printContractAssertionFailures failures `shouldEqual`
-            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Unexpected token delta (TokenName (hexToRawBytesUnsafe \"546865546f6b656e\")) at address Sender Expected: fromString \"2\", Actual: fromString \"1\""
+            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Unexpected token delta (TokenName (hexToRawBytesUnsafe \"546865546f6b656e\")) at address Sender Expected: 2, Actual: 1"
 
     test "ExUnits limit reached" do
 
@@ -137,7 +137,7 @@ suite = do
             ContractTestUtils.mkContract params
           eiResult `shouldSatisfy` isRight
           printContractAssertionFailures failures `shouldEqual`
-            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. ExUnits limit exceeded:  Expected: { mem: fromString \"800\", steps: fromString \"16110\" }, Actual: { mem: fromString \"800\", steps: fromString \"161100\" }"
+            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. ExUnits limit exceeded:  Expected: { mem: 800, steps: 16110 }, Actual: { mem: 800, steps: 161100 }"
 
     test "An exception is thrown - everything is reported" do
 
@@ -176,4 +176,4 @@ suite = do
 
           eiResult `shouldSatisfy` isLeft
           printContractAssertionFailures failures `shouldEqual`
-            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Error while trying to get expected value: Unable to estimate expected loss in wallet\n\n    2. Unexpected token delta (TokenName (hexToRawBytesUnsafe \"546865546f6b656e\")) at address Sender Expected: fromString \"2\", Actual: fromString \"1\" \n\n    3. ExUnits limit exceeded:  Expected: { mem: fromString \"800\", steps: fromString \"16110\" }, Actual: { mem: fromString \"800\", steps: fromString \"161100\" } \n\nThe following `Contract` checks have been skipped due to an exception: \n\n    1. Sender's output has a datum\n\n    2. Output has a reference script\n\n    3. Contains CIP-25 metadata"
+            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Error while trying to get expected value: Unable to estimate expected loss in wallet\n\n    2. Unexpected token delta (TokenName (hexToRawBytesUnsafe \"546865546f6b656e\")) at address Sender Expected: 2, Actual: 1 \n\n    3. ExUnits limit exceeded:  Expected: { mem: 800, steps: 16110 }, Actual: { mem: 800, steps: 161100 } \n\nThe following `Contract` checks have been skipped due to an exception: \n\n    1. Sender's output has a datum\n\n    2. Output has a reference script\n\n    3. Contains CIP-25 metadata"

@@ -6,8 +6,8 @@ import Prelude
 
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Types (BigInt)
-import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
+import JS.BigInt as BigInt
 
 convertBigInt :: BigInt.BigInt -> Maybe BigInt
 convertBigInt = _BigInt_from_str maybeFfiHelper <<< BigInt.toString

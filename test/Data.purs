@@ -33,20 +33,20 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
-import Data.List as List
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
-import Data.Tuple (Tuple, uncurry)
+import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Exception (Error)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck ((===))
@@ -408,9 +408,9 @@ instance ToData FType' where
 
 instance Arbitrary CType where
   arbitrary =
-    (frequency <<< wrap) $
+    (frequency <<< NEArray.fromNonEmpty) $
       (0.25 /\ pure C0)
-        :| List.fromFoldable
+        :|
           [ 0.25 /\ (C1 <$> arbitrary)
           , 0.25 /\ (C2 <$> arbitrary <*> arbitrary)
           , 0.25 /\ (C3 <$> arbitrary <*> arbitrary <*> arbitrary)
@@ -420,17 +420,17 @@ instance Arbitrary EType where
   arbitrary = genericArbitrary
 
 instance Arbitrary DType where
-  arbitrary = fix \_ -> (frequency <<< wrap) $
+  arbitrary = fix \_ -> frequency $ NEArray.fromNonEmpty $
     0.4 /\ (D0 <$> arbitrary <*> arbitrary <*> arbitrary)
-      :| List.fromFoldable
+      :|
         [ 0.4 /\ (D2 <$> arbitrary)
         , 0.2 /\ (D1 <$> arbitrary)
         ]
 
 instance Arbitrary FType where
-  arbitrary = fix \_ -> (frequency <<< wrap) $
+  arbitrary = fix \_ -> frequency $ NEArray.fromNonEmpty $
     0.4 /\ (F0 <$> ({ f0A: _ } <<< unwrap <$> arbitrary))
-      :| List.fromFoldable
+      :|
         [ 0.4 /\
             ( F1 <$>
                 ( { f1A: _, f1B: _, f1C: _ } <$> arbitrary <*> arbitrary <*>
@@ -536,6 +536,10 @@ data Tree a = Node a (Tuple (Tree a) (Tree a)) | Leaf a
 
 derive instance G.Generic (Tree a) _
 
+instance Functor Tree where
+  map f (Leaf a) = Leaf (f a)
+  map f (Node a (ltree /\ rtree)) = Node (f a) (map f ltree /\ map f rtree)
+
 instance
   HasPlutusSchema (Tree a)
     ( "Node" := PNil @@ Z
@@ -546,10 +550,17 @@ instance
     )
 
 instance (ToData a) => ToData (Tree a) where
-  toData x = genericToData x -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+  -- https://github.com/purescript/documentation/blob/master/guides/Type-Class-Deriving.md#avoiding-stack-overflow-errors-with-recursive-types
+  toData t = genericToData $ map toData t
 
 instance (FromData a) => FromData (Tree a) where
-  fromData x = genericFromData x
+  fromData pd = worker =<< (genericFromData pd :: _ (Tree PlutusData))
+    where
+    worker :: Tree PlutusData -> Maybe (Tree a)
+    worker = case _ of
+      Leaf a -> Leaf <$> fromData a
+      Node a (ltree /\ rtree) ->
+        Node <$> fromData a <*> (Tuple <$> worker ltree <*> worker rtree)
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
 fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes

@@ -2757,17 +2757,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1687338750,
-        "narHash": "sha256-TF1m9/Sepv4VGJe1Wp4FglXTCsyGUblrJZYebZFBfDQ=",
+        "lastModified": 1697553030,
+        "narHash": "sha256-noK4fgwvaV3rlLVPnW2wH3WScYVgJ/M/fc+F1tQ8i40=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "167bc59308d00be43c01706e03f8c0e7993b6d69",
+        "rev": "6e4debe87ddbafaa3c77033888f9c998e28cd7ca",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "167bc59308d00be43c01706e03f8c0e7993b6d69",
+        "rev": "6e4debe87ddbafaa3c77033888f9c998e28cd7ca",
         "type": "github"
       }
     },
@@ -3596,17 +3596,17 @@
     "easy-purescript-nix": {
       "flake": false,
       "locked": {
-        "lastModified": 1666686938,
-        "narHash": "sha256-/UOLRdnEhIOcxcm5ouOipOiSgHRzJde0ccAx4xB1dnU=",
+        "lastModified": 1679861376,
+        "narHash": "sha256-LLqaLPJNiap2U8I77K5XVPGJA/Be30Z8lyGOyYXmBlc=",
         "owner": "justinwoo",
         "repo": "easy-purescript-nix",
-        "rev": "da7acb2662961fd355f0a01a25bd32bf33577fa8",
+        "rev": "0c10ff170461aed0c336f5c21ed0f430c2c3574b",
         "type": "github"
       },
       "original": {
         "owner": "justinwoo",
         "repo": "easy-purescript-nix",
-        "rev": "da7acb2662961fd355f0a01a25bd32bf33577fa8",
+        "rev": "0c10ff170461aed0c336f5c21ed0f430c2c3574b",
         "type": "github"
       }
     },

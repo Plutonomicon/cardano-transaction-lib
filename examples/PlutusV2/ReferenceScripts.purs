@@ -33,8 +33,8 @@ import Contract.Value (lovelaceValueOf) as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
-import Data.BigInt (fromInt) as BigInt
 import Data.Map (toUnfoldable) as Map
+import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

@@ -35,9 +35,9 @@ import Contract.Wallet
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
 import Data.Array (head) as Array
-import Data.BigInt (fromInt) as BigInt
 import Data.Log.Tag (tag)
 import Data.Map (toUnfoldable) as Map
+import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
 

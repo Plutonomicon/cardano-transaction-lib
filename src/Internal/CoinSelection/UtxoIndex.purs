@@ -38,8 +38,6 @@ import Data.Array (all, foldl) as Array
 import Data.Array ((!!))
 import Data.Array.NonEmpty (cons')
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (all, length) as Foldable
 import Data.Foldable (foldl)
 import Data.Function (on)
@@ -72,6 +70,8 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Random (randomInt) as Random
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
 import Type.Proxy (Proxy(Proxy))

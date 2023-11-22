@@ -159,7 +159,6 @@ import Ctl.Internal.Wallet.Cip30Mock
   , withCip30Mock
   )
 import Data.Array (head, (!!))
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
@@ -172,6 +171,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)

@@ -1,20 +1,26 @@
 "use strict";
 
-exports.clearLineHandler = readline => () => {
-  readline.removeAllListeners("line");
-};
+export function clearLineHandler(readline) {
+  return () => {
+    readline.removeAllListeners("line");
+  };
+}
 
-const fs = require("fs");
+import fs from "fs";
 
-exports._rmdirSync = path => () => fs.rmSync(path, { recursive: true });
+export function _rmdirSync(path) {
+  return () => fs.rmSync(path, { recursive: true });
+}
 
-exports.removeOnSignal =
-  ({ signal, callback }) =>
-  () => {
+export function removeOnSignal({ signal, callback }) {
+  return () => {
     process.removeListener(signal, callback);
   };
+}
 
-exports.onSignalImpl = signal => callback => () => {
-  process.on(signal, callback);
-  return { signal, callback };
-};
+export function onSignalImpl(signal) {
+  return callback => () => {
+    process.on(signal, callback);
+    return { signal, callback };
+  };
+}

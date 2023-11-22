@@ -31,8 +31,8 @@ import Ctl.Internal.Service.Blockfrost
   )
 import Ctl.Internal.Service.Blockfrost (getScriptByHash) as Blockfrost
 import Data.Array (mapWithIndex)
-import Data.BigInt (fromInt) as BigInt
 import Data.UInt (fromInt) as UInt
+import JS.BigInt (fromInt) as BigInt
 import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
   ( blockfrostBackend
   , getSkeyFilepathFromEnv

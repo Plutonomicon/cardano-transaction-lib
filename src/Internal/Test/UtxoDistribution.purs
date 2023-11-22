@@ -53,7 +53,6 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (head)
 import Data.Array as Array
-import Data.BigInt (BigInt)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
 import Data.Map as Map
@@ -64,6 +63,7 @@ import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+import JS.BigInt (BigInt)
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces
