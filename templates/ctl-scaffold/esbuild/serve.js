@@ -11,7 +11,7 @@ const ctx = await esbuild.context(
   buildOptions({
     entryPoint: process.argv[2],
     outfile: process.argv[3],
-  })
+  }),
 );
 
 const config = {

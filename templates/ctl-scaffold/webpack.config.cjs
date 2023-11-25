@@ -106,7 +106,7 @@ module.exports = env => {
     config.plugins.push(
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],
-      })
+      }),
     );
     // Provide NodeJS polyfills
     config.plugins.push(new NodePolyfillPlugin());
