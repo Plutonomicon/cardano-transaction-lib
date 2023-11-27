@@ -8,6 +8,7 @@ module Ctl.Internal.Types.Redeemer
 import Prelude
 
 import Ctl.Internal.FromData (class FromData)
+import Ctl.Internal.Hashing (hashPlutusData)
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.ToData (class ToData, toData)
@@ -49,4 +50,5 @@ instance Show RedeemerHash where
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> RedeemerHash
 redeemerHash =
-  wrap <<< unwrap <<< toBytes <<< convertPlutusData <<< unwrap
+  wrap <<< unwrap <<< toBytes <<< hashPlutusData <<< convertPlutusData <<<
+    unwrap
