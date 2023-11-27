@@ -138,6 +138,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - A problem with collateral selection not respecting `mustNotSpendUtxosWithOutRefs` ([#1509](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1509))
 - A problem with too many change UTxOs being generated ([#1530](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1530))
 - A problem where tx evaluation with additional utxos failed with an Ogmios `AdditionalUtxoOverlap` exception if some additional utxos got confirmed in the meantime ([#1537](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1537))
+- `Contract.PlutusData.redeemerHash` definition ([#1565](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1565))
 
 ### Removed
 
