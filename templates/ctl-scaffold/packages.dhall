@@ -284,6 +284,7 @@ let additions =
           , "quickcheck"
           , "quickcheck-combinators"
           , "quickcheck-laws"
+          , "random"
           , "rationals"
           , "record"
           , "refs"
@@ -303,11 +304,11 @@ let additions =
           , "unfoldable"
           , "untagged-union"
           , "variant"
-          , "web-storage"
           , "web-html"
+          , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "167bc59308d00be43c01706e03f8c0e7993b6d69"
+        , version = "457532a04ae7c42cffbe85f0131033e5a87ca50f"
         }
       , noble-secp256k1 =
         { dependencies =

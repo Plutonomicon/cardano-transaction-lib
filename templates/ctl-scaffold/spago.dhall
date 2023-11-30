@@ -15,7 +15,6 @@ You can edit this file as you like.
   , "posix-types"
   , "prelude"
   , "spec"
-  , "uint"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "exe/**/*.purs", "test/**/*.purs" ]

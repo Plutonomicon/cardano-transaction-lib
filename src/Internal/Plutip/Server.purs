@@ -57,8 +57,8 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Plutip.Utils (tmpdir)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
+  , pprintClientError
   )
-import Ctl.Internal.Service.Error (pprintClientError)
 import Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
   , ContractTestPlan(ContractTestPlan)
