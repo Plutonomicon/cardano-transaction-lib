@@ -58,6 +58,7 @@ import Ctl.Internal.Plutip.Utils (tmpdir)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   )
+import Ctl.Internal.Service.Error (pprintClientError)
 import Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
   , ContractTestPlan(ContractTestPlan)
@@ -466,7 +467,7 @@ startPlutipCluster cfg keysToGenerate = do
       (Left <<< ClientHttpError)
       \{ body } -> lmap (ClientDecodeJsonError body)
         $ (decodeAeson <=< parseJsonStringToAeson) body
-  either (liftEffect <<< throw <<< show) pure res >>=
+  either (liftEffect <<< throw <<< pprintClientError) pure res >>=
     case _ of
       ClusterStartupFailure reason -> do
         liftEffect $ throw $

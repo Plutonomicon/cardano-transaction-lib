@@ -11,6 +11,8 @@ module Ctl.Internal.Service.Error
       ( ServiceBlockfrostError
       , ServiceOtherError
       )
+  , pprintClientError
+  , pprintServiceError
   ) where
 
 import Prelude
@@ -19,8 +21,9 @@ import Aeson (class DecodeAeson, JsonDecodeError, getField)
 import Affjax (Error, printError) as Affjax
 import Affjax.StatusCode (StatusCode) as Affjax
 import Ctl.Internal.Service.Helpers (aesonObject)
+import Data.Argonaut.Decode.Error (printJsonDecodeError)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 
 --------------------------------------------------------------------------------
@@ -58,7 +61,7 @@ instance Show ClientError where
       <> ")"
   show (ClientHttpResponseError statusCode err) =
     "(ClientHttpResponseError "
-      <> show statusCode
+      <> show (unwrap statusCode)
       <> " "
       <> show err
       <> ")"
@@ -74,6 +77,19 @@ instance Show ClientError where
     "(ClientOtherError "
       <> err
       <> ")"
+
+pprintClientError :: ClientError -> String
+pprintClientError = case _ of
+  ClientHttpError error -> "HTTP error: " <> Affjax.printError error
+  ClientHttpResponseError code serviceError ->
+    "Server responded with HTTP error code " <> show (unwrap code) <> " - " <>
+      pprintServiceError serviceError
+  ClientDecodeJsonError error jsonError -> "Failed to decode the response: "
+    <> error
+    <> " - "
+    <> printJsonDecodeError jsonError
+  ClientEncodingError error -> "Failed to encode the request: " <> error
+  ClientOtherError error -> "Error: " <> error
 
 --------------------------------------------------------------------------------
 -- ServiceError
@@ -108,3 +124,9 @@ instance DecodeAeson BlockfrostError where
     error <- getField obj "error"
     message <- getField obj "message"
     pure $ BlockfrostError { statusCode, error, message }
+
+pprintServiceError :: ServiceError -> String
+pprintServiceError = case _ of
+  ServiceBlockfrostError (BlockfrostError { statusCode, error, message }) ->
+    "Blockfrost error (" <> show statusCode <> "): " <> error <> ": " <> message
+  ServiceOtherError error -> "Service error: " <> error
