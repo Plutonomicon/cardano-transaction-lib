@@ -21,7 +21,7 @@ In CTL context, the following query layers can be used, depending on backend cho
 - [Ogmios](https://ogmios.dev/) ([CTL backend](./runtime.md#ctl-backend))
 - [Kupo](https://cardanosolutions.github.io/kupo/) ([CTL backend](./runtime.md#ctl-backend))
 - [Blockfrost](https://blockfrost.io/) ([Blockfrost backend](./blockfrost.md))
-- [CIP-30 light wallet browser extensions](https://cips.cardano.org/cips/cip30/) (any backend)
+- [CIP-30 light wallet browser extensions](https://cips.cardano.org/cip/CIP-0030) (any backend)
 
 ## Wallet/Backend Inconsistency
 
