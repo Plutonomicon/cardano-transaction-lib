@@ -247,18 +247,17 @@ rec {
     in
     {
       project.name = "ctl-runtime";
-      docker-compose.raw = pkgs.lib.recursiveUpdate
-        {
-          volumes = {
-            "${nodeDbVol}" = { };
-            "${nodeIpcVol}" = { };
-            "${kupoDbVol}" = { };
-          } // (if config.blockfrost.enable then {
-            "${dbSyncStateVol}" = { };
-            "${dbSyncTmpVol}" = { };
-          } else { });
-        }
-        config.extraDockerCompose;
+      docker-compose = {
+        raw = config.extraDockerCompose;
+        volumes = {
+          "${nodeDbVol}" = { };
+          "${nodeIpcVol}" = { };
+          "${kupoDbVol}" = { };
+        } // pkgs.lib.optionalAttrs config.blockfrost.enable {
+          "${dbSyncStateVol}" = { };
+          "${dbSyncTmpVol}" = { };
+        };
+      };
       services = pkgs.lib.recursiveUpdate defaultServices config.extraServices;
     };
 
