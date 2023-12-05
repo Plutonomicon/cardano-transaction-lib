@@ -36,7 +36,7 @@ Thus, the goal of the developers is to ensure that the set of UTxOs available to
 CTL tries to be smart when dealing with the issue, and it aims to let the user work with both query layers as if it was one. To achieve this guarantee, CTL follows three simple rules:
 
 - **Rule 1** Whenever there is a *wallet operation* the result of which depends on the set of available UTxOs, CTL delays the execution until it reaches a state where *all wallet UTxOs are known to the backend*. These operations are assumed to be `getWalletUtxos`, `getWalletCollateral` and `getWalletBalance`.
-- **Rule 2** Whenever there is a transaction *`signTx`* [CIP-30](https://cips.cardano.org/cips/cip30/) call, the execution is delayed until all transaction inputs that come from one of the addresses controlled by the wallet *are known to the wallet*.
+- **Rule 2** Whenever there is a transaction *`signTx`* [CIP-30](https://cips.cardano.org/cip/CIP-0030/) call, the execution is delayed until all transaction inputs that come from one of the addresses controlled by the wallet *are known to the wallet*.
 - **Rule 3** Whenever CTL is asked to await for *transaction confirmation*, the execution is delayed until the *UTxOs that the transaction creates at wallet addresses* are visible to the wallet.
 
 The rules are implemented as 3 callable functions, which we call *synchronization primitives*:
