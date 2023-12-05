@@ -21,7 +21,7 @@ In CTL context, the following query layers can be used, depending on backend cho
 - [Ogmios](https://ogmios.dev/) ([CTL backend](./runtime.md#ctl-backend))
 - [Kupo](https://cardanosolutions.github.io/kupo/) ([CTL backend](./runtime.md#ctl-backend))
 - [Blockfrost](https://blockfrost.io/) ([Blockfrost backend](./blockfrost.md))
-- [CIP-30 light wallet browser extensions](https://cips.cardano.org/cips/cip30/) (any backend)
+- [CIP-30 light wallet browser extensions](https://cips.cardano.org/cip/CIP-0030) (any backend)
 
 ## Wallet/Backend Inconsistency
 
@@ -93,7 +93,7 @@ Note that it is possible to set `timeout` to `Seconds infinity`.
 
 ### Synchronization and wallet UTxO locking
 
-`Contract.Utxos.utxosAt` function returns a set of UTxOs at a given address by calling Kupo or Blockfrost, depending on the backend. It seems reasonable to assume that if we call `utxosAt` at all wallet's addresses we will get the same set of UTxOs that [CIP-30](https://cips.cardano.org/cips/cip30/) `getUtxos` method would return (eventually). But it is not, in fact, true.
+`Contract.Utxos.utxosAt` function returns a set of UTxOs at a given address by calling Kupo or Blockfrost, depending on the backend. It seems reasonable to assume that if we call `utxosAt` at all wallet's addresses we will get the same set of UTxOs that [CIP-30](https://cips.cardano.org/cip/CIP-0030/) `getUtxos` method would return (eventually). But it is not, in fact, true.
 
 *UTxO locking* is a wallet feature that allows to hide certain UTxOs from results of CIP-30 calls, making them invisible to dApps. Among the wallets we support, it is currently only present in Eternl:
 
