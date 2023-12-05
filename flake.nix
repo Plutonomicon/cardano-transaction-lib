@@ -509,4 +509,9 @@
 
       herculesCI.ciSystems = [ "x86_64-linux" ];
     };
+
+  nixConfig = {
+    extra-substituters = [ "https://plutonomicon.cachix.org" ];
+    extra-trusted-public-keys = [ "plutonomicon.cachix.org-1:evUxtNULjCjOipxwAnYhNFeF/lyYU1FeNGaVAnm+QQw=" ];
+  };
 }
