@@ -6,6 +6,7 @@
     - [Configuring synchronization behavior](#configuring-synchronization-behavior)
     - [Synchronization and wallet UTxO locking](#synchronization-and-wallet-utxo-locking)
     - [Historical notes](#historical-notes)
+  - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -20,7 +21,7 @@ In CTL context, the following query layers can be used, depending on backend cho
 - [Ogmios](https://ogmios.dev/) ([CTL backend](./runtime.md#ctl-backend))
 - [Kupo](https://cardanosolutions.github.io/kupo/) ([CTL backend](./runtime.md#ctl-backend))
 - [Blockfrost](https://blockfrost.io/) ([Blockfrost backend](./blockfrost.md))
-- [CIP-30 light wallet browser extensions](https://cips.cardano.org/cips/cip30/) (any backend)
+- [CIP-30 light wallet browser extensions](https://cips.cardano.org/cip/CIP-0030) (any backend)
 
 ## Wallet/Backend Inconsistency
 
@@ -35,7 +36,7 @@ Thus, the goal of the developers is to ensure that the set of UTxOs available to
 CTL tries to be smart when dealing with the issue, and it aims to let the user work with both query layers as if it was one. To achieve this guarantee, CTL follows three simple rules:
 
 - **Rule 1** Whenever there is a *wallet operation* the result of which depends on the set of available UTxOs, CTL delays the execution until it reaches a state where *all wallet UTxOs are known to the backend*. These operations are assumed to be `getWalletUtxos`, `getWalletCollateral` and `getWalletBalance`.
-- **Rule 2** Whenever there is a transaction *`signTx`* [CIP-30](https://cips.cardano.org/cips/cip30/) call, the execution is delayed until all transaction inputs that come from one of the addresses controlled by the wallet *are known to the wallet*.
+- **Rule 2** Whenever there is a transaction *`signTx`* [CIP-30](https://cips.cardano.org/cip/CIP-0030) call, the execution is delayed until all transaction inputs that come from one of the addresses controlled by the wallet *are known to the wallet*.
 - **Rule 3** Whenever CTL is asked to await for *transaction confirmation*, the execution is delayed until the *UTxOs that the transaction creates at wallet addresses* are visible to the wallet.
 
 The rules are implemented as 3 callable functions, which we call *synchronization primitives*:
@@ -92,7 +93,7 @@ Note that it is possible to set `timeout` to `Seconds infinity`.
 
 ### Synchronization and wallet UTxO locking
 
-`Contract.Utxos.utxosAt` function returns a set of UTxOs at a given address by calling Kupo or Blockfrost, depending on the backend. It seems reasonable to assume that if we call `utxosAt` at all wallet's addresses we will get the same set of UTxOs that [CIP-30](https://cips.cardano.org/cips/cip30/) `getUtxos` method would return (eventually). But it is not, in fact, true.
+`Contract.Utxos.utxosAt` function returns a set of UTxOs at a given address by calling Kupo or Blockfrost, depending on the backend. It seems reasonable to assume that if we call `utxosAt` at all wallet's addresses we will get the same set of UTxOs that [CIP-30](https://cips.cardano.org/cip/CIP-0030/) `getUtxos` method would return (eventually). But it is not, in fact, true.
 
 *UTxO locking* is a wallet feature that allows to hide certain UTxOs from results of CIP-30 calls, making them invisible to dApps. Among the wallets we support, it is currently only present in Eternl:
 
@@ -113,3 +114,7 @@ Initially we underestimated the problem of UTxO set inconsistency between query 
 Conceptually, the wallet is responsible for *owning* the UTxOs, so wallet developers may implement behaviors that would prevent us from making general assumptions about the wallet state.
 
 CTL `v5.1.0` introduces better consistency guarantees while not requiring the developer to change any code on their side - for the price of slight delays during the app runtime.
+
+## See also
+
+- [Optimising your app with custom query layers](./custom-query-layers.md)

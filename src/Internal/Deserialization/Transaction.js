@@ -182,7 +182,7 @@ exports._unpackProtocolParamUpdate = maybe => ppu => {
     maxBlockExUnits: optional(ppu.max_block_ex_units()),
     maxValueSize: optional(ppu.max_value_size()),
     collateralPercentage: optional(ppu.collateral_percentage()),
-    maxCollateralInputs: optional(ppu.max_collateral_inputs()),
+    maxCollateralInputs: optional(ppu.max_collateral_inputs())
   };
 };
 
@@ -230,26 +230,26 @@ exports._convertMetadatum = metadataCtors => cslMetadatum => {
 exports._unpackExUnits = exunits => {
   return {
     mem: exunits.mem(),
-    steps: exunits.steps(),
+    steps: exunits.steps()
   };
 };
 
 exports._unpackUnitInterval = ui => {
   return {
     numerator: ui.numerator(),
-    denominator: ui.denominator(),
+    denominator: ui.denominator()
   };
 };
 
 exports._unpackProtocolVersion = cslPV => ({
   major: cslPV.major(),
-  minor: cslPV.minor(),
+  minor: cslPV.minor()
 });
 
 exports._unpackExUnitsPrices = cslEup => {
   return {
     memPrice: cslEup.mem_price(),
-    stepPrice: cslEup.step_price(),
+    stepPrice: cslEup.step_price()
   };
 };
 

@@ -7,6 +7,7 @@ module Ctl.Internal.Cardano.Types.NativeScript
       , TimelockStart
       , TimelockExpiry
       )
+  , pprintNativeScript
   ) where
 
 import Prelude
@@ -22,14 +23,22 @@ import Aeson
 import Ctl.Internal.Helpers (contentsProp, encodeTagged', tagProp)
 import Ctl.Internal.Metadata.Helpers (errExpectedObject)
 import Ctl.Internal.Serialization.Address (Slot)
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
+import Ctl.Internal.Serialization.Hash
+  ( Ed25519KeyHash
+  , ed25519KeyHashFromBytes
+  , ed25519KeyHashToBytes
+  )
 import Ctl.Internal.Types.BigNum (fromString)
+import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Data.Array.NonEmpty (fromFoldable)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Maybe (fromJust)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck (class Arbitrary)
@@ -41,8 +50,8 @@ data NativeScript
   | ScriptAll (Array NativeScript)
   | ScriptAny (Array NativeScript)
   | ScriptNOfK Int (Array NativeScript)
-  | TimelockStart Slot
-  | TimelockExpiry Slot
+  | TimelockStart Slot -- spend after
+  | TimelockExpiry Slot -- spend before
 
 derive instance Eq NativeScript
 derive instance Generic NativeScript _
@@ -99,3 +108,16 @@ instance EncodeAeson NativeScript where
       { n, nativeScripts }
     TimelockStart r -> encodeTagged' "TimelockStart" r
     TimelockExpiry r -> encodeTagged' "TimelockExpiry" r
+
+pprintNativeScript :: NativeScript -> TagSet
+pprintNativeScript = case _ of
+  ScriptPubkey kh -> TagSet.fromArray
+    [ "PubKey" `tag` rawBytesToHex (ed25519KeyHashToBytes kh) ]
+  ScriptAll scripts -> "All of" `tagSetTag` TagSet.fromArray
+    (pprintNativeScript <$> scripts)
+  ScriptAny scripts -> "Any of" `tagSetTag` TagSet.fromArray
+    (pprintNativeScript <$> scripts)
+  ScriptNOfK n scripts -> ("At least " <> show n <> " of ")
+    `tagSetTag` TagSet.fromArray (pprintNativeScript <$> scripts)
+  TimelockStart slot -> "Timelock start" `tag` BigNum.toString (unwrap slot)
+  TimelockExpiry slot -> "Timelock expiry" `tag` BigNum.toString (unwrap slot)

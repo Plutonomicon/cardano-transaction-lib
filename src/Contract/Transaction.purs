@@ -3,8 +3,9 @@
 module Contract.Transaction
   ( BalancedSignedTransaction(BalancedSignedTransaction)
   , balanceTx
-  , balanceTxM
+  , balanceTxE
   , balanceTxWithConstraints
+  , balanceTxWithConstraintsE
   , balanceTxs
   , balanceTxsWithConstraints
   , calculateMinFee
@@ -40,12 +41,11 @@ import Contract.Metadata (GeneralTransactionMetadata)
 import Contract.Monad
   ( Contract
   , liftContractM
-  , liftedE
   , liftedM
   , runContractInEnv
   )
-import Contract.ScriptLookups (mkUnbalancedTx)
 import Contract.TxConstraints (TxConstraints)
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
@@ -69,8 +69,7 @@ import Ctl.Internal.BalanceTx.Error
       , UtxoMinAdaValueCalculationFailed
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
-  , InvalidInContext(InvalidInContext)
+  , explainBalanceTxError
   ) as BalanceTxError
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction)
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
@@ -239,13 +238,12 @@ import Ctl.Internal.Types.VRFKeyHash
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.BigInt (BigInt)
-import Data.Either (Either, hush)
+import Data.Either (Either(Left, Right))
 import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
 import Data.Map (Map)
 import Data.Map (empty, insert) as Map
-import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, for_, traverse)
@@ -408,22 +406,49 @@ unUnbalancedTx
 
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
-balanceTxWithConstraints
+-- |
+-- | `balanceTxWithConstraints` is a throwing variant.
+balanceTxWithConstraintsE
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTxWithConstraints tx =
+balanceTxWithConstraintsE tx =
   let
     tx' /\ ix = unUnbalancedTx tx
   in
     BalanceTx.balanceTxWithConstraints tx' ix
 
--- | Same as `balanceTxWithConstraints`, but uses the default balancer
--- | constraints.
-balanceTx
+-- | Attempts to balance an `UnbalancedTx` using the specified
+-- | balancer constraints.
+-- |
+-- | 'Throwing' variant of `balanceTxWithConstraintsE`.
+balanceTxWithConstraints
+  :: UnbalancedTx
+  -> BalanceTxConstraintsBuilder
+  -> Contract FinalizedTransaction
+balanceTxWithConstraints tx bcb = do
+  result <- balanceTxWithConstraintsE tx bcb
+  case result of
+    Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
+    Right ftx -> pure ftx
+
+-- | Balance a transaction without providing balancer constraints.
+-- |
+-- | `balanceTx` is a throwing variant.
+balanceTxE
   :: UnbalancedTx
   -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
-balanceTx = flip balanceTxWithConstraints mempty
+balanceTxE = flip balanceTxWithConstraintsE mempty
+
+-- | Balance a transaction without providing balancer constraints.
+-- |
+-- | `balanceTxE` is a non-throwing version of this function.
+balanceTx :: UnbalancedTx -> Contract FinalizedTransaction
+balanceTx utx = do
+  result <- balanceTxE utx
+  case result of
+    Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
+    Right ftx -> pure ftx
 
 -- | Balances each transaction using specified balancer constraint sets and
 -- | locks the used inputs so that they cannot be reused by subsequent
@@ -454,18 +479,11 @@ balanceTxs
   -> Contract (t FinalizedTransaction)
 balanceTxs = balanceTxsWithConstraints <<< map (flip Tuple mempty)
 
--- | Attempts to balance an `UnbalancedTx` hushing the error.
-balanceTxM
-  :: UnbalancedTx
-  -> Contract (Maybe FinalizedTransaction)
-balanceTxM = map hush <<< balanceTx
-
 balanceAndLockWithConstraints
   :: UnbalancedTx /\ BalanceTxConstraintsBuilder
   -> Contract FinalizedTransaction
 balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
-  balancedTx <-
-    liftedE $ balanceTxWithConstraints unbalancedTx constraints
+  balancedTx <- balanceTxWithConstraints unbalancedTx constraints
   void $ withUsedTxOuts $
     lockTransactionInputs (unwrap balancedTx)
   pure balancedTx
@@ -531,8 +549,8 @@ submitTxFromConstraintsReturningFee
   -> TxConstraints
   -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
 submitTxFromConstraintsReturningFee lookups constraints = do
-  unbalancedTx <- liftedE $ mkUnbalancedTx lookups constraints
-  balancedTx <- liftedE $ balanceTx unbalancedTx
+  unbalancedTx <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }

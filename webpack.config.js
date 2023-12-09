@@ -14,7 +14,7 @@ module.exports = {
     lazyCompilation: false,
     outputModule: true,
     syncWebAssembly: true,
-    topLevelAwait: true,
+    topLevelAwait: true
   },
 
   devtool: "eval-source-map",
@@ -29,12 +29,12 @@ module.exports = {
         // service, otherwise all requests to Kupo will fail.
         target: process.env.KUPO_HOST || "http://localhost:1442",
         changeOrigin: true,
-        pathRewrite: { "^/kupo": "" },
-      },
+        pathRewrite: { "^/kupo": "" }
+      }
     },
     client: {
-      overlay: false,
-    },
+      overlay: false
+    }
   },
 
   // we can add more entrypoints as needed
@@ -42,20 +42,20 @@ module.exports = {
 
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "bundle.js",
+    filename: "bundle.js"
   },
 
   module: {
     rules: [
       {
         test: /\.(png|jpg|gif)$/i,
-        type: "asset",
+        type: "asset"
       },
       {
         test: /\.plutus$/i,
-        type: "asset/source",
-      },
-    ],
+        type: "asset/source"
+      }
+    ]
   },
 
   resolve: {
@@ -76,35 +76,35 @@ module.exports = {
       path: false,
       fs: false,
       readline: false,
-      child_process: false,
+      child_process: false
     },
     alias: {
       // You should update this path to the location of your compiled scripts,
       // relative to `webpack.config.js`
-      Scripts: path.resolve(__dirname, "fixtures/scripts"),
-    },
+      Scripts: path.resolve(__dirname, "fixtures/scripts")
+    }
   },
 
   plugins: [
     new webpack.DefinePlugin({
-      BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
+      BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME
     }),
     new NodePolyfillPlugin(),
     new webpack.LoaderOptionsPlugin({
-      debug: true,
+      debug: true
     }),
     new HtmlWebpackPlugin({
       title: "cardano-transaction-lib-examples",
       template: "./examples/index.html",
-      inject: false, // See stackoverflow.com/a/38292765/3067181
+      inject: false // See stackoverflow.com/a/38292765/3067181
     }),
     new webpack.ProvidePlugin({
-      Buffer: ["buffer", "Buffer"],
+      Buffer: ["buffer", "Buffer"]
     }),
     // ContextReplacementPlugin is used just to suppress a webpack warning:
     // "Critical dependency: the request of a dependency is an expression"
     // See https://stackoverflow.com/a/59235546/17365145
     new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
-    new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
-  ],
+    new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/)
+  ]
 };

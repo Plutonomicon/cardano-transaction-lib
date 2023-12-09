@@ -28,7 +28,7 @@ import Contract.Metadata
   , TransactionMetadatum(Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
-import Contract.Monad (Contract, liftContractE, liftContractM, liftedE, liftedM)
+import Contract.Monad (Contract, liftContractE, liftContractM, liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( Datum(Datum)
@@ -66,7 +66,6 @@ import Contract.Time (Slot(Slot), getEraSummaries)
 import Contract.Transaction
   ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
   , DataHash
-  , InvalidInContext(InvalidInContext)
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , OutputDatum(OutputDatumHash, NoOutputDatum, OutputDatum)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
@@ -75,7 +74,9 @@ import Contract.Transaction
   , TransactionOutput(TransactionOutput)
   , awaitTxConfirmed
   , balanceTx
+  , balanceTxE
   , balanceTxWithConstraints
+  , balanceTxWithConstraintsE
   , createAdditionalUtxos
   , getTxMetadata
   , signTransaction
@@ -86,6 +87,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx, mkUnbalancedTxE)
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
@@ -103,6 +105,7 @@ import Contract.Wallet
 import Control.Monad.Error.Class (try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
+import Ctl.Examples.AdditionalUtxos (contract) as AdditionalUtxos
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.AwaitTxConfirmedWithTimeout as AwaitTxConfirmedWithTimeout
@@ -239,9 +242,9 @@ suite = do
 
               lookups :: Lookups.ScriptLookups
               lookups = mempty
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             res <-
-              ( balanceTxWithConstraints ubTx
+              ( balanceTxWithConstraintsE ubTx
                   (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
               )
             res `shouldSatisfy` isLeft
@@ -314,9 +317,9 @@ suite = do
               constraints =
                 Constraints.mustSpendScriptOutput txInput unitRedeemer
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             res <-
-              ( balanceTxWithConstraints ubTx
+              ( balanceTxWithConstraintsE ubTx
                   $ mustUseCollateralUtxos bobsCollateral
               )
             res `shouldSatisfy` isRight
@@ -361,9 +364,9 @@ suite = do
               constraints =
                 Constraints.mustSpendScriptOutput txInput unitRedeemer
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             res <-
-              ( balanceTxWithConstraints ubTx
+              ( balanceTxWithConstraintsE ubTx
                   $ mustUseCollateralUtxos Map.empty
               )
             res `shouldSatisfy` case _ of
@@ -553,8 +556,8 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = mempty
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
+            ubTx <- mkUnbalancedTx lookups constraints
+            bsTx <- signTransaction =<< balanceTx ubTx
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -591,8 +594,8 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = Lookups.unspentOutputs utxos
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            tx <- signTransaction =<< liftedE (balanceTx ubTx)
+            ubTx <- mkUnbalancedTx lookups constraints
+            tx <- signTransaction =<< balanceTx ubTx
             let
               signWithWallet txToSign wallet =
                 withKeyWallet wallet (signTransaction txToSign)
@@ -650,8 +653,8 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = mempty
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
+            ubTx <- mkUnbalancedTx lookups constraints
+            bsTx <- signTransaction =<< balanceTx ubTx
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -678,9 +681,9 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = Lookups.unspentOutputs utxos
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+            ubTx <- mkUnbalancedTx lookups constraints
             -- Bob signs the tx
-            tx <- signTransaction =<< liftedE (balanceTx ubTx)
+            tx <- signTransaction =<< balanceTx ubTx
             let
               signWithWallet txToSign wallet =
                 withKeyWallet wallet (signTransaction txToSign)
@@ -698,7 +701,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+          let cs = Value.scriptCurrencySymbol mp
           tn <- liftContractM "Cannot make token name"
             $ Value.mkTokenName
                 =<< byteArrayFromAscii "TheToken"
@@ -712,8 +715,8 @@ suite = do
             lookups :: Lookups.ScriptLookups
             lookups = Lookups.mintingPolicy mp
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
+          ubTx <- mkUnbalancedTx lookups constraints
+          bsTx <- signTransaction =<< balanceTx ubTx
           submitAndLog bsTx
 
     test "mustProduceAtLeast spends native token" do
@@ -797,8 +800,8 @@ suite = do
               $ BigInt.fromInt 101
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
-          result <- balanceTx ubTx
+          ubTx <- mkUnbalancedTx lookups' constraints'
+          result <- balanceTxE ubTx
           result `shouldSatisfy` isLeft
 
     test "mustSpendAtLeast succeeds to spend" do
@@ -882,8 +885,8 @@ suite = do
               $ BigInt.fromInt 101
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups' constraints'
-          result <- balanceTx ubTx
+          ubTx <- mkUnbalancedTx lookups' constraints'
+          result <- balanceTxE ubTx
           result `shouldSatisfy` isLeft
 
     test "Minting using NativeScript (multisig) as a policy" do
@@ -1039,9 +1042,9 @@ suite = do
             givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
               [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+          ubTx <- mkUnbalancedTx lookups constraints
           ubTx' <- setGeneralTxMetadata ubTx givenMetadata
-          bsTx <- signTransaction =<< liftedE (balanceTx ubTx')
+          bsTx <- signTransaction =<< balanceTx ubTx'
           txId <- submit bsTx
           awaitTxConfirmed txId
 
@@ -1072,7 +1075,7 @@ suite = do
             lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.mintingPolicy mp1 <> Lookups.mintingPolicy mp2
-          result <- Lookups.mkUnbalancedTx lookups constraints
+          result <- mkUnbalancedTxE lookups constraints
           result `shouldSatisfy` isLeft
 
     test "Minting multiple tokens in a single transaction" do
@@ -1110,8 +1113,8 @@ suite = do
                 <> Lookups.mintingPolicy mp2
                 <> Lookups.mintingPolicy mp3
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
+          ubTx <- mkUnbalancedTx lookups constraints
+          bsTx <- signTransaction =<< balanceTx ubTx
           submitAndLog bsTx
 
     test "Multi-signature transaction" do
@@ -1135,6 +1138,26 @@ suite = do
       withWallets distribution \alice -> do
         checkUtxoDistribution distribution alice
         withKeyWallet alice signMultipleContract
+
+    test "AdditionalUtxos example" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice $ AdditionalUtxos.contract false
+
+    test "Handles AdditionalUtxoOverlap exception (AdditionalUtxos example)" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice ->
+        withKeyWallet alice $ AdditionalUtxos.contract true
 
     test
       "Locking & unlocking on an always succeeding script (AlwaysSucceeds example)"
@@ -1280,16 +1303,14 @@ suite = do
               balanceTxConstraints =
                 BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-            unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            balanceTxWithConstraints unbalancedTx balanceTxConstraints
+            unbalancedTx <- mkUnbalancedTx lookups constraints
+            balanceTxWithConstraintsE unbalancedTx balanceTxConstraints
 
         let
           hasInsufficientBalance
             :: forall (a :: Type). Either BalanceTxError a -> Boolean
           hasInsufficientBalance = case _ of
-            Left (BalanceInsufficientError _ _ (InvalidInContext amount))
-              | amount == Value.lovelaceValueOf (BigInt.fromInt 50_000_000) ->
-                  true
+            Left (BalanceInsufficientError _ _) -> true
             _ -> false
 
         balanceWithDatum NoOutputDatum >>= flip shouldSatisfy isRight
@@ -1475,7 +1496,7 @@ suite = do
               pure $ pkh /\ stakePkh
 
             mp <- alwaysMintsPolicy
-            cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+            let cs = Value.scriptCurrencySymbol mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
             let asset = Value.singleton cs tn $ BigInt.fromInt 50
@@ -1500,8 +1521,8 @@ suite = do
                 lookups :: Lookups.ScriptLookups
                 lookups = Lookups.mintingPolicy mp
 
-              ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-              bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
+              ubTx <- mkUnbalancedTx lookups constraints
+              bsTx <- signTransaction =<< balanceTx ubTx
               submit bsTx >>= awaitTxConfirmed
 
               logInfo' "Attempt to lock value"
@@ -1693,8 +1714,7 @@ suite = do
               lookups0 :: Lookups.ScriptLookups
               lookups0 = mempty
 
-            unbalancedTx0 <-
-              liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+            unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
 
             withBalancedTx unbalancedTx0 \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
@@ -1718,11 +1738,9 @@ suite = do
                 balanceTxConstraints =
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-              unbalancedTx1 <-
-                liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <-
-                liftedE $ balanceTxWithConstraints unbalancedTx1
-                  balanceTxConstraints
+              unbalancedTx1 <- mkUnbalancedTx lookups1 constraints1
+              balancedTx1 <- balanceTxWithConstraints unbalancedTx1
+                balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 
               txId0 <- submit balancedSignedTx0
@@ -1751,7 +1769,7 @@ suite = do
             logInfo' $ "wUtxos0 " <> show wUtxos0
 
             mp <- alwaysMintsPolicyV2
-            cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+            let cs = Value.scriptCurrencySymbol mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= Value.mkTokenName
 
@@ -1816,8 +1834,7 @@ suite = do
               lookups0 :: Lookups.ScriptLookups
               lookups0 = Lookups.mintingPolicy mp <> datumLookup
 
-            unbalancedTx0 <-
-              liftedE $ Lookups.mkUnbalancedTx lookups0 constraints0
+            unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
 
             withBalancedTx unbalancedTx0 \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
@@ -1842,11 +1859,9 @@ suite = do
                 balanceTxConstraints =
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-              unbalancedTx1 <-
-                liftedE $ Lookups.mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <-
-                liftedE $ balanceTxWithConstraints unbalancedTx1
-                  balanceTxConstraints
+              unbalancedTx1 <- mkUnbalancedTx lookups1 constraints1
+              balancedTx1 <- balanceTxWithConstraints unbalancedTx1
+                balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 
               txId0 <- submit balancedSignedTx0
@@ -2076,8 +2091,8 @@ signMultipleContract = do
     lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  ubTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  ubTx2 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  ubTx1 <- mkUnbalancedTx lookups constraints
+  ubTx2 <- mkUnbalancedTx lookups constraints
 
   withBalancedTxs [ ubTx1, ubTx2 ] $ \txs -> do
     locked <- getLockedInputs
@@ -2104,6 +2119,6 @@ pkh2PkhContract pkh stakePkh = do
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
-  ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  bsTx <- signTransaction =<< liftedE (balanceTx ubTx)
+  ubTx <- mkUnbalancedTx lookups constraints
+  bsTx <- signTransaction =<< balanceTx ubTx
   submitAndLog bsTx

@@ -63,6 +63,7 @@
     "webpack-dev-server": "4.7.4"
   },
   "prettier": {
-    "arrowParens": "avoid"
+    "arrowParens": "avoid",
+    "trailingComma": "none"
   }
 }

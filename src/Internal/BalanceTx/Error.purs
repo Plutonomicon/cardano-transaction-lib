@@ -3,7 +3,6 @@
 -- | that may be returned from Ogmios when calculating ex units.
 module Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
-  , InvalidInContext(InvalidInContext)
   , BalanceTxError
       ( BalanceInsufficientError
       , CouldNotConvertScriptOutputToTxInput
@@ -20,8 +19,8 @@ module Ctl.Internal.BalanceTx.Error
       , UtxoMinAdaValueCalculationFailed
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
   , printTxEvaluationFailure
+  , explainBalanceTxError
   ) where
 
 import Prelude
@@ -30,9 +29,13 @@ import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
+  , TransactionOutput
   , _redeemers
   , _witnessSet
   )
+import Ctl.Internal.Cardano.Types.Value (pprintValue)
+import Ctl.Internal.Helpers (bugTrackerLink, unsafePprintTagSet)
+import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
@@ -45,10 +48,12 @@ import Ctl.Internal.QueryM.Ogmios
       , NonScriptInputReferencedByRedeemer
       , IllFormedExecutionBudget
       , NoCostModelForLanguage
+      , InternalLedgerTypeConversionError
       )
-  , TxEvaluationFailure(UnparsedError, ScriptFailures)
+  , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
@@ -61,7 +66,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
 import Data.Lens (non, (^.))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
@@ -70,16 +75,16 @@ import Data.String.Utils (padEnd)
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
-  = BalanceInsufficientError Expected Actual InvalidInContext
+  = BalanceInsufficientError Expected Actual
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetChangeAddress
   | CouldNotGetCollateral
   | InsufficientCollateralUtxos
   | CouldNotGetUtxos
-  | CollateralReturnError String
-  | CollateralReturnMinAdaValueCalcError
+  | CollateralReturnError
+  | CollateralReturnMinAdaValueCalcError CoinsPerUtxoUnit TransactionOutput
   | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
-  | InsufficientUtxoBalanceToCoverAsset ImpossibleError String
+  | InsufficientUtxoBalanceToCoverAsset String
   | ReindexRedeemersError UnindexedRedeemer
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
@@ -87,9 +92,56 @@ data BalanceTxError
 derive instance Generic BalanceTxError _
 
 instance Show BalanceTxError where
-  show (ExUnitsEvaluationFailed tx failure) =
-    "ExUnitsEvaluationFailed: " <> printTxEvaluationFailure tx failure
   show e = genericShow e
+
+explainBalanceTxError :: BalanceTxError -> String
+explainBalanceTxError = case _ of
+  BalanceInsufficientError expected actual ->
+    "Insufficient balance. " <> prettyValue "Expected" (unwrap expected)
+      <> ", "
+      <> prettyValue "actual" (unwrap actual)
+  InsufficientCollateralUtxos ->
+    "Could not cover collateral requirements"
+  CouldNotConvertScriptOutputToTxInput ->
+    "Could not convert script output to transaction input"
+  CouldNotGetChangeAddress ->
+    "Could not get change address from the wallet or from the balancer constraints"
+  CouldNotGetCollateral -> "Could not get collateral from wallet"
+  CouldNotGetUtxos ->
+    "Could not get UTxOs from the wallet or the specified source addresses"
+  CollateralReturnError ->
+    "Negative totalCollateral after covering min-utxo-ada requirement."
+      <> "This should be impossible: please report this as a bug to "
+      <> bugTrackerLink
+  CollateralReturnMinAdaValueCalcError coinsPerUtxoUnit txOut ->
+    "Could not calculate minimum Ada for collateral return.\n"
+      <> "Coins per UTxO unit: "
+      <> show coinsPerUtxoUnit
+      <> "\nTransaction output: "
+      <> show txOut
+  ExUnitsEvaluationFailed _ _ ->
+    "Script evaluation failure while trying to estimate ExUnits"
+  InsufficientUtxoBalanceToCoverAsset asset ->
+    "Insufficient UTxO balance to cover asset named "
+      <> asset
+      <> "\nThis should be impossible: please report this as a bug to "
+      <> bugTrackerLink
+  ReindexRedeemersError uir ->
+    "Could not reindex redeemer "
+      <> show uir
+      <> "\nThis should be impossible: please report this as a bug to "
+      <> bugTrackerLink
+  UtxoLookupFailedFor ti ->
+    "Could not look up UTxO for "
+      <> show ti
+      <> " from a given set of UTxOs.\n"
+      <> "This should be impossible: please report this as a bug to "
+      <> bugTrackerLink
+  UtxoMinAdaValueCalculationFailed ->
+    "Could not calculate min ADA for UTxO"
+  where
+  prettyValue :: String -> Value -> String
+  prettyValue str = fromPlutusValue >>> pprintValue >>> unsafePprintTagSet str
 
 newtype Actual = Actual Value
 
@@ -99,28 +151,12 @@ derive instance Newtype Actual _
 instance Show Actual where
   show = genericShow
 
-newtype InvalidInContext = InvalidInContext Value
-
-derive instance Generic InvalidInContext _
-derive instance Newtype InvalidInContext _
-
-instance Show InvalidInContext where
-  show = genericShow
-
 newtype Expected = Expected Value
 
 derive instance Generic Expected _
 derive instance Newtype Expected _
 
 instance Show Expected where
-  show = genericShow
-
--- | Indicates that an error should be impossible.
-data ImpossibleError = Impossible
-
-derive instance Generic ImpossibleError _
-
-instance Show ImpossibleError where
   show = genericShow
 
 --------------------------------------------------------------------------------
@@ -175,6 +211,8 @@ printTxEvaluationFailure
 printTxEvaluationFailure transaction e =
   runPrettyString $ case e of
     Ogmios.UnparsedError error -> line $ "Unknown error: " <> error
+    Ogmios.AdditionalUtxoOverlap utxos ->
+      line $ "AdditionalUtxoOverlap: " <> show utxos
     Ogmios.ScriptFailures sf -> line "Script failures:" <> bullet
       (foldMapWithIndex printScriptFailures sf)
   where
@@ -217,22 +255,26 @@ printTxEvaluationFailure transaction e =
       <> bullet (foldMap (foldMap line) provided)
       <> line "But missing required datums:"
       <> bullet (foldMap line missing)
-    Ogmios.MissingRequiredScripts { resolved, missing }
+    Ogmios.MissingRequiredScripts { resolved: mresolved, missing }
     -> line "Supplied with scripts:"
       <> bullet
-        ( foldMapWithIndex
-            (\ptr scr -> printRedeemer ptr <> line ("Script: " <> scr))
-            resolved
+        ( foldMap
+            ( foldMapWithIndex
+                (\ptr scr -> printRedeemer ptr <> line ("Script: " <> show scr))
+            )
+            mresolved
         )
       <> line "But missing required scripts:"
-      <> bullet (foldMap line missing)
+      <> bullet (foldMap printRedeemer missing)
     Ogmios.ValidatorFailed { error, traces } -> line error <> line "Trace:" <>
       number
         (foldMap line traces)
     Ogmios.UnknownInputReferencedByRedeemer txIn -> line
       ("Unknown input referenced by redeemer: " <> show txIn)
     Ogmios.NonScriptInputReferencedByRedeemer txIn -> line
-      ("Non script input referenced by redeemer: " <> show txIn)
+      ( "Non-script input, or input without datum, referenced by redeemer: " <>
+          show txIn
+      )
     Ogmios.IllFormedExecutionBudget Nothing -> line
       ("Ill formed execution budget: Execution budget missing")
     Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
@@ -241,8 +283,14 @@ printTxEvaluationFailure transaction e =
           ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
               <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
           )
-    Ogmios.NoCostModelForLanguage language -> line
-      ("No cost model for language \"" <> language <> "\"")
+    Ogmios.NoCostModelForLanguage languages ->
+      line "No cost model for languages:"
+        <> bullet (foldMap line languages)
+    Ogmios.InternalLedgerTypeConversionError error ->
+      line $
+        "Internal ledger type conversion error, if you ever run into this, please report the issue as you've likely discoverd a critical bug: \""
+          <> error
+          <> "\""
 
   printScriptFailures
     :: Ogmios.RedeemerPointer -> Array Ogmios.ScriptFailure -> PrettyString

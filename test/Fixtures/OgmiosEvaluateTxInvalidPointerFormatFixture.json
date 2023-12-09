@@ -1,12 +1,28 @@
 {
-  "EvaluationResult": {
-    "spend": {
-      "memory": 1700,
-      "steps": 476468
-    },
-    "mint:0": {
-      "memory": 1685698,
-      "steps": 609724445
-    }
-  }
+  "jsonrpc": "2.0",
+  "method": "evaluateTransaction",
+  "result": [
+      {
+          "validator": "spend",
+          "budget": {
+              "memory": 2766916028110716146,
+              "cpu": 6325731070934221229
+          }
+      },
+      {
+          "validator": "certificate:3",
+          "budget": {
+              "memory": 4926587050210136942,
+              "cpu": 2982577810151428748
+          }
+      },
+      {
+          "validator": "withdrawal:8",
+          "budget": {
+              "memory": 3603965291794951667,
+              "cpu": 937555587227912939
+          }
+      }
+  ],
+  "id": "kuOpGfqeiHbY"
 }

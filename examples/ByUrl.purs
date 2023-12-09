@@ -32,6 +32,7 @@ import Contract.Config
   )
 import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
+import Ctl.Examples.AdditionalUtxos as AdditionalUtxos
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Ctl.Examples.ChangeGeneration as ChangeGeneration
@@ -192,7 +193,8 @@ mkBlockfrostPreprodConfig apiKey =
 
 examples :: Map E2ETestName (Contract Unit)
 examples = Map.fromFoldable
-  [ "AlwaysMints" /\ AlwaysMints.contract
+  [ "AdditionalUtxos" /\ AdditionalUtxos.contract false
+  , "AlwaysMints" /\ AlwaysMints.contract
   , "NativeScriptMints" /\ NativeScriptMints.contract
   , "AlwaysSucceeds" /\ AlwaysSucceeds.contract
   , "AlwaysSucceedsV2" /\ AlwaysSucceedsV2.contract

@@ -387,7 +387,7 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
           lookups = unspentOutputs utxos
 
         unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
-        balancedTx <- liftedE $ balanceTx unbalancedTx
+        balancedTx <- balanceTx unbalancedTx
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)

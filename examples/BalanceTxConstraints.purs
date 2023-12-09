@@ -15,7 +15,7 @@ import Contract.BalanceTxConstraints
   , mustUseUtxosAtAddress
   ) as BalanceTxConstraints
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM)
+import Contract.Monad (Contract, liftedM)
 import Contract.ScriptLookups as Lookups
 import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
@@ -35,6 +35,7 @@ import Contract.Transaction
   , submit
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (singleton, valueOf) as Value
@@ -169,11 +170,9 @@ contract (ContractParams p) = do
         <> BalanceTxConstraints.mustUseCollateralUtxos bobsCollateral
 
   void $ runChecks checks $ lift do
-    unbalancedTx <-
-      liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    unbalancedTx <- mkUnbalancedTx lookups constraints
 
-    balancedTx <-
-      liftedE $ balanceTxWithConstraints unbalancedTx balanceTxConstraints
+    balancedTx <- balanceTxWithConstraints unbalancedTx balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

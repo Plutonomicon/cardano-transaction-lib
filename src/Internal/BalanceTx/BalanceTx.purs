@@ -4,8 +4,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
-import Contract.Address (getNetworkId)
-import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
+import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
 import Control.Monad.Reader (asks)
@@ -37,16 +36,14 @@ import Ctl.Internal.BalanceTx.Constraints
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
-      ( BalanceInsufficientError
-      , CouldNotGetChangeAddress
-      , CouldNotGetCollateral
-      , CouldNotGetUtxos
-      , InsufficientCollateralUtxos
-      , ReindexRedeemersError
+      ( InsufficientCollateralUtxos
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
+      , ReindexRedeemersError
+      , CouldNotGetUtxos
+      , CouldNotGetCollateral
+      , CouldNotGetChangeAddress
       )
-  , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   ( evalExUnitsAndMinFee
@@ -120,7 +117,7 @@ import Ctl.Internal.Contract.Wallet
   ) as Wallet
 import Ctl.Internal.Helpers (liftEither, (??))
 import Ctl.Internal.Partition (equipartition, partition)
-import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap, toPlutusValue)
+import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
 import Ctl.Internal.Types.ProtocolParameters
@@ -283,7 +280,7 @@ setTransactionCollateral changeAddr transaction = do
     -- collateral using internal algo, that is also used in KeyWallet
     Just utxoMap -> do
       ProtocolParameters params <- liftContract getProtocolParameters
-      networkId <- liftContract getNetworkId
+      networkId <- askNetworkId
       let
         coinsPerUtxoUnit = params.coinsPerUtxoUnit
         maxCollateralInputs = UInt.toInt $ params.maxCollateralInputs
@@ -332,18 +329,8 @@ runBalancer :: BalancerParams -> BalanceTxM FinalizedTransaction
 runBalancer p = do
   utxos <- partitionAndFilterUtxos
   transaction <- addLovelacesToTransactionOutputs p.transaction
-  addInvalidInContext (foldMap (_.amount <<< unwrap) utxos.invalidInContext) do
-    mainLoop (initBalancerState transaction utxos.spendable)
+  mainLoop (initBalancerState transaction utxos.spendable)
   where
-  addInvalidInContext
-    :: forall (a :: Type). Value -> BalanceTxM a -> BalanceTxM a
-  addInvalidInContext invalidInContext m = catchError m $ throwError <<<
-    case _ of
-      BalanceInsufficientError e a (InvalidInContext v) ->
-        BalanceInsufficientError e a
-          (InvalidInContext (v <> toPlutusValue invalidInContext))
-      e -> e
-
   -- We check if the transaction uses a plutusv1 script, so that we can filter
   -- out utxos which use plutusv2 features if so.
   txHasPlutusV1 :: Boolean

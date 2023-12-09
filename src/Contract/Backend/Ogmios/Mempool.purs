@@ -16,7 +16,6 @@ import Contract.Prelude
 
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
-import Ctl.Internal.Base64 (decodeBase64)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
@@ -33,6 +32,7 @@ import Ctl.Internal.QueryM.Ogmios
   , MempoolTransaction(MempoolTransaction)
   , TxHash
   ) as Ogmios
+import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
 import Data.List (List(Cons))
@@ -61,7 +61,7 @@ mempoolSnapshotNextTx mempoolAcquired = do
   mbTx <- wrapQueryM $ QueryM.mempoolSnapshotNextTx mempoolAcquired
   for mbTx \(Ogmios.MempoolTransaction { raw }) -> do
     byteArray <- liftMaybe (error "Failed to decode transaction")
-      $ decodeBase64 raw
+      $ hexToByteArray raw
     liftMaybe (error "Failed to decode tx")
       $ hush
       $ deserializeTransaction
@@ -77,7 +77,7 @@ mempoolSnapshotSizeAndCapacity = wrapQueryM <<<
 -- | Release the connection to the Local TX Monitor.
 releaseMempool
   :: Ogmios.MempoolSnapshotAcquired -> Contract Unit
-releaseMempool = void <<< wrapQueryM <<< QueryM.releaseMempool
+releaseMempool = wrapQueryM <<< QueryM.releaseMempool
 
 -- | A bracket-style function for working with mempool snapshots - ensures
 -- | release in the presence of exceptions

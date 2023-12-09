@@ -24,6 +24,8 @@
 - [Architecture](#architecture)
 - [Additional resources/tools:](#additional-resourcestools)
 - [Available support channels info](#available-support-channels-info)
+- [Funding acknowledgements](#funding-acknowledgements)
+- [Use in production](#use-in-production)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -113,3 +115,26 @@ You can find help, more information and ongoing discusion about the project here
 
 - [Plutonomicon Discord](https://discord.gg/JhbexnV9Pc)
 - #ctl channel at MLabs' Slack
+
+## Funding acknowledgements
+
+CTL is being developed by MLabs. The following companies/funds have contributed significan resources to development:
+
+- [IOHK](https://iohk.io/en/about/)
+- [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)
+- [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791)
+- [Catalyst Fund10](https://cardano.ideascale.com/c/idea/101478)
+- [MLabs](https://mlabs.city/)
+- [Indigo Protocol](https://indigoprotocol.io/)
+- [Equine](https://www.equine.gg/)
+- [Liqwid Labs](https://liqwid.finance/)
+- [PlayerMint](https://www.playermint.com/)
+- Ardana
+
+## Use in production
+
+- [Indigo Protocol](https://indigoprotocol.io/)
+- [Liqwid](https://liqwid.finance/)
+- [Clarity](https://clarity.community/)
+- [PlayerMint](https://www.playermint.com/)
+- [SingularityNet](https://singularitynet.io/)
