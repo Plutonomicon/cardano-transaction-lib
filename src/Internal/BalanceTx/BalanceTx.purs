@@ -4,6 +4,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
+import Contract.Log (logWarn')
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
@@ -92,6 +93,9 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _witnessSet
   , pprintUtxoMap
   )
+import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
+  ( transactionUnspentOutputsToUtxoMap
+  )
 import Ctl.Internal.Cardano.Types.Value
   ( AssetClass
   , Coin(Coin)
@@ -115,7 +119,7 @@ import Ctl.Internal.Contract.Wallet
   , getWalletCollateral
   , getWalletUtxos
   ) as Wallet
-import Ctl.Internal.Helpers (liftEither, (??))
+import Ctl.Internal.Helpers (liftEither, pprintTagSet, (??))
 import Ctl.Internal.Partition (equipartition, partition)
 import Ctl.Internal.Plutus.Conversion (fromPlutusUtxoMap)
 import Ctl.Internal.Serialization.Address (Address)
@@ -272,10 +276,19 @@ setTransactionCollateral changeAddr transaction = do
   let
     isSpendable = not <<< flip Set.member nonSpendableSet
   collateral <- case mbCollateralUtxos of
-    -- if no collateral utxos are specified, use the wallet
-    Nothing -> Array.filter (isSpendable <<< _.input <<< unwrap) <$> do
-      liftEitherContract $ note CouldNotGetCollateral <$>
-        Wallet.getWalletCollateral
+    -- if no collateral utxos are specified, use the wallet, but filter
+    -- the unspendable ones
+    Nothing -> do
+      let isSpendableUtxo = isSpendable <<< _.input <<< unwrap
+      { yes: spendableUtxos, no: filteredUtxos } <-
+        Array.partition isSpendableUtxo <$> do
+          liftEitherContract $ note CouldNotGetCollateral <$>
+            Wallet.getWalletCollateral
+      when (not $ Array.null filteredUtxos) do
+        logWarn' $ pprintTagSet
+          "Some of the collateral UTxOs returned by the wallet were marked as non-spendable and ignored"
+          (pprintUtxoMap (transactionUnspentOutputsToUtxoMap filteredUtxos))
+      pure spendableUtxos
     -- otherwise, get all the utxos, filter out unspendable, and select
     -- collateral using internal algo, that is also used in KeyWallet
     Just utxoMap -> do
