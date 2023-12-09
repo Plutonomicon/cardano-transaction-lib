@@ -36,7 +36,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , pprintUtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value (pprintValue)
-import Ctl.Internal.Helpers (bugTrackerLink, unsafePprintTagSet)
+import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
 import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
@@ -104,7 +104,7 @@ explainBalanceTxError = case _ of
       <> prettyValue "actual" (unwrap actual)
   InsufficientCollateralUtxos utxos ->
     "Could not cover collateral requirements. " <>
-      unsafePprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
+      pprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
   CouldNotConvertScriptOutputToTxInput ->
     "Could not convert script output to transaction input"
   CouldNotGetChangeAddress ->
@@ -144,7 +144,7 @@ explainBalanceTxError = case _ of
     "Could not calculate min ADA for UTxO"
   where
   prettyValue :: String -> Value -> String
-  prettyValue str = fromPlutusValue >>> pprintValue >>> unsafePprintTagSet str
+  prettyValue str = fromPlutusValue >>> pprintValue >>> pprintTagSet str
 
 newtype Actual = Actual Value
 

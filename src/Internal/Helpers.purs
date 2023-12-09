@@ -32,7 +32,7 @@ module Ctl.Internal.Helpers
   , showWithParens
   , tagProp
   , uIntToBigInt
-  , unsafePprintTagSet
+  , pprintTagSet
   ) where
 
 import Prelude
@@ -77,8 +77,8 @@ bugTrackerLink :: String
 bugTrackerLink =
   "https://github.com/Plutonomicon/cardano-transaction-lib/issues"
 
-unsafePprintTagSet :: String -> TagSet -> String
-unsafePprintTagSet message tags =
+pprintTagSet :: String -> TagSet -> String
+pprintTagSet message tags =
   message <> " " <> showTags tags
 
 -- | Throws provided error on `Nothing`
