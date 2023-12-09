@@ -30,8 +30,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
   , TransactionOutput
+  , UtxoMap
   , _redeemers
   , _witnessSet
+  , pprintUtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value (pprintValue)
 import Ctl.Internal.Helpers (bugTrackerLink, unsafePprintTagSet)
@@ -79,7 +81,7 @@ data BalanceTxError
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetChangeAddress
   | CouldNotGetCollateral
-  | InsufficientCollateralUtxos
+  | InsufficientCollateralUtxos UtxoMap
   | CouldNotGetUtxos
   | CollateralReturnError
   | CollateralReturnMinAdaValueCalcError CoinsPerUtxoUnit TransactionOutput
@@ -100,8 +102,9 @@ explainBalanceTxError = case _ of
     "Insufficient balance. " <> prettyValue "Expected" (unwrap expected)
       <> ", "
       <> prettyValue "actual" (unwrap actual)
-  InsufficientCollateralUtxos ->
-    "Could not cover collateral requirements"
+  InsufficientCollateralUtxos utxos ->
+    "Could not cover collateral requirements. " <>
+      unsafePprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
   CouldNotConvertScriptOutputToTxInput ->
     "Could not convert script output to transaction input"
   CouldNotGetChangeAddress ->

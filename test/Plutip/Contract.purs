@@ -370,7 +370,7 @@ suite = do
                   $ mustUseCollateralUtxos Map.empty
               )
             res `shouldSatisfy` case _ of
-              Left InsufficientCollateralUtxos -> true
+              Left (InsufficientCollateralUtxos mp) -> Map.isEmpty mp
               _ -> false
 
     test "Collateral selection: UTxO with lower amount is selected" do

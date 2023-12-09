@@ -288,7 +288,7 @@ setTransactionCollateral changeAddr transaction = do
           utxoMap
       mbCollateral <- liftEffect $ map Array.fromFoldable <$>
         selectCollateral coinsPerUtxoUnit maxCollateralInputs utxoMap'
-      liftEither $ note InsufficientCollateralUtxos mbCollateral
+      liftEither $ note (InsufficientCollateralUtxos utxoMap') mbCollateral
   addTxCollateralReturn collateral (addTxCollateral collateral transaction)
     changeAddr
 
