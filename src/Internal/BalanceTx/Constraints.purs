@@ -181,7 +181,7 @@ mustUseAdditionalUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
 
 -- | Tells the balancer to select from the provided UTxO set when choosing
--- | collateral UTxOs. Disables wallet's collateral selection.
+-- | collateral UTxOs, instead of UTxOs provided by the browser wallet.
 mustUseCollateralUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
 mustUseCollateralUtxos = wrap <<< set _collateralUtxos <<< Just
 

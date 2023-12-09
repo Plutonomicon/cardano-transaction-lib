@@ -147,7 +147,7 @@ contract (ContractParams p) = do
         \{ input, output } -> Tuple input output
 
   nonSpendableOref <-
-    liftedM "Failed to get utxos at Bob's address"
+    liftedM "Failed to get utxos at Alice's address"
       (Set.findMin <<< Map.keys <$> utxosAt aliceAddress)
 
   mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy

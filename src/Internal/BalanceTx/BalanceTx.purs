@@ -273,8 +273,7 @@ setTransactionCollateral changeAddr transaction = do
   mbCollateralUtxos <- asksConstraints _collateralUtxos
   -- We must filter out UTxOs that are set as non-spendable in the balancer
   -- constraints
-  let
-    isSpendable = not <<< flip Set.member nonSpendableSet
+  let isSpendable = not <<< flip Set.member nonSpendableSet
   collateral <- case mbCollateralUtxos of
     -- if no collateral utxos are specified, use the wallet, but filter
     -- the unspendable ones

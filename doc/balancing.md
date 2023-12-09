@@ -20,7 +20,7 @@ CTL allows tweaking the default balancer behavior by letting the user impose con
 
 - Using arbitrary address as user's own (for transaction balancing): `mustUseUtxosAtAddresses` / `mustUseUtxosAtAddress`
 - Providing additional UTxOs to use: `mustUseAdditionalUtxos`
-- Bypassing wallet's collateral selection and select collateral UTxOs from a given set: `mustUseCollateralUtxos`
+- Bypassing wallet's collateral selection and selecting collateral UTxOs from a given set: `mustUseCollateralUtxos`
 - Overriding change address: `mustSendChangeToAddress`
 - Preventing certain UTxOs from being spent: `mustNotSpendUtxosWithOutRefs` / `mustNotSpendUtxoWithOutRef`
 - Distributing token outputs equally between change UTxOs: `mustGenChangeOutsWithMaxTokenQuantity`
