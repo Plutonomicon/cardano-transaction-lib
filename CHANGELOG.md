@@ -83,6 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Support for generic CIP-30 wallets by name ([#1524](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1524))
 - Full additional utxos support for Blockfrost backend ([#1537](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1537))
 - New `submitTxE`, an error returning variant of `submitTx`
+- Allow providing a custom set of UTxOs for collateral selection, overriding the wallet (`mustUseCollateralUtxos` balancer constraint) ([#1513](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1513))
 
 ### Changed
 

@@ -1,7 +1,5 @@
 module Ctl.Internal.Wallet
-  ( module KeyWallet
-  , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, GenericCip30, KeyWallet)
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, KeyWallet, GenericCip30)
   , WalletExtension
       ( NamiWallet
       , LodeWallet
@@ -50,7 +48,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Helpers ((<<>>))
 import Ctl.Internal.Types.Natural (fromInt', minus)
-import Ctl.Internal.Wallet.Cip30 (Cip30Connection, Cip30Wallet) as Cip30Wallet
 import Ctl.Internal.Wallet.Cip30
   ( Cip30Connection
   , Cip30Wallet
@@ -62,7 +59,6 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
-import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet) as KeyWallet
 import Data.Int (toNumber)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, wrap)

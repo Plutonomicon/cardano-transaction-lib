@@ -221,6 +221,7 @@ let additions =
           , "aff-promise"
           , "aff-retry"
           , "affjax"
+          , "ansi"
           , "argonaut"
           , "argonaut-codecs"
           , "arraybuffer-types"
