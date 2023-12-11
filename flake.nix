@@ -76,7 +76,8 @@
 
     # Plutip server related inputs
     plutip = {
-      url = "github:mlabs-haskell/plutip/1bf0b547cd3689c727586abb8385c008fb2a3d1c";
+      url = "github:mlabs-haskell/plutip?ref=gergely/version-bump";
+      # TODO(bladyjoker): Why are we overriding inputs here?
       inputs = {
         nixpkgs.follows = "nixpkgs";
         iohk-nix.follows = "iohk-nix";
