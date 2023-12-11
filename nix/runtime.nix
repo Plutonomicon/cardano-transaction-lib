@@ -17,7 +17,7 @@ rec {
       port = 3001;
       # the version of the node to use, corresponds to the image version tag,
       # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "1.35.4";
+      tag = "8.1.1";
     };
     ogmios = { port = 1337; };
     postgres = {
