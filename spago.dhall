@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "aff-promise"
   , "aff-retry"
   , "affjax"
+  , "ansi"
   , "argonaut"
   , "argonaut-codecs"
   , "arraybuffer-types"

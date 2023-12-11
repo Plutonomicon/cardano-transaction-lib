@@ -76,6 +76,7 @@ module Test.Ctl.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
+  , utxoMapFixture
   ) where
 
 import Prelude
@@ -131,6 +132,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , URL(URL)
+  , UtxoMap
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
@@ -880,127 +882,134 @@ utxoFixture1 = hexToByteArrayUnsafe
   \583900f33ffa84fdf20a003443a5e2768e12e92db31535dca62088b153df243903103ae70681\
   \439b5476fef59f439b8bc86d84bfb2d376fc3f56171a004c4b40"
 
+input :: TransactionInput
+input = TransactionInput
+  { index: UInt.fromInt 0
+  , transactionId: TransactionHash
+      ( byteArrayFromIntArrayUnsafe
+          [ 198
+          , 181
+          , 74
+          , 163
+          , 1
+          , 136
+          , 122
+          , 243
+          , 144
+          , 189
+          , 52
+          , 73
+          , 131
+          , 62
+          , 76
+          , 214
+          , 111
+          , 246
+          , 27
+          , 94
+          , 104
+          , 177
+          , 247
+          , 124
+          , 132
+          , 168
+          , 192
+          , 135
+          , 59
+          , 119
+          , 111
+          , 249
+          ]
+      )
+  }
+
+output :: TransactionOutput
+output =
+  ( TransactionOutput
+      { address: baseAddressToAddress $ baseAddress
+          { network: TestnetId
+          , paymentCred: keyHashCredential $ unsafePartial $ fromJust
+              $ ed25519KeyHashFromBytes
+              $
+                byteArrayFromIntArrayUnsafe
+                  [ 243
+                  , 63
+                  , 250
+                  , 132
+                  , 253
+                  , 242
+                  , 10
+                  , 0
+                  , 52
+                  , 67
+                  , 165
+                  , 226
+                  , 118
+                  , 142
+                  , 18
+                  , 233
+                  , 45
+                  , 179
+                  , 21
+                  , 53
+                  , 220
+                  , 166
+                  , 32
+                  , 136
+                  , 177
+                  , 83
+                  , 223
+                  , 36
+                  ]
+          , delegationCred: keyHashCredential $ unsafePartial $ fromJust
+              $ ed25519KeyHashFromBytes
+              $
+                ( byteArrayFromIntArrayUnsafe
+                    [ 57
+                    , 3
+                    , 16
+                    , 58
+                    , 231
+                    , 6
+                    , 129
+                    , 67
+                    , 155
+                    , 84
+                    , 118
+                    , 254
+                    , 245
+                    , 159
+                    , 67
+                    , 155
+                    , 139
+                    , 200
+                    , 109
+                    , 132
+                    , 191
+                    , 178
+                    , 211
+                    , 118
+                    , 252
+                    , 63
+                    , 86
+                    , 23
+                    ]
+                )
+          }
+      , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
+      , datum: NoOutputDatum
+      , scriptRef: Nothing
+      }
+  )
+
+utxoMapFixture :: UtxoMap
+utxoMapFixture = Map.singleton input output
+
 utxoFixture1' :: TransactionUnspentOutput
 utxoFixture1' =
   TransactionUnspentOutput
-    { input:
-        ( TransactionInput
-            { index: UInt.fromInt 0
-            , transactionId: TransactionHash
-                ( byteArrayFromIntArrayUnsafe
-                    [ 198
-                    , 181
-                    , 74
-                    , 163
-                    , 1
-                    , 136
-                    , 122
-                    , 243
-                    , 144
-                    , 189
-                    , 52
-                    , 73
-                    , 131
-                    , 62
-                    , 76
-                    , 214
-                    , 111
-                    , 246
-                    , 27
-                    , 94
-                    , 104
-                    , 177
-                    , 247
-                    , 124
-                    , 132
-                    , 168
-                    , 192
-                    , 135
-                    , 59
-                    , 119
-                    , 111
-                    , 249
-                    ]
-                )
-            }
-        )
-    , output:
-        ( TransactionOutput
-            { address: baseAddressToAddress $ baseAddress
-                { network: TestnetId
-                , paymentCred: keyHashCredential $ unsafePartial $ fromJust
-                    $ ed25519KeyHashFromBytes
-                    $
-                      byteArrayFromIntArrayUnsafe
-                        [ 243
-                        , 63
-                        , 250
-                        , 132
-                        , 253
-                        , 242
-                        , 10
-                        , 0
-                        , 52
-                        , 67
-                        , 165
-                        , 226
-                        , 118
-                        , 142
-                        , 18
-                        , 233
-                        , 45
-                        , 179
-                        , 21
-                        , 53
-                        , 220
-                        , 166
-                        , 32
-                        , 136
-                        , 177
-                        , 83
-                        , 223
-                        , 36
-                        ]
-                , delegationCred: keyHashCredential $ unsafePartial $ fromJust
-                    $ ed25519KeyHashFromBytes
-                    $
-                      ( byteArrayFromIntArrayUnsafe
-                          [ 57
-                          , 3
-                          , 16
-                          , 58
-                          , 231
-                          , 6
-                          , 129
-                          , 67
-                          , 155
-                          , 84
-                          , 118
-                          , 254
-                          , 245
-                          , 159
-                          , 67
-                          , 155
-                          , 139
-                          , 200
-                          , 109
-                          , 132
-                          , 191
-                          , 178
-                          , 211
-                          , 118
-                          , 252
-                          , 63
-                          , 86
-                          , 23
-                          ]
-                      )
-                }
-            , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
-            , datum: NoOutputDatum
-            , scriptRef: Nothing
-            }
-        )
+    { input
+    , output
     }
 
 witnessSetFixture1 :: ByteArray

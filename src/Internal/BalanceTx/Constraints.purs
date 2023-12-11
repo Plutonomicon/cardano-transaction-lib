@@ -9,9 +9,11 @@ module Ctl.Internal.BalanceTx.Constraints
   , mustSendChangeWithDatum
   , mustUseAdditionalUtxos
   , mustUseCoinSelectionStrategy
+  , mustUseCollateralUtxos
   , mustUseUtxosAtAddress
   , mustUseUtxosAtAddresses
   , _additionalUtxos
+  , _collateralUtxos
   , _changeAddress
   , _changeDatum
   , _maxChangeOutputTokenQuantity
@@ -33,7 +35,7 @@ import Ctl.Internal.Plutus.Types.Address
   ( Address
   , AddressWithNetworkTag(AddressWithNetworkTag)
   ) as Plutus
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as Plutus
+import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.Types.Transaction (TransactionInput)
@@ -44,7 +46,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Setter (appendOver, set, setJust)
 import Data.Map (empty) as Map
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over2, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (singleton) as Set
@@ -52,7 +54,8 @@ import JS.BigInt (BigInt)
 import Type.Proxy (Proxy(Proxy))
 
 newtype BalanceTxConstraints = BalanceTxConstraints
-  { additionalUtxos :: Plutus.UtxoMap
+  { additionalUtxos :: UtxoMap
+  , collateralUtxos :: Maybe UtxoMap
   , maxChangeOutputTokenQuantity :: Maybe BigInt
   , nonSpendableInputs :: Set TransactionInput
   , srcAddresses :: Maybe (Array Address)
@@ -63,8 +66,11 @@ newtype BalanceTxConstraints = BalanceTxConstraints
 
 derive instance Newtype BalanceTxConstraints _
 
-_additionalUtxos :: Lens' BalanceTxConstraints Plutus.UtxoMap
+_additionalUtxos :: Lens' BalanceTxConstraints UtxoMap
 _additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
+
+_collateralUtxos :: Lens' BalanceTxConstraints (Maybe UtxoMap)
+_collateralUtxos = _Newtype <<< prop (Proxy :: Proxy "collateralUtxos")
 
 _maxChangeOutputTokenQuantity :: Lens' BalanceTxConstraints (Maybe BigInt)
 _maxChangeOutputTokenQuantity =
@@ -102,6 +108,7 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
   defaultConstraints :: BalanceTxConstraints
   defaultConstraints = wrap
     { additionalUtxos: Map.empty
+    , collateralUtxos: Nothing
     , maxChangeOutputTokenQuantity: Nothing
     , nonSpendableInputs: mempty
     , srcAddresses: Nothing
@@ -170,10 +177,14 @@ mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 -- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
 -- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
-mustUseAdditionalUtxos :: Plutus.UtxoMap -> BalanceTxConstraintsBuilder
+mustUseAdditionalUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
+
+-- | Tells the balancer to select from the provided UTxO set when choosing
+-- | collateral UTxOs, instead of UTxOs provided by the browser wallet.
+mustUseCollateralUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
+mustUseCollateralUtxos = wrap <<< set _collateralUtxos <<< Just
 
 -- | Tells the balancer to use the given strategy for coin selection.
 mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
 mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy
-

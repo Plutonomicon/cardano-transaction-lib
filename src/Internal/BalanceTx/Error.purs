@@ -8,6 +8,7 @@ module Ctl.Internal.BalanceTx.Error
       , CouldNotConvertScriptOutputToTxInput
       , CouldNotGetChangeAddress
       , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
       , CouldNotGetUtxos
       , CollateralReturnError
       , CollateralReturnMinAdaValueCalcError
@@ -29,11 +30,13 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
   , TransactionOutput
+  , UtxoMap
   , _redeemers
   , _witnessSet
+  , pprintUtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value (pprintValue)
-import Ctl.Internal.Helpers (bugTrackerLink, unsafePprintTagSet)
+import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
 import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
 import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
@@ -78,6 +81,7 @@ data BalanceTxError
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetChangeAddress
   | CouldNotGetCollateral
+  | InsufficientCollateralUtxos UtxoMap
   | CouldNotGetUtxos
   | CollateralReturnError
   | CollateralReturnMinAdaValueCalcError CoinsPerUtxoUnit TransactionOutput
@@ -98,6 +102,9 @@ explainBalanceTxError = case _ of
     "Insufficient balance. " <> prettyValue "Expected" (unwrap expected)
       <> ", "
       <> prettyValue "actual" (unwrap actual)
+  InsufficientCollateralUtxos utxos ->
+    "Could not cover collateral requirements. " <>
+      pprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
   CouldNotConvertScriptOutputToTxInput ->
     "Could not convert script output to transaction input"
   CouldNotGetChangeAddress ->
@@ -137,7 +144,7 @@ explainBalanceTxError = case _ of
     "Could not calculate min ADA for UTxO"
   where
   prettyValue :: String -> Value -> String
-  prettyValue str = fromPlutusValue >>> pprintValue >>> unsafePprintTagSet str
+  prettyValue str = fromPlutusValue >>> pprintValue >>> pprintTagSet str
 
 newtype Actual = Actual Value
 
