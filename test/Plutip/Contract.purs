@@ -16,7 +16,10 @@ import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
-import Contract.BalanceTxConstraints (mustNotSpendUtxosWithOutRefs)
+import Contract.BalanceTxConstraints
+  ( mustNotSpendUtxosWithOutRefs
+  , mustUseCollateralUtxos
+  )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Log (logInfo')
@@ -36,7 +39,7 @@ import Contract.PlutusData
   , getDatumsByHashesWithErrors
   , unitRedeemer
   )
-import Contract.Prelude (mconcat)
+import Contract.Prelude (liftM, mconcat)
 import Contract.Prim.ByteArray
   ( byteArrayFromAscii
   , hexToByteArrayUnsafe
@@ -61,7 +64,7 @@ import Contract.Test.Plutip
   )
 import Contract.Time (Slot(Slot), getEraSummaries)
 import Contract.Transaction
-  ( BalanceTxError(BalanceInsufficientError)
+  ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
   , OutputDatum(OutputDatumHash, NoOutputDatum, OutputDatum)
@@ -170,7 +173,7 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Class (liftEffect)
-import Effect.Exception (throw)
+import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
@@ -272,6 +275,104 @@ suite = do
       withWallets distribution \_ → pure unit
 
   group "Contract interface" do
+    test
+      "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+        withWallets (someUtxos /\ someUtxos) \(alice /\ bob) -> do
+          bobsCollateral <- withKeyWallet bob do
+            fromMaybe Map.empty <$> getWalletUtxos
+          withKeyWallet alice do
+
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            let
+              scriptAddress = scriptHashAddress vhash Nothing
+            utxos <- utxosAt scriptAddress
+            txInput <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                (view _input <$> head (lookupTxHash txId utxos))
+            let
+              lookups :: Lookups.ScriptLookups
+              lookups = Lookups.validator validator
+                <> Lookups.unspentOutputs utxos
+
+              constraints :: TxConstraints
+              constraints =
+                Constraints.mustSpendScriptOutput txInput unitRedeemer
+
+            ubTx <- mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraintsE ubTx
+                  $ mustUseCollateralUtxos bobsCollateral
+              )
+            res `shouldSatisfy` isRight
+
+    test
+      "mustUseCollateralUtxos should fail if not enough UTxOs are provided"
+      do
+        let
+          someUtxos =
+            [ BigInt.fromInt 5_000_000
+            , BigInt.fromInt 5_000_000
+            ]
+        withWallets someUtxos \alice -> do
+          withKeyWallet alice do
+
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            let
+              scriptAddress = scriptHashAddress vhash Nothing
+            utxos <- utxosAt scriptAddress
+            txInput <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                (view _input <$> head (lookupTxHash txId utxos))
+            let
+              lookups :: Lookups.ScriptLookups
+              lookups = Lookups.validator validator
+                <> Lookups.unspentOutputs utxos
+
+              constraints :: TxConstraints
+              constraints =
+                Constraints.mustSpendScriptOutput txInput unitRedeemer
+
+            ubTx <- mkUnbalancedTx lookups constraints
+            res <-
+              ( balanceTxWithConstraintsE ubTx
+                  $ mustUseCollateralUtxos Map.empty
+              )
+            res `shouldSatisfy` case _ of
+              Left (InsufficientCollateralUtxos mp) -> Map.isEmpty mp
+              _ -> false
+
     test "Collateral selection: UTxO with lower amount is selected" do
       let
         distribution :: InitialUTxOs /\ InitialUTxOs

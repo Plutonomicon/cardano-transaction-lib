@@ -11,6 +11,7 @@ import Ctl.Internal.BalanceTx.Constraints
   , mustSendChangeWithDatum
   , mustUseAdditionalUtxos
   , mustUseCoinSelectionStrategy
+  , mustUseCollateralUtxos
   , mustUseUtxosAtAddress
   , mustUseUtxosAtAddresses
   ) as BalanceTxConstraints

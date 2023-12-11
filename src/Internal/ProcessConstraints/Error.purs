@@ -4,7 +4,7 @@ import Prelude
 
 import Ctl.Internal.Cardano.Types.NativeScript (pprintNativeScript)
 import Ctl.Internal.Cardano.Types.Value (CurrencySymbol, getCurrencySymbol)
-import Ctl.Internal.Helpers (bugTrackerLink, unsafePprintTagSet)
+import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
 import Ctl.Internal.Plutus.Types.Transaction
   ( TransactionOutput
   , pprintTransactionOutput
@@ -111,7 +111,7 @@ explainMkUnbalancedTxError = case _ of
     "Cannot withdraw rewards from Plutus staking script " <>
       prettyPlutusScript (unwrap pssv)
   CannotWithdrawRewardsNativeScript nssv ->
-    unsafePprintTagSet "Cannot withdraw rewards from native staking script "
+    pprintTagSet "Cannot withdraw rewards from native staking script "
       ("NativeScript" `tagSetTag` pprintNativeScript (unwrap nssv))
   DatumNotFound (DataHash hash) -> "Datum with hash " <> byteArrayToHex hash <>
     " not found."
@@ -141,10 +141,10 @@ explainMkUnbalancedTxError = case _ of
   ValidatorHashNotFound vh -> "Cannot find validator hash: " <>
     rawBytesToHex (scriptHashToBytes $ unwrap vh)
   WrongRefScriptHash msh tout -> case msh of
-    Nothing -> unsafePprintTagSet "Output is missing a reference script hash"
+    Nothing -> pprintTagSet "Output is missing a reference script hash"
       ("TransactionOutput" `tagSetTag` pprintTransactionOutput tout)
     Just missingHash ->
-      unsafePprintTagSet
+      pprintTagSet
         ( "TransactionOutput is missing reference script hash "
             <> rawBytesToHex (scriptHashToBytes missingHash)
         )

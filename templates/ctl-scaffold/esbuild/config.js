@@ -33,7 +33,7 @@ export const buildOptions = ({ entryPoint, outfile }) => {
           fs: true,
           os: true,
         },
-      })
+      }),
     );
   }
 

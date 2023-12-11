@@ -8,7 +8,10 @@ import Prelude
 import Contract.Numeric.Natural (fromInt') as Natural
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
-import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos) as Constraints
+import Ctl.Internal.BalanceTx.Constraints
+  ( _additionalUtxos
+  , _collateralUtxos
+  ) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(UtxoLookupFailedFor, ExUnitsEvaluationFailed)
   )
@@ -65,7 +68,7 @@ import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((?~))
-import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable) as Map
+import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -140,8 +143,11 @@ evalExUnitsAndMinFee unattachedTx allUtxos = do
   additionalUtxos <-
     fromPlutusUtxoMap networkId
       <$> asksConstraints Constraints._additionalUtxos
+  collateralUtxos <-
+    fromPlutusUtxoMap networkId <<< fromMaybe Map.empty
+      <$> asksConstraints Constraints._collateralUtxos
   minFee <- liftContract $ Contract.MinFee.calculateMinFee finalizedTx
-    additionalUtxos
+    (Map.union additionalUtxos collateralUtxos)
   pure $ txWithExUnits /\ unwrap minFee
 
 -- | Attaches datums and redeemers, sets the script integrity hash,

@@ -9,5 +9,5 @@ esbuild.build(
   buildOptions({
     entryPoint: process.argv[2],
     outfile: process.argv[3],
-  })
+  }),
 );

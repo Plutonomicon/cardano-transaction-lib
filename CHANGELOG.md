@@ -83,6 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Support for generic CIP-30 wallets by name ([#1524](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1524))
 - Full additional utxos support for Blockfrost backend ([#1537](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1537))
 - New `submitTxE`, an error returning variant of `submitTx`
+- Allow providing a custom set of UTxOs for collateral selection, overriding the wallet (`mustUseCollateralUtxos` balancer constraint) ([#1513](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1513))
 
 ### Changed
 
@@ -138,6 +139,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - A problem with collateral selection not respecting `mustNotSpendUtxosWithOutRefs` ([#1509](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1509))
 - A problem with too many change UTxOs being generated ([#1530](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1530))
 - A problem where tx evaluation with additional utxos failed with an Ogmios `AdditionalUtxoOverlap` exception if some additional utxos got confirmed in the meantime ([#1537](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1537))
+- `Contract.PlutusData.redeemerHash` definition ([#1565](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1565))
 
 ### Removed
 
@@ -174,7 +176,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `startPlutipCluster` error message now includes cluster startup failure details. ([#1407](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1407))
 - `PlutipTest` is now known as `Contract.Test.ContractTest`. It has been semantically untied from Plutip, because we now have another test runner for tests that rely on particular funds distributions - [Blockfrost](./doc/blockfrost.md). See `Contract.Test.Blockfrost.runContractTestsWithBlockfrost` ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
 - `Contract.Staking.getPoolParameters` has been moved to `Contract.Backend.Ogmios.getPoolParameters`. This function only runs with Ogmios backend, because Blockfrost [does not provide](https://github.com/blockfrost/blockfrost-backend-ryo/issues/82) all the required values ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
-- Use of [CIP-40](https://cips.cardano.org/cips/cip40/) collateral output is now enabled with CIP-30 wallets ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260)).
+- Use of [CIP-40](https://cips.cardano.org/cip/CIP-0040/) collateral output is now enabled with CIP-30 wallets ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260)).
 - `reindexSpentScriptRedeemers` is no longer in Contract (it's pure) ([#1260](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1260))
 
 ### Removed
@@ -231,7 +233,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Fixed
 
-- Added missing `stakePoolTargetNum` ("`nOpt`") protocol parameter (see [CIP-9](https://cips.cardano.org/cips/cip9/)) ([#571](https://github.com/Plutonomicon/cardano-transaction-lib/issues/571))
+- Added missing `stakePoolTargetNum` ("`nOpt`") protocol parameter (see [CIP-9](https://cips.cardano.org/cip/CIP-0009)) ([#571](https://github.com/Plutonomicon/cardano-transaction-lib/issues/571))
 - CIP-30 `signData` response handling ([#1289](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1289))
 
 ### Runtime Dependencies
@@ -386,7 +388,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Constraint for attaching a reference input to a transaction: `mustReferenceOutput` ([#946](https://github.com/Plutonomicon/cardano-transaction-lib/pull/946))
 - `DatumPresence` data type, which tags paying constraints that accept datum, to mark whether the datum should be inline or hashed in the transaction output. ([#931](https://github.com/Plutonomicon/cardano-transaction-lib/pull/931))
 - Utility conversion functions `serializeData` and `deserializeData` between `PlutusData` and `CborBytes` to `Contract.PlutusData`. ([#1001](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1001))
-- Added [CIP-30](https://cips.cardano.org/cips/cip30/) methods: `getNetworkId`, `getChangeAddress`, `getRewardAddresses`, `getUnusedAddresses`, `signData`, `isWalletAvailable`, `isEnabled`, `apiVersion`, `name` and `icon` to `Contract.Wallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))
+- Added [CIP-30](https://cips.cardano.org/cip/CIP-0030) methods: `getNetworkId`, `getChangeAddress`, `getRewardAddresses`, `getUnusedAddresses`, `signData`, `isWalletAvailable`, `isEnabled`, `apiVersion`, `name` and `icon` to `Contract.Wallet` ([#974](https://github.com/Plutonomicon/cardano-transaction-lib/issues/974))
 
 ### Changed
 
