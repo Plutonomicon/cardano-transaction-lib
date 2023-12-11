@@ -11,7 +11,7 @@
 
 # Key Management
 
-The process of going from private key menmonic to a set of addresses that the wallet can use is well specified in [CIP-1852](https://cips.cardano.org/cips/cip1852/).
+The process of going from private key menmonic to a set of addresses that the wallet can use is well specified in [CIP-1852](https://cips.cardano.org/cip/CIP-1852).
 
 For an address to be built, the user must provide some entropy for private key derivation and a *derivation path*, that specifies a list of cryptographic operations to perform on the "parent" or "root" key to get the "child" private key that can be used for signing.
 
