@@ -8847,8 +8847,8 @@
       },
       "original": {
         "owner": "mlabs-haskell",
+        "ref": "gergely/version-bump",
         "repo": "plutip",
-        "rev": "1bf0b547cd3689c727586abb8385c008fb2a3d1c",
         "type": "github"
       }
     },
