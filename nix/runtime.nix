@@ -96,6 +96,12 @@ rec {
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
         cardano-node = {
+          image.contents = [
+            # Note: Required, fixes issue with "Failed to start all.. subscriptions".
+            #   Creates the /etc/services file.
+            pkgs.iana-etc
+            pkgs.coreutils
+          ];
           service = {
             useHostStore = true;
             ports = [ (bindPort node.port) ];
@@ -109,19 +115,18 @@ rec {
               "${pkgs.bash}/bin/sh"
               "-c"
               ''
-              ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
-                --config /config/config.json \
-                --database-path /data/db \
-                --socket-path "${nodeSocketPath}" \
-                --topology /config/topology.json
+                ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
+                  --config /config/config.json \
+                  --database-path /data/db \
+                  --socket-path "${nodeSocketPath}" \
+                  --topology /config/topology.json
               ''
             ];
           };
         };
-        # TODO make this use `kupo` from flake inputs
         kupo = {
           service = {
-            image = "cardanosolutions/kupo:${kupo.tag}";
+            useHostStore = true;
             ports = [ (bindPort kupo.port) ];
             volumes = [
               "${config.cardano-configurations}/network/${config.network.name}:/config"
@@ -129,23 +134,18 @@ rec {
               "${kupoDbVol}:/kupo-db"
             ];
             command = [
-              "--node-config"
-              "/config/cardano-node/config.json"
-              "--node-socket"
-              "${nodeSocketPath}"
-              "--since"
-              "${kupo.since}"
-              "--match"
-              "${"${kupo.match}"}"
-              "--host"
-              "0.0.0.0"
-              "--workdir"
-              "kupo-db"
-            ] ++ (
-              pkgs.lib.lists.optional kupo.pruneUtxo "--prune-utxo"
-            ) ++ (
-              pkgs.lib.lists.optional kupo.deferDbIndexes "--defer-db-indexes"
-            );
+              "${pkgs.bash}/bin/sh"
+              "-c"
+              ''
+                ${inputs.kupo-nixos.packages.${pkgs.system}.kupo}/bin/kupo \
+                  --node-config /config/cardano-node/config.json \
+                  --node-socket "${nodeSocketPath}" \
+                  --since "${kupo.since}" \
+                  --match "${kupo.match}" \
+                  --host "0.0.0.0" \
+                  --workdir kupo-db ${pkgs.lib.strings.optionalString kupo.pruneUtxo "--prune-utxo"} ${pkgs.lib.strings.optionalString kupo.deferDbIndexes "--defer-db-indexes"}
+              ''
+            ];
           };
         };
         ogmios = {
