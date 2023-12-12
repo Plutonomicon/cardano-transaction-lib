@@ -15,9 +15,6 @@ rec {
     # to change the values after calling `buildCtlRuntime`
     node = {
       port = 3001;
-      # the version of the node to use, corresponds to the image version tag,
-      # i.e. `"inputoutput/cardano-node:${tag}"`
-      tag = "8.1.1";
     };
     ogmios = { port = 1337; };
     postgres = {
@@ -98,10 +95,9 @@ rec {
       nodeSocketPath = "/ipc/node.socket";
       bindPort = port: "${toString port}:${toString port}";
       defaultServices = with config; {
-        # TODO make this use `cardano-node` from flake inputs
         cardano-node = {
           service = {
-            image = "inputoutput/cardano-node:${node.tag}";
+            useHostStore = true;
             ports = [ (bindPort node.port) ];
             volumes = [
               "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
@@ -110,15 +106,15 @@ rec {
               "${nodeIpcVol}:/ipc"
             ];
             command = [
-              "run"
-              "--config"
-              "/config/config.json"
-              "--database-path"
-              "/data/db"
-              "--socket-path"
-              "${nodeSocketPath}"
-              "--topology"
-              "/config/topology.json"
+              "${pkgs.bash}/bin/sh"
+              "-c"
+              ''
+              ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
+                --config /config/config.json \
+                --database-path /data/db \
+                --socket-path "${nodeSocketPath}" \
+                --topology /config/topology.json
+              ''
             ];
           };
         };
@@ -152,7 +148,6 @@ rec {
             );
           };
         };
-        # TODO make this use `ogmios` from flake inputs
         ogmios = {
           service = {
             useHostStore = true;

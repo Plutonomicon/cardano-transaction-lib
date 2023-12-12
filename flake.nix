@@ -32,7 +32,7 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.5.0-pre";
+    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
 
     ogmios-nixos = {
       url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
@@ -332,8 +332,8 @@
         # it (i.e. `nix develop`)
         default = (psProjectFor (nixpkgsFor system)).devShell;
 
-        # This can be used with `nix develop .#hsDevShell
-        hsDevShell = self.hsFlake.${system}.devShell;
+        # This can be used with `nix develop .#devPlutipServer` to work with `./plutip-server`
+        devPlutipServer = ((plutipServerFor system).flake { }).devShell;
       });
 
       packages = perSystem (system:
