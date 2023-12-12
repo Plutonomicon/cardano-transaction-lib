@@ -115,11 +115,11 @@ rec {
               "${pkgs.bash}/bin/sh"
               "-c"
               ''
-                ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
-                  --config /config/config.json \
-                  --database-path /data/db \
-                  --socket-path "${nodeSocketPath}" \
-                  --topology /config/topology.json
+              ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
+                --config /config/config.json \
+                --database-path /data/db \
+                --socket-path "${nodeSocketPath}" \
+                --topology /config/topology.json
               ''
             ];
           };
