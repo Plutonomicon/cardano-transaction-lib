@@ -12,10 +12,6 @@ repository cardano-haskell-packages
 -- Align index-states with cardano-wallet
 index-state: 2023-06-06T00:00:00Z
 
-index-state:
-  , hackage.haskell.org 2023-06-06T00:00:00Z
-  , cardano-haskell-packages 2023-06-05T06:39:32Z
-
 packages: ./.
 
 tests: true
@@ -111,9 +107,8 @@ source-repository-package
     --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
     subdir: generated
 
-
 source-repository-package
     type: git
     location: https://github.com/mlabs-haskell/plutip.git
-    tag: d060231ebf20383cbdc854a4664fd66a5815aedc
-    --sha256: 0yydxf1f0mdx2ypnas987bnr7fmz0l1255rid5l9f4ajagd4bfry
+    tag: 1bf0b547cd3689c727586abb8385c008fb2a3d1c
+    --sha256: sha256-7ZhZUDhlFvV2us4G27iAk6lHezKS/4WA07NQn88VtQU=

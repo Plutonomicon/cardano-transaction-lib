@@ -1269,16 +1269,17 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "lastModified": 1700184336,
-        "narHash": "sha256-YhGAINYsk5qmHNOzoaB3vfItytsuADAA6XrFsfOOHQ8=",
+        "lastModified": 1699561895,
+        "narHash": "sha256-bLNN6lJUe5dR1EOdtDspReE2fu2EV7hQMHFGDinxf5Y=",
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "bd40a1ee99782196a70e8fa084a572c276d1d297",
+        "rev": "d952529afdfdf6d53ce190b1bf8af990a7ae9590",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
+        "rev": "d952529afdfdf6d53ce190b1bf8af990a7ae9590",
         "type": "github"
       }
     },
@@ -8326,8 +8327,8 @@
       },
       "original": {
         "owner": "mlabs-haskell",
+        "ref": "gergely/version-bump",
         "repo": "plutip",
-        "rev": "1bf0b547cd3689c727586abb8385c008fb2a3d1c",
         "type": "github"
       }
     },
