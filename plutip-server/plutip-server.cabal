@@ -87,7 +87,6 @@ executable plutip-server
     , wai-cors
     , wai-logger
     , warp
-    , wai-extra
 
   other-modules:
     Api
