@@ -61,9 +61,10 @@
     };
 
     # Repository with network parameters
+    # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations";
+      url = "github:input-output-hk/cardano-configurations?rev=d952529afdfdf6d53ce190b1bf8af990a7ae9590";
       flake = false;
     };
     easy-purescript-nix = {
@@ -76,7 +77,8 @@
 
     # Plutip server related inputs
     plutip = {
-      url = "github:mlabs-haskell/plutip/1bf0b547cd3689c727586abb8385c008fb2a3d1c";
+      url = "github:mlabs-haskell/plutip?ref=gergely/version-bump";
+      # TODO(bladyjoker): Why are we overriding inputs here?
       inputs = {
         nixpkgs.follows = "nixpkgs";
         iohk-nix.follows = "iohk-nix";
@@ -330,8 +332,8 @@
         # it (i.e. `nix develop`)
         default = (psProjectFor (nixpkgsFor system)).devShell;
 
-        # This can be used with `nix develop .#hsDevShell
-        hsDevShell = self.hsFlake.${system}.devShell;
+        # This can be used with `nix develop .#devPlutipServer` to work with `./plutip-server`
+        devPlutipServer = ((plutipServerFor system).flake { }).devShell;
       });
 
       packages = perSystem (system:
