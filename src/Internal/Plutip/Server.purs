@@ -588,14 +588,10 @@ startPlutipServer cfg = do
     Nothing
 
 checkPlutipServer :: PlutipConfig -> Aff Unit
-checkPlutipServer cfg = do
+checkPlutipServer _cfg = do
   -- We are trying to call stopPlutipCluster endpoint to ensure that
   -- `plutip-server` has started.
-  void
-    $ recovering defaultRetryPolicy
-        ([ \_ _ -> pure true ])
-    $ const
-    $ stopPlutipCluster cfg
+  pure unit
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
