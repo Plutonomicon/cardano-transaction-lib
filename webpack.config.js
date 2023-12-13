@@ -89,7 +89,9 @@ module.exports = {
     new webpack.DefinePlugin({
       BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME
     }),
-    new NodePolyfillPlugin(),
+    new NodePolyfillPlugin({
+      excludeAliases: ["console"]
+    }),
     new webpack.LoaderOptionsPlugin({
       debug: true
     }),
@@ -99,7 +101,8 @@ module.exports = {
       inject: false // See stackoverflow.com/a/38292765/3067181
     }),
     new webpack.ProvidePlugin({
-      Buffer: ["buffer", "Buffer"]
+      Buffer: ["buffer", "Buffer"],
+      process: "process/browser.js"
     }),
     // ContextReplacementPlugin is used just to suppress a webpack warning:
     // "Critical dependency: the request of a dependency is an expression"
