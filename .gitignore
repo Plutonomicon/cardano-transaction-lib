@@ -10,7 +10,6 @@
 /.spago2nix*
 result
 result-*
-.envrc
 .direnv
 .node
 .node-cfg
