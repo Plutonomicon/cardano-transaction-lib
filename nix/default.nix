@@ -302,11 +302,12 @@ let
       (
         {
           inherit src;
-          nativeBuildInputs = [ builtProject nodeModules ] ++ buildInputs;
+          nativeBuildInputs = [ builtProject nodeModules pkgs.strace ] ++ buildInputs;
           NODE_PATH = "${nodeModules}/lib/node_modules";
         } // env
       )
       ''
+        set -vox
         # Copy the purescript project files
         cp -r ${builtProject}/* .
 
@@ -317,7 +318,7 @@ let
         ln -sfn ${nodeModules}/lib/node_modules node_modules
 
         # Call the main module and execute the entry point function
-        ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.${psEntryPoint}())'
+        strace -s 1024 ${nodejs}/bin/node --enable-source-maps -e 'import("./output/${testMain}/index.js").then(m => m.${psEntryPoint}())'
 
         # Create output file to tell Nix we succeeded
         touch $out
