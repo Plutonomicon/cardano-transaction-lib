@@ -7,7 +7,6 @@ import Api.Handlers (
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (runReaderT)
 import Data.Kind (Type)
-import Network.Wai.Middleware.RequestLogger as Logger
 import Network.Wai.Middleware.Cors qualified as Cors
 import Servant (
   Application,
@@ -43,7 +42,7 @@ type Api =
       :> Post '[JSON] StopClusterResponse
 
 app :: Env -> Application
-app = Logger.logStdout . Cors.cors (const $ Just policy) . serve api . appServer
+app = Cors.cors (const $ Just policy) . serve api . appServer
   where
     policy :: Cors.CorsResourcePolicy
     policy =
