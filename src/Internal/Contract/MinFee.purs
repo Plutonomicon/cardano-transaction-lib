@@ -9,13 +9,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _collateral
   , _inputs
   )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
-import Ctl.Internal.Contract.Wallet (getWalletAddresses, getWalletCollateral)
+import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -29,14 +26,14 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
 import Data.Either (hush)
+import Data.Lens (non)
 import Data.Lens.Getter ((^.))
-import Data.Map (empty, fromFoldable, keys, lookup, values) as Map
-import Data.Maybe (fromMaybe, maybe)
+import Data.Map (keys, lookup, values) as Map
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (difference, fromFoldable, intersection, mapMaybe, union) as Set
 import Data.Traversable (for)
-import Data.Tuple.Nested ((/\))
 import Effect.Aff (error)
 import Effect.Aff.Class (liftAff)
 
@@ -47,6 +44,8 @@ calculateMinFee tx additionalUtxos = do
   pparams <- getProtocolParameters
   calculateMinFeeCsl pparams selfSigners tx
 
+-- | This function estimates the set of keys that must be used
+-- | for signing to make the transaction valid for the network.
 getSelfSigners :: Transaction -> UtxoMap -> Contract (Set Ed25519KeyHash)
 getSelfSigners tx additionalUtxos = do
   queryHandle <- getQueryHandle
@@ -64,31 +63,33 @@ getSelfSigners tx additionalUtxos = do
       (_.address <<< unwrap) <$> Map.values additionalUtxos
 
   (inUtxosAddrs :: Set Address) <- setFor txInputs $ \txInput ->
-    liftedM (error $ "Couldn't get tx output for " <> show txInput) $
-      (map <<< map) (_.address <<< unwrap)
-        (liftAff $ queryHandle.getUtxoByOref txInput <#> hush >>> join)
+    liftedM (error $ "Couldn't get tx output for " <> show txInput)
+      $ (map <<< map) (_.address <<< unwrap)
+      $ case Map.lookup txInput additionalUtxos of
+          Nothing ->
+            liftAff (queryHandle.getUtxoByOref txInput <#> hush >>> join)
+          Just utxo -> pure $ Just utxo
 
-  -- Get all tx output addressses
   let
-    txCollats :: Set TransactionInput
-    txCollats = Set.fromFoldable <<< fromMaybe [] $ tx ^. _body <<< _collateral
+    collateralInputs = tx ^. _body <<< _collateral <<< non []
 
-  walletCollats <- maybe Map.empty toUtxoMap <$> getWalletCollateral
-
-  (inCollatAddrs :: Set Address) <- setFor txCollats
-    ( \txCollat ->
-        liftM (error $ "Couldn't get tx output for " <> show txCollat)
-          $ (map (_.address <<< unwrap) <<< Map.lookup txCollat)
-          $ walletCollats
-    )
+  (collateralAddresses :: Set Address) <-
+    setFor (Set.fromFoldable collateralInputs) $ \txInput ->
+      liftedM (error $ "Couldn't get tx output for " <> show txInput)
+        $ (map <<< map) (_.address <<< unwrap)
+        $ case Map.lookup txInput additionalUtxos of
+            Nothing ->
+              liftAff (queryHandle.getUtxoByOref txInput <#> hush >>> join)
+            Just utxo -> pure $ Just utxo
 
   -- Get own addressses
   (ownAddrs :: Set Address) <- Set.fromFoldable <$> getWalletAddresses
 
   -- Combine to get all self tx input addresses
   let
-    txOwnAddrs = ownAddrs `Set.intersection`
-      (additionalUtxosAddrs `Set.union` inUtxosAddrs `Set.union` inCollatAddrs)
+    txOwnAddrs =
+      (additionalUtxosAddrs `Set.union` ownAddrs) `Set.intersection`
+        (inUtxosAddrs `Set.union` collateralAddresses)
 
   -- Extract payment pub key hashes from addresses.
   paymentPkhs <- map (Set.mapMaybe identity) $ setFor txOwnAddrs $ \addr -> do
@@ -116,7 +117,3 @@ getSelfSigners tx additionalUtxos = do
     -> (a -> m b)
     -> m (Set b)
   setFor txIns f = Set.fromFoldable <$> for (fromFoldable txIns) f
-
-  toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
-  toUtxoMap = Map.fromFoldable <<< map
-    (unwrap >>> \({ input, output }) -> input /\ output)
