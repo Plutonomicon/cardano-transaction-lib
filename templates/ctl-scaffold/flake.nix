@@ -1,6 +1,12 @@
 {
   description = "ctl-scaffold";
 
+  nixConfig = {
+    extra-substituters = [ "https://plutonomicon.cachix.org" ];
+    extra-trusted-public-keys = [ "plutonomicon.cachix.org-1:evUxtNULjCjOipxwAnYhNFeF/lyYU1FeNGaVAnm+QQw=" ];
+    bash-prompt = "[\\[\\e[0;1m\\]\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+  };
+
   inputs = {
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -192,6 +198,4 @@
           default = (psProjectFor pkgs).devShell;
         });
     };
-
-  nixConfig.bash-prompt = "[\\[\\e[0;1m\\]\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
 }

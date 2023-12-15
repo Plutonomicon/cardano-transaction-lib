@@ -12,47 +12,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - [Changed](#changed)
   - [Fixed](#fixed)
   - [Removed](#removed)
-- [[v6.0.0]](#v600)
+- [[v7.0.0]](#v700)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Fixed](#fixed-1)
   - [Removed](#removed-1)
-- [[v5.0.0]](#v500)
+- [[v6.0.0]](#v600)
   - [Added](#added-2)
   - [Changed](#changed-2)
-  - [Removed](#removed-2)
   - [Fixed](#fixed-2)
-  - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed-3)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Removed](#removed-2)
+- [[v5.0.0]](#v500)
   - [Added](#added-3)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-4)
   - [Changed](#changed-3)
   - [Removed](#removed-3)
+  - [Fixed](#fixed-3)
+  - [Runtime Dependencies](#runtime-dependencies)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-4)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-4)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-5)
   - [Changed](#changed-4)
   - [Removed](#removed-4)
   - [Fixed](#fixed-5)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-6)
   - [Changed](#changed-5)
   - [Removed](#removed-5)
   - [Fixed](#fixed-6)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-7)
-  - [Removed](#removed-6)
   - [Changed](#changed-6)
+  - [Removed](#removed-6)
   - [Fixed](#fixed-7)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-8)
+  - [Removed](#removed-7)
+  - [Changed](#changed-7)
   - [Fixed](#fixed-8)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-9)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-10)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -66,6 +71,74 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Fixed
 
 ### Removed
+
+## [v7.0.0]
+
+### Added
+
+- [esbuild](esbuild.github.io/) bundler support.
+  - To update your package to use esbuild, add new `devDependencies` to your `package.json`:
+
+```diff
++    "esbuild": "0.18.11",
++    "esbuild-plugin-polyfill-node": "^0.3.0",
++    "esbuild-plugin-wasm": "^1.1.0",
+```
+
+    Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuild/) - also see the new [Makefile](./templates/ctl-scaffold/Makefile) setup and [NPM scripts](./templates/ctl-scaffold/package.json).
+
+### Changed
+
+- PureScript compiler version has been updated to v0.15.8. ([#1521](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1521))
+  - PureScript v0.15.x outputs and expects ES modules (instead of CommonJS), which means that FFI code in dependent projects should be updated to use [ES module-style imports and exports](https://nodejs.org/api/esm.html), and consumers of CTL-based bundles should expect ES modules as well.
+  - Due to limitations of ES modules (inability to patch at runtime), CTL now uses vendored versions of CSL for node and the browser:
+
+```diff
+-    "@emurgo/cardano-serialization-lib-browser": "11.2.1",
+-    "@emurgo/cardano-serialization-lib-nodejs": "11.2.1",
++    "@mlabs-haskell/cardano-serialization-lib-gc-browser": "^1.0.6",
++    "@mlabs-haskell/cardano-serialization-lib-gc-nodejs": "^1.0.6",
+```
+
+  - Our vendored version of `json-bigint` should be updated:
+
+```diff
+-    "@mlabs-haskell/json-bigint": "1.0.0",
++    "@mlabs-haskell/json-bigint": "2.0.0",
+```
+
+  - `utf-8-validate` NPM package has been added (used during bundling):
+
+```diff
++    "utf-8-validate": "^5.0.10",
+```
+
+- WebPack bundling machinery updates:
+
+```diff
+-    "webpack": "5.67.0",
+-    "webpack-cli": "4.10",
+-    "webpack-dev-server": "4.7.4"
++    "webpack": "5.88.1",
++    "webpack-cli": "5.1.4",
++    "webpack-dev-server": "4.15.1"
+```
+
+- Nix machinery refactorings ([#1521](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1521)):
+  - `buildPursDependencies` is a new function that allows to build everything except the source files of a project itself. It allows to skip rebuilding all the dependencies when using Nix every time. `buildPursProject` calls `buildPursDependencies` automatically.
+  - `censorCodes` and `strictComp` arguments have been removed from `purescriptProject` and added to `buildPursDependencies` and `buildPursProject` for more granular control.
+  - `runPursTest`: new `psEntryPoint` argument, for PureScript-level entry point function ("main" by default).
+  - `runE2ETest`: new `runnerMain` and `runnerPsEntryPoint` arguments to control which module should be the runner.
+  - `runE2ETest`: new arguments for configuring the E2E test suite: `envFile`, `emptySettingsFile` and `testTimeout`.
+  - `bundlePursProjectEsbuild` is a bundling function that uses newly introduced `esbuild`.
+  - `bundlePursProject` is renamed to `bundlePursProjectWebpack`
+- `Data.BigInt` (`purescript-bigints`) dependency was replaced with `JS.BigInt` (`purescript-js-bigints`), that uses native JavaScript BigInt instead of `BigInteger.js` library. You can remove `big-integer` NPM dependency from your project, if you don't use it elsewhere. ([#1551](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1551))
+
+### Fixed
+
+### Removed
+
+- Temporarily removed `buildSearchablePursDocs` and `launchSearchablePursDocs` from nix machinery - see [#1578](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1578) for context. Use `buildPursDocs` for now. ([#1521](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1521))
 
 ## [v6.0.0]
 

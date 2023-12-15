@@ -77,7 +77,7 @@ To **build** the project **without bundling and for a NodeJS environment**:
 - `npm run staking-test` to run [Plutip](./plutip-testing.md)-powered tests for ADA staking functionality - [entry point](../test/Plutip/Staking.purs)
 - `npm run blockfrost-test` for [Blockfrost-powered tests](./blockfrost.md) (does not require a runtime, but needs [some setup](./blockfrost.md#setting-up-a-blockfrost-powered-test-suite)) - [entry point](../test/Blockfrost/Contract.purs)
 - `npm run blockfrost-local-test` for self-hosted [Blockfrost-powered tests](./blockfrost.md) (requires a [local Blockfrost runtime](./blockfrost.md#running-blockfrost-locally)) - [entry point](../test/Blockfrost/Contract.purs)
-- `npm run e2e-test` for [tests with a headless browser](./e2e-testing.md) (requires a runtime and the tests served via HTTP)
+- `npm run e2e-test` for [tests with a headless browser](./e2e-testing.md) (requires a runtime and the tests served via HTTP: `npm run start-runtime` and `npm run webpack-serve` or `esbuild-serve`)
 
 #### With Nix
 
@@ -100,16 +100,16 @@ Here and below, `<SYSTEM>` should be replaced with [one of the supported systems
 
 To run or build/bundle the project for the browser:
 
-- `npm run e2e-serve` will start a Webpack development server at `localhost:4008`, which is required for [E2E tests](./e2e-testing.md)
-- `npm run build` will output a Webpack-bundled example module to `dist` (or `nix build -L .#ctl-example-bundle-web` to build an example module using Nix into `./result/`)
+- `npm run webpack-serve` will start a Webpack development server at `localhost:4008`, which is required for [E2E tests](./e2e-testing.md)
+- `npm run {webpack|esbuild}-bundle` will output a bundled example module to `dist` (or `nix build -L .#ctl-example-bundle-web-{webpack|esbuild}` to build an example module using Nix into `./result/`)
 
 By default, Webpack will build a [Purescript module](../examples/ByUrl.purs) that serves multiple example `Contract`s depending on URL (see [here](./e2e-testing.md#serving-the-contract-to-be-tested)). You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
-You will also need a light wallet extension pre-configured.
+You will also need a light wallet extension pre-configured to run a `Contract`.
 
-**Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset or set it to `0`.
+**Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset.
 
-**Note**: The `KUPO_HOST` environment variable must be set the base URL of the Kupo service in order to successfully run the project for the browser (e.g. `KUPO_HOST=http://localhost:1442`), otherwise all requests to Kupo will fail.
+**Note**: The `KUPO_HOST` environment variable must be set to the base URL of the Kupo service in order to successfully serve the project for the browser (by default, `KUPO_HOST=http://localhost:1442`).
 
 ## Generating PS documentation
 
