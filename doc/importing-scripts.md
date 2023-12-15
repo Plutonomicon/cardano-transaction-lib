@@ -4,7 +4,8 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Exporting scripts from Plutus](#exporting-scripts-from-plutus)
+- [Exporting scripts from Plutus or Plutarch](#exporting-scripts-from-plutus-or-plutarch)
+  - [Using Plutonomy](#using-plutonomy)
 - [Importing serialized scripts](#importing-serialized-scripts)
 - [Serializing Plutus scripts](#serializing-plutus-scripts)
   - [PlutusTx](#plutustx)
@@ -13,9 +14,35 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Exporting scripts from Plutus
+## Exporting scripts from Plutus or Plutarch
 
-See [the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold)'s [exporter](https://github.com/mlabs-haskell/the-plutus-scaffold/tree/main/onchain/exporter) for a pipeline example.
+Usually projects use a Haskell binary called *exporter* that outputs a pre-compiler UPLC bundle into a file.
+
+The output file should be a Cardano envelope:
+
+```json
+{
+    "cborHex": "4e4d01000033222220051200120011",
+    "description": "always-succeeds",
+    "type": "PlutusScriptV2"
+}
+```
+
+- An example of a Plutus exporter can be found [here](https://github.com/Mr-Andersen/ctl-multisign-mre/blob/main/onchain/exporter/Main.hs).
+- For Plutarch, see [the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold)'s [exporter](https://github.com/mlabs-haskell/the-plutus-scaffold/tree/main/onchain/exporter).
+
+
+### Using Plutonomy
+
+It makes sense to use [Plutonomy](https://github.com/well-typed/plutonomy) (an optimizer for UPLC) in the exporter:
+
+```haskell
+import Plutonomy (aggressiveOptimizerOptions, optimizeUPLCWith)
+
+script :: Script
+script = fromCompiledCode $
+  optimizeUPLCWith aggressiveOptimizerOptions $$(PlutusTx.compile [||policy||])
+```
 
 ## Importing serialized scripts
 

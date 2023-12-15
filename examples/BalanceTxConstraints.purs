@@ -51,9 +51,9 @@ import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
 import Data.Array (head)
 import Data.Array (sort) as Array
-import Data.BigInt (BigInt, fromInt)
 import Data.Map (fromFoldable, keys, member) as Map
 import Data.Set (findMin) as Set
+import JS.BigInt (BigInt, fromInt)
 
 newtype ContractParams = ContractParams
   { aliceKeyWallet :: KeyWallet

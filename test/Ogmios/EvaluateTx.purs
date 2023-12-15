@@ -17,13 +17,13 @@ import Ctl.Internal.QueryM.Ogmios
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend, Cert, Reward))
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right))
 import Data.Map as Map
 import Data.Maybe (fromJust)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures

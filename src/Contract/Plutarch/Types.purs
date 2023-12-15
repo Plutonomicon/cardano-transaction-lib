@@ -23,7 +23,7 @@ import Contract.PlutusData
   , class ToData
   , PlutusData(List, Integer)
   )
-import Data.BigInt (BigInt)
+import JS.BigInt (BigInt)
 
 newtype PRational = PRational R.Rational
 

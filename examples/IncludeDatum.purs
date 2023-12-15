@@ -33,9 +33,9 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.BigInt as BigInt
 import Data.Lens (view)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -94,11 +94,19 @@ spendFromIncludeDatum vhash validator txId = do
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
-foreign import includeDatum :: String
-
 -- | checks if the datum equals 42
 only42Script :: Contract Validator
-only42Script =
+only42Script = do
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum
     Validator <$> plutusScriptV1FromEnvelope envelope
+
+includeDatum :: String
+includeDatum =
+  """
+{
+    "type": "PlutusScriptV1",
+    "description": "include-datum",
+    "cborHex": "55540100002225333573466e1cdd6801a40a82930b01"
+}
+"""

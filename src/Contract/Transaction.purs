@@ -237,7 +237,6 @@ import Ctl.Internal.Types.VRFKeyHash
   ) as X
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right))
 import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
@@ -254,6 +253,7 @@ import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (try)
+import JS.BigInt (BigInt)
 
 -- | Signs a transaction with potential failure.
 signTransaction

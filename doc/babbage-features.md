@@ -14,7 +14,7 @@ This document is a reference/explainer for the new CTL APIs introduced for Babba
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ## Reference Inputs
 
-[Reference inputs](https://cips.cardano.org/cip/CIP-0031/#reference-inputs) allow looking at an output without spending it in Plutus scripts.
+[Reference inputs](https://cips.cardano.org/cip/CIP-0031#reference-inputs) allow looking at an output without spending it in Plutus scripts.
 
 There are two ways to use an input as a reference in the constraints API:
 
@@ -28,7 +28,7 @@ There are two ways to use an input as a reference in the constraints API:
 
 ## Reference Scripts
 
-[Reference Scripts](https://developers.cardano.org/docs/governance/cardano-improvement-proposals/cip-0033/) allows the use of scripts without attaching them to the transaction (and using a reference instead).
+[Reference Scripts](https://cips.cardano.org/cip/CIP-0033) allows the use of scripts without attaching them to the transaction (and using a reference instead).
 
 Reference scripts can be utilized in CTL by first creating a reference point for the script to be used later via `mustPayToScriptWithScriptRef` (or its variants).
 
@@ -40,7 +40,7 @@ Then, `mustSpendScriptOutputUsingScriptRef` (or its variants) can be used to use
 
 ## Inline Data
 
-[CIP-32](https://developers.cardano.org/docs/governance/cardano-improvement-proposals/cip-0032/) introduces the inline data feature that allows storing datum values directly in transaction outputs, instead of just the hashes.
+[CIP-32](https://cips.cardano.org/cip/CIP-0032) introduces the inline data feature that allows storing datum values directly in transaction outputs, instead of just the hashes.
 
 In CTL, alternating between datum storage options can be achieved by specifying a `DatumPresence` value with constraints that accept it, like `mustPayToPubKeyWithDatum`.
 

@@ -75,7 +75,6 @@ import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.IncludeDatum (only42Script)
 import Data.Array (head, (!!))
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
@@ -96,6 +95,7 @@ import Effect.Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config) as Common

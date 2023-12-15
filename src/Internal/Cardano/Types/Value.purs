@@ -102,8 +102,6 @@ import Data.Array (fromFoldable) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt, fromInt, toNumber)
-import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
@@ -127,6 +125,8 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt (BigInt, fromInt, toNumber)
+import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt, suchThat, vectorOf)

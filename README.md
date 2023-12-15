@@ -118,7 +118,7 @@ You can find help, more information and ongoing discusion about the project here
 
 ## Funding acknowledgements
 
-CTL is being developed by MLabs. The following companies/funds have contributed significan resources to development:
+CTL is being developed by MLabs. The following companies/funds have contributed significant resources to development:
 
 - [IOHK](https://iohk.io/en/about/)
 - [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)

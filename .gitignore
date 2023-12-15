@@ -27,5 +27,5 @@ test-data/keys
 tmp
 node_modules
 plutip-server/dist-newstyle/
+plutip-server/dist/
 plutip-server/.stack-work/
-

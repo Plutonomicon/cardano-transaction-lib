@@ -146,8 +146,6 @@ import Data.Array.NonEmpty
   ) as NEArray
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt (toString) as BigInt
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
 import Data.Function (on)
@@ -167,6 +165,8 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (toInt) as UInt
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
+import JS.BigInt (BigInt)
+import JS.BigInt (toString) as BigInt
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.

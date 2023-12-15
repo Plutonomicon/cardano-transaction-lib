@@ -64,7 +64,6 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, notElem) as Array
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
 import Data.Lens.Getter ((^.))
@@ -79,6 +78,7 @@ import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
+import JS.BigInt (BigInt)
 
 evalTxExecutionUnits
   :: Transaction

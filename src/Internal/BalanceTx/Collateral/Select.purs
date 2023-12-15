@@ -19,8 +19,6 @@ import Ctl.Internal.Cardano.Types.Value (NonAdaAsset)
 import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (foldMap, foldl)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
@@ -34,6 +32,8 @@ import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt) as BigInt
 
 minRequiredCollateral :: BigInt
 minRequiredCollateral = BigInt.fromInt 5_000_000

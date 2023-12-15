@@ -30,8 +30,8 @@ import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   ) as Helpers
-import Data.BigInt (fromInt) as BigInt
 import Effect.Exception (error)
+import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -74,24 +74,24 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-foreign import redeemerInt1 :: String
-foreign import redeemerInt2 :: String
-foreign import redeemerInt3 :: String
+foreign import redeemer1Script :: String
+foreign import redeemer2Script :: String
+foreign import redeemer3Script :: String
 
 mintingPolicyRdmrInt1 :: Contract MintingPolicy
-mintingPolicyRdmrInt1 =
-  liftMaybe (error "Error decoding redeemerInt1") do
-    envelope <- decodeTextEnvelope redeemerInt3
+mintingPolicyRdmrInt1 = do
+  liftMaybe (error "Error decoding redeemer1Script") do
+    envelope <- decodeTextEnvelope redeemer1Script
     PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 mintingPolicyRdmrInt2 :: Contract MintingPolicy
-mintingPolicyRdmrInt2 =
-  liftMaybe (error "Error decoding redeemerInt2") do
-    envelope <- decodeTextEnvelope redeemerInt3
+mintingPolicyRdmrInt2 = do
+  liftMaybe (error "Error decoding redeemer2Script") do
+    envelope <- decodeTextEnvelope redeemer2Script
     PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
 
 mintingPolicyRdmrInt3 :: Contract MintingPolicy
-mintingPolicyRdmrInt3 =
-  liftMaybe (error "Error decoding redeemerInt3") do
-    envelope <- decodeTextEnvelope redeemerInt3
+mintingPolicyRdmrInt3 = do
+  liftMaybe (error "Error decoding redeemer3Script") do
+    envelope <- decodeTextEnvelope redeemer3Script
     PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope

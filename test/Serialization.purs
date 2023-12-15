@@ -22,7 +22,6 @@ import Ctl.Internal.Types.BigNum (fromString, one) as BN
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.CborBytes (cborBytesToHex)
 import Ctl.Internal.Types.PlutusData as PD
-import Data.BigInt as BigInt
 import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -30,6 +29,7 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Test.Ctl.Fixtures
   ( txBinaryFixture1

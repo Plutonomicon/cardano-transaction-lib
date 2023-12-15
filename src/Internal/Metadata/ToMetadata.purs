@@ -10,15 +10,12 @@ import Ctl.Internal.Types.Int (Int, fromBigInt) as Int
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
   )
-import Data.Array (fromFoldable) as Array
-import Data.BigInt (BigInt)
-import Data.Foldable (class Foldable)
 import Data.Map (Map)
 import Data.Map (fromFoldable, toUnfoldable) as Map
 import Data.Maybe (fromJust)
-import Data.NonEmpty (NonEmpty)
 import Data.Profunctor.Strong ((***))
 import Data.Tuple (Tuple)
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
@@ -48,9 +45,6 @@ instance
   toMetadata = toMetadata <<< Map.fromFoldable
 else instance ToMetadata a => ToMetadata (Array a) where
   toMetadata = MetadataList <<< map toMetadata
-
-instance (Foldable f, ToMetadata a) => ToMetadata (NonEmpty f a) where
-  toMetadata = toMetadata <<< Array.fromFoldable
 
 instance ToMetadata Int.Int where
   toMetadata = Int

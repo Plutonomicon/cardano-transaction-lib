@@ -32,7 +32,7 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Array (head)
-import Data.BigInt as BigInt
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

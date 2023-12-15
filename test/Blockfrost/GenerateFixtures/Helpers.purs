@@ -29,7 +29,8 @@ import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String (take) as String
 import Effect.Exception (throw)
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (exists, writeTextFile)
+import Node.FS.Aff (writeTextFile)
+import Node.FS.Sync (exists)
 import Node.Path (concat)
 import Node.Process (lookupEnv)
 
@@ -90,7 +91,7 @@ storeBlockfrostFixture i query resp = do
   let
     filename = query <> "-" <> respHash <> ".json"
     fp = concat [ "fixtures", "test", "blockfrost", query, filename ]
-  exists fp >>= flip unless
+  liftEffect (exists fp) >>= flip unless
     ( writeTextFile UTF8 fp resp
         *> log ("Successfully saved fixture #" <> show i <> " to: " <> fp)
     )

@@ -1,6 +1,12 @@
 {
   description = "ctl-scaffold";
 
+  nixConfig = {
+    extra-substituters = [ "https://plutonomicon.cachix.org" ];
+    extra-trusted-public-keys = [ "plutonomicon.cachix.org-1:evUxtNULjCjOipxwAnYhNFeF/lyYU1FeNGaVAnm+QQw=" ];
+    bash-prompt = "[\\[\\e[0;1m\\]\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
+  };
+
   inputs = {
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -10,7 +16,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "d67c493a1afd63bf078eb9f343f173008c6ee820";
+      rev = "a742692d605aabd75043aee9eef0ecdfec63eacc";
     };
     # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
@@ -118,12 +124,18 @@
         in
         {
           default = self.packages.${system}.ctl-scaffold-bundle-web;
-          ctl-scaffold-bundle-web = (psProjectFor pkgs).bundlePursProject {
+
+          ctl-scaffold-bundle-web-esbuild = (psProjectFor pkgs).bundlePursProjectEsbuild {
             main = "Scaffold.Main";
-            entrypoint = "index.js";
           };
+
+          ctl-scaffold-bundle-web-webpack = (psProjectFor pkgs).bundlePursProjectWebpack {
+            main = "Scaffold.Main";
+          };
+
           ctl-scaffold-runtime = pkgs.buildCtlRuntime runtimeConfig;
         });
+
 
       # `launchCtlRuntime` will generate a Nix expression from the provided
       # config, build it into a JSON file, and then run it with Arion

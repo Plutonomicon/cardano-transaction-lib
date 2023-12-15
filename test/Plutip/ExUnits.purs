@@ -11,9 +11,9 @@ import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Contract.Transaction (awaitTxConfirmed)
 import Ctl.Examples.ExUnits as ExUnits
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Data.BigInt as BigInt
 import Data.Either (isLeft)
 import Effect.Aff (try)
+import JS.BigInt as BigInt
 import Mote (test)
 import Test.Spec.Assertions (shouldSatisfy)
 

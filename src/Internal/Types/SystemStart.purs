@@ -9,8 +9,6 @@ module Ctl.Internal.Types.SystemStart
 import Prelude
 
 import Control.Alt ((<|>))
-import Data.BigInt (BigInt)
-import Data.BigInt (fromNumber) as BigInt
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (fromDateTime, unInstant)
 import Data.Either (Either, hush)
@@ -20,6 +18,8 @@ import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (length, take) as String
+import JS.BigInt (BigInt)
+import JS.BigInt (fromNumber) as BigInt
 import Partial.Unsafe (unsafePartial)
 
 newtype SystemStart = SystemStart DateTime

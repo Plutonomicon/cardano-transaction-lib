@@ -1,24 +1,17 @@
-/* global BROWSER_RUNTIME */
+export const redeemerIs1Script = `{
+    "description": "validator that checks whether redeemer is 1",
+    "cborHex": "4e4d0100002223375e0046ea120021",
+    "type": "PlutusScriptV1"
+}`;
 
-let vredeemerInt1, vredeemerInt2, vredeemerInt3;
+export const redeemerIs2Script = `{
+    "description": "validator that checks whether redeemer is 2",
+    "cborHex": "4e4d0100002223375e0046ea120041",
+    "type": "PlutusScriptV1"
+}`;
 
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  vredeemerInt1 = require("Scripts/redeemer1-validator.plutus");
-  vredeemerInt2 = require("Scripts/redeemer2-validator.plutus");
-  vredeemerInt3 = require("Scripts/redeemer3-validator.plutus");
-} else {
-  const fs = require("fs");
-  const path = require("path");
-  const readScript = name =>
-    fs.readFileSync(
-      path.resolve(__dirname, `../../fixtures/scripts/${name}.plutus`),
-      "utf8"
-    );
-  vredeemerInt1 = readScript("redeemer1-validator");
-  vredeemerInt2 = readScript("redeemer2-validator");
-  vredeemerInt3 = readScript("redeemer3-validator");
-}
-
-exports.vredeemerInt1 = vredeemerInt1;
-exports.vredeemerInt2 = vredeemerInt2;
-exports.vredeemerInt3 = vredeemerInt3;
+export const redeemerIs3Script = `{
+    "description": "validator that checks whether redeemer is 3",
+    "cborHex": "4e4d0100002223375e0046ea120061",
+    "type": "PlutusScriptV1"
+}`;

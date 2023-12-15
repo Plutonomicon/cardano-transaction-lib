@@ -29,8 +29,8 @@ import Ctl.Examples.Helpers
   , mustPayToPubKeyStakeAddress
   ) as Helpers
 import Data.Array (head)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

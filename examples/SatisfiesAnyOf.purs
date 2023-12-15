@@ -23,7 +23,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx)
-import Data.BigInt as BigInt
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig

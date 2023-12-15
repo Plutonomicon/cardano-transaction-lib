@@ -5,7 +5,7 @@ You can edit this file as you like.
 { name = "ctl-package-example"
 , dependencies =
   [ "aff"
-  , "bigints"
+  , "js-bigints"
   , "cardano-transaction-lib"
   , "datetime"
   , "effect"

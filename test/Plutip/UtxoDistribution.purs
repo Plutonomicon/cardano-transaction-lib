@@ -44,20 +44,20 @@ import Control.Lazy (fix)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, toString) as BigInt
+import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
-import Data.List (fromFoldable) as List
 import Data.Map (empty, insert, isEmpty) as Map
 import Data.Maybe (isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.NonEmpty ((:|))
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, toString) as BigInt
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
@@ -137,9 +137,9 @@ genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
   <$> arrayOf (chooseInt 1 1000)
 
 instance Arbitrary ArbitraryUtxoDistr where
-  arbitrary = fix \_ -> sized $ \size -> resize size $ frequency <<< wrap $
-    (1.0 /\ pure UDUnit) :|
-      List.fromFoldable
+  arbitrary =
+    fix \_ -> sized $ \size -> resize size $ frequency $ NEArray.fromNonEmpty $
+      (1.0 /\ pure UDUnit) :|
         [ 2.0 /\ (UDInitialUtxos <$> genInitialUtxo)
         , 2.0 /\
             ( UDInitialUtxosWithStake <$>

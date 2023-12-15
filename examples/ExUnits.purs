@@ -33,10 +33,10 @@ import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Lens (view)
 import Effect.Exception (error)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -119,10 +119,10 @@ spendFromExUnits iters vhash validator txId = do
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
-foreign import exUnits :: String
-
 exUnitsScript :: Contract Validator
-exUnitsScript =
+exUnitsScript = do
   liftMaybe (error "Error decoding exUnits") do
     envelope <- decodeTextEnvelope exUnits
     Validator <$> plutusScriptV2FromEnvelope envelope
+
+foreign import exUnits :: String

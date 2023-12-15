@@ -26,7 +26,7 @@ import Aeson
   , JsonDecodeError(TypeMismatch, UnexpectedValue)
   , decodeAeson
   , encodeAeson
-  , partialFiniteNumber
+  , finiteNumber
   , toStringifiedNumbersJson
   , (.:)
   )
@@ -41,7 +41,7 @@ import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds(Seconds))
@@ -94,7 +94,7 @@ instance EncodeAeson ClusterStartupRequest where
     ) = encodeAeson
     { keysToGenerate
     , epochSize
-    , slotLength: unsafePartial partialFiniteNumber slotLength
+    , slotLength: unsafePartial $ fromJust $ finiteNumber slotLength
     , maxTxSize
     , raiseExUnitsToMax
     }

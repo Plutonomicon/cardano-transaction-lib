@@ -2,20 +2,22 @@
 
 let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
 } else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
 }
-lib = require("@mlabs-haskell/csl-gc-wrapper")(lib);
 
-exports._minFee = maybe => tx => txFeeFixed => txFeePerByte => {
-  try {
-    const linearFee = lib.LinearFee.new(txFeePerByte, txFeeFixed);
-    return maybe.just(lib.min_fee(tx, linearFee));
-  } catch (_) {
-    return maybe.nothing;
-  }
-};
+export function _minFee(maybe) {
+  return tx => txFeeFixed => txFeePerByte => {
+    try {
+      const linearFee = lib.LinearFee.new(txFeePerByte, txFeeFixed);
+      return maybe.just(lib.min_fee(tx, linearFee));
+    } catch (_) {
+      return maybe.nothing;
+    }
+  };
+}
 
-exports._minScriptFee = exUnitPrices => tx =>
-  lib.min_script_fee(tx, exUnitPrices);
+export function _minScriptFee(exUnitPrices) {
+  return tx => lib.min_script_fee(tx, exUnitPrices);
+}

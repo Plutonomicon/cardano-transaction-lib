@@ -5,8 +5,8 @@ module Ctl.Internal.Deserialization.BigInt
 import Prelude
 
 import Ctl.Internal.Serialization.Types (BigInt)
-import Data.BigInt as BigInt
 import Data.Maybe (Maybe)
+import JS.BigInt as BigInt
 
 convertBigInt :: BigInt -> Maybe BigInt.BigInt
 convertBigInt = BigInt.fromString <<< _BigInt_to_str

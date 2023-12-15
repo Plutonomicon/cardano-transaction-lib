@@ -5,7 +5,7 @@ import Prelude
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Data.BigInt (fromInt) as BigInt
+import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 
 suite :: TestPlanM ContractTest Unit

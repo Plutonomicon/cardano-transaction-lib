@@ -35,9 +35,9 @@ import Ctl.Internal.Service.Blockfrost
   )
 import Ctl.Internal.Service.Blockfrost (getScriptInfo) as Blockfrost
 import Data.Array (zip) as Array
-import Data.BigInt (fromInt) as BigInt
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (fromInt) as UInt
+import JS.BigInt (fromInt) as BigInt
 import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
   ( blockfrostBackend
   , getSkeyFilepathFromEnv

@@ -21,10 +21,10 @@ import Ctl.Internal.Serialization.Types
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData as T
-import Data.BigInt as BigInt
 import Data.Maybe (Maybe, fromJust)
 import Data.Tuple (Tuple, fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 
 convertPlutusData :: T.PlutusData -> PlutusData
