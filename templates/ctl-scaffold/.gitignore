@@ -20,9 +20,5 @@ test-data/preprod
 test-data/mainnet
 test-data/keys
 .projectile
-/dist/*
-!/dist/esbuild/
-/dist/esbuild/*
-!/dist/esbuild/index.html
-!/dist/esbuild/wrapper.js
+/dist/
 output.js
