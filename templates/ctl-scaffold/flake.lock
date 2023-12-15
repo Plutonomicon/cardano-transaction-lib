@@ -1686,17 +1686,17 @@
         "plutip": "plutip"
       },
       "locked": {
-        "lastModified": 1702493588,
-        "narHash": "sha256-Thdyj43WqEUiI1QAOIh250zTLtV7fT7aU4bTdIGsfhA=",
+        "lastModified": 1702645636,
+        "narHash": "sha256-GiSImwp0QoKheOhX7aftGpYayPdRdu3W1TcXY1GMUuk=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "774c005ae9ebd228e9b6c31a636b3470d11064dd",
+        "rev": "a742692d605aabd75043aee9eef0ecdfec63eacc",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "774c005ae9ebd228e9b6c31a636b3470d11064dd",
+        "rev": "a742692d605aabd75043aee9eef0ecdfec63eacc",
         "type": "github"
       }
     },
