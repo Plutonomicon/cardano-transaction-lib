@@ -2,8 +2,8 @@
 
 import Blake2 from "blakejs";
 
-import SHA256 from "jssha/dist/sha256";
-import SHA3 from "jssha/dist/sha3";
+import SHA256 from "jssha/sha256";
+import SHA3 from "jssha/sha3";
 
 let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
