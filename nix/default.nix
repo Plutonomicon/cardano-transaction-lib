@@ -255,6 +255,9 @@ let
         mkdir -p output .spago
         cp -rp ${pursDependencies}/.spago/* .spago
         cp -rp ${pursDependencies}/output/* output
+        # note that we copy the entire source directory, not just $src/src,
+        # because we need sources in ./examples and ./test
+        cp -rp $src ./src
 
         # add write permissions for the PS compiler to use
         # `output/cache-db.json`
@@ -264,7 +267,7 @@ let
         psa ${pkgs.lib.optionalString strictComp "--strict" } \
           --censor-lib \
           --is-lib=.spago ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''--is-lib=./${extraSourcesDir} "${extraSourcesDir}/*/**/*.purs"''} \
-          --censor-codes=${builtins.concatStringsSep "," censorCodes} "$src/**/*.purs" \
+          --censor-codes=${builtins.concatStringsSep "," censorCodes} "./src/**/*.purs" \
           -gsourcemaps,js
       '';
       # We also need to copy all of `src` here, since compiled modules in `output`
@@ -588,143 +591,32 @@ let
           --entry ./entrypoint.js
       '';
 
-  pursDocsSearchNpm =
-    let
-      fakePackage = builtins.toJSON {
-        name = "pursDocsSearch";
-        version = "0.0.0";
-        dependencies = { "purescript-docs-search" = "0.0.12"; };
-      };
-      fakePackageLock = builtins.toJSON {
-        requires = true;
-        lockfileVersion = 1;
-        dependencies = {
-          punycode = {
-            version = "2.1.1";
-            resolved = "https://registry.npmjs.org/punycode/-/punycode-2.1.1.tgz";
-            integrity = "sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==";
-          };
-          purescript-docs-search = {
-            version = "0.0.12";
-            resolved = "https://registry.npmjs.org/purescript-docs-search/-/purescript-docs-search-0.0.12.tgz";
-            integrity = "sha512-NdhQ3AxbKR2wO+WT2fGa8Rw26JydL6Bgnf73WOazmlfHt4uszblYqiWfaZygyUMOQFnXtpqz5TQj6DW6nk4nEg==";
-          };
-        };
-      };
-    in
-    import
-      (pkgs.runCommand "purescript-docs-search-npm"
-        {
-          buildInputs = [ pkgs.nodePackages.node2nix ];
-        }
-        ''
-          mkdir $out
-          cd $out
-          cat > package.json <<EOF
-            ${fakePackage}
-          EOF
-          cat > package-lock.json <<EOF
-            ${fakePackageLock}
-          EOF
-          node2nix --lock ./package-lock.json -i ./package.json
-        '')
-      { inherit pkgs nodejs system; };
-
   buildPursDocs =
     { name ? "${projectName}-docs"
     , format ? "html"
     , ...
     }@args:
-    (buildPursProject args).overrideAttrs
+    (buildPursProject (args // { strictComp = false; })).overrideAttrs
       (oas: {
         inherit name;
         buildPhase = ''
-          purs docs --format ${format} "./**/*.purs" ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''"${extraSourcesDir}/*/**/*.purs"''}
+          purs docs --format ${format} "./src/**/*.purs" ".spago/*/*/src/**/*.purs" ${pkgs.lib.optionalString hasExtraSources ''"${extraSourcesDir}/*/**/*.purs"''}
         '';
         installPhase = ''
           mkdir $out
           cp -r generated-docs $out
           cp -r output $out
-          if [ -e $src/src ]; then cp -r $src/src $out; fi
         '';
       });
-
-  # Builds all of the documentation for your Purescript project (including deps)
-  # and creates a searchable index for them
-  buildSearchablePursDocs =
-    {
-      # Passed to the `--package-name` argument of `purescript-docs-search`
-      packageName ? projectName
-    , ...
-    }:
-    pkgs.runCommand "${projectName}-searchable-docs"
-      {
-        buildInputs = [ spagoPkgs.installSpagoStyle ];
-      }
-      ''
-        export NODE_PATH="${pursDocsSearchNpm.nodeDependencies}/lib/node_modules"
-        ln -sfn $NODE_PATH node_modules
-        export PATH="${pursDocsSearchNpm.nodeDependencies}/bin:$PATH"
-        if [ -e ${buildPursDocs { }}/src ]; then cp -r ${buildPursDocs { }}/src .; fi
-        cp -r ${buildPursDocs { }}/{generated-docs,output} .
-        install-spago-style
-        chmod -R +rwx .
-        purescript-docs-search build-index --package-name ${packageName} --source-files 'src/**/*.purs'
-        mkdir $out
-        cp -r generated-docs $out
-      '';
-
-  # Creates a flakes-compatible `apps` output to serve a searchable index of all
-  # project docs (including dependencies) locally. For example
-  #
-  # ```
-  #   apps = perSystem (system: {
-  #     docs = (psProjectFor system).launchSearchablePursDocs { port = 9090; };
-  #   });
-  # ```
-  #
-  # You can then invoke `nix run .#docs` to serve the documentation index locally
-  # and visit `localhost:9090` to browse them
-  launchSearchablePursDocs =
-    {
-      # If you are already building your docs (e.g. as part of your flake
-      # `packages`), you can pass them here. Otherwise, `buildSearchablePursDocs`
-      # will be invoked
-      builtDocs ? null
-      # The port to run the local HTTP server on
-    , port ? 8080
-    , ...
-    }:
-    let
-      binPath = "docs-server";
-      docs =
-        if builtDocs == null
-        then buildSearchablePursDocs { }
-        else builtDocs;
-      script = pkgs.writeShellApplication {
-        name = binPath;
-        runtimeInputs = [
-          pkgs.nodejs-18_x
-          pkgs.nodePackages.http-server
-        ];
-        text =
-          ''
-            ${pkgs.nodePackages.http-server}/bin/http-server \
-              --port ${builtins.toString port} ${docs}/generated-docs/html
-          '';
-      };
-    in
-    {
-      type = "app";
-      program = "${script}/bin/${binPath}";
-    };
 
 in
 {
   inherit
     buildPursProject buildPursDependencies runPursTest runPlutipTest runE2ETest
     bundlePursProjectEsbuild bundlePursProjectWebpack
-    buildPursDocs buildSearchablePursDocs launchSearchablePursDocs
+    buildPursDocs
+    # TODO: restore buildSearchablePursDocs and launchSearchablePursDocs
+    # https://github.com/Plutonomicon/cardano-transaction-lib/issues/1578
     purs nodejs mkNodeModules;
   devShell = shellFor shell;
   compiled = buildPursProject { };

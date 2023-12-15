@@ -215,7 +215,7 @@
               modules = [ (buildCtlRuntime pkgs { }) ];
             };
 
-            docs = project.buildSearchablePursDocs {
+            docs = project.buildPursDocs {
               packageName = projectName;
             };
           };
@@ -245,9 +245,11 @@
           devShell = project.devShell;
 
           apps = {
-            docs = project.launchSearchablePursDocs {
-              builtDocs = packages.docs;
-            };
+            # TODO: restore this
+            # https://github.com/Plutonomicon/cardano-transaction-lib/issues/1578
+            # docs = project.launchSearchablePursDocs {
+            #   builtDocs = packages.docs;
+            # };
           };
         };
 
