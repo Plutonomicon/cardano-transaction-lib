@@ -76,7 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-- [esbuild](esbuild.github.io/) bundler support.
+- [esbuild](https://esbuild.github.io/) bundler support.
   - To update your package to use esbuild, add new `devDependencies` to your `package.json`:
 
 ```diff
