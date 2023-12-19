@@ -85,7 +85,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 +    "esbuild-plugin-wasm": "^1.1.0",
 ```
 
-    Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuild/) - also see the new [Makefile](./templates/ctl-scaffold/Makefile) setup and [NPM scripts](./templates/ctl-scaffold/package.json).
+Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuild/) - also see the new [Makefile](./templates/ctl-scaffold/Makefile) setup and [NPM scripts](./templates/ctl-scaffold/package.json).
 
 ### Changed
 
