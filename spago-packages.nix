@@ -221,6 +221,30 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "cip30" = pkgs.stdenv.mkDerivation {
+        name = "cip30";
+        version = "19b9cf5fc1b8c2d680ec7ffd728c7de34352968c";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-cip30";
+          rev = "19b9cf5fc1b8c2d680ec7ffd728c7de34352968c";
+          sha256 = "0faz96d0s0663x714cvz6pv38wi6vlyjv47b7p1r0xza4n8dgikq";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "cip30-typesafe" = pkgs.stdenv.mkDerivation {
+        name = "cip30-typesafe";
+        version = "c76c1d36b3847dc22a7bfcf79dcb44ea8719d546";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-cip30-typesafe";
+          rev = "c76c1d36b3847dc22a7bfcf79dcb44ea8719d546";
+          sha256 = "1vzb5sm5fvpxmkvpyis4hxk2c05v3fj5j7yxnl2c3wsfcsj9mxl8";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "console" = pkgs.stdenv.mkDerivation {
         name = "console";
         version = "v6.0.0";

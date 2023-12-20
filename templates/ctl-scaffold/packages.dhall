@@ -220,6 +220,8 @@ let additions =
           , "js-bigints"
           , "bignumber"
           , "checked-exceptions"
+          , "cip30"
+          , "cip30-typesafe"
           , "console"
           , "control"
           , "crypto"
@@ -296,12 +298,46 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "a742692d605aabd75043aee9eef0ecdfec63eacc"
+        , version = "7d533241367081fa69ec5f0ec8f50e00c39430c2"
         }
       , js-bigints =
         { dependencies = [ "integers", "maybe", "prelude" ]
         , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
         , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
+        }
+      , cip30 =
+        { dependencies =
+          [ "console"
+          , "effect"
+          , "prelude"
+          , "aff"
+          , "aff-promise"
+          , "arrays"
+          , "maybe"
+          , "nullable"
+          , "literals"
+          , "untagged-union"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip30"
+        , version = "19b9cf5fc1b8c2d680ec7ffd728c7de34352968c"
+        }
+      , cip30-typesafe =
+        { dependencies =
+          [ "aff"
+          , "bifunctors"
+          , "cip30"
+          , "control"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "maybe"
+          , "prelude"
+          , "spec"
+          , "transformers"
+          , "variant"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
+        , version = "c76c1d36b3847dc22a7bfcf79dcb44ea8719d546"
         }
       }
 
