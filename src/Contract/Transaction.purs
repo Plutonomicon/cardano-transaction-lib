@@ -262,7 +262,6 @@ signTransaction
   -> Contract BalancedSignedTransaction
 signTransaction =
   map BalancedSignedTransaction
-    <<< liftedM "Error signing the transaction"
     <<< Contract.signTransaction
     <<< unwrap
 

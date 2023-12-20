@@ -224,6 +224,24 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cip30"
         , version = "19b9cf5fc1b8c2d680ec7ffd728c7de34352968c"
         }
+      , cip30-typesafe =
+        { dependencies =
+          [ "aff"
+          , "bifunctors"
+          , "cip30"
+          , "control"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "maybe"
+          , "prelude"
+          , "spec"
+          , "transformers"
+          , "variant"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
+        , version = "c76c1d36b3847dc22a7bfcf79dcb44ea8719d546"
+        }
       }
 
 in  upstream // additions

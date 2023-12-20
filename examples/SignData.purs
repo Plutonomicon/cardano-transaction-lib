@@ -37,8 +37,6 @@ contract = do
 
   testSignDataWithAddress :: String -> Address -> Contract Unit
   testSignDataWithAddress addressLabel address = do
-    dataSignature <-
-      signData address payload
-        # liftedM "Could not get data signature"
+    dataSignature <- signData address payload
     logInfo' $ "signData " <> addressLabel <> ": " <> show dataSignature
     void $ liftAff $ checkCip30SignDataResponse address dataSignature

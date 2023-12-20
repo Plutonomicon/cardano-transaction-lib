@@ -15,7 +15,6 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashToBytes
   , scriptHashToBytes
   )
-import Ctl.Internal.Transaction (ModifyTxError, explainModifyTxError)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.Interval
@@ -58,7 +57,6 @@ data MkUnbalancedTxError
   | DatumWrongHash DataHash Datum
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | MintingPolicyNotFound MintingPolicyHash
-  | ModifyTx ModifyTxError
   | OwnPubKeyAndStakeKeyMissing
   | TxOutRefNotFound TransactionInput
   | TxOutRefWrongType TransactionInput
@@ -127,7 +125,6 @@ explainMkUnbalancedTxError = case _ of
   MintingPolicyNotFound mp -> "Minting policy with hash "
     <> rawBytesToHex (scriptHashToBytes $ unwrap mp)
     <> " not found in a set of minting policies"
-  ModifyTx modifyTxErr -> explainModifyTxError modifyTxErr
   OwnPubKeyAndStakeKeyMissing ->
     "Could not build own address: both payment pubkey and stake pubkey are missing"
   TxOutRefNotFound ti ->

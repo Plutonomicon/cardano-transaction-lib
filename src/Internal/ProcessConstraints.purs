@@ -66,8 +66,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   )
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
-      ( ModifyTx
-      , CannotSatisfyAny
+      ( CannotSatisfyAny
       , CannotWithdrawRewardsNativeScript
       , CannotWithdrawRewardsPlutusScript
       , CannotWithdrawRewardsPubKey
@@ -128,8 +127,7 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Transaction
-  ( ModifyTxError
-  , attachDatum
+  ( attachDatum
   , attachNativeScript
   , attachPlutusScript
   , setScriptDataHash
@@ -513,7 +511,7 @@ processConstraint
 processConstraint mpsMap osMap c = do
   queryHandle <- lift $ getQueryHandle
   case c of
-    MustIncludeDatum dat -> addDatum dat
+    MustIncludeDatum dat -> pure <$> addDatum dat
     MustValidateIn posixTimeRange -> do
       { systemStart } <- asks _.ledgerConstants
       eraSummaries <- liftAff $
@@ -562,7 +560,7 @@ processConstraint mpsMap osMap c = do
               Nothing -> do
                 plutusScript <-
                   except $ unwrap <$> lookupValidator vHash osMap
-                ExceptT $ attachToCps attachPlutusScript plutusScript
+                lift $ attachToCps attachPlutusScript plutusScript
               Just scriptRefUnspentOut' ->
                 ExceptT $ processScriptRefUnspentOut vHash scriptRefUnspentOut'
             -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
@@ -578,7 +576,7 @@ processConstraint mpsMap osMap c = do
                       >>> Bind.join
                       >>> note
                         (CannotQueryDatum dHash)
-                ExceptT $ addDatum dat
+                lift $ addDatum dat
               OutputDatum _ -> pure unit
               NoOutputDatum -> throwError CannotFindDatum
             _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
@@ -591,7 +589,7 @@ processConstraint mpsMap osMap c = do
             _valueSpentBalancesInputs <>= provideValue amount
     MustSpendNativeScriptOutput txo ns -> runExceptT do
       _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
-      ExceptT $ attachToCps attachNativeScript ns
+      lift $ attachToCps (map pure <<< attachNativeScript) ns
     MustReferenceOutput refInput -> runExceptT do
       _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
     MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
@@ -600,7 +598,7 @@ processConstraint mpsMap osMap c = do
           mp <- except $ lookupMintingPolicy mpsHash mpsMap
           ( case mp of
               PlutusMintingPolicy p ->
-                ( ExceptT $ attachToCps
+                ( lift $ attachToCps
                     attachPlutusScript
                     p
                 )
@@ -641,7 +639,7 @@ processConstraint mpsMap osMap c = do
     MustMintValueUsingNativeScript ns tn i -> runExceptT do
       let mpHash = wrap <<< unwrap <<< nativeScriptHash $ ns
 
-      ExceptT $ attachToCps attachNativeScript ns
+      lift $ attachToCps (map pure <<< attachNativeScript) ns
 
       cs <- liftM (MintingPolicyHashNotCurrencySymbol mpHash) (mpsSymbol mpHash)
       let value = mkSingletonValue' cs tn
@@ -668,7 +666,7 @@ processConstraint mpsMap osMap c = do
         -- If non-inline datum is presented, add it to 'datumWitnesses' and
         -- Array of datums.
         datum' <- for mDatum \(dat /\ datp) -> do
-          when (datp == DatumWitness) $ ExceptT $ addDatum dat
+          when (datp == DatumWitness) $ lift $ addDatum dat
           pure $ outputDatum dat datp
         let
           address = case skh of
@@ -726,7 +724,7 @@ processConstraint mpsMap osMap c = do
         _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do
       let dh' = Hashing.datumHash dt
-      if dh' == dh then addDatum dt
+      if dh' == dh then pure <$> addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustRegisterStakePubKey skh -> runExceptT do
       void $ lift $ addCertificate
@@ -756,14 +754,15 @@ processConstraint mpsMap osMap c = do
             { purpose: ForCert cert, datum: unwrap redeemerData }
         ]
       void $ lift $ addCertificate cert
-      ExceptT $ attachToCps attachPlutusScript (unwrap plutusScript)
+      lift $ attachToCps attachPlutusScript (unwrap plutusScript)
     MustDeregisterStakeNativeScript stakeValidator -> do
       void $ addCertificate $ StakeDeregistration
         $ scriptHashCredential
         $ unwrap
         $ nativeScriptStakeValidatorHash
             stakeValidator
-      attachToCps attachNativeScript (unwrap stakeValidator)
+      pure <$> attachToCps (map pure <<< attachNativeScript)
+        (unwrap stakeValidator)
     MustRegisterPool poolParams -> runExceptT do
       void $ lift $ addCertificate $ PoolRegistration poolParams
     MustRetirePool poolKeyHash epoch -> runExceptT do
@@ -785,14 +784,15 @@ processConstraint mpsMap osMap c = do
           [ UnindexedRedeemer
               { purpose: ForCert cert, datum: unwrap redeemerData }
           ]
-        ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
+        lift $ attachToCps attachPlutusScript (unwrap stakeValidator)
     MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
       void $ addCertificate $ StakeDelegation
         ( scriptHashCredential $ unwrap $ nativeScriptStakeValidatorHash
             stakeValidator
         )
         poolKeyHash
-      attachToCps attachNativeScript (unwrap stakeValidator)
+      pure <$> attachToCps (map pure <<< attachNativeScript)
+        (unwrap stakeValidator)
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards
@@ -821,7 +821,7 @@ processConstraint mpsMap osMap c = do
         [ UnindexedRedeemer
             { purpose: ForReward rewardAddress, datum: unwrap redeemerData }
         ]
-      ExceptT $ attachToCps attachPlutusScript (unwrap stakeValidator)
+      lift $ attachToCps attachPlutusScript (unwrap stakeValidator)
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = nativeScriptStakeValidatorHash stakeValidator
       networkId <- lift getNetworkId
@@ -835,7 +835,8 @@ processConstraint mpsMap osMap c = do
         mbRewards
       _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
         Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
-      ExceptT $ attachToCps attachNativeScript (unwrap stakeValidator)
+      lift $ attachToCps (map pure <<< attachNativeScript)
+        (unwrap stakeValidator)
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
@@ -883,23 +884,20 @@ credentialToStakeCredential cred = case cred of
 -- share error type anyway.
 attachToCps
   :: forall (a :: Type)
-   . (a -> Transaction -> Effect (Either ModifyTxError Transaction))
+   . (a -> Transaction -> Effect Transaction)
   -> a -- Redeemer, Datum, or PlutusScript.
-  -> ConstraintsM (Either MkUnbalancedTxError Unit)
+  -> ConstraintsM Unit
 attachToCps handler object = do
   tx <- use _cpsTransaction
-  newTx <- liftEffect $ handler object tx <#> lmap ModifyTx
-  either
-    (pure <<< throwError)
-    (map Right <<< (.=) _cpsTransaction)
-    newTx
+  newTx <- liftEffect $ handler object tx
+  (.=) _cpsTransaction newTx
 
 -- Attaches datum to the transaction and to Array of datums in the state.
 addDatum
   :: Datum
-  -> ConstraintsM (Either MkUnbalancedTxError Unit)
-addDatum dat = runExceptT do
-  ExceptT $ attachToCps attachDatum dat
+  -> ConstraintsM Unit
+addDatum dat = do
+  attachToCps attachDatum dat
   _datums <>= Array.singleton dat
 
 -- | Returns an index pointing to the location of the newly inserted certificate

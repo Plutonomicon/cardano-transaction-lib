@@ -85,14 +85,14 @@ getWalletAddresses = withWallet do
         pure $ Array.singleton $ (unwrap kw).address networkId
     )
 
-signData :: Address -> RawBytes -> Contract (Maybe DataSignature)
+signData :: Address -> RawBytes -> Contract DataSignature
 signData address payload =
   withWallet $
     actionBasedOnWallet
       (\w -> w.signData address payload)
       \kw -> do
         networkId <- asks _.networkId
-        liftAff $ pure <$> (unwrap kw).signData networkId payload
+        liftAff $ (unwrap kw).signData networkId payload
 
 getWallet :: Contract (Maybe Wallet)
 getWallet = asks _.wallet

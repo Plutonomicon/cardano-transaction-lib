@@ -19,6 +19,7 @@ You can edit this file as you like.
   , "bignumber"
   , "checked-exceptions"
   , "cip30"
+  , "cip30-typesafe"
   , "console"
   , "control"
   , "crypto"

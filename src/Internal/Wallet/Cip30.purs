@@ -6,8 +6,9 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
-import Cardano.Wallet.Cip30 (Api, getNetworkId)
-import Cardano.Wallet.Cip30 as Cip30
+import Cardano.Wallet.Cip30 (Api)
+import Cardano.Wallet.Cip30.TypeSafe (APIError)
+import Cardano.Wallet.Cip30.TypeSafe as Cip30
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -45,9 +46,11 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
+import Data.Variant (Variant, match)
+import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
@@ -95,9 +98,8 @@ type Cip30Wallet =
   -- Returns the reward addresses owned by the wallet. This can return multiple
   -- addresses e.g. CIP-0018
   , getRewardAddresses :: Aff (Array Address)
-  , signTx :: Transaction -> Aff (Maybe Transaction)
-  , signData ::
-      Address -> RawBytes -> Aff (Maybe DataSignature)
+  , signTx :: Transaction -> Aff Transaction
+  , signData :: Address -> RawBytes -> Aff DataSignature
   }
 
 mkCip30WalletAff
@@ -107,7 +109,7 @@ mkCip30WalletAff
 mkCip30WalletAff connection = do
   pure
     { connection
-    , getNetworkId: getNetworkId connection
+    , getNetworkId: Cip30.getNetworkId connection >>= handleApiError
     , getUtxos: getUtxos connection
     , getCollateral: getCollateral connection
     , getBalance: getBalance connection
@@ -123,39 +125,49 @@ mkCip30WalletAff connection = do
 -- Helper functions
 -------------------------------------------------------------------------------
 
-txToHex :: Transaction -> Aff String
+txToHex :: Transaction -> Effect String
 txToHex =
-  liftEffect
-    <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
+  map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
     <<< Serialization.convertTransaction
 
+handleApiError
+  :: forall a. Variant (apiError :: APIError, success :: a) -> Aff a
+handleApiError = match
+  -- eta expansion fixes type checking here
+  { success: pure :: a -> Aff a, apiError: show >>> throw >>> liftEffect }
+
 getUnusedAddresses :: Api -> Aff (Array Address)
-getUnusedAddresses conn =
-  Cip30.getUnusedAddresses conn >>=
+getUnusedAddresses conn = do
+  Cip30.getUnusedAddresses conn >>= handleApiError >>=
     traverse
       ( liftM (error "CIP-30 getUnusedAddresses returned non-address") <<<
           hexStringToAddress
       )
 
 getChangeAddress :: Api -> Aff Address
-getChangeAddress conn = Cip30.getChangeAddress conn >>=
+getChangeAddress conn = Cip30.getChangeAddress conn >>= handleApiError >>=
   liftM (error "CIP-30 getChangeAddress returned non-address") <<<
     hexStringToAddress
 
 getRewardAddresses :: Api -> Aff (Array Address)
 getRewardAddresses conn =
-  Cip30.getRewardAddresses conn >>=
+  Cip30.getRewardAddresses conn >>= handleApiError >>=
     traverse
       ( liftM (error "CIP-30 getRewardAddresses returned non-address") <<<
           hexStringToAddress
       )
 
 getUsedAddresses :: Api -> Aff (Array Address)
-getUsedAddresses conn = Cip30.getUsedAddresses conn Nothing >>=
-  traverse
-    ( liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
-        hexStringToAddress
-    )
+getUsedAddresses conn = do
+  result <- Cip30.getUsedAddresses conn Nothing
+  result `flip match`
+    { success: traverse
+        ( liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
+            hexStringToAddress
+        )
+    , paginateError: show >>> throw >>> liftEffect
+    , apiError: show >>> throw >>> liftEffect
+    }
 
 hexStringToAddress :: String -> Maybe Address
 hexStringToAddress = fromBytes <<< rawBytesAsCborBytes <=< hexToRawBytes
@@ -178,21 +190,33 @@ getCollateral conn = do
 
 getUtxos :: Api -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
-  mbUtxoArray <- Cip30.getUtxos conn Nothing
-  liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do
-    liftMaybe (error $ "CIP-30 getUtxos returned bad UTxO: " <> str) $
-      hexToCborBytes str >>= fromBytes >>=
-        Deserialization.UnspentOuput.convertUnspentOutput
+  result <- Cip30.getUtxos conn Nothing
+  result `flip match`
+    { success: \mbUtxoArray -> do
+        liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do
+          liftMaybe (error $ "CIP-30 getUtxos returned bad UTxO: " <> str) $
+            hexToCborBytes str >>= fromBytes >>=
+              Deserialization.UnspentOuput.convertUnspentOutput
+    , paginateError: show >>> throw >>> liftEffect
+    , apiError: show >>> throw >>> liftEffect
+    }
 
-signTx :: Api -> Transaction -> Aff (Maybe Transaction)
+signTx :: Api -> Transaction -> Aff Transaction
 signTx conn tx = do
-  txHex <- txToHex tx
-  Cip30.signTx conn txHex true >>= hexToRawBytes >>> case _ of
-    Nothing -> pure Nothing
-    Just bytes -> map (combineWitnessSet tx) <$> liftEffect
-      ( Deserialization.WitnessSet.convertWitnessSet
-          <$> fromBytesEffect (rawBytesAsCborBytes bytes)
-      )
+  txHex <- liftEffect $ txToHex tx
+  result <- Cip30.signTx conn txHex true
+  liftEffect $ result `flip match`
+    { success:
+        \hexString -> do
+          bytes <- liftM (mkInvalidHexError hexString) $ hexToRawBytes
+            hexString
+          combineWitnessSet tx <$>
+            ( Deserialization.WitnessSet.convertWitnessSet
+                <$> fromBytesEffect (rawBytesAsCborBytes bytes)
+            )
+    , apiError: show >>> throw
+    , txSignError: show >>> throw
+    }
   where
   -- We have to combine the newly returned witness set with the existing one
   -- Otherwise, any datums, etc... won't be retained
@@ -200,21 +224,30 @@ signTx conn tx = do
   combineWitnessSet (Transaction tx'@{ witnessSet: oldWits }) newWits =
     Transaction $ tx' { witnessSet = oldWits <> newWits }
 
+  mkInvalidHexError hexString = error $ "Unable to decode WitnessSet bytes: " <>
+    hexString
+
 -- | Supports : `BaseAddress`, `EnterpriseAddress`,
 -- | `PointerAddress` and `RewardAddress`
-signData :: Api -> Address -> RawBytes -> Aff (Maybe DataSignature)
+signData :: Api -> Address -> RawBytes -> Aff DataSignature
 signData conn address dat = do
   byteAddress <-
     liftMaybe
       (error "Can't convert Address to base, enterprise, pointer or reward")
       (fromBase <|> fromEnterprise <|> fromPointer <|> fromReward)
-  signedData <- Cip30.signData conn (cborBytesToHex byteAddress)
+  result <- Cip30.signData conn (cborBytesToHex byteAddress)
     (rawBytesToHex dat)
-  pure $ do
-    key <- hexToCborBytes signedData.key
-    signature <- hexToCborBytes signedData.signature
-    pure { key: key, signature: signature }
+  liftEffect $ result `flip match`
+    { dataSignError: show >>> throw
+    , apiError: show >>> throw
+    , success: \signedData -> do
+        key <- liftM byteError $ hexToCborBytes signedData.key
+        signature <- liftM byteError $ hexToCborBytes signedData.signature
+        pure { key: key, signature: signature }
+    }
   where
+  byteError = error "signData: hexToCborBytes failure"
+
   fromBase :: Maybe CborBytes
   fromBase = baseAddressBytes <$> baseAddressFromAddress address
 
@@ -230,7 +263,7 @@ signData conn address dat = do
 
 getBalance :: Api -> Aff Value
 getBalance conn = do
-  Cip30.getBalance conn >>=
+  Cip30.getBalance conn >>= handleApiError >>=
     liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
       (hexToCborBytes >=> fromBytes >=> convertValue)
 
@@ -241,7 +274,7 @@ getCip30Collateral conn requiredValue = do
     $ BigNum.fromBigInt
     $ unwrap requiredValue
   let requiredValueStr = byteArrayToHex $ unwrap $ toBytes bigNumValue
-  Cip30.getCollateral conn requiredValueStr `catchError`
+  (Cip30.getCollateral conn requiredValueStr >>= handleApiError) `catchError`
     \err -> throwError $ error $
       "Failed to call `getCollateral`: " <> show err
   where

@@ -8,7 +8,13 @@ module Ctl.Examples.Cip30
 
 import Contract.Prelude
 
-import Cardano.Wallet.Cip30 as Cip30
+import Cardano.Wallet.Cip30
+  ( getApiVersion
+  , getAvailableWallets
+  , getIcon
+  , getName
+  )
+import Cardano.Wallet.Cip30.TypeSafe as Cip30
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
@@ -28,16 +34,16 @@ main = example testnetNamiConfig
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
-  traverse_ nonConfigFunctions =<< liftEffect Cip30.getAvailableWallets
+  traverse_ nonConfigFunctions =<< liftEffect getAvailableWallets
   runContract cfg contract
 
 nonConfigFunctions :: String -> Aff Unit
 nonConfigFunctions extensionWallet = do
   log "Functions that don't depend on `Contract`"
   performAndLog "isEnabled" $ Cip30.isEnabled
-  performAndLog "apiVersion" $ liftEffect <<< Cip30.getApiVersion
-  performAndLog "name" $ liftEffect <<< Cip30.getName
-  performAndLog "icon" $ liftEffect <<< Cip30.getIcon
+  performAndLog "apiVersion" $ liftEffect <<< getApiVersion
+  performAndLog "name" $ liftEffect <<< getName
+  performAndLog "icon" $ liftEffect <<< getIcon
   where
   performAndLog
     :: forall (a :: Type)
