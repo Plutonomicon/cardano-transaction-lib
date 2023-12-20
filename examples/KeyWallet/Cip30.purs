@@ -28,8 +28,7 @@ mkContract dat = do
   logInfo' "Running Examples.KeyWallet.Cip30"
   logInfo' "Funtions that depend on `Contract`"
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
-  mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
-  changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
+  changeAddress <- performAndLog "getChangeAddress" getChangeAddress
   _ <- performAndLog "signData changeAddress" $ try $ signData changeAddress dat
   rewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
   rewardAddr <- liftMaybe (error "can't get change address") $ head

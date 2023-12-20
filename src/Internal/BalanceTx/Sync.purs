@@ -37,11 +37,11 @@ import Ctl.Internal.Helpers (liftEither, liftedM)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
-import Ctl.Internal.Wallet (cip30Wallet)
+import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Data.Array as Array
 import Data.Bifunctor (bimap)
 import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe, isJust, maybe)
+import Data.Maybe (Maybe(Just), fromMaybe, isJust, maybe)
 import Data.Monoid (guard)
 import Data.Newtype (unwrap)
 import Data.Set (Set)
@@ -258,7 +258,7 @@ getControlledAddresses = do
   sequential $ combine
     <$> parallel (getWalletAddresses <#> Set.fromFoldable)
     <*> parallel (getUnusedAddresses <#> Set.fromFoldable)
-    <*> parallel (getChangeAddress <#> Set.fromFoldable)
+    <*> parallel (getChangeAddress <#> Set.singleton)
   where
   combine used unused change = used `Set.union` unused `Set.union` change
 
@@ -273,7 +273,9 @@ getControlledUtxos = do
     (unwrap >>> \({ input, output }) -> input /\ output)
 
 isCip30Wallet :: Contract Boolean
-isCip30Wallet = asks $ isJust <<< (cip30Wallet <=< _.wallet)
+isCip30Wallet = asks $ _.wallet >>> case _ of
+  Just (GenericCip30 _) -> true
+  _ -> false
 
 -- | If the first argument is true, it will throw. Otherwise, that would be a
 -- | console.error call.

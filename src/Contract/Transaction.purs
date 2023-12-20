@@ -56,7 +56,6 @@ import Ctl.Internal.BalanceTx.Error
   , BalanceTxError
       ( BalanceInsufficientError
       , CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetChangeAddress
       , CouldNotGetCollateral
       , InsufficientCollateralUtxos
       , CouldNotGetUtxos

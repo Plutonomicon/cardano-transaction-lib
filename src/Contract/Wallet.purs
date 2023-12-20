@@ -57,8 +57,9 @@ import Ctl.Internal.Plutus.Conversion
   , toPlutusUtxoMap
   )
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddressWithNetworkTag)
+import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet
-  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, KeyWallet, GenericCip30)
+  ( Wallet(KeyWallet, GenericCip30)
   , WalletExtension
       ( NamiWallet
       , GeroWallet
@@ -69,19 +70,8 @@ import Ctl.Internal.Wallet
       , NuFiWallet
       , GenericCip30Wallet
       )
-  , apiVersion
-  , icon
-  , isEnabled
-  , isEternlAvailable
-  , isFlintAvailable
-  , isGeroAvailable
-  , isLodeAvailable
-  , isNamiAvailable
   , isWalletAvailable
-  , name
-  , walletToWalletExtension
   ) as X
-import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)

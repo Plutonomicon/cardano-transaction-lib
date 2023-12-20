@@ -208,6 +208,22 @@ let additions =
         , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
         , version = "36a7d8ac75a7230043ae511f3145f9ed130954a9"
         }
+      , cip30 =
+        { dependencies =
+          [ "console"
+          , "effect"
+          , "prelude"
+          , "aff"
+          , "aff-promise"
+          , "arrays"
+          , "maybe"
+          , "nullable"
+          , "literals"
+          , "untagged-union"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip30"
+        , version = "19b9cf5fc1b8c2d680ec7ffd728c7de34352968c"
+        }
       }
 
 in  upstream // additions

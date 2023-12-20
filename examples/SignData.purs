@@ -23,7 +23,7 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignData"
 
-  changeAddress <- liftedM "Could not get change address" getChangeAddress
+  changeAddress <- getChangeAddress
   logInfo' $ "change address: " <> show changeAddress
   testSignDataWithAddress "changeAddress" changeAddress
 
@@ -42,4 +42,3 @@ contract = do
         # liftedM "Could not get data signature"
     logInfo' $ "signData " <> addressLabel <> ": " <> show dataSignature
     void $ liftAff $ checkCip30SignDataResponse address dataSignature
-

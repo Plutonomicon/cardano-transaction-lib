@@ -1,16 +1,15 @@
 module Ctl.Internal.Wallet.Cip30
-  ( Cip30Connection
-  , Cip30Wallet
+  ( Cip30Wallet
   , DataSignature
   , mkCip30WalletAff
   ) where
 
 import Prelude
 
+import Cardano.Wallet.Cip30 (Api, getNetworkId)
+import Cardano.Wallet.Cip30 as Cip30
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
-import Control.Promise (Promise, toAffE)
-import Control.Promise as Promise
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction(Transaction)
   , TransactionWitnessSet
@@ -23,7 +22,7 @@ import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -49,7 +48,6 @@ import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
@@ -60,56 +58,65 @@ type DataSignature =
   , signature :: CborBytes
   }
 
--- Please update Cip30Mock when you add or remove methods in this handle.
+-- Please update Cip30Mock when you add or remove methods here.
+-- | A simplified internal view of CIP-30 API that wraps `Api` from
+-- | `purescript-cip30`.
+-- |
+-- | - We hardcode the collateral amount
+-- | - We always request all UTxOs in `getUtxos`
+-- | - We don't support querying of supported CIP-30 extensions
+-- | - We don't support getting wallet icon, name and apiVersion
+-- | - We don't support `isEnabled` call
+-- |
+-- | Use `purescript-cip30` for these: `connection` field contains the API handle.
 type Cip30Wallet =
-  { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`
-    connection :: Cip30Connection
+  { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`,
+    connection :: Api
   -- Returns the network id of the currently connected account. 0 is for any
   -- of the test networks, and 1 is mainnet.
-  , getNetworkId :: Cip30Connection -> Aff Int
+  , getNetworkId :: Aff Int
   -- Returns a list of all UTXOs controlled by the wallet.
-  , getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+  , getUtxos :: Aff (Maybe (Array TransactionUnspentOutput))
   -- Get the collateral UTxO associated with the Nami wallet
   , getCollateral ::
-      Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+      Aff (Maybe (Array TransactionUnspentOutput))
   -- Get combination of all available UTxOs
-  , getBalance :: Cip30Connection -> Aff (Maybe Value)
+  , getBalance :: Aff Value
   -- Get the address associated with the wallet (Nami does not support
   -- multiple addresses)
-  , getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+  , getUsedAddresses :: Aff (Array Address)
   -- Sign a transaction with the given wallet
   -- Returns a list of unused addresses controlled by the wallet.
-  , getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
+  , getUnusedAddresses :: Aff (Array Address)
   -- Returns an address owned by the wallet that should be used as a change
   -- address to return leftover assets during transaction creation back to
   -- the connected wallet.
-  , getChangeAddress :: Cip30Connection -> Aff (Maybe Address)
+  , getChangeAddress :: Aff Address
   -- Returns the reward addresses owned by the wallet. This can return multiple
   -- addresses e.g. CIP-0018
-  , getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-  , signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
+  , getRewardAddresses :: Aff (Array Address)
+  , signTx :: Transaction -> Aff (Maybe Transaction)
   , signData ::
-      Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
+      Address -> RawBytes -> Aff (Maybe DataSignature)
   }
 
 mkCip30WalletAff
-  :: Effect (Promise Cip30Connection)
+  :: Api
   -- ^ A function to get wallet connection
   -> Aff Cip30Wallet
-mkCip30WalletAff enableWallet = do
-  wallet <- toAffE enableWallet
+mkCip30WalletAff connection = do
   pure
-    { connection: wallet
-    , getNetworkId
-    , getUtxos
-    , getCollateral
-    , getBalance
-    , getWalletAddresses
-    , getUnusedAddresses
-    , getChangeAddress
-    , getRewardAddresses
-    , signTx
-    , signData
+    { connection
+    , getNetworkId: getNetworkId connection
+    , getUtxos: getUtxos connection
+    , getCollateral: getCollateral connection
+    , getBalance: getBalance connection
+    , getUsedAddresses: getUsedAddresses connection
+    , getUnusedAddresses: getUnusedAddresses connection
+    , getChangeAddress: getChangeAddress connection
+    , getRewardAddresses: getRewardAddresses connection
+    , signTx: signTx connection
+    , signData: signData connection
     }
 
 -------------------------------------------------------------------------------
@@ -122,23 +129,33 @@ txToHex =
     <<< map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
     <<< Serialization.convertTransaction
 
-getNetworkId :: Cip30Connection -> Aff Int
-getNetworkId = toAffE <<< _getNetworkId
+getUnusedAddresses :: Api -> Aff (Array Address)
+getUnusedAddresses conn =
+  Cip30.getUnusedAddresses conn >>=
+    traverse
+      ( liftM (error "CIP-30 getUnusedAddresses returned non-address") <<<
+          hexStringToAddress
+      )
 
-getUnusedAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-getUnusedAddresses conn = toAffE (_getUnusedAddresses conn) <#>
-  traverse hexStringToAddress
+getChangeAddress :: Api -> Aff Address
+getChangeAddress conn = Cip30.getChangeAddress conn >>=
+  liftM (error "CIP-30 getChangeAddress returned non-address") <<<
+    hexStringToAddress
 
-getChangeAddress :: Cip30Connection -> Aff (Maybe Address)
-getChangeAddress conn = (toAffE $ _getChangeAddress conn) <#> hexStringToAddress
+getRewardAddresses :: Api -> Aff (Array Address)
+getRewardAddresses conn =
+  Cip30.getRewardAddresses conn >>=
+    traverse
+      ( liftM (error "CIP-30 getRewardAddresses returned non-address") <<<
+          hexStringToAddress
+      )
 
-getRewardAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-getRewardAddresses conn = toAffE (_getRewardAddresses conn) <#>
-  traverse hexStringToAddress
-
-getWalletAddresses :: Cip30Connection -> Aff (Maybe (Array Address))
-getWalletAddresses conn = Promise.toAffE (_getAddresses conn) <#>
-  traverse hexStringToAddress
+getUsedAddresses :: Api -> Aff (Array Address)
+getUsedAddresses conn = Cip30.getUsedAddresses conn Nothing >>=
+  traverse
+    ( liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
+        hexStringToAddress
+    )
 
 hexStringToAddress :: String -> Maybe Address
 hexStringToAddress = fromBytes <<< rawBytesAsCborBytes <=< hexToRawBytes
@@ -149,31 +166,28 @@ defaultCollateralAmount = Coin $ BigInt.fromInt 5_000_000
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
-getCollateral :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+getCollateral :: Api -> Aff (Maybe (Array TransactionUnspentOutput))
 getCollateral conn = do
-  mbUtxoStrs <- toAffE $ getCip30Collateral conn defaultCollateralAmount
-  let
-    (mbUtxoBytes :: Maybe (Array RawBytes)) =
-      join $ map (traverse hexToRawBytes) mbUtxoStrs
-  -- de-serialize UTxOs
-  liftEffect $ for mbUtxoBytes \collateralUtxos -> do
-    for collateralUtxos \bytes -> do
-      maybe (throw "Unable to convert UTxO") pure =<<
+  mbUtxoStrs <- getCip30Collateral conn defaultCollateralAmount
+  liftEffect $ for mbUtxoStrs \utxoStrs -> do
+    for utxoStrs \utxoStr -> do
+      liftM (error $ "CIP-30 getCollateral returned bad UTxO: " <> utxoStr) $
         Deserialization.UnspentOuput.convertUnspentOutput
-          <$> fromBytesEffect (rawBytesAsCborBytes bytes)
+          =<< fromBytes
+          =<< hexToCborBytes utxoStr
 
-getUtxos :: Cip30Connection -> Aff (Maybe (Array TransactionUnspentOutput))
+getUtxos :: Api -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
-  mArrayStr <- toAffE $ _getUtxos maybeFfiHelper conn
-  liftEffect $ for mArrayStr $ traverse \str -> do
-    liftMaybe (error "Unable to convert UTxO") $
+  mbUtxoArray <- Cip30.getUtxos conn Nothing
+  liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do
+    liftMaybe (error $ "CIP-30 getUtxos returned bad UTxO: " <> str) $
       hexToCborBytes str >>= fromBytes >>=
         Deserialization.UnspentOuput.convertUnspentOutput
 
-signTx :: Cip30Connection -> Transaction -> Aff (Maybe Transaction)
+signTx :: Api -> Transaction -> Aff (Maybe Transaction)
 signTx conn tx = do
   txHex <- txToHex tx
-  fromHexString (_signTx txHex) conn >>= case _ of
+  Cip30.signTx conn txHex true >>= hexToRawBytes >>> case _ of
     Nothing -> pure Nothing
     Just bytes -> map (combineWitnessSet tx) <$> liftEffect
       ( Deserialization.WitnessSet.convertWitnessSet
@@ -188,15 +202,14 @@ signTx conn tx = do
 
 -- | Supports : `BaseAddress`, `EnterpriseAddress`,
 -- | `PointerAddress` and `RewardAddress`
-signData :: Cip30Connection -> Address -> RawBytes -> Aff (Maybe DataSignature)
+signData :: Api -> Address -> RawBytes -> Aff (Maybe DataSignature)
 signData conn address dat = do
   byteAddress <-
     liftMaybe
       (error "Can't convert Address to base, enterprise, pointer or reward")
       (fromBase <|> fromEnterprise <|> fromPointer <|> fromReward)
-  signedData <- toAffE $ _signData (cborBytesToHex byteAddress)
+  signedData <- Cip30.signData conn (cborBytesToHex byteAddress)
     (rawBytesToHex dat)
-    conn
   pure $ do
     key <- hexToCborBytes signedData.key
     signature <- hexToCborBytes signedData.signature
@@ -215,83 +228,23 @@ signData conn address dat = do
   fromReward :: Maybe CborBytes
   fromReward = rewardAddressBytes <$> rewardAddressFromAddress address
 
-getBalance :: Cip30Connection -> Aff (Maybe Value)
-getBalance wallet = do
-  fromHexString _getBalance wallet <#> \mbBytes -> do
-    bytes <- mbBytes
-    fromBytes (rawBytesAsCborBytes bytes) >>= convertValue
-
-fromHexString
-  :: (Cip30Connection -> Effect (Promise String))
-  -> Cip30Connection
-  -> Aff (Maybe RawBytes)
-fromHexString act = map hexToRawBytes <<< Promise.toAffE <<< act
-
--------------------------------------------------------------------------------
--- FFI stuff
--------------------------------------------------------------------------------
-foreign import data Cip30Connection :: Type
-
-foreign import _getNetworkId
-  :: Cip30Connection
-  -> Effect (Promise Int)
-
-foreign import _getUtxos
-  :: MaybeFfiHelper
-  -> Cip30Connection
-  -> Effect (Promise (Maybe (Array String)))
-
-foreign import _getCollateral
-  :: MaybeFfiHelper
-  -> Cip30Connection
-  -> String
-  -> Effect (Promise (Maybe (Array String)))
+getBalance :: Api -> Aff Value
+getBalance conn = do
+  Cip30.getBalance conn >>=
+    liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
+      (hexToCborBytes >=> fromBytes >=> convertValue)
 
 getCip30Collateral
-  :: Cip30Connection -> Coin -> Effect (Promise (Maybe (Array String)))
+  :: Api -> Coin -> Aff (Maybe (Array String))
 getCip30Collateral conn requiredValue = do
-  bigNumValue <- maybe (throw convertError) pure
+  bigNumValue <- liftEffect $ maybe (throw convertError) pure
     $ BigNum.fromBigInt
     $ unwrap requiredValue
   let requiredValueStr = byteArrayToHex $ unwrap $ toBytes bigNumValue
-  _getCollateral maybeFfiHelper conn requiredValueStr `catchError`
+  Cip30.getCollateral conn requiredValueStr `catchError`
     \err -> throwError $ error $
       "Failed to call `getCollateral`: " <> show err
   where
   convertError =
     "Unable to convert CIP-30 getCollateral required value: " <>
       show requiredValue
-
-foreign import _getBalance :: Cip30Connection -> Effect (Promise String)
-
-foreign import _getAddresses
-  :: Cip30Connection
-  -> Effect
-       ( Promise
-           ( Array
-               String
-           )
-       )
-
-foreign import _getUnusedAddresses
-  :: Cip30Connection
-  -> Effect (Promise (Array String))
-
-foreign import _getChangeAddress
-  :: Cip30Connection
-  -> Effect (Promise String)
-
-foreign import _getRewardAddresses
-  :: Cip30Connection
-  -> Effect (Promise (Array String))
-
-foreign import _signTx
-  :: String -- Hex-encoded cbor of tx
-  -> Cip30Connection
-  -> Effect (Promise String)
-
-foreign import _signData
-  :: String -- Address
-  -> String -- Hex-encoded data
-  -> Cip30Connection
-  -> Effect (Promise { key :: String, signature :: String })

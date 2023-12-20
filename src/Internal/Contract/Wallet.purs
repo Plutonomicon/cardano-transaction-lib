@@ -34,6 +34,7 @@ import Ctl.Internal.Serialization.Address
   , baseAddressFromAddress
   , stakeCredentialToKeyHash
   )
+import Ctl.Internal.Service.Error (pprintClientError)
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , PubKeyHash
@@ -44,7 +45,7 @@ import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.Array (cons, foldMap, foldr)
 import Data.Array as Array
-import Data.Either (hush)
+import Data.Either (Either(Left, Right), hush)
 import Data.Foldable (fold, foldl)
 import Data.Function (on)
 import Data.Map as Map
@@ -59,36 +60,36 @@ import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
 
 getUnusedAddresses :: Contract (Array Address)
-getUnusedAddresses = fold <$> do
+getUnusedAddresses = do
   withWallet $ actionBasedOnWallet _.getUnusedAddresses mempty
 
-getChangeAddress :: Contract (Maybe Address)
+getChangeAddress :: Contract Address
 getChangeAddress = withWallet do
   actionBasedOnWallet _.getChangeAddress
     \kw -> do
       networkId <- asks _.networkId
-      pure $ pure $ (unwrap kw).address networkId
+      pure $ (unwrap kw).address networkId
 
 getRewardAddresses :: Contract (Array Address)
-getRewardAddresses = fold <$> withWallet do
+getRewardAddresses = withWallet do
   actionBasedOnWallet _.getRewardAddresses
     \kw -> do
       networkId <- asks _.networkId
-      pure $ pure $ pure $ (unwrap kw).address networkId
+      pure $ pure $ (unwrap kw).address networkId
 
 getWalletAddresses :: Contract (Array Address)
-getWalletAddresses = fold <$> withWallet do
-  actionBasedOnWallet _.getWalletAddresses
+getWalletAddresses = withWallet do
+  actionBasedOnWallet _.getUsedAddresses
     ( \kw -> do
         networkId <- asks _.networkId
-        pure $ pure $ Array.singleton $ (unwrap kw).address networkId
+        pure $ Array.singleton $ (unwrap kw).address networkId
     )
 
 signData :: Address -> RawBytes -> Contract (Maybe DataSignature)
 signData address payload =
   withWallet $
     actionBasedOnWallet
-      (\w conn -> w.signData conn address payload)
+      (\w -> w.signData address payload)
       \kw -> do
         networkId <- asks _.networkId
         liftAff $ pure <$> (unwrap kw).signData networkId payload
@@ -193,29 +194,47 @@ getWalletCollateral = do
     \the wallet."
 
 getWalletBalance
-  :: Contract (Maybe Value)
+  :: Contract Value
 getWalletBalance = do
   queryHandle <- getQueryHandle
-  getWallet >>= map join <<< traverse do
-    actionBasedOnWallet _.getBalance \_ -> do
+  wallet <- getWallet >>= liftM (error "getWalletBalance: no wallet is active")
+  let
+    getKeyWalletBalance = \_ -> do
       -- Implement via `utxosAt`
       addresses <- getWalletAddresses
       fold <$> flip parTraverse addresses \address -> do
-        liftAff $ queryHandle.utxosAt address <#> hush >>> map
-          -- Combine `Value`s
-          (fold <<< map _.amount <<< map unwrap <<< Map.values)
+        eiResponse <- liftAff $ queryHandle.utxosAt address
+        case eiResponse of
+          Left err -> liftEffect $ throw $
+            "getWalletBalance via KeyWallet: utxosAt call error: " <>
+              pprintClientError err
+          Right utxoMap ->
+            pure $ fold $ map _.amount $ map unwrap $ Map.values utxoMap
+  actionBasedOnWallet _.getBalance getKeyWalletBalance wallet
 
 getWalletUtxos :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
   queryHandle <- getQueryHandle
-  getWallet >>= map join <<< traverse do
-    actionBasedOnWallet
-      (\w conn -> w.getUtxos conn <#> map toUtxoMap)
-      \_ -> do
-        addresses :: Array Address <- getWalletAddresses
-        res :: Array (Maybe UtxoMap) <- flip parTraverse addresses $
-          map hush <<< liftAff <<< queryHandle.utxosAt
-        pure $ Just $ foldr Map.union Map.empty $ map (fromMaybe Map.empty) res
+  wallet <- getWallet >>= liftM (error "getWalletUtxos: no wallet is active")
+  let
+    getKeyWalletUtxos = \_ -> do
+      addresses :: Array Address <- getWalletAddresses
+      utxoMaps <- flip parTraverse addresses \address -> do
+        eiResponse <- liftAff $ queryHandle.utxosAt address
+        case eiResponse of
+          Left err ->
+            liftEffect $ throw $
+              "getWalletUtxos via KeyWallet: utxosAt call error: " <>
+                pprintClientError err
+          Right utxoMap ->
+            pure utxoMap
+      -- CIP-30 only returns `null` if the requested amount can't be returned
+      -- but since we only call `getUtxos` *without* a requested amount, we use
+      -- `Just`
+      pure $ Just $ foldr Map.union Map.empty utxoMaps
+
+  actionBasedOnWallet (\w -> w.getUtxos <#> map toUtxoMap) getKeyWalletUtxos
+    wallet
   where
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map
