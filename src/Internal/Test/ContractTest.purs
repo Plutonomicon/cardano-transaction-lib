@@ -1,10 +1,12 @@
 module Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
-  , withWallets
-  , noWallet
   , ContractTestHandler
   , ContractTestPlan(ContractTestPlan)
   , ContractTestPlanHandler
+  , groupContractTestPlans
+  , noWallet
+  , sameWallets
+  , withWallets
   ) where
 
 import Prelude
@@ -12,6 +14,9 @@ import Prelude
 import Contract.Monad (Contract)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
+import Data.Tuple (fst, snd)
+import Data.Tuple.Nested ((/\))
+import Mote.Monad (group, mapTest)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet
 -- | `UtxoDistribution`.
@@ -43,6 +48,15 @@ withWallets distr tests = ContractTest \h -> h distr tests
 noWallet :: Contract Unit -> ContractTest
 noWallet = withWallets unit <<< const
 
+-- | Store a wallet `UtxoDistribution` and a `TestPlanM` that depend on those wallets
+sameWallets
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> TestPlanM (wallets -> Contract Unit) Unit
+  -> ContractTestPlan
+sameWallets distr tests = ContractTestPlan \h -> h distr tests
+
 -- | A runner for a test suite that supports funds distribution.
 type ContractTestHandler :: Type -> Type -> Type -> Type
 type ContractTestHandler distr wallets r =
@@ -59,6 +73,30 @@ newtype ContractTestPlan = ContractTestPlan
        )
     -> r
   )
+
+instance Semigroup ContractTestPlan where
+  append
+    (ContractTestPlan runContractTestPlan)
+    (ContractTestPlan runContractTestPlan') =
+    do
+      runContractTestPlan \distr tests -> do
+        runContractTestPlan'
+          \distr' tests' -> ContractTestPlan \h -> h (distr /\ distr') do
+            mapTest (_ <<< fst) tests
+            mapTest (_ <<< snd) tests'
+
+-- | Group `ContractTestPlans` together, so that they can be ran in the same Plutip instance
+groupContractTestPlans
+  :: String
+  -> ContractTestPlan
+  -> ContractTestPlan
+  -> ContractTestPlan
+groupContractTestPlans title tp1 tp2 =
+  let
+    (ContractTestPlan runContractTestPlan) = tp1 <> tp2
+  in
+    runContractTestPlan \distr tests -> ContractTestPlan \h -> h distr do
+      group title tests
 
 -- | Same as `ContractTestHandler`, but wrapped in a `TestPlanM`.
 -- | It is used for the reconstruction of the `MoteT` value.

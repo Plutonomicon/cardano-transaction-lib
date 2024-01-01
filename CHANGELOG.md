@@ -87,6 +87,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuild/) - also see the new [Makefile](./templates/ctl-scaffold/Makefile) setup and [NPM scripts](./templates/ctl-scaffold/package.json).
 
+- Sharing wallets between Plutip tests
+  - `runPlutipTestPlan` is a new function that executes a `ContractTestPlan`.
+  - `groupContractTestPlan` is a new function that uses `Mote.Monad.group` to combine `ContractTestPlan`s.
+  - `sameWallets` is a new function that creates a `ContractTestPlan` from a `UtxoDistribution` and a `TestPlanM` of the same wallets running different `Contract`s.
+
 ### Changed
 
 - PureScript compiler version has been updated to v0.15.8. ([#1521](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1521))

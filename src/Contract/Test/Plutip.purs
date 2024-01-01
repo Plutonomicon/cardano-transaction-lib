@@ -1,10 +1,11 @@
 -- | This module contains everything needed for `Contract` testing in Plutip
 -- | environment.
 module Contract.Test.Plutip
-  ( testPlutipContracts
+  ( PlutipTest
   , defaultPlutipConfig
   , module X
-  , PlutipTest
+  , runPlutipTestPlan
+  , testPlutipContracts
   ) where
 
 import Prelude
@@ -13,12 +14,17 @@ import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Plutip.Server (runPlutipContract, withPlutipContractEnv) as X
-import Ctl.Internal.Plutip.Server (testPlutipContracts) as Server
+import Ctl.Internal.Plutip.Server (runPlutipTestPlan, testPlutipContracts) as Server
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.Types (PlutipConfig) as X
 import Ctl.Internal.Test.ContractTest (ContractTest)
-import Ctl.Internal.Test.ContractTest (ContractTest) as Server
-import Ctl.Internal.Test.ContractTest (noWallet, withWallets) as X
+import Ctl.Internal.Test.ContractTest (ContractTest, ContractTestPlan) as Server
+import Ctl.Internal.Test.ContractTest
+  ( groupContractTestPlans
+  , noWallet
+  , sameWallets
+  , withWallets
+  ) as X
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , InitialUTxODistribution
@@ -40,6 +46,13 @@ testPlutipContracts
   -> MoteT Aff Server.ContractTest Aff Unit
   -> MoteT Aff (Aff Unit) Aff Unit
 testPlutipContracts = Server.testPlutipContracts
+
+-- | Run `ContractTestPlan` tests in a single Plutip instance.
+runPlutipTestPlan
+  :: PlutipConfig
+  -> Server.ContractTestPlan
+  -> MoteT Aff (Aff Unit) Aff Unit
+runPlutipTestPlan = Server.runPlutipTestPlan
 
 -- | Type synonym for backwards compatibility.
 type PlutipTest = ContractTest
