@@ -150,8 +150,49 @@ See the comments in the [`Ctl.Internal.Plutip.Server` module](../src/Internal/Pl
 
 In complicated protocols you might want to execute some `Contract`s in one test and then execute other `Contract`s which depend on some wallet-dependent state set up by the first batch of contracts, e.g. some authorization token is present at some wallet.
 Keeping these steps in separate sequential tests allows to pinpoint where things failed much easier, but currently CTL uses separate wallets for each test without an easy way to refer to wallets in other tests, so you have to call first batch of contracts again to replicate the state of the wallets, which in turn might fail or mess up your protocol, because the chain state is shared between tests for each top-level group.
-There's a patch to CTL you can adapt (and even better -- make a PR) if you need to share wallets between tests right now, see the [limitations](#limitations) doc for more info.
-This functionality will probably be added to CTL later.
+
+To execute tests that share the same wallet state, the use of `Contract.Test.Plutip.runPlutipTestPlan` is suggested, which has a type of:
+
+```purescript
+runPlutipTestPlan
+  :: PlutipConfig
+  -> ContractTestPlan
+  -> TestPlanM (Aff Unit) Unit
+```
+
+`runPlutipTestPlan` uses the exact same logic to perform `testPlutipContracts`, except it forgoes the use of `execDistribution` to create a `ContractTestPlan` from a `TestPlanM ContratTest Unit`. Instead, a `ContractTestPlan` is expected as the second parameter of the function, meaning that the test plan will need to be created before using `runPlutipTestPlan`.
+
+`Contract.Test.Plutip.sameWallets` is a helper function that can be used to create a `ContractTestPlan` where all of the tests use the same wallets that defined in the `UtxoDistribution`, this function has a type of:
+
+```purescript
+sameWallets
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> TestPlanM (wallets -> Contract Unit) Unit
+  -> ContractTestPlan
+```
+
+Usage of `runPlutipTestPlan` is similar to that of `testPlutipContracts`, except that the distributions are handled slightly differently. Here's an example, while using `sameWallets`:
+
+```purescript
+suite :: TestPlanM (Aff Unit) Unit
+suite = runPlutipTestPlan config do
+  let
+    distribution :: Array BigInt /\ Array BigInt
+    distribution = ...
+  
+  sameWallets distribution $
+    group "Test Plan" do
+      test "Test 1"  \(alice /\ bob /\ charlie) -> do
+          ...
+
+      test "Test 2"  \(alice /\ bob /\ charlie) -> do
+          ...
+
+      test "Test 3" \(alice /\ bob /\ charlie) ->  do
+          ...
+```
 
 ### Testing in Aff context
 
