@@ -181,7 +181,7 @@ suite = runPlutipTestPlan config do
   let
     distribution :: Array BigInt /\ Array BigInt
     distribution = ...
-  
+
   sameWallets distribution $
     group "Test Plan" do
       test "Test 1"  \(alice /\ bob /\ charlie) -> do
