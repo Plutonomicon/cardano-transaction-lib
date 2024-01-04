@@ -1,5 +1,5 @@
 function getWindow() {
-  return typeof window != "undefined" ? window : global.window_;
+  return typeof window != "undefined" ? window : global.window;
 }
 
 const nodeEnvError = new Error(
