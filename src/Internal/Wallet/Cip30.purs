@@ -65,7 +65,7 @@ type DataSignature =
 -- | A simplified internal view of CIP-30 API that wraps `Api` from
 -- | `purescript-cip30`.
 -- |
--- | - We hardcode the collateral amount
+-- | - We hardcode the collateral amount to 5 ADA
 -- | - We always request all UTxOs in `getUtxos`
 -- | - We don't support querying of supported CIP-30 extensions
 -- | - We don't support getting wallet icon, name and apiVersion
@@ -73,7 +73,8 @@ type DataSignature =
 -- |
 -- | Use `purescript-cip30` for these: `connection` field contains the API handle.
 type Cip30Wallet =
-  { -- A reference to a connection with the wallet, i.e. `window.cardano.nami`,
+  { -- A reference to a connection with the wallet, i.e. the result of calling
+    -- `window.cardano[walletName].enable()`,
     connection :: Api
   -- Returns the network id of the currently connected account. 0 is for any
   -- of the test networks, and 1 is mainnet.
@@ -133,7 +134,6 @@ txToHex =
 handleApiError
   :: forall a. Variant (apiError :: APIError, success :: a) -> Aff a
 handleApiError = match
-  -- eta expansion fixes type checking here
   { success: pure :: a -> Aff a, apiError: show >>> throw >>> liftEffect }
 
 getUnusedAddresses :: Api -> Aff (Array Address)
@@ -190,7 +190,7 @@ getCollateral conn = do
 
 getUtxos :: Api -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
-  result <- Cip30.getUtxos conn Nothing
+  result <- Cip30.getUtxos conn Nothing Nothing
   result `flip match`
     { success: \mbUtxoArray -> do
         liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do

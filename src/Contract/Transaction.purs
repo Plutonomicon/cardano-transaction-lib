@@ -41,7 +41,6 @@ import Contract.Metadata (GeneralTransactionMetadata)
 import Contract.Monad
   ( Contract
   , liftContractM
-  , liftedM
   , runContractInEnv
   )
 import Contract.TxConstraints (TxConstraints)
