@@ -61,15 +61,17 @@ import Effect.Unsafe (unsafePerformEffect)
 convertWitnessSet :: TransactionWitnessSet -> T.TransactionWitnessSet
 convertWitnessSet ws =
   let
+    vkeys = getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     nativeScripts = getNativeScripts maybeFfiHelper ws <#> convertNativeScripts
+    bootstraps = getBootstraps maybeFfiHelper ws <#> convertBootstraps
     plutusScripts = getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
     plutusData = getWitnessSetPlutusData maybeFfiHelper ws <#> convertPlutusList
     redeemers = getRedeemers maybeFfiHelper ws <#> convertRedeemers
   in
     T.TransactionWitnessSet
-      { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
+      { vkeys
       , nativeScripts
-      , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
+      , bootstraps
       , plutusScripts
       , plutusData
       , redeemers

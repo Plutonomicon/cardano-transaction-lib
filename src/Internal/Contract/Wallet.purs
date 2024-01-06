@@ -60,7 +60,7 @@ import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
 
 getUnusedAddresses :: Contract (Array Address)
-getUnusedAddresses = do
+getUnusedAddresses =
   withWallet $ actionBasedOnWallet _.getUnusedAddresses mempty
 
 getChangeAddress :: Contract Address
@@ -71,11 +71,9 @@ getChangeAddress = withWallet do
       pure $ (unwrap kw).address networkId
 
 getRewardAddresses :: Contract (Array Address)
-getRewardAddresses = withWallet do
-  actionBasedOnWallet _.getRewardAddresses
-    \kw -> do
-      networkId <- asks _.networkId
-      pure $ pure $ (unwrap kw).address networkId
+getRewardAddresses =
+  withWallet $ actionBasedOnWallet _.getRewardAddresses
+    \kw -> asks _.networkId <#> Array.singleton <<< (unwrap kw).address
 
 getWalletAddresses :: Contract (Array Address)
 getWalletAddresses = withWallet do
