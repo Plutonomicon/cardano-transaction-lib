@@ -5,7 +5,6 @@ module Ctl.Internal.BalanceTx
 import Prelude
 
 import Contract.Log (logWarn')
-import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
 import Control.Monad.Reader (asks)
@@ -37,13 +36,12 @@ import Ctl.Internal.BalanceTx.Constraints
   ) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
-      ( InsufficientCollateralUtxos
-      , UtxoLookupFailedFor
+      ( UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
       , ReindexRedeemersError
-      , CouldNotGetUtxos
+      , InsufficientCollateralUtxos
       , CouldNotGetCollateral
-      , CouldNotGetChangeAddress
+      , CouldNotGetUtxos
       )
   )
 import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
@@ -55,11 +53,10 @@ import Ctl.Internal.BalanceTx.RedeemerIndex
   , indexRedeemers
   , mkRedeemersContext
   )
-import Ctl.Internal.BalanceTx.Sync (syncBackendWithWallet)
+import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncBackendWithWallet)
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , FinalizedTransaction
-  , askCip30Wallet
   , askCoinsPerUtxoUnit
   , askNetworkId
   , asksConstraints
@@ -256,10 +253,8 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
       }
   where
   getChangeAddress :: BalanceTxM Address
-  getChangeAddress =
-    liftMaybe CouldNotGetChangeAddress
-      =<< maybe (liftContract Wallet.getChangeAddress) (pure <<< Just)
-      =<< asksConstraints Constraints._changeAddress
+  getChangeAddress = maybe (liftContract Wallet.getChangeAddress) pure
+    =<< asksConstraints Constraints._changeAddress
 
   transactionWithNetworkId :: BalanceTxM Transaction
   transactionWithNetworkId = do
@@ -356,7 +351,7 @@ runBalancer p = do
   partitionAndFilterUtxos
     :: BalanceTxM { spendable :: UtxoMap, invalidInContext :: UtxoMap }
   partitionAndFilterUtxos = do
-    isCip30 <- isJust <$> askCip30Wallet
+    isCip30 <- liftContract $ isCip30Wallet
     -- Get collateral inputs to mark them as unspendable.
     -- Some CIP-30 wallets don't allow to sign Txs that spend it.
     nonSpendableCollateralInputs <-

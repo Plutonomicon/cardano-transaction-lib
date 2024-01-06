@@ -76,7 +76,7 @@ import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
-import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
+import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), isRight)
@@ -317,11 +317,13 @@ getLedgerConstants params = case _ of
 
 -- | Ensure that `NetworkId` from wallet is the same as specified in the
 -- | `ContractEnv`.
+-- todo: reimplement uniformly
 walletNetworkCheck :: NetworkId -> Wallet -> Aff Unit
 walletNetworkCheck envNetworkId =
-  actionBasedOnWallet
-    (\w -> check <=< intToNetworkId <=< _.getNetworkId w)
-    (pure $ pure unit)
+  case _ of
+    GenericCip30 wallet -> do
+      check =<< intToNetworkId =<< wallet.getNetworkId
+    _ -> pure unit
   where
   check :: NetworkId -> Aff Unit
   check networkId = unless (envNetworkId == networkId) do

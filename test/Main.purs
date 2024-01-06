@@ -2,7 +2,7 @@ module Test.Ctl.Main (main) where
 
 import Prelude
 
-import Ctl.Internal.Test.TestPlanM (interpret)
+import Contract.Test.Mote (interpret)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.Ctl.Integration as Integration

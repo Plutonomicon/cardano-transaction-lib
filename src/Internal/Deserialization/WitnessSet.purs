@@ -52,26 +52,30 @@ import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData (PlutusData) as T
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Traversable (for, traverse)
+import Data.Maybe (Maybe)
 import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
+import Effect.Exception (throw)
+import Effect.Unsafe (unsafePerformEffect)
 
-convertWitnessSet :: TransactionWitnessSet -> Maybe T.TransactionWitnessSet
-convertWitnessSet ws = do
+convertWitnessSet :: TransactionWitnessSet -> T.TransactionWitnessSet
+convertWitnessSet ws =
   let
+    vkeys = getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
     nativeScripts = getNativeScripts maybeFfiHelper ws <#> convertNativeScripts
+    bootstraps = getBootstraps maybeFfiHelper ws <#> convertBootstraps
     plutusScripts = getPlutusScripts maybeFfiHelper ws <#> convertPlutusScripts
     plutusData = getWitnessSetPlutusData maybeFfiHelper ws <#> convertPlutusList
-  redeemers <- for (getRedeemers maybeFfiHelper ws) convertRedeemers
-  pure $ T.TransactionWitnessSet
-    { vkeys: getVkeywitnesses maybeFfiHelper ws <#> convertVkeyWitnesses
-    , nativeScripts
-    , bootstraps: getBootstraps maybeFfiHelper ws <#> convertBootstraps
-    , plutusScripts
-    , plutusData
-    , redeemers
-    }
+    redeemers = getRedeemers maybeFfiHelper ws <#> convertRedeemers
+  in
+    T.TransactionWitnessSet
+      { vkeys
+      , nativeScripts
+      , bootstraps
+      , plutusScripts
+      , plutusData
+      , redeemers
+      }
 
 convertVkeyWitnesses :: Vkeywitnesses -> Array T.Vkeywitness
 convertVkeyWitnesses = extractWitnesses >>> map convertVkeyWitness
@@ -113,30 +117,31 @@ convertPlutusScript plutusScript = do
 convertPlutusList :: PlutusList -> Array T.PlutusData
 convertPlutusList = extractPlutusData >>> map convertPlutusData
 
-convertRedeemers :: Redeemers -> Maybe (Array T.Redeemer)
-convertRedeemers = extractRedeemers >>> traverse convertRedeemer
+convertRedeemers :: Redeemers -> Array T.Redeemer
+convertRedeemers = extractRedeemers >>> map convertRedeemer
 
-convertRedeemer :: Redeemer -> Maybe T.Redeemer
-convertRedeemer redeemer = do
-  tag <- convertRedeemerTag $ getRedeemerTag redeemer
+convertRedeemer :: Redeemer -> T.Redeemer
+convertRedeemer redeemer =
   let
+    tag = convertRedeemerTag $ getRedeemerTag redeemer
     index = BigNum.toBigInt $ getRedeemerIndex redeemer
     exUnits = convertExUnits $ getExUnits redeemer
     data_ = convertPlutusData $ getRedeemerPlutusData redeemer
-  pure $ T.Redeemer
-    { tag
-    , index
-    , data: data_
-    , exUnits
-    }
+  in
+    T.Redeemer
+      { tag
+      , index
+      , data: data_
+      , exUnits
+      }
 
-convertRedeemerTag :: RedeemerTag -> Maybe Tag.RedeemerTag
+convertRedeemerTag :: RedeemerTag -> Tag.RedeemerTag
 convertRedeemerTag tag = case getRedeemerTagKind tag of
-  0 -> Just Tag.Spend
-  1 -> Just Tag.Mint
-  2 -> Just Tag.Cert
-  3 -> Just Tag.Reward
-  _ -> Nothing
+  0 -> Tag.Spend
+  1 -> Tag.Mint
+  2 -> Tag.Cert
+  3 -> Tag.Reward
+  _ -> unsafePerformEffect $ throw "convertRedeemerTag: impossible happened"
 
 convertExUnits :: ExUnits -> T.ExUnits
 convertExUnits eu =

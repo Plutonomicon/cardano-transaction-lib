@@ -220,10 +220,9 @@ deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
 convertTransaction
   :: forall (r :: Row Type). Csl.Transaction -> Err r T.Transaction
 convertTransaction tx = addErrTrace "convertTransaction" do
-  witnessSet <- cslErr "convertWitnessSet" $ convertWitnessSet
-    (_txWitnessSet tx)
   body <- convertTxBody $ _txBody tx
   let
+    witnessSet = convertWitnessSet (_txWitnessSet tx)
     auxiliaryData = convertAuxiliaryData <$>
       _txAuxiliaryData maybeFfiHelper tx
   pure $ T.Transaction

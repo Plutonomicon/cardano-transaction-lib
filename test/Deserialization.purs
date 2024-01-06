@@ -155,7 +155,7 @@ suite = do
     group "WitnessSet - deserialization" do
       group "fixture #1" do
         res <- errMaybe "Failed deserialization 5" do
-          fromBytes (wrap witnessSetFixture1) >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture1) <#> convertWitnessSet
         test "has vkeys" do
           (unwrap res).vkeys `shouldSatisfy` isJust
         test "has plutusData" do
@@ -170,15 +170,15 @@ suite = do
           (unwrap res).nativeScripts `shouldSatisfy` isNothing
       test "fixture #2" do
         res <- errMaybe "Failed deserialization 6" do
-          fromBytes (wrap witnessSetFixture2) >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture2) <#> convertWitnessSet
         res `shouldEqual` witnessSetFixture2Value
       test "fixture #3" do
         res <- errMaybe "Failed deserialization 7" do
-          fromBytes (wrap witnessSetFixture3) >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture3) <#> convertWitnessSet
         res `shouldEqual` witnessSetFixture3Value
       group "fixture #4" do
         res <- errMaybe "Failed deserialization 8" $
-          fromBytes (wrap witnessSetFixture4) >>= convertWitnessSet
+          fromBytes (wrap witnessSetFixture4) <#> convertWitnessSet
         test "has nativeScripts" do
           (unwrap res).nativeScripts `shouldSatisfy` isJust
     group "NativeScript - deserializaton is inverse to serialization" do
@@ -231,10 +231,11 @@ suite = do
           -> m Unit
         witnessSetRoundTrip fixture = do
           ws0 <- errMaybe "Failed deserialization" $
-            fromBytes (wrap fixture) >>= convertWitnessSet
+            fromBytes (wrap fixture) <#> convertWitnessSet
           ws1 <- liftEffect $ SW.convertWitnessSet ws0
-          ws2 <- errMaybe "Failed deserialization" $ convertWitnessSet ws1
-          let vkeys = fold (unwrap ws2).vkeys
+          let
+            ws2 = convertWitnessSet ws1
+            vkeys = fold (unwrap ws2).vkeys
           vkeyWitnessesRoundtrip vkeys
           ws0 `shouldEqual` ws2 -- value representation
           let wsBytes = unwrap $ Serialization.toBytes ws1

@@ -14,7 +14,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , mkPublicKey
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.Helpers (fromRightEff)
 import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Transaction
@@ -31,7 +30,6 @@ import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
-import Data.Either (Either(Left, Right))
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
@@ -59,8 +57,7 @@ suite = group "attach datums to tx" $ do
 testAttachDatum :: Aff Unit
 testAttachDatum = liftEffect $
   attachDatum datum tx >>= case _ of
-    Left e -> throw $ "Failed to attach datum: " <> show e
-    Right (Transaction { witnessSet: TransactionWitnessSet ws }) ->
+    Transaction { witnessSet: TransactionWitnessSet ws } ->
       case ws.plutusData of
         Just [ pd ] -> do
           pd `shouldEqual` unwrap datum
@@ -77,8 +74,7 @@ testAttachRedeemer :: Aff Unit
 testAttachRedeemer = liftEffect $ do
   redeemer <- mkRedeemer datum
   attachRedeemer redeemer tx >>= case _ of
-    Left e -> throw $ "Failed to attach redeemer: " <> show e
-    Right (Transaction { witnessSet: TransactionWitnessSet ws }) -> do
+    Transaction { witnessSet: TransactionWitnessSet ws } -> do
       case ws.redeemers of
         Just [ r ] -> r `shouldEqual` redeemer
         Just _ -> throw "Incorrect number of redeemers attached"
@@ -93,8 +89,7 @@ testAttachRedeemer = liftEffect $ do
 testAttachScript :: Language -> Aff Unit
 testAttachScript language = liftEffect $
   attachPlutusScript script tx >>= case _ of
-    Left e -> throw $ "Failed to attach script: " <> show e
-    Right (Transaction { witnessSet: TransactionWitnessSet ws }) ->
+    Transaction { witnessSet: TransactionWitnessSet ws } ->
       case ws.plutusScripts of
         Just [ ps ] -> ps `shouldEqual` script
         Just _ -> throw "Incorrect number of scripts attached"
@@ -133,7 +128,7 @@ testSetScriptDataHash = liftEffect $ do
 testPreserveWitness :: Aff Unit
 testPreserveWitness = liftEffect $ do
   Transaction { witnessSet: TransactionWitnessSet { plutusData, vkeys } } <-
-    fromRightEff =<< attachDatum datum tx
+    attachDatum datum tx
   case plutusData /\ vkeys of
     Just [ pd ] /\ Just vs@[ _ ] -> do
       pd `shouldEqual` unwrap datum

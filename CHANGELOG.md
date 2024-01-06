@@ -72,6 +72,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Removed
 
+- `ModifyTx` error: made conversion functions total and removed the need to handle it
+
 ## [v7.0.0]
 
 ### Added

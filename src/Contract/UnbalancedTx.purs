@@ -31,7 +31,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , DatumWrongHash
       , MintingPolicyHashNotCurrencySymbol
       , MintingPolicyNotFound
-      , ModifyTx
       , OwnPubKeyAndStakeKeyMissing
       , TxOutRefNotFound
       , TxOutRefWrongType
