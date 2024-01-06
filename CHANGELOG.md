@@ -68,6 +68,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
+
 ### Fixed
 
 ### Removed
