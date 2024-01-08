@@ -192,7 +192,7 @@ suite = runPlutipTestPlan config do
           ...
 ```
 
-Another example for using `sameWallets` can be found here.
+Another example for using `sameWallets` can be found [here](../test/Plutip/SameWallets.purs).
 
 ### Testing in Aff context
 
