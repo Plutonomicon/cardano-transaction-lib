@@ -1,16 +1,9 @@
 /* global BROWSER_RUNTIME */
 
 import Blake2 from "blakejs";
-
 import SHA256 from "jssha/sha256";
 import SHA3 from "jssha/sha3";
-
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
-} else {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
-}
+import * as lib from "@mlabs-haskell/cardano-serialization-lib-gc";
 
 export function blake2b224Hash(bytesToHash) {
   return Blake2.blake2b(bytesToHash, null, 28);

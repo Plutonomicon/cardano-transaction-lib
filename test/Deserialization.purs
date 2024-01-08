@@ -2,12 +2,15 @@ module Test.Ctl.Deserialization (suite) where
 
 import Prelude
 
+import Aeson (decodeAeson, parseJsonStringToAeson)
+import Contract.CborBytes (hexToCborBytesUnsafe)
 import Contract.Prim.ByteArray (ByteArray)
 import Contract.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType(Other)
   , decodeTextEnvelope
   )
+import Contract.Wallet (privateKeyFromBytes)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
@@ -25,6 +28,7 @@ import Ctl.Internal.Deserialization.UnspentOutput
   , mkTransactionUnspentOutput
   )
 import Ctl.Internal.Deserialization.WitnessSet (convertWitnessSet)
+import Ctl.Internal.Plutip.Types (StartClusterResponse)
 import Ctl.Internal.Serialization (convertTransaction) as TS
 import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serialization
 import Ctl.Internal.Serialization.BigInt as SB
@@ -40,7 +44,7 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
-import Data.Either (hush)
+import Data.Either (Either, hush, isRight)
 import Data.Foldable (fold)
 import Data.Maybe (isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -259,6 +263,20 @@ suite = do
         TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
           decodeTextEnvelope otherTypeTextEnvelope
         envelope.type_ `shouldEqual` (Other "SomeOtherType")
+    group "PrivateKey" do
+      test "Decoding from bytes" do
+        let
+          fixture =
+            "8db3dc3d5310bcb9287610cfc45cf1c63620e8d66f0fdb36c27567b3f5e22d42"
+          mbKey = privateKeyFromBytes $ wrap $ unwrap $ hexToCborBytesUnsafe
+            fixture
+        isJust mbKey `shouldEqual` true
+    group "Plutip HTTP types" do
+      test "StartClusterResponse" do
+        let
+          (mbParams :: Either _ StartClusterResponse) =
+            decodeAeson =<< parseJsonStringToAeson plutipSuccessResponseFixture
+        mbParams `shouldSatisfy` isRight
 
 createUnspentOutput
   :: T.TransactionInput
@@ -290,3 +308,9 @@ txRoundtrip tx = do
   expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
     TD.convertTransaction cslTX
   tx `shouldEqual` expected
+
+plutipSuccessResponseFixture :: String
+plutipSuccessResponseFixture =
+  """
+{"contents":{"keysDirectory":"/tmp/nix-shell.xvz2Lq/test-cluster149328/signing-keys","nodeConfigPath":"/tmp/nix-shell.xvz2Lq/test-cluster149328/pool-3/node.config","nodeSocketPath":"/tmp/nix-shell.xvz2Lq/test-cluster149328/pool-3/node.socket","privateKeys":["e61e29b40ba4e5a3100363d86669f3cb604ea3fc971b43510c97daeb9bf2e4e2","9cd3bd5deb0a04ef2e20160b85b889f32dfc66d2f7b7a0fac5aec3b1ad950227"]},"tag":"ClusterStartupSuccess"}
+"""

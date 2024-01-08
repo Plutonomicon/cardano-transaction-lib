@@ -4,7 +4,7 @@ let lib;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
 } else {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
+  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc");
   // lib = (await import("../../../../cardano-serialization-lib-gc/nodejs/index.js"));
 }
 

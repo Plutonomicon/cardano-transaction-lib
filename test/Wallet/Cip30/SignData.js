@@ -1,16 +1,14 @@
 /* global BROWSER_RUNTIME */
 
-let lib, csl;
+let lib;
+
+import * as csl from "@mlabs-haskell/cardano-serialization-lib-gc";
+
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   lib = await import("@emurgo/cardano-message-signing-browser");
-  csl = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
 } else {
   lib = await import("@emurgo/cardano-message-signing-nodejs");
-  csl = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
 }
-// import gcWrapper from "@mlabs-haskell/csl-gc-wrapper";
-// lib = gcWrapper(lib);
-// csl = gcWrapper(csl);
 
 function opt_chain(maybe, obj) {
   const isNothing = x => x === null || x === undefined;

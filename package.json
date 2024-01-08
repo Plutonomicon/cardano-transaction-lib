@@ -1,8 +1,6 @@
 {
   "type": "module",
   "name": "cardano-transaction-lib",
-  "version": "5.0.0",
-  "description": "",
   "repository": {
     "type": "git",
     "url": "https://github.com/Plutonomicon/cardano-transaction-lib.git"
@@ -31,13 +29,11 @@
     "webpack-bundle": "make webpack-bundle",
     "webpack-serve": "make webpack-serve"
   },
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
-    "@mlabs-haskell/cardano-serialization-lib-gc-browser": "^1.0.6",
-    "@mlabs-haskell/cardano-serialization-lib-gc-nodejs": "^1.0.6",
+    "@mlabs-haskell/cardano-serialization-lib-gc": "^1.0.7",
     "@mlabs-haskell/csl-gc-wrapper": "^1.0.1",
     "@mlabs-haskell/json-bigint": "2.0.0",
     "@noble/secp256k1": "^1.7.0",
