@@ -160,9 +160,7 @@ runPlutipTestPlan
   -> TestPlanM (Aff Unit) Unit
 ```
 
-`runPlutipTestPlan` uses the exact same logic to perform `testPlutipContracts`, except it forgoes the use of `execDistribution` to create a `ContractTestPlan` from a `TestPlanM ContratTest Unit`. Instead, a `ContractTestPlan` is expected as the second parameter of the function, meaning that the test plan will need to be created before using `runPlutipTestPlan`.
-
-`Contract.Test.Plutip.sameWallets` is a helper function that can be used to create a `ContractTestPlan` where all of the tests use the same wallets that defined in the `UtxoDistribution`, this function has a type of:
+`runPlutipTestPlan` uses the exact same logic to perform `testPlutipContracts`, except it requires that wallets are pre-allocated inside of the second parameter, which has a type of `ContractTestPlan`. `Contract.Test.Plutip.sameWallets` is a helper function that can be used to create a `ContractTestPlan` where all of the tests use the same wallets that are defined in the `UtxoDistribution`, this function has a type of:
 
 ```purescript
 sameWallets
@@ -193,6 +191,8 @@ suite = runPlutipTestPlan config do
       test "Test 3" \(alice /\ bob /\ charlie) ->  do
           ...
 ```
+
+Another example for using `sameWallets` can be found here.
 
 ### Testing in Aff context
 

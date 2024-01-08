@@ -4,7 +4,12 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Test.Plutip (PlutipConfig, noWallet, testPlutipContracts)
+import Contract.Test.Plutip
+  ( PlutipConfig
+  , noWallet
+  , runPlutipTestPlan
+  , testPlutipContracts
+  )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutip.Server
@@ -39,6 +44,7 @@ import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Plutip.ExUnits as ExUnits
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.SameWallets as SameWallets
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldSatisfy)
@@ -68,6 +74,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
             Contract.suite
           UtxoDistribution.suite
           testPlutipContracts config OgmiosMempool.suite
+          runPlutipTestPlan config SameWallets.suite
 
 configWithMaxExUnits :: PlutipConfig
 configWithMaxExUnits = config

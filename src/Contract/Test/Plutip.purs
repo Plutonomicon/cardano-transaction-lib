@@ -2,6 +2,7 @@
 -- | environment.
 module Contract.Test.Plutip
   ( PlutipTest
+  , PlutipTestPlan
   , defaultPlutipConfig
   , module X
   , runPlutipTestPlan
@@ -20,8 +21,7 @@ import Ctl.Internal.Plutip.Types (PlutipConfig) as X
 import Ctl.Internal.Test.ContractTest (ContractTest)
 import Ctl.Internal.Test.ContractTest (ContractTest, ContractTestPlan) as Server
 import Ctl.Internal.Test.ContractTest
-  ( groupContractTestPlans
-  , noWallet
+  ( noWallet
   , sameWallets
   , withWallets
   ) as X
@@ -56,6 +56,7 @@ runPlutipTestPlan = Server.runPlutipTestPlan
 
 -- | Type synonym for backwards compatibility.
 type PlutipTest = ContractTest
+type PlutipTestPlan = Server.ContractTestPlan
 
 -- | A default value for `PlutipConfig` type.
 defaultPlutipConfig :: PlutipConfig
