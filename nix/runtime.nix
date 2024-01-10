@@ -137,7 +137,7 @@ rec {
               "-c"
               ''
                 ${inputs.kupo-nixos.packages.${pkgs.system}.kupo}/bin/kupo \
-                  --node-config /config/cardano-node/config.json \
+                  --node-config /config/config.json \
                   --node-socket "${nodeSocketPath}" \
                   --since "${kupo.since}" \
                   --match "${kupo.match}" \
@@ -163,7 +163,7 @@ rec {
                   --host ogmios \
                   --port ${toString ogmios.port} \
                   --node-socket /ipc/node.socket \
-                  --node-config /config/cardano-node/config.json
+                  --node-config /config/config.json
                   --include-transaction-cbor
               ''
             ];
