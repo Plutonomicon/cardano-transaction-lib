@@ -1,4 +1,4 @@
-{ config, modulesPath, pkgs, cardano-configurations, ... }:
+{ config, modulesPath, pkgs, cardano-world, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
@@ -28,8 +28,8 @@
   services.cardano-node = {
     enable = true;
     systemdSocketActivation = true;
-    nodeConfigFile = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
-    topology = "${cardano-configurations}/network/mainnet/cardano-node/topology.json";
+    nodeConfigFile = "${cardano-world}/docs/environments/mainnet/config.json";
+    topology = "${cardano-world}/docs/environments/mainnet/topology.json";
   };
 
   services.ogmios = {
@@ -43,7 +43,7 @@
     host = "0.0.0.0";
     user = "kupo";
     group = "kupo";
-    nodeConfig = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
+    nodeConfig = "${cardano-world}/docs/environments/mainnet/config.json";
     nodeSocket = "/var/run/cardano-node/node.socket";
   };
 }

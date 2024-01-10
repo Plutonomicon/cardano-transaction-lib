@@ -42,8 +42,8 @@ guide above.
 If you are using a testnet, replace the `--mainnet` flag in the shell command
 with `--testnet-magic YOUR_NETWORK_MAGIC`, where `YOUR_NETWORK_MAGIC` is a
 genesis parameter of the network. For public testnets, you can get this value
-from the [`cardano-configurations` repo][cardano-configurations]. You can find
-it in `network/YOUR_NETWORK_NAME/genesis/shelley.json`, under the `networkMagic`
+from the [`cardano-world` repo][cardano-world]. You can find
+it in `docs/environments/YOUR_NETWORK_NAME/shelley-genesis.json`, under the `networkMagic`
 key. Common values are 1 for `preprod`, and 2 for `preview`.
 
 ### Funding your address
@@ -76,5 +76,5 @@ lose access to.
 [mote]: https://github.com/garyb/purescript-mote
 [cardano-handbook-keys-addresses]: https://developers.cardano.org/docs/stake-pool-course/handbook/keys-addresses
 [ctl-generate-keys]: https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/scripts/generate-keys.sh
-[cardano-configurations]: https://github.com/input-output-hk/cardano-configurations
+[cardano-world]: https://github.com/IntersectMBO/cardano-world
 [testnet-faucet]: https://docs.cardano.org/cardano-testnet/tools/faucet

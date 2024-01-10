@@ -1,7 +1,7 @@
 { inputs, ... }:
 rec {
   defaultConfig = final: with final; {
-    inherit (inputs) cardano-configurations;
+    inherit (inputs) cardano-world;
     # { name = "preprod"; magic = 1; }
     # { name = "mainnet"; magic = null; }
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
@@ -106,8 +106,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort node.port) ];
             volumes = [
-              "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
-              "${config.cardano-configurations}/network/${config.network.name}/genesis:/genesis"
+              "${config.cardano-world}/docs/environments/${config.network.name}:/config"
               "${nodeDbVol}:/data"
               "${nodeIpcVol}:/ipc"
             ];
@@ -129,7 +128,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort kupo.port) ];
             volumes = [
-              "${config.cardano-configurations}/network/${config.network.name}:/config"
+              "${config.cardano-world}/docs/environments/${config.network.name}:/config"
               "${nodeIpcVol}:/ipc"
               "${kupoDbVol}:/kupo-db"
             ];
@@ -153,7 +152,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort ogmios.port) ];
             volumes = [
-              "${config.cardano-configurations}/network/${config.network.name}:/config"
+              "${config.cardano-world}/docs/environments/${config.network.name}:/config"
               "${nodeIpcVol}:/ipc"
             ];
             command = [
@@ -192,7 +191,7 @@ rec {
           depends_on = [ "postgres-${network.name}" ];
           volumes = [
             "${dbSyncStateVol}:/state"
-            "${config.cardano-configurations}/network/${config.network.name}:/config"
+            "${config.cardano-world}/docs/environments/${config.network.name}:/config"
             "${nodeIpcVol}:/ipc"
             "${dbSyncTmpVol}:/tmp"
           ];
