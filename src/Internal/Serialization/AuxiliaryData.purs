@@ -5,6 +5,7 @@ module Ctl.Internal.Serialization.AuxiliaryData
 
 import Prelude
 
+import Cardano.Serialization.Lib.Internal (packMapContainerFromMap)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
@@ -35,6 +36,7 @@ import Ctl.Internal.Types.TransactionMetadata
 import Data.Map as Map
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)
+import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)

@@ -774,8 +774,7 @@ convertMint (T.Mint nonAdaAssets) = do
     forWithIndex_ values \tokenName' bigIntValue -> do
       let tokenName = TokenName.getTokenName tokenName'
       assetName <- newAssetName tokenName
-      bigInt <- fromJustEff "convertMint: failed to convert BigInt" $
-        Serialization.convertBigInt bigIntValue
+      let bigInt = Serialization.convertBigInt bigIntValue
       int <- fromJustEff "convertMint: numeric overflow or underflow" $
         _bigIntToInt maybeFfiHelper bigInt
       insertMintAsset assets assetName int

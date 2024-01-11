@@ -21,6 +21,7 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
 import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
+import Cardano.Serialization.Lib (BigNum)
 import Ctl.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
 import Ctl.Internal.Error (E, noteE)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -33,8 +34,6 @@ import JS.BigInt (BigInt)
 import JS.BigInt (fromString, toString) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Type.Row (type (+))
-
-foreign import data BigNum :: Type
 
 instance Eq BigNum where
   eq lhs rhs = bnCompare lhs rhs == 0

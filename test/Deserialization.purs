@@ -100,7 +100,7 @@ suite = do
       test "Deserialization is inverse to serialization" do
         let bigInt = BigInt.fromInt 123
         res <- errMaybe "Failed to serialize BigInt" do
-          DB.convertBigInt =<< SB.convertBigInt bigInt
+          DB.convertBigInt $ SB.convertBigInt bigInt
         res `shouldEqual` bigInt
     group "BigNum" do
       test "Deserialization is inverse to serialization" do

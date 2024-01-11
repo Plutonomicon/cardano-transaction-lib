@@ -4,12 +4,13 @@ module Ctl.Internal.Serialization.BigInt
 
 import Prelude
 
-import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+import Cardano.Serialization.Lib (bigInt_fromStr)
 import Ctl.Internal.Serialization.Types (BigInt)
-import Data.Maybe (Maybe)
+import Data.Maybe (fromJust)
+import Data.Nullable (toMaybe)
 import JS.BigInt as BigInt
+import Partial.Unsafe (unsafePartial)
 
-convertBigInt :: BigInt.BigInt -> Maybe BigInt
-convertBigInt = _BigInt_from_str maybeFfiHelper <<< BigInt.toString
-
-foreign import _BigInt_from_str :: MaybeFfiHelper -> String -> Maybe BigInt
+convertBigInt :: BigInt.BigInt -> BigInt
+convertBigInt bi = unsafePartial $ fromJust $ toMaybe $ bigInt_fromStr $
+  BigInt.toString bi
