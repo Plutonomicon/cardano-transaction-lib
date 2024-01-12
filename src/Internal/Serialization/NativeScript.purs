@@ -5,6 +5,21 @@ module Ctl.Internal.Serialization.NativeScript
 
 import Prelude
 
+import Cardano.Serialization.Lib
+  ( nativeScript_newScriptAll
+  , nativeScript_newScriptAny
+  , nativeScript_newScriptNOfK
+  , nativeScript_newScriptPubkey
+  , nativeScript_newTimelockExpiry
+  , nativeScript_newTimelockStart
+  , scriptAll_new
+  , scriptAny_new
+  , scriptNOfK_new
+  , scriptPubkey_new
+  , timelockExpiry_newTimelockexpiry
+  , timelockStart_newTimelockstart
+  )
+import Cardano.Serialization.Lib.Internal (packListContainer)
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -15,23 +30,14 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   ) as T
-import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import Ctl.Internal.Serialization.Address (Slot(Slot)) as T
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as T
-import Ctl.Internal.Serialization.Types
-  ( NativeScript
-  , NativeScripts
-  , ScriptAll
-  , ScriptAny
-  , ScriptNOfK
-  , ScriptPubkey
-  , TimelockExpiry
-  , TimelockStart
-  )
-import Ctl.Internal.Types.BigNum (BigNum)
+import Ctl.Internal.Serialization.Types (NativeScript, NativeScripts)
+import Data.Int as Int
+import Data.Newtype (unwrap)
 
 convertNativeScripts :: Array T.NativeScript -> NativeScripts
-convertNativeScripts = packNativeScripts <<< map convertNativeScript
+convertNativeScripts = packListContainer <<< map convertNativeScript
 
 -- | Note: unbounded recursion here.
 convertNativeScript :: T.NativeScript -> NativeScript
@@ -45,47 +51,28 @@ convertNativeScript = case _ of
 
 convertScriptPubkey :: T.Ed25519KeyHash -> NativeScript
 convertScriptPubkey hash = do
-  nativeScript_new_script_pubkey $ mkScriptPubkey hash
+  nativeScript_newScriptPubkey $ scriptPubkey_new (unwrap hash)
 
 convertScriptAll :: Array T.NativeScript -> NativeScript
 convertScriptAll nss =
-  nativeScript_new_script_all <<< mkScriptAll <<<
-    packNativeScripts $ map convertNativeScript nss
+  nativeScript_newScriptAll <<< scriptAll_new <<<
+    packListContainer $ map convertNativeScript nss
 
 convertScriptAny :: Array T.NativeScript -> NativeScript
 convertScriptAny nss =
-  nativeScript_new_script_any <<< mkScriptAny <<<
-    packNativeScripts $ map convertNativeScript nss
+  nativeScript_newScriptAny <<< scriptAny_new <<<
+    packListContainer $ map convertNativeScript nss
 
 convertScriptNOfK :: Int -> Array T.NativeScript -> NativeScript
 convertScriptNOfK n nss =
-  nativeScript_new_script_n_of_k <<< mkScriptNOfK n <<<
-    packNativeScripts $ map convertNativeScript nss
+  nativeScript_newScriptNOfK <<< scriptNOfK_new (Int.toNumber n) <<<
+    packListContainer $ map convertNativeScript nss
 
 convertTimelockStart :: T.Slot -> NativeScript
 convertTimelockStart (T.Slot slot) =
-  nativeScript_new_timelock_start (mkTimelockStart slot)
+  nativeScript_newTimelockStart (timelockStart_newTimelockstart $ unwrap slot)
 
 convertTimelockExpiry :: T.Slot -> NativeScript
 convertTimelockExpiry (T.Slot slot) =
-  nativeScript_new_timelock_expiry (mkTimelockExpiry slot)
-
-packNativeScripts :: Array NativeScript -> NativeScripts
-packNativeScripts = _packNativeScripts containerHelper
-
-foreign import mkScriptPubkey :: T.Ed25519KeyHash -> ScriptPubkey
-foreign import _packNativeScripts
-  :: ContainerHelper -> Array NativeScript -> NativeScripts
-
-foreign import mkScriptAll :: NativeScripts -> ScriptAll
-foreign import mkScriptAny :: NativeScripts -> ScriptAny
-foreign import mkScriptNOfK :: Int -> NativeScripts -> ScriptNOfK
-foreign import mkTimelockStart :: BigNum -> TimelockStart
-foreign import mkTimelockExpiry :: BigNum -> TimelockExpiry
-foreign import nativeScript_new_script_pubkey :: ScriptPubkey -> NativeScript
-foreign import nativeScript_new_script_all :: ScriptAll -> NativeScript
-foreign import nativeScript_new_script_any :: ScriptAny -> NativeScript
-foreign import nativeScript_new_script_n_of_k :: ScriptNOfK -> NativeScript
-foreign import nativeScript_new_timelock_start :: TimelockStart -> NativeScript
-foreign import nativeScript_new_timelock_expiry
-  :: TimelockExpiry -> NativeScript
+  nativeScript_newTimelockExpiry
+    (timelockExpiry_newTimelockexpiry $ unwrap slot)

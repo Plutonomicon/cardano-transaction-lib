@@ -24,6 +24,9 @@ import Aeson
   , caseAesonString
   , encodeAeson
   )
+import Cardano.Serialization.Lib (fromBytes, nativeScript_hash, toBytes)
+import Cardano.Serialization.Lib as CSL
+import Cardano.Serialization.Lib as Csl
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
@@ -31,26 +34,25 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Serialization.Types (NativeScript)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray
+import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
+import Ctl.Internal.Types.RawBytes (RawBytes, rawBytesToHex)
+import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
+import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayToHex
   , hexToByteArray
   )
-import Ctl.Internal.Types.PlutusData (PlutusData(Bytes))
-import Ctl.Internal.Types.RawBytes (RawBytes, rawBytesToHex)
-import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum(Bytes)) as Metadata
 import Data.Either (Either(Left, Right), note)
 import Data.Function (on)
 import Data.Maybe (Maybe(Nothing, Just), fromJust, maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Gen (chooseInt, vectorOf)
 
--- We can't use ToBytes class here, because of cyclic dependencies
--- | Encodes the hash to `CborBytes`
-foreign import hashToBytes :: forall (a :: Type). a -> ByteArray
+nativeScriptHash :: NativeScript -> ScriptHash
+nativeScriptHash = nativeScript_hash >>> wrap
 
 -- We can't use FromBytes class here, because of cyclic dependencies
 -- | Decodes `CborBytes` to the hash
@@ -60,8 +62,6 @@ foreign import hashFromBytes
   -> MaybeFfiHelper
   -> ByteArray
   -> Maybe a
-
-foreign import nativeScriptHash :: NativeScript -> ScriptHash
 
 foreign import hashToBech32Unsafe
   :: forall (a :: Type)
@@ -86,9 +86,9 @@ foreign import _scriptHashFromBech32Impl
   -> Bech32String
   -> Maybe ScriptHash
 
--- | PubKeyHash and StakeKeyHash refers to blake2b-224 hash digests of Ed25519
--- | verification keys
-foreign import data Ed25519KeyHash :: Type
+newtype Ed25519KeyHash = Ed25519KeyHash CSL.Ed25519KeyHash
+
+derive instance Newtype Ed25519KeyHash _
 
 instance Eq Ed25519KeyHash where
   eq = eq `on` ed25519KeyHashToBytes
@@ -139,13 +139,13 @@ ed25519KeyHashToBech32Unsafe ∷ String → Ed25519KeyHash → Bech32String
 ed25519KeyHashToBech32Unsafe = hashToBech32Unsafe
 
 ed25519KeyHashToBytes :: Ed25519KeyHash -> RawBytes
-ed25519KeyHashToBytes = wrap <<< hashToBytes
+ed25519KeyHashToBytes = wrap <<< toBytes <<< unwrap
 
 scriptHashToBech32Unsafe ∷ String → ScriptHash → Bech32String
 scriptHashToBech32Unsafe = hashToBech32Unsafe
 
 ed25519KeyHashFromBytes :: ByteArray -> Maybe Ed25519KeyHash
-ed25519KeyHashFromBytes = hashFromBytes "Ed25519KeyHash" maybeFfiHelper
+ed25519KeyHashFromBytes = map wrap <<< fromBytes
 
 ed25519KeyHashFromBech32 :: Bech32String -> Maybe Ed25519KeyHash
 ed25519KeyHashFromBech32 = _ed25519KeyHashFromBech32Impl maybeFfiHelper
@@ -157,7 +157,9 @@ ed25519KeyHashToBech32 :: String -> Ed25519KeyHash -> Maybe Bech32String
 ed25519KeyHashToBech32 = _ed25519KeyHashToBech32Impl maybeFfiHelper
 
 -- | blake2b-224 hash digests of serialized monetary scripts
-foreign import data ScriptHash :: Type
+newtype ScriptHash = ScriptHash Csl.ScriptHash
+
+derive instance Newtype ScriptHash _
 
 instance Eq ScriptHash where
   eq = eq `on` scriptHashToBytes
@@ -196,7 +198,7 @@ _ed25519KeyHashToBech32Impl
 _ed25519KeyHashToBech32Impl = hashToBech32Impl
 
 scriptHashToBytes :: ScriptHash -> RawBytes
-scriptHashToBytes = wrap <<< hashToBytes
+scriptHashToBytes = wrap <<< toBytes <<< unwrap
 
 _scriptHashToBech32Impl
   ∷ MaybeFfiHelper → String → ScriptHash → Maybe Bech32String
@@ -217,13 +219,15 @@ scriptHashFromBech32 = _scriptHashFromBech32Impl maybeFfiHelper
 scriptHashToBech32 :: String -> ScriptHash -> Maybe Bech32String
 scriptHashToBech32 = _scriptHashToBech32Impl maybeFfiHelper
 
-foreign import data VRFKeyHash :: Type
+newtype VRFKeyHash = VRFKeyHash Csl.VRFKeyHash
+
+derive instance Newtype VRFKeyHash _
 
 instance Show VRFKeyHash where
-  show = hashToBytes >>> byteArrayToHex
+  show = unwrap >>> toBytes >>> byteArrayToHex
 
 instance Eq VRFKeyHash where
   eq = eq `on` show
 
 instance EncodeAeson VRFKeyHash where
-  encodeAeson = hashToBytes >>> byteArrayToHex >>> encodeAeson
+  encodeAeson = unwrap >>> toBytes >>> byteArrayToHex >>> encodeAeson
