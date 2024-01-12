@@ -53,15 +53,8 @@
       flake = false;
     };
 
-    kupo-nixos = {
-      url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
-      inputs.kupo.follows = "kupo";
-    };
-
-    kupo = {
-      url = "github:CardanoSolutions/kupo/v2.2.0";
-      flake = false;
-    };
+    kupo-nixos.url = "github:Fourierlabs/kupo-nixos/add-conway";
+    kupo.follows = "kupo-nixos/kupo";
 
     easy-purescript-nix = {
       url = "github:justinwoo/easy-purescript-nix";

@@ -27,7 +27,7 @@ rec {
       port = 1442;
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
-      tag = "v2.2.0";
+      tag = "v2.7.2";
       deferDbIndexes = true; # whether to pass --defer-db-indexes
       pruneUtxo = true; # whether to pass --prune-utxo
       # TODO: Do we want to support connection through ogmios?
