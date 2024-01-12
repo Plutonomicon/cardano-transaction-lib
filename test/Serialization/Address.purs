@@ -2,8 +2,8 @@ module Test.Ctl.Serialization.Address (suite) where
 
 import Prelude
 
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Contract.Address (addressWithNetworkTagFromBech32)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
   , addressBech32
@@ -38,7 +38,6 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBech32
   , scriptHashFromBytes
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
@@ -79,8 +78,8 @@ addressFunctionsTest = test "Address tests" $ do
     addressFromBech32 bechstr
   bechstr `shouldEqual` addressBech32 addr1
   addressFromBech32 "randomstuff" `shouldEqual` Nothing
-  let addrBts = toBytes addr1
-  addr2 <- errMaybe "addressFromBech32 failed on valid bech32" $
+  let addrBts = toBytes $ unwrap addr1
+  addr2 <- map wrap $ errMaybe "addressFromBech32 failed on valid bech32" $
     fromBytes addrBts
   addr2 `shouldEqual` addr1
   addressNetworkId addr2 `shouldEqual` MainnetId
@@ -101,18 +100,22 @@ stakeCredentialTests = test "StakeCredential tests" $ do
   let
     pkhCred = keyHashCredential $ pkh
     schCred = scriptHashCredential $ scrh
-    pkhCredBytes = toBytes pkhCred
-    schCredBytes = toBytes schCred
+    pkhCredBytes = toBytes $ unwrap pkhCred
+    schCredBytes = toBytes $ unwrap schCred
 
-  pkhCred2 <- errMaybe "StakeCredential FromBytes failed on valid bytes" $
-    fromBytes pkhCredBytes
+  pkhCred2 <- map wrap
+    $ errMaybe "StakeCredential FromBytes failed on valid bytes"
+    $
+      fromBytes pkhCredBytes
   pkh2 <- errMaybe "stakeCredentialToKeyHash failed" $ stakeCredentialToKeyHash
     pkhCred2
   pkh2 `shouldEqual` pkh
   stakeCredentialToScriptHash pkhCred2 `shouldEqual` Nothing
 
-  schCred2 <- errMaybe "StakeCredential FromBytes failed on valid bytes" $
-    fromBytes schCredBytes
+  schCred2 <- map wrap
+    $ errMaybe "StakeCredential FromBytes failed on valid bytes"
+    $
+      fromBytes schCredBytes
   sch2 <- errMaybe "stakeCredentialToScriptHash failed" $
     stakeCredentialToScriptHash schCred2
   sch2 `shouldEqual` scrh

@@ -59,8 +59,8 @@ instance Eq BigNum where
 instance Ord BigNum where
   compare (BigNum lhs) (BigNum rhs) =
     case bigNum_compare lhs rhs of
-      1 -> GT
-      0 -> EQ
+      1.0 -> GT
+      0.0 -> EQ
       _ -> LT
 
 instance Show BigNum where

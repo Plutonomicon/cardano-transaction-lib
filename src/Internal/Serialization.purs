@@ -12,11 +12,11 @@ module Ctl.Internal.Serialization
   , hashTransaction
   , publicKeyHash
   , makeVkeywitness
-  , module Ctl.Internal.Serialization.ToBytes
   ) where
 
 import Prelude
 
+import Cardano.Serialization.Lib (VRFKeyHash, toBytes)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
@@ -74,13 +74,11 @@ import Ctl.Internal.Serialization.BigInt as Serialization
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
-  , VRFKeyHash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
@@ -158,7 +156,7 @@ import Ctl.Internal.Types.RewardAddress (RewardAddress, unRewardAddress) as T
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
-import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash), unVRFKeyHash) as T
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash)) as T
 import Data.ByteArray (ByteArray)
 import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
@@ -689,7 +687,7 @@ convertCert = case _ of
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
     newPoolRegistrationCertificate (unwrap $ unwrap operator)
-      (T.unVRFKeyHash vrfKeyhash)
+      (unwrap vrfKeyhash)
       pledge
       cost
       margin'
@@ -895,4 +893,4 @@ hashScriptData cms rs ps = do
     _ -> _hashScriptData rs' cms' $ map convertPlutusData ps
 
 serializeData :: forall (a :: Type). ToData a => a -> CborBytes
-serializeData = toBytes <<< convertPlutusData <<< toData
+serializeData = wrap <<< toBytes <<< convertPlutusData <<< toData

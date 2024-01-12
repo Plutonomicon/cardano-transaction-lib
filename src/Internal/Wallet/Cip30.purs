@@ -6,6 +6,7 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30.TypeSafe (APIError)
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
@@ -24,7 +25,7 @@ import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import Ctl.Internal.Serialization (convertTransaction) as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
   , baseAddressBytes
@@ -36,7 +37,6 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressBytes
   , rewardAddressFromAddress
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.CborBytes
   ( CborBytes
@@ -128,8 +128,7 @@ mkCip30WalletAff connection = do
 
 txToHex :: Transaction -> Effect String
 txToHex =
-  map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
-    <<< Serialization.convertTransaction
+  map (byteArrayToHex <<< toBytes) <<< Serialization.convertTransaction
 
 handleApiError
   :: forall a. Variant (apiError :: APIError, success :: a) -> Aff a
@@ -273,7 +272,7 @@ getCip30Collateral conn requiredValue = do
   bigNumValue <- liftEffect $ maybe (throw convertError) pure
     $ BigNum.fromBigInt
     $ unwrap requiredValue
-  let requiredValueStr = byteArrayToHex $ unwrap $ toBytes bigNumValue
+  let requiredValueStr = byteArrayToHex $ toBytes $ unwrap bigNumValue
   (Cip30.getCollateral conn requiredValueStr >>= handleApiError) `catchError`
     \err -> throwError $ error $
       "Failed to call `getCollateral`: " <> show err

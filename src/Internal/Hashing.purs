@@ -17,11 +17,11 @@ module Ctl.Internal.Hashing
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
 import Ctl.Internal.Deserialization.Transaction (_txBody)
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Hash (ScriptHash, nativeScriptHash)
 import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
@@ -71,7 +71,7 @@ md5HashHex contents = do
 
 datumHash :: Datum -> DataHash
 datumHash =
-  wrap <<< unwrap <<< toBytes <<< hashPlutusData
+  wrap <<< toBytes <<< hashPlutusData
     <<< convertPlutusData
     <<< unwrap
 
@@ -79,7 +79,7 @@ datumHash =
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
 transactionHash =
-  wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< _txBody
+  wrap <<< blake2b256Hash <<< toBytes <<< _txBody
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript

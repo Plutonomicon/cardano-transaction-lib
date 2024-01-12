@@ -2,17 +2,18 @@ module Ctl.Internal.Wallet.Cip30.SignData (signData) where
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Keys
   ( bytesFromPublicKey
   , publicKeyFromPrivateKey
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Data.ByteArray (ByteArray)
+import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 
 foreign import data COSESign1Builder :: Type
@@ -73,5 +74,5 @@ signData privatePaymentKey address (RawBytes payload) =
       protectedHeaders = do
         headerMap <- newHeaderMap
         setAlgHeaderToEdDsa headerMap
-        setAddressHeader (toBytes address) headerMap
+        setAddressHeader (wrap $ toBytes $ unwrap address) headerMap
         pure $ newProtectedHeaderMap headerMap

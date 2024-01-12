@@ -95,6 +95,7 @@ import Aeson
   , (.:)
   , (.:?)
   )
+import Cardano.Serialization.Lib (fromBytes)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -134,7 +135,6 @@ import Ctl.Internal.Cardano.Types.Value
   , unwrapNonAdaAsset
   , valueToCoin
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonRpc2
   ( class DecodeOgmios
@@ -684,8 +684,7 @@ decodeVRFKeyHash :: Aeson -> Either JsonDecodeError VRFKeyHash
 decodeVRFKeyHash = aesonString $ \vrfKeyhashHex -> do
   vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
     vrfKeyhashHex
-  note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
-    (wrap vrfKeyhashBytes)
+  note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes vrfKeyhashBytes
 
 decodeUnitInterval :: Aeson -> Either JsonDecodeError UnitInterval
 decodeUnitInterval aeson = do

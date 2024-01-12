@@ -4,6 +4,7 @@ module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
+import Cardano.Serialization.Lib (toBytes)
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
@@ -19,7 +20,6 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as PDS
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
@@ -580,7 +580,7 @@ testBinaryFixture value binaryFixture = do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
     toBytes (PDS.convertPlutusData $ toData value)
-      `shouldEqual` wrap (hexToByteArrayUnsafe binaryFixture)
+      `shouldEqual` hexToByteArrayUnsafe binaryFixture
 
 -- | Poor man's type level tests
 tests :: Array String

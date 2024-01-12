@@ -97,6 +97,8 @@ import Aeson
   , encodeAeson
   , finiteNumber
   )
+import Cardano.Serialization.Lib (Ed25519Signature, PublicKey) as Serialization
+import Cardano.Serialization.Lib (toBytes)
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
@@ -127,8 +129,6 @@ import Ctl.Internal.Serialization.Keys
   , bech32FromPublicKey
   , bytesFromPublicKey
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Serialization.Types (Ed25519Signature, PublicKey) as Serialization
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -894,11 +894,11 @@ newtype Ed25519Signature = Ed25519Signature RawBytes
 
 mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
 mkEd25519Signature =
-  map (Ed25519Signature <<< wrap <<< unwrap <<< toBytes) <<<
+  map (Ed25519Signature <<< wrap <<< toBytes) <<<
     ed25519SignatureFromBech32
 
 mkFromCslEd25519Signature :: Serialization.Ed25519Signature -> Ed25519Signature
-mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< unwrap <<< toBytes
+mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< toBytes
 
 convertEd25519Signature :: Ed25519Signature -> Serialization.Ed25519Signature
 convertEd25519Signature (Ed25519Signature bs) = unsafePartial

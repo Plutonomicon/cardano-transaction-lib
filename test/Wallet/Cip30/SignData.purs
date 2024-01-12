@@ -7,6 +7,7 @@ module Test.Ctl.Wallet.Cip30.SignData
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
@@ -19,7 +20,6 @@ import Ctl.Internal.Serialization.Keys
   ( bytesFromPublicKey
   , publicKeyFromPrivateKey
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey, PublicKey)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.CborBytes (CborBytes)
@@ -104,7 +104,7 @@ checkCip30SignDataResponse address { key, signature } = do
 
     assertTrue "COSE_Sign1's \"address\" header must be set to address bytes"
       ( getCoseSign1ProtectedHeaderAddress coseSign1
-          == Just (toBytes address)
+          == Just (wrap $ toBytes $ unwrap address)
       )
 
   checkCoseKeyHeaders :: COSEKey -> Aff Unit

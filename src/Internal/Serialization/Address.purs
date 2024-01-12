@@ -4,13 +4,13 @@ module Ctl.Internal.Serialization.Address
   , TransactionIndex(TransactionIndex)
   , CertificateIndex(CertificateIndex)
   , Pointer
-  , Address
+  , Address(Address)
   , BaseAddress
   , ByronAddress
   , EnterpriseAddress
   , PointerAddress
   , RewardAddress
-  , StakeCredential
+  , StakeCredential(StakeCredential)
   , addressBech32
   , addressNetworkId
   , intToNetworkId
@@ -92,6 +92,7 @@ import Aeson
   , decodeAeson
   , encodeAeson
   )
+import Cardano.Serialization.Lib as Csl
 import Control.Alt ((<|>))
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.FromData (class FromData)
@@ -178,7 +179,9 @@ type Pointer =
   , certIx :: CertificateIndex
   }
 
-foreign import data Address :: Type
+newtype Address = Address Csl.Address
+
+derive instance Newtype Address _
 
 instance Show Address where
   show a = "(Address " <> addressBech32 a <> ")"
@@ -292,7 +295,9 @@ instance DecodeAeson RewardAddress where
   decodeAeson = decodeAeson >=>
     note (TypeMismatch "RewardAddress") <<< rewardAddressFromBech32
 
-foreign import data StakeCredential :: Type
+newtype StakeCredential = StakeCredential Csl.StakeCredential
+
+derive instance Newtype StakeCredential _
 
 instance Eq StakeCredential where
   eq = eq `on` stakeCredentialToBytes

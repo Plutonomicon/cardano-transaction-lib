@@ -19,17 +19,22 @@ import Aeson
   , decodeAeson
   , encodeAeson
   )
+import Cardano.Serialization.Lib (Int) as Csl
 import Control.Alternative ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromInt) as BigNum
 import Data.Either (note)
 import Data.Function (on)
 import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (class Newtype)
 import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim as Prim
 
-foreign import data Int :: Prim.Type
+-- | Signed 128-bit integer
+newtype Int = Int Csl.Int
+
+derive instance Newtype Int _
 
 foreign import newPositive :: BigNum -> Int
 foreign import newNegative :: BigNum -> Int

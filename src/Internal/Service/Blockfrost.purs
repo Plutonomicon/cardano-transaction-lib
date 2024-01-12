@@ -81,6 +81,7 @@ import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Cardano.Serialization.Lib (toBytes)
 import Contract.RewardAddress
   ( rewardAddressToBech32
   , stakePubKeyHashRewardAddress
@@ -183,7 +184,7 @@ import Ctl.Internal.Service.Helpers
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
@@ -645,14 +646,14 @@ submitTx
   -> BlockfrostServiceM (Either ClientError TransactionHash)
 submitTx tx = do
   cslTx <- liftEffect $ Serialization.convertTransaction tx
-  handleBlockfrostResponse <$> request (Serialization.toBytes cslTx)
+  handleBlockfrostResponse <$> request (toBytes cslTx)
   where
   request
-    :: CborBytes
+    :: ByteArray
     -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
   request cbor =
     blockfrostPostRequest SubmitTransaction (MediaType "application/cbor")
-      (Just $ Affjax.arrayView $ unwrap $ unwrap cbor)
+      (Just $ Affjax.arrayView $ unwrap cbor)
 
 evaluateTx
   :: Transaction -> AdditionalUtxoSet -> BlockfrostServiceM TxEvaluationR
@@ -672,7 +673,7 @@ evaluateTx tx additionalUtxos = do
     blockfrostPostRequest EvaluateTransaction MediaType.applicationJSON
       ( Just $ Affjax.string $ stringifyAeson $
           encodeAeson
-            { cbor: cborBytesToHex $ Serialization.toBytes cslTx
+            { cbor: byteArrayToHex $ toBytes cslTx
             , additionalUtxoSet: additionalUtxos
             }
       )

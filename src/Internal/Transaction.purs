@@ -8,6 +8,7 @@ module Ctl.Internal.Transaction
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Costmdls
@@ -18,7 +19,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , TxBody(TxBody)
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.Serialization (hashScriptData, toBytes)
+import Ctl.Internal.Serialization (hashScriptData)
 import Ctl.Internal.Serialization.PlutusData as Serialization.PlutusData
 import Ctl.Internal.Serialization.PlutusScript as Serialization.PlutusScript
 import Ctl.Internal.Serialization.Types as Serialization
@@ -52,7 +53,7 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   , null rs
   , null ds = pure tx
   | otherwise = do
-      scriptDataHash <- ScriptDataHash <<< unwrap <<< toBytes
+      scriptDataHash <- ScriptDataHash <<< toBytes
         <$> hashScriptData costModels rs (unwrap <$> ds)
       pure $ over Transaction
         _

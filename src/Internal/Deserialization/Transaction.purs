@@ -63,6 +63,8 @@ module Ctl.Internal.Deserialization.Transaction
 
 import Prelude
 
+import Cardano.Serialization.Lib (Ed25519KeyHash, ScriptHash, VRFKeyHash) as Csl
+import Cardano.Serialization.Lib (toBytes, unpackMapContainerToMapWith)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -128,14 +130,12 @@ import Ctl.Internal.FfiHelpers
   , containerHelper
   , maybeFfiHelper
   )
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(TestnetId, MainnetId)
   , RewardAddress
   , StakeCredential
   ) as Csl
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash, VRFKeyHash) as Csl
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , AuxiliaryData
@@ -191,13 +191,13 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
-import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
+import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash)) as T
 import Data.Bifunctor (bimap, lmap)
 import Data.Bitraversable (bitraverse)
 import Data.ByteArray (ByteArray)
 import Data.Either (Either)
 import Data.Map as M
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe, fromJust, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Set (fromFoldable) as Set
@@ -208,6 +208,7 @@ import Data.UInt as UInt
 import Data.Variant (Variant)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
+import Partial.Unsafe (unsafePartial)
 import Type.Row (type (+))
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
@@ -292,7 +293,7 @@ convertTxBody txBody = do
     , withdrawals
     , update
     , auxiliaryDataHash:
-        T.AuxiliaryDataHash <<< unwrap <<< toBytes <$>
+        T.AuxiliaryDataHash <<< toBytes <$>
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
@@ -305,7 +306,7 @@ convertTxBody txBody = do
         map convertInput >>> pure
     , requiredSigners:
         _txBodyRequiredSigners containerHelper maybeFfiHelper txBody #
-          (map <<< map) T.RequiredSigner
+          (map <<< map) (T.RequiredSigner <<< wrap)
     , networkId
     , collateralReturn
     , totalCollateral
@@ -317,7 +318,7 @@ convertUpdate u = do
   epoch <- map T.Epoch $ cslNumberToUInt "convertUpdate: epoch" e
   ppus <- traverse
     ( bitraverse
-        (pure <<< T.GenesisHash <<< unwrap <<< toBytes)
+        (pure <<< T.GenesisHash <<< toBytes)
         convertProtocolParamUpdate
     )
     paramUpdates
@@ -335,15 +336,15 @@ convertCertificate = _convertCert certConvHelper
   certConvHelper =
     { stakeDeregistration: T.StakeDeregistration
     , stakeRegistration: T.StakeRegistration
-    , stakeDelegation: \sc -> T.StakeDelegation sc <<< wrap <<< wrap
+    , stakeDelegation: \sc -> T.StakeDelegation sc <<< wrap <<< wrap <<< wrap
     , poolRegistration: convertPoolRegistration
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
         T.GenesisKeyDelegation
-          { genesisHash: T.GenesisHash $ unwrap $ toBytes genesisHash
-          , genesisDelegateHash: T.GenesisDelegateHash $ unwrap
-              $ toBytes genesisDelegateHash
-          , vrfKeyhash: VRFKeyHash vrfKeyhash
+          { genesisHash: T.GenesisHash $ toBytes genesisHash
+          , genesisDelegateHash: T.GenesisDelegateHash $ toBytes
+              genesisDelegateHash
+          , vrfKeyhash: T.VRFKeyHash vrfKeyhash
           }
     , moveInstantaneousRewardsToOtherPotCert: \pot amount -> do
         T.MoveInstantaneousRewardsCert $
@@ -364,19 +365,21 @@ convertPoolRegistration params = do
   let
     relays = convertRelay <$> poolParamsRelays containerHelper params
   T.PoolRegistration
-    { operator: PoolPubKeyHash $ wrap $ poolParamsOperator params
-    , vrfKeyhash: VRFKeyHash $ poolParamsVrfKeyhash params
+    { operator: PoolPubKeyHash $ wrap $ wrap $ poolParamsOperator params
+    , vrfKeyhash: T.VRFKeyHash $ poolParamsVrfKeyhash params
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
     , margin: _unpackUnitInterval $ poolParamsMargin params
     , rewardAccount: T.RewardAddress $ poolParamsRewardAccount params
-    , poolOwners: wrap <<< wrap <$> poolParamsPoolOwners containerHelper params
+    , poolOwners: wrap <<< wrap <<< wrap <$> poolParamsPoolOwners
+        containerHelper
+        params
     , relays
     , poolMetadata: poolParamsPoolMetadata maybeFfiHelper params <#>
         convertPoolMetadata_
           \url hash -> T.PoolMetadata
             { url: T.URL url
-            , hash: T.PoolMetadataHash $ unwrap $ toBytes hash
+            , hash: T.PoolMetadataHash $ toBytes hash
             }
     }
 
@@ -437,23 +440,16 @@ convertPoolRetirement
   -> UInt
   -> T.Certificate
 convertPoolRetirement poolKeyHash epoch = do
-  T.PoolRetirement { poolKeyHash: wrap $ wrap poolKeyHash, epoch: wrap epoch }
+  T.PoolRetirement
+    { poolKeyHash: wrap $ wrap $ wrap $ poolKeyHash, epoch: wrap epoch }
 
 convertMint :: Csl.Mint -> T.Mint
-convertMint mint = T.Mint $ mkNonAdaAsset
-  $
-    -- outer map
-    M.fromFoldable <<< map (lmap scriptHashAsCurrencySymbol)
-      -- inner map
-      <<< (map <<< map)
-        ( M.fromFoldable <<< map convAssetName <<< _unpackMintAssets
-            containerHelper
-        )
-  $ _unpackMint containerHelper mint
-
-  where
-  convAssetName :: Csl.AssetName /\ Int.Int -> TokenName /\ BigInt
-  convAssetName = bimap tokenNameFromAssetName Int.toBigInt
+convertMint = T.Mint <<< mkNonAdaAsset <<<
+  unpackMapContainerToMapWith (scriptHashAsCurrencySymbol <<< wrap)
+    ( unpackMapContainerToMapWith
+        tokenNameFromAssetName
+        (Int.toBigInt <<< wrap)
+    )
 
 convertProtocolParamUpdate
   :: forall (r :: Row Type)
@@ -620,7 +616,7 @@ convertExUnits cslExunits =
     { mem: _, steps: _ } (BigNum.toBigInt mem) (BigNum.toBigInt steps)
 
 convertScriptDataHash :: Csl.ScriptDataHash -> T.ScriptDataHash
-convertScriptDataHash = toBytes >>> unwrap >>> T.ScriptDataHash
+convertScriptDataHash = toBytes >>> T.ScriptDataHash
 
 convertProtocolVersion
   :: forall (r :: Row Type)

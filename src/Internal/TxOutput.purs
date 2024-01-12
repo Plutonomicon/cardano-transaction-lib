@@ -9,6 +9,7 @@ module Ctl.Internal.TxOutput
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
@@ -18,7 +19,6 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData as Deserialization
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as Serialization
 import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
@@ -113,7 +113,7 @@ datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
 datumToOgmiosDatum :: Datum -> String
 datumToOgmiosDatum (Datum plutusData) =
   Serialization.convertPlutusData plutusData #
-    toBytes >>> unwrap >>> byteArrayToHex
+    toBytes >>> byteArrayToHex
 
 toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
 toOutputDatum d dh =

@@ -5,7 +5,7 @@ module Ctl.Internal.Serialization.AuxiliaryData
 
 import Prelude
 
-import Cardano.Serialization.Lib.Internal (packMapContainerFromMap)
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
@@ -14,7 +14,6 @@ import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import Ctl.Internal.Helpers (fromJustEff)
 import Ctl.Internal.Serialization.NativeScript (convertNativeScripts)
 import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
-import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryData
   , AuxiliaryDataHash
@@ -34,9 +33,8 @@ import Ctl.Internal.Types.TransactionMetadata
   ) as T
 import Data.ByteArray (ByteArray)
 import Data.Map as Map
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.Traversable (for, for_, traverse)
-import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -81,7 +79,7 @@ foreign import _hashAuxiliaryData
 
 hashAuxiliaryData :: T.AuxiliaryData -> Effect T.AuxiliaryDataHash
 hashAuxiliaryData =
-  map (wrap <<< unwrap <<< toBytes <<< _hashAuxiliaryData) <<<
+  map (wrap <<< toBytes <<< _hashAuxiliaryData) <<<
     convertAuxiliaryData
 
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData

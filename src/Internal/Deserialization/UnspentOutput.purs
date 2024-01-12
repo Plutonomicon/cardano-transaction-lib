@@ -8,6 +8,7 @@ module Ctl.Internal.Deserialization.UnspentOutput
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(PlutusScriptRef, NativeScriptRef)
   ) as T
@@ -29,7 +30,6 @@ import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Deserialization.WitnessSet (convertPlutusScript)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.Serialization.Types
@@ -77,14 +77,15 @@ convertUnspentOutput tuo = do
   pure $ T.TransactionUnspentOutput { input, output }
 
 convertInput :: TransactionInput -> T.TransactionInput
-convertInput input = do
+convertInput input =
   let
     index = getTransactionIndex input
-  T.TransactionInput
-    { transactionId: T.TransactionHash $ unwrap $ toBytes $
-        getTransactionHash input
-    , index
-    }
+    transactionId = T.TransactionHash $ toBytes $ getTransactionHash input
+  in
+    T.TransactionInput
+      { transactionId
+      , index
+      }
 
 convertOutput :: TransactionOutput -> Maybe T.TransactionOutput
 convertOutput output = do
@@ -92,8 +93,7 @@ convertOutput output = do
   let
     address = getAddress output
     mbDataHash =
-      getDataHash maybeFfiHelper output <#>
-        toBytes >>> unwrap >>> T.DataHash
+      getDataHash maybeFfiHelper output <#> toBytes >>> T.DataHash
     mbDatum = getPlutusData maybeFfiHelper output
   datum <- case mbDatum, mbDataHash of
     Just _, Just _ -> Nothing -- impossible, so it's better to fail
