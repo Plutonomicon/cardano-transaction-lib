@@ -17,6 +17,7 @@ You can edit this file as you like.
   , "avar"
   , "bifunctors"
   , "bignumber"
+  , "bytearrays"
   , "checked-exceptions"
   , "cip30"
   , "cip30-typesafe"

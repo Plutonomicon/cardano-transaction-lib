@@ -22,7 +22,6 @@ import Ctl.Internal.Serialization.Keys
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey, PublicKey)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (byteArrayFromIntArrayUnsafe)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
@@ -32,6 +31,7 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToAddress
   )
+import Data.ByteArray (byteArrayFromIntArrayUnsafe)
 import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse_)

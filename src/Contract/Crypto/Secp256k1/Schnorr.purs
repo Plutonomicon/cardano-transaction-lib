@@ -12,7 +12,7 @@ module Contract.Crypto.Secp256k1.Schnorr
 import Prelude
 
 import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
-import Ctl.Internal.Types.ByteArray (ByteArray)
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)

@@ -12,12 +12,12 @@ import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.BigNum (zero) as BigNum
-import Ctl.Internal.Types.ByteArray
+import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
+import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
   , byteArrayToHex
   )
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)

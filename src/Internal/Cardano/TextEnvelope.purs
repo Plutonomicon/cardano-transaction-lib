@@ -19,13 +19,13 @@ import Aeson
   , decodeAeson
   , parseJsonStringToAeson
   )
-import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
 import Ctl.Internal.Types.Cbor (toByteArray)
 import Ctl.Internal.Types.Scripts
   ( PlutusScript
   , plutusV1Script
   , plutusV2Script
   )
+import Data.ByteArray (ByteArray, hexToByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)

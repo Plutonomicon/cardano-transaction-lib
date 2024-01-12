@@ -20,7 +20,6 @@ import Ctl.Internal.Deserialization.PlutusData as Deserialization
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as Serialization
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
 import Ctl.Internal.Types.OutputDatum
@@ -29,6 +28,7 @@ import Ctl.Internal.Types.OutputDatum
   , outputDatumDatum
   )
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Maybe (Maybe(Just), fromMaybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)

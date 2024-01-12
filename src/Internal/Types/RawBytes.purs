@@ -19,8 +19,8 @@ import Prelude
 import Aeson (class DecodeAeson, class EncodeAeson)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.ByteArray as BytesArray
+import Data.ByteArray (ByteArray)
+import Data.ByteArray as BytesArray
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Test.QuickCheck.Arbitrary (class Arbitrary)

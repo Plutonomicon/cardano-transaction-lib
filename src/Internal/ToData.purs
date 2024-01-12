@@ -28,13 +28,13 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromInt, one, toBigInt, zero) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (cons, sortWith)
 import Data.Array as Array
 import Data.ArrayBuffer.Types (Uint8Array)
+import Data.ByteArray (ByteArray(ByteArray))
 import Data.Either (Either(Left, Right))
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep as G

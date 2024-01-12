@@ -52,12 +52,12 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexUniverse
   )
 import Ctl.Internal.Plutus.Conversion (toPlutusValue)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (snoc, uncons) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (cons', fromArray, singleton, uncons) as NEArray
+import Data.ByteArray (byteArrayToHex)
 import Data.Foldable (foldMap) as Foldable
 import Data.Function (applyFlipped)
 import Data.Generic.Rep (class Generic)

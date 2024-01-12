@@ -26,11 +26,11 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashToBech32Unsafe
   , scriptHashToBytes
   )
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Data.ByteArray (byteArrayToHex)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))

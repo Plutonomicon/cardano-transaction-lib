@@ -30,9 +30,9 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.Types.BigNum (fromString)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Data.Array.NonEmpty (fromFoldable)
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (TagSet, tag, tagSetTag)

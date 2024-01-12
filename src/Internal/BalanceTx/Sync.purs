@@ -35,11 +35,11 @@ import Ctl.Internal.Contract.Wallet
   )
 import Ctl.Internal.Helpers (liftEither, liftedM)
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Data.Array as Array
 import Data.Bifunctor (bimap)
+import Data.ByteArray (byteArrayToHex)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just), fromMaybe, isJust, maybe)
 import Data.Monoid (guard)

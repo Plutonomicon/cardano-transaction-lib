@@ -42,7 +42,7 @@ import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)

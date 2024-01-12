@@ -52,7 +52,6 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
@@ -64,6 +63,7 @@ import Ctl.Internal.Types.TransactionMetadata
 import Data.Array (catMaybes, concat, groupBy)
 import Data.Array.NonEmpty (NonEmptyArray, toArray)
 import Data.Array.NonEmpty (head) as NonEmpty
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (Either(Left), note)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)

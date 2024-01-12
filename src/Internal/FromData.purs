@@ -34,13 +34,13 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData (PlutusData(Bytes, Constr, List, Integer))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.ArrayBuffer.Types (Uint8Array)
+import Data.ByteArray (ByteArray)
 import Data.Either (Either(Left, Right), hush, note)
 import Data.Generic.Rep as G
 import Data.List (List)

@@ -31,9 +31,9 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , NilI
   )
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)

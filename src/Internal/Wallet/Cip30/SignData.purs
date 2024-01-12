@@ -9,10 +9,10 @@ import Ctl.Internal.Serialization.Keys
   )
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Serialization.Types (PrivateKey)
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
+import Data.ByteArray (ByteArray)
 import Effect (Effect)
 
 foreign import data COSESign1Builder :: Type

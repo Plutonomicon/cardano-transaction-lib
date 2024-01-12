@@ -3,8 +3,8 @@ module Test.Ctl.Types.TokenName (suite) where
 import Prelude
 
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
 import Ctl.Internal.Types.TokenName (mkTokenName)
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)

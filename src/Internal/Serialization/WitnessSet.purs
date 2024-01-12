@@ -69,8 +69,8 @@ import Ctl.Internal.Serialization.Types (PlutusData) as PDS
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.RedeemerTag as Tag
+import Data.ByteArray (ByteArray)
 import Data.Maybe (maybe)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))

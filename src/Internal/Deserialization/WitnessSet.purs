@@ -48,10 +48,10 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.PlutusData (PlutusData) as T
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))

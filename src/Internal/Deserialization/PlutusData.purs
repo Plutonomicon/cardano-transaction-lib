@@ -20,11 +20,11 @@ import Ctl.Internal.Serialization.Types
   , PlutusMap
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe, fromJust)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))

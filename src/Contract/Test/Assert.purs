@@ -97,9 +97,9 @@ import Ctl.Internal.Plutus.Types.Transaction
   , _output
   , _scriptRef
   )
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (foldr)
 import Data.Array (fromFoldable, length, mapWithIndex, partition) as Array
+import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either, either, hush)
 import Data.Foldable (fold, foldMap, null, sum)
 import Data.Generic.Rep (class Generic)

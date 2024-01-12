@@ -32,9 +32,9 @@ import Ctl.Internal.QueryM.Ogmios
   , MempoolTransaction(MempoolTransaction)
   , TxHash
   ) as Ogmios
-import Ctl.Internal.Types.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
+import Data.ByteArray (hexToByteArray)
 import Data.List (List(Cons))
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Exception (error)

@@ -183,7 +183,6 @@ import Ctl.Internal.Service.Helpers
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
@@ -225,6 +224,7 @@ import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
 import Data.BigNumber (BigNumber, toFraction)
 import Data.BigNumber as BigNumber
+import Data.ByteArray (ByteArray, byteArrayToHex)
 import Data.DateTime.Instant (instant, toDateTime)
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (fold)

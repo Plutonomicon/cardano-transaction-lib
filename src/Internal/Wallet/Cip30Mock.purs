@@ -35,7 +35,6 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
 import Ctl.Internal.Types.PubKeyHash
   ( PubKeyHash(PubKeyHash)
@@ -64,6 +63,7 @@ import Ctl.Internal.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Data.Array as Array
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)

@@ -181,7 +181,6 @@ import Ctl.Internal.Serialization.Types
   ) as Csl
 import Ctl.Internal.Types.BigNum (BigNum) as Csl
 import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int (Int) as Csl
 import Ctl.Internal.Types.Int as Int
@@ -195,6 +194,7 @@ import Ctl.Internal.Types.TransactionMetadata
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Bifunctor (bimap, lmap)
 import Data.Bitraversable (bitraverse)
+import Data.ByteArray (ByteArray)
 import Data.Either (Either)
 import Data.Map as M
 import Data.Maybe (Maybe, fromMaybe)

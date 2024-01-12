@@ -175,12 +175,6 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArrayUnsafe
-  , hexToByteArray
-  , hexToByteArrayUnsafe
-  )
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
@@ -209,6 +203,12 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Data.Array as Array
+import Data.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  )
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)

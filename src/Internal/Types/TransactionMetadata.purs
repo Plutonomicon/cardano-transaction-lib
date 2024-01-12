@@ -19,8 +19,8 @@ import Ctl.Internal.Helpers
   , encodeTagged'
   , showWithParens
   )
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int (Int) as Int
+import Data.ByteArray (ByteArray)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (empty) as Map

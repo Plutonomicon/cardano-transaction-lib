@@ -33,8 +33,8 @@ import Ctl.Internal.Serialization.Types
   , Vkeywitnesses
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Data.ByteArray (ByteArray)
 import Untagged.Castable (class Castable)
 import Untagged.Union (type (|+|))
 

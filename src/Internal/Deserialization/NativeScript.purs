@@ -24,7 +24,7 @@ import Ctl.Internal.Serialization.Types
   , TimelockStart
   )
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray)
+import Data.ByteArray (ByteArray)
 import Data.Either (Either, note)
 import Data.Newtype (wrap)
 

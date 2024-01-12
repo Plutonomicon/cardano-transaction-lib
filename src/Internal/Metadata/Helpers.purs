@@ -9,11 +9,11 @@ module Ctl.Internal.Metadata.Helpers
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
-import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Bytes))
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, Text)
   )
+import Data.ByteArray (byteArrayFromAscii)
 import Data.Either (Either(Left))
 import Data.Foldable (lookup)
 import Data.Map (lookup) as Map

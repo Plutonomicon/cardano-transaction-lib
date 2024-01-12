@@ -15,7 +15,6 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashToBytes
   , scriptHashToBytes
   )
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.Interval
   ( POSIXTimeRange
@@ -33,6 +32,7 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName, fromTokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
+import Data.ByteArray (byteArrayToHex)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (tagSetTag)
 import Data.Maybe (Maybe(Just, Nothing))

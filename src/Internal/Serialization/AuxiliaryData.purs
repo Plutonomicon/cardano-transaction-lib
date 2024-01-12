@@ -26,13 +26,13 @@ import Ctl.Internal.Serialization.Types
 import Ctl.Internal.Serialization.WitnessSet (addPlutusScript, newPlutusScripts)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
   , TransactionMetadatum(Text, Bytes, Int, MetadataList, MetadataMap)
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   ) as T
+import Data.ByteArray (ByteArray)
 import Data.Map as Map
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, for_, traverse)

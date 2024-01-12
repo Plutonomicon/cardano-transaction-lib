@@ -81,13 +81,6 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashToBytes
   )
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArrayUnsafe
-  , byteArrayToHex
-  , byteLength
-  , hexToByteArray
-  )
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Ctl.Internal.Types.TokenName
   ( TokenName
@@ -103,6 +96,13 @@ import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (bitraverse, ltraverse)
+import Data.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  , byteLength
+  , hexToByteArray
+  )
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
 import Data.FoldableWithIndex (foldrWithIndex)

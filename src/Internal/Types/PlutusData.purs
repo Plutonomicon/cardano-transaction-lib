@@ -23,7 +23,7 @@ import Aeson
 import Control.Alt ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
+import Data.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (TagSet, tag, tagSetTag)

@@ -41,8 +41,8 @@ import Ctl.Internal.Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
+import Data.ByteArray (ByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)

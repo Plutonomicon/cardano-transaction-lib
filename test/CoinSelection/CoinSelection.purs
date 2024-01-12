@@ -25,10 +25,10 @@ import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Ctl.Internal.Hashing (blake2b224Hash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
+import Data.ByteArray (byteArrayFromAscii)
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.Map (fromFoldable, values) as Map

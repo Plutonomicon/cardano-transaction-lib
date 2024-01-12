@@ -25,10 +25,10 @@ import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
 import Ctl.Internal.Serialization.Types (AssetName) as CSL
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, byteLength)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Data.ArrayBuffer.Types (Uint8Array)
 import Data.Bitraversable (ltraverse)
+import Data.ByteArray (ByteArray, byteArrayToHex, byteLength)
 import Data.Either (Either(Right, Left), either, note)
 import Data.Map (Map)
 import Data.Map (fromFoldable) as Map

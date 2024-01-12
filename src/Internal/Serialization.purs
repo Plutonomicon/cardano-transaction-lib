@@ -148,7 +148,6 @@ import Ctl.Internal.Serialization.WitnessSet
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.OutputDatum
@@ -160,6 +159,7 @@ import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash), unVRFKeyHash) as T
+import Data.ByteArray (ByteArray)
 import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)

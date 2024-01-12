@@ -20,10 +20,10 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Address as Csl
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 

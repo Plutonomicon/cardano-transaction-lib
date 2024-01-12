@@ -38,7 +38,6 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.ToBytes (toBytes)
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Ctl.Internal.Types.CborBytes
   ( CborBytes
   , cborBytesToHex
@@ -46,6 +45,7 @@ import Ctl.Internal.Types.CborBytes
   , rawBytesAsCborBytes
   )
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Data.ByteArray (byteArrayToHex)
 import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)

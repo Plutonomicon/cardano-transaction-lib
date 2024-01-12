@@ -132,7 +132,6 @@ import Ctl.Internal.Serialization.Types (Ed25519Signature, PublicKey) as Seriali
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -147,6 +146,7 @@ import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
+import Data.ByteArray (ByteArray, byteArrayToHex)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
