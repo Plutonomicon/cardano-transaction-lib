@@ -1,10 +1,12 @@
 module Ctl.Internal.Types.BigNum
   ( BigNum
   , add
+  , divFloor
   , fromBigInt
   , fromInt
   , fromString
   , fromStringUnsafe
+  , fromUInt
   , maxValue
   , mul
   , one
@@ -12,7 +14,6 @@ module Ctl.Internal.Types.BigNum
   , toInt
   , toInt'
   , toString
-  , fromUInt
   , toUInt
   , zero
   ) where
@@ -21,26 +22,43 @@ import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
 import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
-import Cardano.Serialization.Lib (BigNum)
+import Cardano.Serialization.Lib
+  ( bigNum_checkedAdd
+  , bigNum_checkedMul
+  , bigNum_compare
+  , bigNum_divFloor
+  , bigNum_fromStr
+  , bigNum_maxValue
+  , bigNum_one
+  , bigNum_toStr
+  , bigNum_zero
+  )
+import Cardano.Serialization.Lib as Csl
 import Ctl.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
 import Ctl.Internal.Error (E, noteE)
-import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Nullable (toMaybe)
 import Data.UInt (UInt)
 import Data.UInt (fromInt, fromString, toString) as UInt
 import JS.BigInt (BigInt)
 import JS.BigInt (fromString, toString) as BigInt
 import Partial.Unsafe (unsafePartial)
+import Safe.Coerce (coerce)
 import Type.Row (type (+))
 
+newtype BigNum = BigNum Csl.BigNum
+
+derive instance Newtype BigNum _
+
 instance Eq BigNum where
-  eq lhs rhs = bnCompare lhs rhs == 0
+  eq x y = compare x y == EQ
 
 instance Ord BigNum where
-  compare lhs rhs =
-    case bnCompare lhs rhs of
+  compare (BigNum lhs) (BigNum rhs) =
+    case bigNum_compare lhs rhs of
       1 -> GT
       0 -> EQ
       _ -> LT
@@ -75,21 +93,20 @@ toInt' nm bn =
   noteE (fromCslRepError (nm <> ": CSL.BigNum (" <> show bn <> ") -> Int ")) $
     toInt bn
 
-foreign import bnCompare :: BigNum -> BigNum -> Int
+one :: BigNum
+one = BigNum bigNum_one
 
-foreign import zero :: BigNum
-
-foreign import one :: BigNum
-
-foreign import bnAdd :: MaybeFfiHelper -> BigNum -> BigNum -> Maybe BigNum
+zero :: BigNum
+zero = BigNum bigNum_zero
 
 add :: BigNum -> BigNum -> Maybe BigNum
-add = bnAdd maybeFfiHelper
-
-foreign import bnMul :: MaybeFfiHelper -> BigNum -> BigNum -> Maybe BigNum
+add (BigNum a) (BigNum b) = coerce $ toMaybe $ bigNum_checkedAdd a b
 
 mul :: BigNum -> BigNum -> Maybe BigNum
-mul = bnMul maybeFfiHelper
+mul (BigNum a) (BigNum b) = coerce $ toMaybe $ bigNum_checkedMul a b
+
+divFloor :: BigNum -> BigNum -> BigNum
+divFloor (BigNum a) (BigNum b) = BigNum $ bigNum_divFloor a b
 
 -- | Converts an `Int` to a `BigNum` turning negative `Int`s into `BigNum`s
 -- | in range from `2^31` to `2^32-1`.
@@ -98,18 +115,17 @@ fromInt =
   -- Converting `UInt` (u32) to a `BigNum` (u64) should never fail.
   fromStringUnsafe <<< UInt.toString <<< UInt.fromInt
 
-foreign import _fromString :: MaybeFfiHelper -> String -> Maybe BigNum
+toString :: BigNum -> String
+toString = unwrap >>> bigNum_toStr
 
 fromString :: String -> Maybe BigNum
-fromString = _fromString maybeFfiHelper
+fromString = map wrap <<< toMaybe <<< bigNum_fromStr
 
 fromStringUnsafe :: String -> BigNum
 fromStringUnsafe = unsafePartial fromJust <<< fromString
 
-foreign import toString :: BigNum -> String
-
 maxValue :: BigNum
-maxValue = fromStringUnsafe "18446744073709551615"
+maxValue = BigNum bigNum_maxValue
 
 fromUInt :: UInt -> BigNum
 fromUInt = fromStringUnsafe <<< UInt.toString
