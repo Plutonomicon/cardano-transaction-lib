@@ -12,6 +12,7 @@ module Ctl.Internal.BalanceTx.Sync
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Contract.Log (logError', logTrace', logWarn')
 import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader (local)
@@ -147,7 +148,7 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
         logTrace' $
           "syncWalletWithTransaction: waiting for wallet state synchronization "
             <> "with the query layer, querying for Tx: "
-            <> byteArrayToHex (unwrap txHash)
+            <> byteArrayToHex (toBytes $ unwrap txHash)
         liftAff (delay delayMs)
         sync
   -- Collect all the addresses controlled by the wallet

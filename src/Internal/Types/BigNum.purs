@@ -1,5 +1,5 @@
 module Ctl.Internal.Types.BigNum
-  ( BigNum
+  ( BigNum(BigNum)
   , add
   , divFloor
   , fromBigInt
@@ -36,6 +36,7 @@ import Cardano.Serialization.Lib
 import Cardano.Serialization.Lib as Csl
 import Ctl.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
 import Ctl.Internal.Error (E, noteE)
+import Ctl.Internal.Helpers (eqOrd)
 import Data.Either (note)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe, fromJust)
@@ -54,7 +55,7 @@ newtype BigNum = BigNum Csl.BigNum
 derive instance Newtype BigNum _
 
 instance Eq BigNum where
-  eq x y = compare x y == EQ
+  eq = eqOrd
 
 instance Ord BigNum where
   compare (BigNum lhs) (BigNum rhs) =

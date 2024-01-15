@@ -3,13 +3,8 @@ module Test.Ctl.Serialization (suite) where
 import Prelude
 
 import Cardano.Serialization.Lib (fromBytes, publicKey_fromBytes, toBytes)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PublicKey
-  , Transaction
-  , convertPubKey
-  , mkFromCslPubKey
-  , mkPublicKey
-  )
+import Contract.Keys (publicKeyFromBech32)
+import Ctl.Internal.Cardano.Types.Transaction (PublicKey, Transaction)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction) as TS
@@ -24,7 +19,7 @@ import Ctl.Internal.Types.PlutusData as PD
 import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Nullable (toMaybe)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
@@ -59,15 +54,15 @@ suite = do
         let
           pkStr =
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-          mPk = mkPublicKey pkStr
+          mPk = publicKeyFromBech32 pkStr
 
         pk <- liftM
           (error $ "Failed to create PubKey from bech32string: " <> pkStr)
           mPk
 
         let
-          pkBytes = bytesFromPublicKey $ convertPubKey pk
-          (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> toMaybe
+          pkBytes = bytesFromPublicKey $ unwrap pk
+          (pk'' :: Maybe PublicKey) = wrap <$> toMaybe
             ( publicKey_fromBytes
                 $ unwrap pkBytes
             )

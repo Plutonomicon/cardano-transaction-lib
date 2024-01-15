@@ -5,13 +5,13 @@ import Prelude
 import Aeson (decodeAeson, parseJsonStringToAeson)
 import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Contract.CborBytes (hexToCborBytesUnsafe)
+import Contract.Keys (privateKeyFromBytes)
 import Contract.Prim.ByteArray (ByteArray)
 import Contract.TextEnvelope
   ( TextEnvelope(TextEnvelope)
   , TextEnvelopeType(Other)
   , decodeTextEnvelope
   )
-import Contract.Wallet (privateKeyFromBytes)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
 import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
@@ -280,7 +280,7 @@ createUnspentOutput
   -> T.TransactionOutput
   -> Effect TransactionUnspentOutput
 createUnspentOutput input output = do
-  input' <- Serialization.convertTxInput input
+  let input' = Serialization.convertTxInput input
   output' <- Serialization.convertTxOutput output
   pure $ mkTransactionUnspentOutput input' output'
 

@@ -9,20 +9,20 @@ module Ctl.Internal.Types.Transaction
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Serialization.Lib as Csl
 import Ctl.Internal.FromData (class FromData, fromData)
+import Ctl.Internal.Helpers (eqOrd, showFromBytes)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.BigNum (zero) as BigNum
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
-import Data.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArrayUnsafe
-  , byteArrayToHex
-  )
+import Data.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, byteArrayToHex)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (class Newtype, wrap)
+import Data.Maybe (Maybe(Nothing), fromJust)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.UInt (UInt, toInt)
+import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary
   ( class Arbitrary
   , class Coarbitrary
@@ -74,11 +74,13 @@ instance Coarbitrary TransactionInput where
 -- | 32-bytes blake2b256 hash of a tx body.
 -- | NOTE. Plutus docs might incorrectly state that it uses
 -- |       SHA256 for this purposes.
-newtype TransactionHash = TransactionHash ByteArray
+newtype TransactionHash = TransactionHash Csl.TransactionHash
 
 derive instance Generic TransactionHash _
 derive instance Newtype TransactionHash _
-derive newtype instance Eq TransactionHash
+instance Eq TransactionHash where
+  eq = eqOrd
+
 derive newtype instance EncodeAeson TransactionHash
 derive newtype instance DecodeAeson TransactionHash
 
@@ -86,27 +88,30 @@ derive newtype instance DecodeAeson TransactionHash
 -- `TransactionInput`, we want lexicographical ordering on the hexstring.
 instance Ord TransactionHash where
   compare (TransactionHash h) (TransactionHash h') =
-    compare (byteArrayToHex h) (byteArrayToHex h')
+    compare (byteArrayToHex $ toBytes h) (byteArrayToHex $ toBytes h')
 
 instance Show TransactionHash where
-  show = genericShow
+  show = unwrap >>> showFromBytes "TransactionHash"
 
 -- Plutus actually has this as a zero indexed record
 instance FromData TransactionHash where
   fromData (Constr n [ bytes ]) | n == BigNum.zero = TransactionHash <$>
-    fromData bytes
+    (fromBytes =<< fromData bytes)
   fromData _ = Nothing
 
 -- Plutus actually has this as a zero indexed record
 instance ToData TransactionHash where
-  toData (TransactionHash bytes) = Constr BigNum.zero [ toData bytes ]
+  toData (TransactionHash th) = Constr BigNum.zero [ toData $ toBytes th ]
 
 instance Arbitrary TransactionHash where
-  arbitrary =
-    wrap <<< byteArrayFromIntArrayUnsafe <$> vectorOf 32 (chooseInt 0 255)
+  arbitrary = unsafePartial $
+    wrap <<< fromJust <<< fromBytes <<< byteArrayFromIntArrayUnsafe <$> vectorOf
+      32
+      (chooseInt 0 255)
 
 instance Coarbitrary TransactionHash where
-  coarbitrary (TransactionHash bytes) generator = coarbitrary bytes generator
+  coarbitrary (TransactionHash th) generator = coarbitrary (toBytes th)
+    generator
 
 newtype DataHash = DataHash ByteArray
 

@@ -10,11 +10,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   ( PublicKey
   , RequiredSigner(RequiredSigner)
   , Vkey(Vkey)
-  , convertPubKey
   )
 import Ctl.Internal.Serialization (publicKeyHash)
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 
 -- Plutus has a type called `PubKey` which we replace with `PublicKey`
@@ -33,4 +32,4 @@ paymentPubKeyToVkey (PaymentPubKey pk) = Vkey pk
 
 paymentPubKeyToRequiredSigner :: PaymentPubKey -> RequiredSigner
 paymentPubKeyToRequiredSigner (PaymentPubKey pk) =
-  RequiredSigner <<< publicKeyHash $ convertPubKey pk
+  RequiredSigner <<< publicKeyHash $ unwrap pk

@@ -33,11 +33,15 @@ module Ctl.Internal.Helpers
   , tagProp
   , uIntToBigInt
   , pprintTagSet
+  , eqOrd
+  , showFromBytes
   ) where
 
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
+import Cardano.Serialization.Lib (class IsBytes, toBytes)
+import Cardano.Serialization.Lib.Internal (class IsCsl)
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Ctl.Internal.Helpers.Formatter (showTags)
 import Data.Array (union)
@@ -301,3 +305,12 @@ fromMaybeFlipped :: forall (a :: Type). Maybe a -> a -> a
 fromMaybeFlipped = flip fromMaybe
 
 infixl 5 fromMaybeFlipped as ??
+
+eqOrd :: forall a. Ord a => a -> a -> Boolean
+eqOrd a b = compare a b == EQ
+
+showFromBytes :: forall a. IsCsl a => IsBytes a => String -> a -> String
+showFromBytes typeName a = "(" <> typeName
+  <> " $ unsafePartial $ fromJust $ fromBytes "
+  <> show (toBytes a)
+  <> ")"

@@ -6,8 +6,8 @@ module Ctl.Internal.Deserialization.NativeScript
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
+import Cardano.Serialization.Lib (fromBytes)
 import Ctl.Internal.Cardano.Types.NativeScript as T
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.FfiHelpers
   ( ContainerHelper
   , containerHelper
@@ -26,7 +26,6 @@ import Ctl.Internal.Serialization.Types
 import Ctl.Internal.Types.BigNum (BigNum)
 import Data.ByteArray (ByteArray)
 import Data.Either (Either, note)
-import Data.Newtype (wrap)
 
 type ConvertNativeScript (r :: Type) =
   { scriptPubkey :: ScriptPubkey -> r
@@ -40,7 +39,7 @@ type ConvertNativeScript (r :: Type) =
 decodeNativeScript :: ByteArray -> Either JsonDecodeError T.NativeScript
 decodeNativeScript scriptBytes = do
   nativeScript <-
-    flip note (fromBytes $ wrap scriptBytes) $
+    flip note (fromBytes scriptBytes) $
       TypeMismatch "decodeNativeScript: from_bytes() call failed"
   pure $ convertNativeScript nativeScript
 

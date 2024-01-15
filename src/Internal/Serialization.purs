@@ -16,7 +16,13 @@ module Ctl.Internal.Serialization
 
 import Prelude
 
-import Cardano.Serialization.Lib (VRFKeyHash, toBytes)
+import Cardano.Serialization.Lib
+  ( VRFKeyHash
+  , fromBytes
+  , toBytes
+  , transactionInput_new
+  )
+import Cardano.Serialization.Lib.Internal (packListContainer)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
@@ -55,7 +61,6 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   ) as T
 import Ctl.Internal.Cardano.Types.Value as Value
-import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -157,8 +162,8 @@ import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash)) as T
+import Data.Array as Array
 import Data.ByteArray (ByteArray)
-import Data.Foldable (class Foldable)
 import Data.Foldable (null) as Foldable
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.Map as Map
@@ -480,7 +485,7 @@ foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
 
 convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do
-  inputs <- convertTxInputs body.inputs
+  let inputs = convertTxInputs $ Array.fromFoldable body.inputs
   outputs <- convertTxOutputs body.outputs
   fee <- fromJustEff "Failed to convert fee" $ BigNum.fromBigInt
     (unwrap body.fee)
@@ -490,7 +495,7 @@ convertTxBody (T.TxBody body) = do
   for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
   for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
   for_ body.auxiliaryDataHash $
-    unwrap >>> wrap >>> fromBytes >>> fromJustEff
+    unwrap >>> fromBytes >>> fromJustEff
       "Failed to convert auxiliary data hash"
       >=> transactionBodySetAuxiliaryDataHash txBody
   for_ body.validityStartInterval
@@ -505,10 +510,10 @@ convertTxBody (T.TxBody body) = do
   for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
   for_ body.mint $ convertMint >=> setTxBodyMint txBody
   for_ body.scriptDataHash $
-    unwrap >>> wrap >>> fromBytes >>> fromJustEff
+    unwrap >>> fromBytes >>> fromJustEff
       "Failed to convert script data hash"
       >=> setTxBodyScriptDataHash txBody
-  for_ body.collateral $ convertTxInputs >=> setTxBodyCollateral txBody
+  for_ body.collateral $ convertTxInputs >>> setTxBodyCollateral txBody
   for_ body.requiredSigners
     $ map unwrap
         >>> transactionBodySetRequiredSigners containerHelper txBody
@@ -523,7 +528,8 @@ convertTxBody (T.TxBody body) = do
         >=>
           setTxBodyTotalCollateral txBody
   if Foldable.null body.referenceInputs then pure unit
-  else convertTxInputs body.referenceInputs >>= setTxBodyReferenceInputs txBody
+  else convertTxInputs (Array.fromFoldable body.referenceInputs) #
+    setTxBodyReferenceInputs txBody
   pure txBody
 
 convertTransaction :: T.Transaction -> Effect Transaction
@@ -555,7 +561,7 @@ convertProposedProtocolParameterUpdates ppus =
     for (Map.toUnfoldable $ unwrap ppus) \(genesisHash /\ ppu) -> do
       Tuple
         <$>
-          ( fromJustEff "Failed to convert genesis hash" $ fromBytes $ wrap
+          ( fromJustEff "Failed to convert genesis hash" $ fromBytes
               $ unwrap genesisHash
           )
         <*>
@@ -706,13 +712,11 @@ convertCert = case _ of
     join $ newGenesisKeyDelegationCertificate
       <$>
         ( fromJustEff "Failed to convert genesis hash"
-            $ fromBytes
-            $ wrap genesisHash
+            $ fromBytes genesisHash
         )
       <*>
         ( fromJustEff "Failed to convert genesis delegate hash"
-            $ fromBytes
-            $ wrap genesisDelegateHash
+            $ fromBytes genesisDelegateHash
         )
       <*>
         pure vrfKeyhash
@@ -736,7 +740,7 @@ convertMoveInstantaneousReward (T.ToStakeCreds { pot, amounts }) =
 convertPoolMetadata :: T.PoolMetadata -> Effect PoolMetadata
 convertPoolMetadata
   (T.PoolMetadata { url: T.URL url, hash: T.PoolMetadataHash hash }) =
-  ( fromJustEff "Failed to convert script data hash" <<< fromBytes <<< wrap
+  ( fromJustEff "Failed to convert script data hash" <<< fromBytes
       >=> newPoolMetadata url
   ) hash
 
@@ -780,19 +784,14 @@ convertMint (T.Mint nonAdaAssets) = do
   pure mint
 
 convertTxInputs
-  :: forall (f :: Type -> Type)
-   . Foldable f
-  => f T.TransactionInput
-  -> Effect TransactionInputs
-convertTxInputs fInputs = do
-  inputs <- newTransactionInputs
-  traverse_ (convertTxInput >=> addTransactionInput inputs) fInputs
-  pure inputs
+  :: Array T.TransactionInput
+  -> TransactionInputs
+convertTxInputs inputs = do
+  packListContainer $ convertTxInput <$> inputs
 
-convertTxInput :: T.TransactionInput -> Effect TransactionInput
+convertTxInput :: T.TransactionInput -> TransactionInput
 convertTxInput (T.TransactionInput { transactionId, index }) = do
-  tx_hash <- fromBytesEffect $ wrap $ unwrap transactionId
-  newTransactionInput tx_hash index
+  transactionInput_new (unwrap transactionId) (UInt.toNumber index)
 
 convertTxOutputs :: Array T.TransactionOutput -> Effect TransactionOutputs
 convertTxOutputs arrOutputs = do
@@ -808,7 +807,7 @@ convertTxOutput
   case datum of
     NoOutputDatum -> pure unit
     OutputDatumHash dataHash -> do
-      for_ (fromBytes $ wrap $ unwrap dataHash) $
+      for_ (fromBytes $ unwrap dataHash) $
         transactionOutputSetDataHash txo
     OutputDatum datumValue -> do
       transactionOutputSetPlutusData txo
@@ -873,7 +872,7 @@ convertTransactionUnspentOutput
   :: T.TransactionUnspentOutput -> Effect TransactionUnspentOutput
 convertTransactionUnspentOutput (T.TransactionUnspentOutput { input, output }) =
   do
-    input' <- convertTxInput input
+    let input' = convertTxInput input
     output' <- convertTxOutput output
     newTransactionUnspentOutput input' output'
 

@@ -44,7 +44,6 @@ module Ctl.Internal.QueryM.Ogmios
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
-  , TxHash
   , HasTxR(HasTxR)
   , MaybeMempoolTransaction(MaybeMempoolTransaction)
   , acquireMempoolSnapshotCall
@@ -178,17 +177,13 @@ import Ctl.Internal.Types.SystemStart
   , sysStartToOgmiosTimestamp
   )
 import Ctl.Internal.Types.TokenName (getTokenName)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, length, replicate) as Array
 import Data.Bifunctor (lmap)
-import Data.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , hexToByteArray
-  )
+import Data.ByteArray (byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
@@ -269,7 +264,7 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonRpc2Call (TxHash /\ CborBytes) SubmitTxR
+submitTxCall :: JsonRpc2Call (TransactionHash /\ CborBytes) SubmitTxR
 submitTxCall = mkOgmiosCallType
   { method: "submitTransaction"
   , params: \(_ /\ cbor) ->
@@ -298,7 +293,7 @@ acquireMempoolSnapshotCall =
   mkOgmiosCallTypeNoArgs "acquireMempool"
 
 mempoolSnapshotHasTxCall
-  :: MempoolSnapshotAcquired -> JsonRpc2Call TxHash HasTxR
+  :: MempoolSnapshotAcquired -> JsonRpc2Call TransactionHash HasTxR
 mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   { method: "hasTransaction"
   , params: { id: _ }
@@ -439,20 +434,19 @@ instance DecodeOgmios ReleasedMempool where
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
 submitSuccessPartialResp
-  :: TxHash -> { result :: { transaction :: { id :: TxHash } } }
+  :: TransactionHash
+  -> { result :: { transaction :: { id :: TransactionHash } } }
 submitSuccessPartialResp txHash =
   { "result": { "transaction": { "id": txHash } } }
 
 data SubmitTxR
-  = SubmitTxSuccess TxHash
+  = SubmitTxSuccess TransactionHash
   | SubmitFail OgmiosError
 
 derive instance Generic SubmitTxR _
 
 instance Show SubmitTxR where
   show = genericShow
-
-type TxHash = ByteArray
 
 instance DecodeOgmios SubmitTxR where
   decodeOgmios = decodeErrorOrResult
@@ -472,11 +466,11 @@ instance DecodeOgmios SubmitTxR where
         Left $ TypeMismatch
           "Expected error code in a range [3000, 3999]"
 
-    decodeTxHash :: Aeson -> Either JsonDecodeError TxHash
-    decodeTxHash = aesonObject $ \o ->
-      ( getField o "transaction" >>= flip getField "id" >>= hexToByteArray
-          >>> maybe (Left $ TypeMismatch "Expected hexstring") pure
-      )
+    decodeTxHash :: Aeson -> Either JsonDecodeError TransactionHash
+    decodeTxHash = aesonObject \o -> do
+      txHashHex <- getField o "transaction" >>= flip getField "id"
+      note (TypeMismatch "Expected hexstring of TransactionHash") $
+        hexToByteArray txHashHex >>= fromBytes >>> map wrap
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype OgmiosSystemStart = OgmiosSystemStart SystemStart

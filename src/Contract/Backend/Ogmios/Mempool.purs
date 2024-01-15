@@ -30,7 +30,6 @@ import Ctl.Internal.QueryM.Ogmios
   ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
-  , TxHash
   ) as Ogmios
 import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
@@ -48,8 +47,7 @@ acquireMempoolSnapshot = wrapQueryM QueryM.acquireMempoolSnapshot
 -- | Check to see if a TxHash is present in the current mempool snapshot.
 mempoolSnapshotHasTx
   :: Ogmios.MempoolSnapshotAcquired -> TransactionHash -> Contract Boolean
-mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms <<<
-  unwrap
+mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms
 
 -- | Get the first received TX in the current mempool snapshot. This function can
 -- | be recursively called to traverse the finger-tree of the mempool data set.

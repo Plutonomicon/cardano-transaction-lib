@@ -20,7 +20,8 @@ import Aeson
 import Contract.Prelude (class Newtype)
 import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
 import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
+  ( PrivateKey(PrivateKey)
+  , Transaction(Transaction)
   , TransactionWitnessSet
   , UtxoMap
   , _vkeys
@@ -33,9 +34,7 @@ import Ctl.Internal.Deserialization.Keys
   , privateKeyToBech32
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.Serialization
-  ( publicKeyHash
-  )
+import Ctl.Internal.Serialization (publicKeyHash)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -47,7 +46,6 @@ import Ctl.Internal.Serialization.Address
   , keyHashCredential
   )
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
-import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
@@ -57,7 +55,7 @@ import Data.Either (note)
 import Data.Foldable (fold)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for)
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -89,13 +87,14 @@ instance Show PrivatePaymentKey where
   show _ = "(PrivatePaymentKey <hidden>)"
 
 instance EncodeAeson PrivatePaymentKey where
-  encodeAeson (PrivatePaymentKey pk) = encodeAeson (privateKeyToBech32 pk)
+  encodeAeson (PrivatePaymentKey pk) = encodeAeson
+    (privateKeyToBech32 $ unwrap pk)
 
 instance DecodeAeson PrivatePaymentKey where
   decodeAeson aeson =
     decodeAeson aeson >>=
       note (TypeMismatch "PrivateKey")
-        <<< map PrivatePaymentKey
+        <<< map (PrivatePaymentKey <<< wrap)
         <<< privateKeyFromBech32
 
 newtype PrivateStakeKey = PrivateStakeKey PrivateKey
@@ -106,13 +105,14 @@ instance Show PrivateStakeKey where
   show _ = "(PrivateStakeKey <hidden>)"
 
 instance EncodeAeson PrivateStakeKey where
-  encodeAeson (PrivateStakeKey pk) = encodeAeson (privateKeyToBech32 pk)
+  encodeAeson (PrivateStakeKey pk) = encodeAeson
+    (privateKeyToBech32 $ unwrap pk)
 
 instance DecodeAeson PrivateStakeKey where
   decodeAeson aeson =
     decodeAeson aeson >>=
       note (TypeMismatch "PrivateKey")
-        <<< map PrivateStakeKey
+        <<< map (PrivateStakeKey <<< wrap)
         <<< privateKeyFromBech32
 
 keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
@@ -124,11 +124,11 @@ keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
 privateKeysToAddress
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Address
 privateKeysToAddress payKey mbStakeKey network = do
-  let pubPayKey = publicKeyFromPrivateKey (unwrap payKey)
+  let pubPayKey = publicKeyFromPrivateKey (unwrap $ unwrap payKey)
   case mbStakeKey of
     Just stakeKey ->
       let
-        pubStakeKey = publicKeyFromPrivateKey (unwrap stakeKey)
+        pubStakeKey = publicKeyFromPrivateKey (unwrap $ unwrap stakeKey)
       in
         baseAddressToAddress $
           baseAddress
@@ -171,10 +171,10 @@ privateKeysToKeyWallet payKey mbStakeKey =
     txBody <- Serialization.convertTxBody tx.body
     hash <- Serialization.hashTransaction txBody
     payWitness <- Deserialization.WitnessSet.convertVkeyWitness <$>
-      Serialization.makeVkeywitness hash (unwrap payKey)
+      Serialization.makeVkeywitness hash (unwrap $ unwrap payKey)
     mbStakeWitness <- for mbStakeKey \stakeKey -> do
       Deserialization.WitnessSet.convertVkeyWitness <$>
-        Serialization.makeVkeywitness hash (unwrap stakeKey)
+        Serialization.makeVkeywitness hash (unwrap $ unwrap stakeKey)
     let
       witnessSet' = set _vkeys
         (pure $ [ payWitness ] <> fold (pure <$> mbStakeWitness))
@@ -183,5 +183,6 @@ privateKeysToKeyWallet payKey mbStakeKey =
 
   signData :: NetworkId -> RawBytes -> Aff DataSignature
   signData networkId payload = do
-    liftEffect $ Cip30SignData.signData (unwrap payKey) (address networkId)
+    liftEffect $ Cip30SignData.signData (unwrap $ unwrap payKey)
+      (address networkId)
       payload

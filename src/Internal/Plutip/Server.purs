@@ -25,6 +25,7 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Affjax (request) as Affjax
+import Ctl.Internal.Cardano.Types.Transaction (PrivateKey(PrivateKey))
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
@@ -85,7 +86,7 @@ import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
-import Data.Newtype (over, unwrap, wrap)
+import Data.Newtype (over, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
@@ -114,6 +115,7 @@ import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
+import Safe.Coerce (coerce)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -360,7 +362,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         wallets <-
           liftContractM
             "Impossible happened: could not decode wallets. Please report as bug"
-            $ decodeWallets distr (unwrap <$> response.privateKeys)
+            $ decodeWallets distr (coerce response.privateKeys)
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
         void $ waitNSlots one
         transferFundsFromEnterpriseToBase ourKey walletsArray

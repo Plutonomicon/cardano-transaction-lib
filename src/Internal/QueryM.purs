@@ -132,7 +132,6 @@ import Ctl.Internal.QueryM.Ogmios
   , PoolParametersR
   , ReleasedMempool
   , StakePoolsQueryArgument
-  , TxHash
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
@@ -153,6 +152,7 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.SystemStart (SystemStart)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
 import Data.ByteArray (byteArrayToHex)
@@ -313,7 +313,7 @@ getChainTip = ogmiosChainTipToTip <$> mkOgmiosRequest Ogmios.queryChainTipCall
 -- Ogmios Local Tx Submission Protocol
 --------------------------------------------------------------------------------
 
-submitTxOgmios :: TxHash -> CborBytes -> QueryM Ogmios.SubmitTxR
+submitTxOgmios :: TransactionHash -> CborBytes -> QueryM Ogmios.SubmitTxR
 submitTxOgmios txHash tx = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
@@ -363,7 +363,7 @@ mempoolSnapshotHasTxAff
   :: OgmiosWebSocket
   -> Logger
   -> Ogmios.MempoolSnapshotAcquired
-  -> TxHash
+  -> TransactionHash
   -> Aff Boolean
 mempoolSnapshotHasTxAff ogmiosWs logger ms txh =
   unwrap <$> mkOgmiosRequestAff ogmiosWs logger
@@ -412,7 +412,7 @@ acquireMempoolSnapshot =
 
 mempoolSnapshotHasTx
   :: Ogmios.MempoolSnapshotAcquired
-  -> TxHash
+  -> TransactionHash
   -> QueryM Boolean
 mempoolSnapshotHasTx ms txh =
   unwrap <$> mkOgmiosRequest
@@ -510,7 +510,7 @@ listeners (WebSocket _ ls) = ls
 -- OgmiosWebSocket Setup and PrimOps
 --------------------------------------------------------------------------------
 
-type IsTxConfirmed = TxHash -> Aff Boolean
+type IsTxConfirmed = TransactionHash -> Aff Boolean
 
 mkOgmiosWebSocketAff
   :: IsTxConfirmed
@@ -605,16 +605,16 @@ resendPendingSubmitRequests
         for_ pr' \(listenerId /\ requestBody /\ txHash) ->
           handlePendingSubmitRequest ms listenerId requestBody txHash
   where
-  log :: String -> Boolean -> TxHash -> Aff Unit
+  log :: String -> Boolean -> TransactionHash -> Aff Unit
   log label value txHash =
     liftEffect $ logger Debug $
-      label <> ": " <> show value <> " TxHash: " <> show txHash
+      label <> ": " <> show value <> " TransactionHash: " <> show txHash
 
   handlePendingSubmitRequest
     :: Ogmios.MempoolSnapshotAcquired
     -> ListenerId
     -> RequestBody
-    -> TxHash
+    -> TransactionHash
     -> Aff Unit
   handlePendingSubmitRequest ms listenerId requestBody txHash = do
     -- Check if the transaction was added to the mempool:
@@ -727,7 +727,7 @@ type OgmiosListeners =
   , systemStart :: ListenerSet Unit Ogmios.OgmiosSystemStart
   , acquireMempool :: ListenerSet Unit Ogmios.MempoolSnapshotAcquired
   , releaseMempool :: ListenerSet Unit ReleasedMempool
-  , mempoolHasTx :: ListenerSet TxHash HasTxR
+  , mempoolHasTx :: ListenerSet TransactionHash HasTxR
   , mempoolNextTx :: ListenerSet Unit MaybeMempoolTransaction
   , mempoolSizeAndCapacity :: ListenerSet Unit Ogmios.MempoolSizeAndCapacity
   , stakePools :: ListenerSet StakePoolsQueryArgument PoolParametersR
@@ -747,7 +747,8 @@ type ListenerSet (request :: Type) (response :: Type) =
   --  to replay requests in case of a WebSocket failure.
   }
 
-type SubmitTxListenerSet = ListenerSet (TxHash /\ CborBytes) Ogmios.SubmitTxR
+type SubmitTxListenerSet = ListenerSet (TransactionHash /\ CborBytes)
+  Ogmios.SubmitTxR
 
 mkAddMessageListener
   :: forall (response :: Type)

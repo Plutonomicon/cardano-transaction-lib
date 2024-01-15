@@ -13,7 +13,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , AuxiliaryDataHash
   , PublicKey
   , Transaction
-  , convertPubKey
   )
 import Ctl.Internal.Hashing
   ( blake2b224Hash
@@ -36,14 +35,14 @@ import Ctl.Internal.Serialization (publicKeyHash) as Internal
 import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
 import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
 import Ctl.Internal.Types.Transaction (TransactionHash)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 
 transactionHash :: Transaction -> Effect TransactionHash
 transactionHash tx = Internal.transactionHash <$> convertTransaction tx
 
 publicKeyHash :: PublicKey -> PubKeyHash
-publicKeyHash pk = wrap $ Internal.publicKeyHash $ convertPubKey pk
+publicKeyHash pk = wrap $ Internal.publicKeyHash $ unwrap pk
 
 auxiliaryDataHash :: AuxiliaryData -> Effect AuxiliaryDataHash
 auxiliaryDataHash = hashAuxiliaryData

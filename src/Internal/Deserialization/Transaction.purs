@@ -64,7 +64,11 @@ module Ctl.Internal.Deserialization.Transaction
 import Prelude
 
 import Cardano.Serialization.Lib (Ed25519KeyHash, ScriptHash, VRFKeyHash) as Csl
-import Cardano.Serialization.Lib (toBytes, unpackMapContainerToMapWith)
+import Cardano.Serialization.Lib
+  ( fromBytes
+  , toBytes
+  , unpackMapContainerToMapWith
+  )
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash(AuxiliaryDataHash)
@@ -115,7 +119,6 @@ import Ctl.Internal.Deserialization.Error
   , addErrTrace
   , cslErr
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes')
 import Ctl.Internal.Deserialization.Language (convertLanguage)
 import Ctl.Internal.Deserialization.UnspentOutput (convertInput, convertOutput)
 import Ctl.Internal.Deserialization.WitnessSet
@@ -185,7 +188,7 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int (Int) as Csl
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress)) as T
-import Ctl.Internal.Types.TokenName (TokenName, tokenNameFromAssetName)
+import Ctl.Internal.Types.TokenName (tokenNameFromAssetName)
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata
   , TransactionMetadatum(MetadataList, MetadataMap, Bytes, Int, Text)
@@ -197,7 +200,7 @@ import Data.Bitraversable (bitraverse)
 import Data.ByteArray (ByteArray)
 import Data.Either (Either)
 import Data.Map as M
-import Data.Maybe (Maybe, fromJust, fromMaybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Ratio (Ratio, reduce)
 import Data.Set (fromFoldable) as Set
@@ -208,14 +211,14 @@ import Data.UInt as UInt
 import Data.Variant (Variant)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
-import Partial.Unsafe (unsafePartial)
 import Type.Row (type (+))
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
 deserializeTransaction
   :: forall (r :: Row Type). CborBytes -> Err r T.Transaction
-deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
-  convertTransaction
+deserializeTransaction txCbor =
+  cslErr "TransactionOutput" (fromBytes (unwrap txCbor)) >>=
+    convertTransaction
 
 -- | Converts transaction from foreign CSL representation to CTL's one.
 convertTransaction

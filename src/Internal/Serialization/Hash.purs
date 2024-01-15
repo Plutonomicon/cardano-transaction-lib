@@ -1,7 +1,7 @@
 module Ctl.Internal.Serialization.Hash
-  ( Ed25519KeyHash
-  , ScriptHash
-  , VRFKeyHash
+  ( Ed25519KeyHash(Ed25519KeyHash)
+  , ScriptHash(ScriptHash)
+  , VRFKeyHash(VRFKeyHash)
   , ed25519KeyHashFromBech32
   , ed25519KeyHashFromBytes
   , ed25519KeyHashToBech32
@@ -97,8 +97,10 @@ instance Ord Ed25519KeyHash where
   compare = compare `on` ed25519KeyHashToBytes
 
 instance Show Ed25519KeyHash where
-  show edkh = "(Ed25519KeyHash " <> rawBytesToHex (ed25519KeyHashToBytes edkh)
-    <> ")"
+  show edkh =
+    "(Ed25519KeyHash $ unsafePartial $ fromJust $ ed25519KeyHashFromBech32 "
+      <> show (ed25519KeyHashToBech32 "pool" edkh)
+      <> ")"
 
 instance ToData Ed25519KeyHash where
   toData = toData <<< unwrap <<< ed25519KeyHashToBytes

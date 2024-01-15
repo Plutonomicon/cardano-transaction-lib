@@ -183,7 +183,7 @@ mkCip30Mock pKey mSKey = do
 
     mbRewardAddressHex = mSKey <#> \stakeKey ->
       let
-        stakePubKey = publicKeyFromPrivateKey (unwrap stakeKey)
+        stakePubKey = publicKeyFromPrivateKey (unwrap $ unwrap stakeKey)
         stakePubKeyHash = publicKeyHash stakePubKey
         rewardAddress = stakePubKeyHashRewardAddress env.networkId
           $ StakePubKeyHash

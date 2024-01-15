@@ -10,21 +10,21 @@ module Ctl.Internal.Test.E2E.Route
 import Prelude
 
 import Contract.Config (ContractParams)
+import Contract.Keys (privateKeyFromBytes)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
 import Contract.Wallet
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
-  , privateKeyFromBytes
   )
 import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Internal.Cardano.Types.Transaction (PrivateKey)
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
-import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Test.E2E.Feedback.Browser (getClusterSetupRepeatedly)
 import Ctl.Internal.Test.E2E.Feedback.Hooks (addE2EFeedbackHooks)
 import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))

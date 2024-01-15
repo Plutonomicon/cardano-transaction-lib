@@ -42,8 +42,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  , convertEd25519Signature
-  , convertPubKey
   ) as T
 import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import Ctl.Internal.Serialization.NativeScript (convertNativeScripts)
@@ -72,6 +70,7 @@ import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Data.ByteArray (ByteArray)
 import Data.Maybe (maybe)
+import Data.Newtype (unwrap)
 import Data.Traversable (for_, traverse, traverse_)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
@@ -143,7 +142,7 @@ convertExUnits { mem, steps } =
 convertBootstrap :: T.BootstrapWitness -> Effect BootstrapWitness
 convertBootstrap { vkey, signature, chainCode, attributes } = do
   vkey' <- convertVkey vkey
-  let signature' = T.convertEd25519Signature signature
+  let signature' = unwrap signature
   newBootstrapWitness vkey' signature' chainCode attributes
 
 convertVkeywitnesses :: Array T.Vkeywitness -> Effect Vkeywitnesses
@@ -155,11 +154,11 @@ convertVkeywitnesses arr = do
 convertVkeywitness :: T.Vkeywitness -> Effect Vkeywitness
 convertVkeywitness (T.Vkeywitness (vkey /\ signature)) = do
   vkey' <- convertVkey vkey
-  let signature' = T.convertEd25519Signature signature
+  let signature' = unwrap signature
   newVkeywitness vkey' signature'
 
 convertVkey :: T.Vkey -> Effect Vkey
-convertVkey (T.Vkey pk) = newVkeyFromPublicKey $ T.convertPubKey pk
+convertVkey (T.Vkey pk) = newVkeyFromPublicKey $ unwrap pk
 
 foreign import newTransactionWitnessSet :: Effect TransactionWitnessSet
 foreign import newPublicKey :: Bech32String -> Effect PublicKey

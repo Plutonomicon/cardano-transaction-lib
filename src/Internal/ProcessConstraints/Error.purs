@@ -2,6 +2,7 @@ module Ctl.Internal.ProcessConstraints.Error where
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Ctl.Internal.Cardano.Types.NativeScript (pprintNativeScript)
 import Ctl.Internal.Cardano.Types.Value (CurrencySymbol, getCurrencySymbol)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
@@ -169,6 +170,6 @@ explainMkUnbalancedTxError = case _ of
 
   prettyTxIn :: TransactionInput -> String
   prettyTxIn (TransactionInput ti) =
-    byteArrayToHex (unwrap ti.transactionId)
+    byteArrayToHex (toBytes $ unwrap ti.transactionId)
       <> "#"
       <> UInt.toString ti.index

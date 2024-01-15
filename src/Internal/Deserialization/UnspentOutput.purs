@@ -80,7 +80,7 @@ convertInput :: TransactionInput -> T.TransactionInput
 convertInput input =
   let
     index = getTransactionIndex input
-    transactionId = T.TransactionHash $ toBytes $ getTransactionHash input
+    transactionId = T.TransactionHash $ getTransactionHash input
   in
     T.TransactionInput
       { transactionId

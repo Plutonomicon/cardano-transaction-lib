@@ -2,6 +2,7 @@ module Test.Ctl.Transaction (suite) where
 
 import Prelude
 
+import Contract.Keys (publicKeyFromBech32)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , ScriptDataHash(ScriptDataHash)
@@ -11,7 +12,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
-  , mkPublicKey
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
@@ -154,7 +154,7 @@ testPreserveWitness = liftEffect $ do
   vk :: Vkeywitness
   vk = Vkeywitness
     ( Vkey
-        ( unsafePartial $ fromJust <<< mkPublicKey $
+        ( unsafePartial $ fromJust <<< publicKeyFromBech32 $
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
         /\

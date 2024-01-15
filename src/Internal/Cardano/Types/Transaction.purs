@@ -13,10 +13,8 @@ module Ctl.Internal.Cardano.Types.Transaction
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , Ed25519Signature
+  , Ed25519Signature(Ed25519Signature)
   , mkEd25519Signature
-  , mkFromCslEd25519Signature
-  , convertEd25519Signature
   , Epoch(Epoch)
   , ExUnitPrices
   , ExUnits
@@ -36,10 +34,8 @@ module Ctl.Internal.Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey
-  , mkPublicKey
-  , mkFromCslPubKey
-  , convertPubKey
+  , PublicKey(PublicKey)
+  , PrivateKey(PrivateKey)
   , Redeemer(Redeemer)
   , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , RequiredSigner(RequiredSigner)
@@ -97,20 +93,31 @@ import Aeson
   , encodeAeson
   , finiteNumber
   )
-import Cardano.Serialization.Lib (Ed25519Signature, PublicKey) as Serialization
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib
+  ( ed25519Signature_fromBech32
+  , ed25519Signature_toBech32
+  , privateKey_asBytes
+  , privateKey_toBech32
+  , publicKey_asBytes
+  , publicKey_fromBytes
+  , publicKey_toBech32
+  , toBytes
+  )
+import Cardano.Serialization.Lib as Csl
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value, pprintValue)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.Deserialization.Keys
-  ( ed25519SignatureFromBech32
-  , publicKeyFromBech32
-  )
 import Ctl.Internal.FromData (class FromData, fromData)
-import Ctl.Internal.Helpers (appendMap, encodeMap, encodeTagged', (</>), (<<>>))
+import Ctl.Internal.Helpers
+  ( appendMap
+  , encodeMap
+  , encodeTagged'
+  , eqOrd
+  , (</>)
+  , (<<>>)
+  )
 import Ctl.Internal.Serialization.Address
   ( Address
   , NetworkId
@@ -124,11 +131,6 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashToBech32
   , ed25519KeyHashToBech32Unsafe
   )
-import Ctl.Internal.Serialization.Keys
-  ( bech32FromEd25519Signature
-  , bech32FromPublicKey
-  , bytesFromPublicKey
-  )
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -138,7 +140,6 @@ import Ctl.Internal.Types.OutputDatum
   )
 import Ctl.Internal.Types.PlutusData (PlutusData, pprintPlutusData)
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash(PubKeyHash))
-import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
@@ -148,6 +149,7 @@ import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
 import Data.ByteArray (ByteArray, byteArrayToHex)
 import Data.Either (Either(Left), note)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
@@ -160,6 +162,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Nullable (toMaybe)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
@@ -170,6 +173,7 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
+import Safe.Coerce (coerce)
 import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
@@ -864,55 +868,76 @@ derive newtype instance EncodeAeson Vkey
 instance Show Vkey where
   show = genericShow
 
-newtype PublicKey = PublicKey RawBytes
+newtype PrivateKey = PrivateKey Csl.PrivateKey
 
-mkPublicKey :: Bech32String -> Maybe PublicKey
-mkPublicKey = map (PublicKey <<< bytesFromPublicKey) <<< publicKeyFromBech32
+derive instance Newtype PrivateKey _
 
-mkFromCslPubKey :: Serialization.PublicKey -> PublicKey
-mkFromCslPubKey = PublicKey <<< bytesFromPublicKey
+instance Eq PrivateKey where
+  eq = eqOrd
 
-convertPubKey :: PublicKey -> Serialization.PublicKey
-convertPubKey (PublicKey bs) = unsafePartial
-  $ fromJust <<< fromBytes <<< wrap <<< unwrap
-  $ bs
+instance Ord PrivateKey where
+  compare = compare `on` (unwrap >>> privateKey_asBytes)
 
-derive newtype instance Eq PublicKey
-derive newtype instance Ord PublicKey
-derive newtype instance EncodeAeson PublicKey
+instance EncodeAeson PrivateKey where
+  encodeAeson = unwrap >>> privateKey_asBytes >>> encodeAeson
+
+-- ToData/FromData instances are intentionally not provided:
+-- it is pointless to store PrivateKeys in plutus script contexts,
+-- so the instances are commented-out to prevent people from doing
+-- something dangerous.
+
+-- instance ToData PrivateKey where
+--   toData (PrivateKey pk) = toData $ privateKey_asBytes pk
+
+-- instance FromData PrivateKey where
+--   fromData = map wrap <<< toMaybe <<< privateKey_fromNormalBytes <=< fromData
+
+instance Show PrivateKey where
+  show pk = "(PrivateKey " <> (privateKey_toBech32 <<< unwrap $ pk) <> ")"
+
+newtype PublicKey = PublicKey Csl.PublicKey
+
+derive instance Newtype PublicKey _
+
+instance Eq PublicKey where
+  eq = eqOrd
+
+instance Ord PublicKey where
+  compare = compare `on` (unwrap >>> publicKey_asBytes)
+
+instance EncodeAeson PublicKey where
+  encodeAeson = unwrap >>> publicKey_asBytes >>> encodeAeson
 
 instance ToData PublicKey where
-  toData (PublicKey bytes) = toData bytes
+  toData (PublicKey pk) = toData $ publicKey_asBytes pk
 
 instance FromData PublicKey where
-  fromData = map mkFromCslPubKey <<< fromBytes <=< fromData
+  fromData = map wrap <<< toMaybe <<< publicKey_fromBytes <=< fromData
 
 instance Show PublicKey where
-  show pk = "(PublicKey " <> (bech32FromPublicKey <<< convertPubKey $ pk) <> ")"
+  show pk = "(PublicKey " <> (publicKey_toBech32 <<< unwrap $ pk) <> ")"
 
-newtype Ed25519Signature = Ed25519Signature RawBytes
+newtype Ed25519Signature = Ed25519Signature Csl.Ed25519Signature
 
-mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
-mkEd25519Signature =
-  map (Ed25519Signature <<< wrap <<< toBytes) <<<
-    ed25519SignatureFromBech32
+derive instance Newtype Ed25519Signature _
 
-mkFromCslEd25519Signature :: Serialization.Ed25519Signature -> Ed25519Signature
-mkFromCslEd25519Signature = Ed25519Signature <<< wrap <<< toBytes
+instance Eq Ed25519Signature where
+  eq a b = compare a b == EQ
 
-convertEd25519Signature :: Ed25519Signature -> Serialization.Ed25519Signature
-convertEd25519Signature (Ed25519Signature bs) = unsafePartial
-  $ fromJust <<< fromBytes <<< wrap <<< unwrap
-  $ bs
+instance Ord Ed25519Signature where
+  compare = compare `on` (unwrap >>> toBytes)
 
-derive newtype instance Eq Ed25519Signature
-derive newtype instance Ord Ed25519Signature
-derive newtype instance EncodeAeson Ed25519Signature
+instance EncodeAeson Ed25519Signature where
+  encodeAeson = unwrap >>> toBytes >>> encodeAeson
 
 instance Show Ed25519Signature where
   show sig = "(Ed25519Signature "
-    <> (bech32FromEd25519Signature <<< convertEd25519Signature $ sig)
+    <> show (ed25519Signature_toBech32 <<< unwrap $ sig)
     <> ")"
+
+mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
+mkEd25519Signature =
+  coerce <<< toMaybe <<< ed25519Signature_fromBech32
 
 newtype Redeemer = Redeemer
   { tag :: RedeemerTag
@@ -1003,5 +1028,7 @@ pprintUtxoMap utxos = TagSet.fromArray $
             <> datumTagSets
             <> scriptRefTagSets
       in
-        (byteArrayToHex (unwrap transactionId) <> "#" <> UInt.toString index)
+        ( byteArrayToHex (toBytes $ unwrap transactionId) <> "#" <>
+            UInt.toString index
+        )
           `tagSetTag` TagSet.fromArray outputTagSet

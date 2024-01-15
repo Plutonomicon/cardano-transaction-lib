@@ -2,6 +2,8 @@ module Test.Ctl.QueryM.AffInterface (suite) where
 
 import Prelude
 
+import Cardano.Serialization.Lib (fromBytes)
+import Contract.Transaction (TransactionHash(TransactionHash))
 import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM (QueryM, getChainTip, submitTxOgmios)
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
@@ -9,12 +11,13 @@ import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
-import Data.Maybe (isJust)
+import Data.Maybe (fromJust, isJust)
 import Data.Newtype (wrap)
 import Data.String.CodeUnits (indexOf)
 import Data.String.Pattern (Pattern(Pattern))
 import Effect.Aff (error, try)
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (shouldSatisfy)
 
 -- note: currently this suite relies on Ogmios being open and running against the
@@ -53,8 +56,11 @@ testGetEraSummaries = do
 
 testSubmitTxFailure :: QueryM Unit
 testSubmitTxFailure = do
-  let bytes = hexToByteArrayUnsafe "00"
-  void $ submitTxOgmios bytes (wrap bytes)
+  let
+    someBytes = hexToByteArrayUnsafe
+      "ffffffffffff55555555555555555555a1af1b7534b51e60fad3fe9c164313e8"
+    txHash = TransactionHash $ unsafePartial $ fromJust $ fromBytes someBytes
+  void $ submitTxOgmios txHash (wrap someBytes)
 
 testGetCurrentEpoch :: QueryM Unit
 testGetCurrentEpoch = do

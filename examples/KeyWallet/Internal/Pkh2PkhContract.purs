@@ -10,6 +10,7 @@ import Contract.Config
   , WalletSpec(UseKeys)
   , testnetConfig
   )
+import Contract.Keys (privateKeyFromBytes)
 import Contract.Monad (Contract, launchAff_, runContract)
 import Control.Monad.Error.Class (class MonadError, catchError, liftMaybe)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm (Log, Unlock)
@@ -19,7 +20,6 @@ import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   , logError
   , mkForm
   ) as HtmlForm
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
 import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Data.Log.Formatter.Pretty (prettyFormatter)

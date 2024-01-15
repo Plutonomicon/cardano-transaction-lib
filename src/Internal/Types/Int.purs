@@ -1,6 +1,6 @@
 -- | `cardano-serialization-lib` Int type (can be positive or negative).
 module Ctl.Internal.Types.Int
-  ( Int
+  ( Int(Int)
   , newPositive
   , newNegative
   , fromBigInt

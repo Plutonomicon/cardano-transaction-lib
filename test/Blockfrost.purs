@@ -2,6 +2,7 @@ module Test.Ctl.Blockfrost (main, testPlan) where
 
 import Prelude
 
+import Cardano.Serialization.Lib (fromBytes)
 import Contract.Config (blockfrostPublicPreviewServerConfig)
 import Contract.Metadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
@@ -125,8 +126,7 @@ fixtureHash = case _ of
 
 fixture1 :: Fixture
 fixture1 = TxWithMetadata
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "7a2aff2b7f92f6f8ec3fb2135301c7bfc36fea1489a3ca37fd6066f3155c46ff"
+  { hash: txHash2
   , metadata:
       GeneralTransactionMetadata $ Map.fromFoldable $
         [ 30 /\ "5"
@@ -190,8 +190,7 @@ fixture1 = TxWithMetadata
 
 fixture2 :: Fixture
 fixture2 = TxWithMetadata
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "d499729695be63b4c6affb2412899a7f16390d54d97f78f51d796a5cef424126"
+  { hash: txHash1
   , metadata:
       GeneralTransactionMetadata $ Map.fromFoldable $
         [ 674 /\
@@ -207,14 +206,22 @@ fixture2 = TxWithMetadata
             (Map.fromFoldable $ metamap <#> \(k /\ v) -> Text k /\ Text v)
   }
 
+txHash1 :: TransactionHash
+txHash1 = TransactionHash $ unsafePartial $ fromJust $ fromBytes $
+  hexToByteArrayUnsafe
+    "d499729695be63b4c6affb2412899a7f16390d54d97f78f51d796a5cef424126"
+
+txHash2 :: TransactionHash
+txHash2 = TransactionHash $ unsafePartial $ fromJust $ fromBytes $
+  hexToByteArrayUnsafe
+    "7b458500ef7783e16dab5d9f9f282505182c316ccf3ecf75d0472f95ab31eeaa"
+
 fixture3 :: Fixture
 fixture3 = TxWithNoMetadata
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "7b458500ef7783e16dab5d9f9f282505182c316ccf3ecf75d0472f95ab31eeaa"
+  { hash: txHash2
   }
 
 fixture4 :: Fixture
 fixture4 = UnconfirmedTx
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  { hash: txHash2
   }

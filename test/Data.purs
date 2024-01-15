@@ -4,10 +4,9 @@ module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData as PDD
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers (showWithParens)
@@ -37,7 +36,6 @@ import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
-import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
@@ -564,7 +562,7 @@ instance (FromData a) => FromData (Tree a) where
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
 fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes
-  (wrap $ hexToByteArrayUnsafe binary)
+  (hexToByteArrayUnsafe binary)
 
 testBinaryFixture
   :: forall a

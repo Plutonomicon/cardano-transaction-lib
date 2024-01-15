@@ -17,7 +17,7 @@ module Ctl.Internal.Hashing
 
 import Prelude
 
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
@@ -36,11 +36,13 @@ import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
 import Data.ByteArray (ByteArray)
+import Data.Maybe (fromJust)
 import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 import Node.Buffer (fromString, toString) as Buffer
 import Node.Crypto.Hash (createHash, digest, update) as Hash
 import Node.Encoding (Encoding(Hex, UTF8))
+import Partial.Unsafe (unsafePartial)
 
 foreign import blake2b224Hash :: ByteArray -> ByteArray
 
@@ -78,8 +80,11 @@ datumHash =
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
-transactionHash =
-  wrap <<< blake2b256Hash <<< toBytes <<< _txBody
+transactionHash tx =
+  -- can't fail, because the length is correct
+  wrap $ unsafePartial $ fromJust $ fromBytes $ blake2b256Hash $ toBytes
+    $ _txBody
+    $ tx
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = hashPlutusScript <<< convertPlutusScript

@@ -16,8 +16,8 @@ import Prelude
 
 import Aeson (Aeson, JsonDecodeError, stringifyAeson)
 import Ctl.Internal.QueryM.JsonRpc2 (parseJsonRpc2ResponseId)
-import Ctl.Internal.QueryM.Ogmios (TxHash)
 import Ctl.Internal.QueryM.UniqueId (ListenerId)
+import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Either (Either(Left, Right))
 import Data.Map (Map)
 import Data.Map (empty, lookup) as Map
@@ -85,5 +85,5 @@ newPendingRequests = Ref.new Map.empty
 
 type PendingRequests = GenericPendingRequests RequestBody
 
-type PendingSubmitTxRequests = GenericPendingRequests (RequestBody /\ TxHash)
-
+type PendingSubmitTxRequests = GenericPendingRequests
+  (RequestBody /\ TransactionHash)

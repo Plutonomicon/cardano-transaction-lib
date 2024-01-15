@@ -83,7 +83,7 @@ import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Time.Duration (Milliseconds, Seconds)
@@ -272,7 +272,7 @@ buildBackend logger = case _ of
   where
   buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
   buildCtlBackend { ogmiosConfig, kupoConfig } = do
-    let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig <<< wrap
+    let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig
     ogmiosWs <- mkOgmiosWebSocketAff isTxConfirmed logger ogmiosConfig
     pure
       { ogmios:

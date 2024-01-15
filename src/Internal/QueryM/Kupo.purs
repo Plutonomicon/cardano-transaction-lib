@@ -24,6 +24,7 @@ import Aeson
 import Affjax (Error, Response, defaultRequest) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Contract.Log (logTrace')
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
@@ -53,7 +54,6 @@ import Ctl.Internal.Contract.QueryHandle.Error
       , GetTxMetadataMetadataEmptyOrMissingError
       )
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.NativeScript (decodeNativeScript)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
@@ -71,7 +71,7 @@ import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString)
 import Ctl.Internal.Types.BigNum (toString) as BigNum
-import Ctl.Internal.Types.CborBytes (CborBytes, hexToCborBytes)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
@@ -128,15 +128,16 @@ getUtxoByOref oref = runExceptT do
   pure $ Map.lookup oref utxoMap
   where
   endpoint :: String
-  endpoint = "/matches/" <> outputIndex <> "@" <> txHashHex <> "?unspent"
+  endpoint = "/matches/" <> outputIndex <> "@" <> txHashToHex txHash <>
+    "?unspent"
     where
     TransactionInput { transactionId: txHash, index } = oref
 
     outputIndex :: String
     outputIndex = UInt.toString index
 
-    txHashHex :: String
-    txHashHex = byteArrayToHex (unwrap txHash)
+txHashToHex :: TransactionHash -> String
+txHashToHex txHash = byteArrayToHex (toBytes $ unwrap txHash)
 
 -- | Specialized function to get addresses only, without resolving script
 -- | references. Used internally.
@@ -149,10 +150,7 @@ getOutputAddressesByTxHash txHash = runExceptT do
     unwrap >>> _.address
   where
   endpoint :: String
-  endpoint = "/matches/*@" <> txHashHex <> "?unspent"
-    where
-    txHashHex :: String
-    txHashHex = byteArrayToHex (unwrap txHash)
+  endpoint = "/matches/*@" <> txHashToHex txHash <> "?unspent"
 
 getDatumByHash :: DataHash -> QueryM (Either ClientError (Maybe Datum))
 getDatumByHash (DataHash dataHashBytes) = do
@@ -175,7 +173,7 @@ isTxConfirmed txHash = do
   do
     -- we don't add `?unspent`, because we only care about existence of UTxOs,
     -- possibly they can be consumed
-    let endpoint = "/matches/*@" <> byteArrayToHex (unwrap txHash)
+    let endpoint = "/matches/*@" <> txHashToHex txHash
     -- Do this clumsy special case logging. It's better than sending it silently
     logTrace' $ "sending kupo request: " <> endpoint
   liftAff $ isTxConfirmedAff config txHash
@@ -183,8 +181,8 @@ isTxConfirmed txHash = do
 -- Exported due to Ogmios requiring confirmations at a websocket level
 isTxConfirmedAff
   :: ServerConfig -> TransactionHash -> Aff (Either ClientError (Maybe Slot))
-isTxConfirmedAff config (TransactionHash txHash) = runExceptT do
-  let endpoint = "/matches/*@" <> byteArrayToHex txHash
+isTxConfirmedAff config txHash = runExceptT do
+  let endpoint = "/matches/*@" <> txHashToHex txHash
   utxos <- ExceptT $ handleAffjaxResponse <$> kupoGetRequestAff config endpoint
   -- Take the first utxo's slot to give the transactions slot
   pure $ uncons utxos <#> _.head >>> unwrapKupoUtxoSlot
@@ -199,7 +197,7 @@ getTxMetadata txHash = runExceptT do
       let
         endpoint = "/metadata/" <> BigNum.toString (unwrap slot)
           <> "?transaction_id="
-          <> byteArrayToHex (unwrap txHash)
+          <> txHashToHex txHash
       kupoMetadata <- ExceptT $
         lmap GetTxMetadataClientError <<< handleAffjaxResponse <$>
           kupoGetRequest
@@ -256,7 +254,9 @@ instance DecodeAeson KupoTransactionOutput where
     decodeAddress obj =
       getField obj "address" >>= \x ->
         note (TypeMismatch "Expected bech32 or base16 encoded Shelley address")
-          (addressFromBech32 x <|> (fromBytes =<< hexToCborBytes x))
+          ( addressFromBech32 x <|>
+              (map wrap <<< fromBytes =<< hexToByteArray x)
+          )
 
     decodeDatumHash
       :: Object Aeson
@@ -331,9 +331,12 @@ instance DecodeAeson KupoUtxoMap where
 
     decodeTxHash :: Object Aeson -> Either JsonDecodeError TransactionHash
     decodeTxHash =
-      flip getField "transaction_id" >=> hexToByteArray >>> case _ of
-        Nothing -> Left (TypeMismatch "Expected hexstring")
-        Just txHashBytes -> pure (TransactionHash txHashBytes)
+      flip getField "transaction_id"
+        >=> hexToByteArray >>> note (TypeMismatch "Expected hexstring")
+        >=> fromBytes
+          >>> note (TypeMismatch "Expected TransactionHash")
+          >>>
+            map TransactionHash
 
 resolveKupoUtxoMap :: KupoUtxoMap -> QueryM (Either ClientError UtxoMap)
 resolveKupoUtxoMap (KupoUtxoMap kupoUtxoMap) =
@@ -466,7 +469,7 @@ instance Show KupoMetadata where
 instance DecodeAeson KupoMetadata where
   decodeAeson = decodeAeson >=> case _ of
     [ { raw: cbor } :: { raw :: CborBytes } ] -> do
-      metadata <- flip note (fromBytes cbor) $
+      metadata <- flip note (fromBytes $ unwrap cbor) $
         TypeMismatch "Hexadecimal encoded Metadata"
       pure $ KupoMetadata $ Just $ convertGeneralTransactionMetadata metadata
     [] -> Right $ KupoMetadata Nothing

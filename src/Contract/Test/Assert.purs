@@ -65,6 +65,7 @@ module Contract.Test.Assert
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Contract.Address (Address)
 import Contract.Monad (Contract)
 import Contract.PlutusData (OutputDatum)
@@ -235,7 +236,7 @@ printContractAssertionFailure = case _ of
   SkippedTest msg -> msg
 
 showTxHash :: TransactionHash -> String
-showTxHash = byteArrayToHex <<< unwrap
+showTxHash = byteArrayToHex <<< toBytes <<< unwrap
 
 type Label = String
 

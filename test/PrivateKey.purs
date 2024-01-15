@@ -3,11 +3,13 @@ module Test.Ctl.PrivateKey where
 import Prelude
 
 import Contract.Config (testnetConfig)
+import Contract.Hashing (publicKeyHash)
 import Contract.Monad (runContract)
 import Contract.Transaction
   ( FinalizedTransaction(FinalizedTransaction)
   , signTransaction
   )
+import Contract.Wallet.Key (publicKeyFromPrivateKey)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Ed25519Signature
   , Transaction(Transaction)
@@ -15,8 +17,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
   )
-import Ctl.Internal.Serialization (publicKeyHash)
-import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile

@@ -3,10 +3,16 @@ module Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
+import Contract.Keys (publicKeyFromBech32)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAll))
+import Ctl.Internal.Cardano.Types.Transaction
+  ( Transaction
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  , mkEd25519Signature
+  ) as T
 import Ctl.Internal.Cardano.Types.Transaction (_vkeys, _witnessSet)
-import Ctl.Internal.Cardano.Types.Transaction as T
 import Ctl.Internal.Cardano.Types.Value (Coin)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
@@ -85,13 +91,13 @@ addFakeSignatures selfSigners tx =
 fakeVkeywitness :: T.Vkeywitness
 fakeVkeywitness = T.Vkeywitness
   ( ( T.Vkey
-        ( unsafePartial $ fromJust $ T.mkPublicKey
+        ( unsafePartial $ fromJust $ publicKeyFromBech32
             -- This should not fail assuming the hardcoded bech32 key is valid.
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
     )
       /\
-        ( unsafePartial $ fromJust $ T.mkEd25519Signature
+        ( unsafePartial $ fromJust $ mkEd25519Signature
             "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
             \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
             \kzs9m6t6x"

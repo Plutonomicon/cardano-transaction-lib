@@ -6,7 +6,7 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30.TypeSafe (APIError)
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
@@ -20,7 +20,6 @@ import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
 import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
 import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
@@ -38,16 +37,11 @@ import Ctl.Internal.Serialization.Address
   , rewardAddressFromAddress
   )
 import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.CborBytes
-  ( CborBytes
-  , cborBytesToHex
-  , hexToCborBytes
-  , rawBytesAsCborBytes
-  )
+import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex, hexToCborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import Data.ByteArray (byteArrayToHex)
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Maybe (Maybe(Nothing), maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Variant (Variant, match)
 import Effect (Effect)
@@ -169,7 +163,7 @@ getUsedAddresses conn = do
     }
 
 hexStringToAddress :: String -> Maybe Address
-hexStringToAddress = fromBytes <<< rawBytesAsCborBytes <=< hexToRawBytes
+hexStringToAddress = map wrap <<< fromBytes <=< hexToByteArray
 
 defaultCollateralAmount :: Coin
 defaultCollateralAmount = Coin $ BigInt.fromInt 5_000_000
@@ -185,7 +179,7 @@ getCollateral conn = do
       liftM (error $ "CIP-30 getCollateral returned bad UTxO: " <> utxoStr) $
         Deserialization.UnspentOuput.convertUnspentOutput
           =<< fromBytes
-          =<< hexToCborBytes utxoStr
+          =<< hexToByteArray utxoStr
 
 getUtxos :: Api -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
@@ -194,7 +188,7 @@ getUtxos conn = do
     { success: \mbUtxoArray -> do
         liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do
           liftMaybe (error $ "CIP-30 getUtxos returned bad UTxO: " <> str) $
-            hexToCborBytes str >>= fromBytes >>=
+            hexToByteArray str >>= fromBytes >>=
               Deserialization.UnspentOuput.convertUnspentOutput
     , paginateError: show >>> throw >>> liftEffect
     , apiError: show >>> throw >>> liftEffect
@@ -209,10 +203,10 @@ signTx conn tx = do
         \hexString -> do
           bytes <- liftM (mkInvalidHexError hexString) $ hexToRawBytes
             hexString
-          combineWitnessSet tx <$>
-            ( Deserialization.WitnessSet.convertWitnessSet
-                <$> fromBytesEffect (rawBytesAsCborBytes bytes)
-            )
+          ws <- liftM (error "signTx: unable to decode WitnessSet cbor")
+            $ fromBytes (unwrap bytes)
+          pure $ combineWitnessSet tx $
+            Deserialization.WitnessSet.convertWitnessSet ws
     , apiError: show >>> throw
     , txSignError: show >>> throw
     }
@@ -264,7 +258,7 @@ getBalance :: Api -> Aff Value
 getBalance conn = do
   Cip30.getBalance conn >>= handleApiError >>=
     liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
-      (hexToCborBytes >=> fromBytes >=> convertValue)
+      (hexToByteArray >=> fromBytes >=> convertValue)
 
 getCip30Collateral
   :: Api -> Coin -> Aff (Maybe (Array String))

@@ -43,8 +43,8 @@ import Contract.Wallet
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
+import Ctl.Internal.Cardano.Types.Transaction (PrivateKey)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)

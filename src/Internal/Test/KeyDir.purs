@@ -4,9 +4,7 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Contract.Address
-  ( addressToBech32
-  )
+import Contract.Address (addressToBech32)
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
 import Contract.Log (logError', logTrace')
@@ -50,6 +48,7 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
+import Ctl.Internal.Cardano.Types.Transaction (PrivateKey(PrivateKey))
 import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
@@ -179,7 +178,8 @@ runContractTestsWithKeyDir params backup = do
               <> "\nFund it to continue."
 
         -- generate wallets
-        privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey
+        privateKeys <- liftEffect $ for distrArray \_ -> PrivateKey <$>
+          freshPrivateKey
         wallets <-
           liftMaybe
             ( error

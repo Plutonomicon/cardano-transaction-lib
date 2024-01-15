@@ -81,7 +81,7 @@ import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Contract.RewardAddress
   ( rewardAddressToBech32
   , stakePubKeyHashRewardAddress
@@ -133,7 +133,6 @@ import Ctl.Internal.Contract.QueryHandle.Error
       , GetTxMetadataMetadataEmptyOrMissingError
       )
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
@@ -396,14 +395,14 @@ realizeEndpoint endpoint =
     SubmitTransaction ->
       "/tx/submit"
     Transaction txHash ->
-      "/txs/" <> byteArrayToHex (unwrap txHash)
+      "/txs/" <> byteArrayToHex (toBytes $ unwrap txHash)
     TransactionMetadata txHash ->
-      "/txs/" <> byteArrayToHex (unwrap txHash) <> "/metadata/cbor"
+      "/txs/" <> byteArrayToHex (toBytes $ unwrap txHash) <> "/metadata/cbor"
     UtxosAtAddress address page count ->
       "/addresses/" <> addressBech32 address <> "/utxos?page=" <> show page
         <> ("&count=" <> show count)
     UtxosOfTransaction txHash ->
-      "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
+      "/txs/" <> byteArrayToHex (toBytes $ unwrap txHash) <> "/utxos"
     PoolIds page count ->
       "/pools?page=" <> show page <> "&count=" <> show count <> "&order=asc"
     PoolParameters poolPubKeyHash ->
@@ -1361,7 +1360,7 @@ instance DecodeAeson BlockfrostMetadata where
     \(metadatas :: Array { metadata :: CborBytes }) -> do
       metadatas' <- for metadatas \{ metadata } -> do
         map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
-          (fromBytes metadata) $
+          (fromBytes $ unwrap metadata) $
           TypeMismatch "Hexadecimal encoded Metadata"
 
       pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions

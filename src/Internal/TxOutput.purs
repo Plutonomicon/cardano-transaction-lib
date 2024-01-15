@@ -9,18 +9,16 @@ module Ctl.Internal.TxOutput
 
 import Prelude
 
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
 import Ctl.Internal.Cardano.Types.Transaction
   ( TransactionOutput(TransactionOutput)
   ) as Transaction
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData as Deserialization
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Serialization.PlutusData as Serialization
-import Ctl.Internal.Types.CborBytes (hexToCborBytes)
 import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(OutputDatum, OutputDatumHash, NoOutputDatum)
@@ -43,7 +41,7 @@ import Data.Traversable (traverse)
 txOutRefToTransactionInput
   :: Ogmios.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
 txOutRefToTransactionInput { txId, index } = do
-  transactionId <- hexToByteArray txId <#> wrap
+  transactionId <- hexToByteArray txId >>= fromBytes >>> map wrap
   pure $ wrap
     { transactionId
     , index
@@ -54,7 +52,7 @@ transactionInputToTxOutRef
   :: Transaction.TransactionInput -> Ogmios.OgmiosTxOutRef
 transactionInputToTxOutRef
   (Transaction.TransactionInput { transactionId, index }) =
-  { txId: byteArrayToHex (unwrap transactionId)
+  { txId: byteArrayToHex (toBytes $ unwrap transactionId)
   , index
   }
 
@@ -101,7 +99,7 @@ ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
 -- | Converts an Ogmios datum `String` to an internal `Datum`
 ogmiosDatumToDatum :: String -> Maybe Datum
 ogmiosDatumToDatum =
-  hexToCborBytes
+  hexToByteArray
     >=> fromBytes
     >=> (Deserialization.convertPlutusData >>> Datum >>> Just)
 
