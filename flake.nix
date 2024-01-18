@@ -32,10 +32,10 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.6.0-pre";
+    cardano-node.url = "github:input-output-hk/cardano-node/8.7.3";
     # Repository with network parameters
     # NOTE: It must follow cardano-node releases
-    cardano-world.url = "github:IntersectMBO/cardano-world/499c96c53b1a437302e385b4775ec022527a015d";
+    cardano-world.url = "github:IntersectMBO/cardano-world";
 
     ogmios-nixos = {
       url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
