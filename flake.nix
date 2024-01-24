@@ -37,21 +37,9 @@
     # NOTE: It must follow cardano-node releases
     cardano-world.url = "github:IntersectMBO/cardano-world";
 
-    ogmios-nixos = {
-      url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        cardano-node.follows = "cardano-node";
-        ogmios-src.follows = "ogmios";
-      };
-    };
+    ogmios-nixos.url = "github:Fourierlabs/ogmios-nixos";
 
-    ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.0.0";
-      flake = false;
-    };
+    ogmios.follows = "ogmios-nixos/ogmios";
 
     kupo-nixos.url = "github:Fourierlabs/kupo-nixos/add-conway";
     kupo.follows = "kupo-nixos/kupo";
@@ -302,9 +290,9 @@
                 inherit (prev) system;
               in
               {
+                inherit (ogmios-nixos.packages.${system}) ogmios;
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios = ogmios-nixos.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
