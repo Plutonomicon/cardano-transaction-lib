@@ -26459,11 +26459,11 @@
         "sphinxcontrib-haddock": "sphinxcontrib-haddock_3"
       },
       "locked": {
-        "lastModified": 1704784299,
-        "narHash": "sha256-XTrqO1NODi0v+d6eVlCKQ18aJ2HPh5fM0TRlaNhPt9U=",
+        "lastModified": 1705571486,
+        "narHash": "sha256-W5K64oz4UzHeoOxaedJrVRtbSSa8P5wcaU45ZASzplE=",
         "owner": "input-output-hk",
         "repo": "iogx",
-        "rev": "d8f80745ccbb4983265494fafd7e0e20d4740351",
+        "rev": "6eb8822d6e12d1c88b2bf0280b405df0eebe7fe6",
         "type": "github"
       },
       "original": {
@@ -28026,15 +28026,15 @@
     "kupo": {
       "flake": false,
       "locked": {
-        "lastModified": 1702200020,
-        "narHash": "sha256-MeZ+D1wpU9STmgU9yv4jb64NyKQDCMakZApQFuXYad4=",
-        "owner": "CardanoSolutions",
+        "lastModified": 1705502354,
+        "narHash": "sha256-OZBUXgonefKt8umgzpiLl+lJjlohPnsSCz9mZVytIl0=",
+        "owner": "Fourierlabs",
         "repo": "kupo",
-        "rev": "3f316ac14cad99b2b0c0219295c891d2eb4213c8",
+        "rev": "142a33c04cf8bae43deeb74de50d73ee04966645",
         "type": "github"
       },
       "original": {
-        "owner": "CardanoSolutions",
+        "owner": "Fourierlabs",
         "repo": "kupo",
         "type": "github"
       }
@@ -28045,11 +28045,11 @@
         "kupo": "kupo"
       },
       "locked": {
-        "lastModified": 1705081140,
-        "narHash": "sha256-b3hLwILmBDwdOkzelaom15dpJwSxeRCZhDprvWRV4Wo=",
+        "lastModified": 1706114932,
+        "narHash": "sha256-wdjWIN47dOUI3CsWxXbcW7u8aVAdHefAElZlbcfIJJM=",
         "owner": "Fourierlabs",
         "repo": "kupo-nixos",
-        "rev": "f4a446af357971ae8498579697730d5b24912f7d",
+        "rev": "3487d48fdac0f32079d3e53b0c9b923a262145ac",
         "type": "github"
       },
       "original": {
