@@ -13,7 +13,6 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Address (Address, getWalletAddresses)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -34,10 +33,8 @@ import Contract.Scripts
   )
 import Contract.Test.Assert
   ( ContractCheck
-  , Labeled
-  , checkLossAtAddress
-  , checkTokenGainAtAddress'
-  , label
+  , checkLossInWallet
+  , checkTokenGainInWallet'
   , runChecks
   )
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
@@ -47,17 +44,16 @@ import Contract.Transaction
   , submitTxFromConstraintsReturningFee
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value (singleton) as Value
+import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
-import Data.Array (head)
 import Data.Array (head, singleton) as Array
-import Data.BigInt (BigInt)
 import Data.Map (toUnfoldable) as Map
-import Effect.Exception (error)
+import Effect.Exception (error, throw)
+import JS.BigInt (BigInt)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -67,21 +63,16 @@ example cfg = launchAff_ do
   runContract cfg contract
 
 mkChecks
-  :: Address
-  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  :: (CurrencySymbol /\ TokenName /\ BigInt)
   -> Array (ContractCheck { txFinalFee :: BigInt })
-mkChecks ownAddress nft =
-  let
-    labeledOwnAddress :: Labeled Address
-    labeledOwnAddress = label ownAddress "ownAddress"
-  in
-    [ checkTokenGainAtAddress' labeledOwnAddress nft
-
-    , checkLossAtAddress labeledOwnAddress
-        case _ of
-          Nothing -> pure zero
-          Just { txFinalFee } -> pure txFinalFee
-    ]
+mkChecks nft =
+  [ checkTokenGainInWallet' nft
+  , checkLossInWallet
+      case _ of
+        Nothing -> liftEffect $ throw $
+          "Unable to estimate expected loss in wallet"
+        Just { txFinalFee } -> pure txFinalFee
+  ]
 
 contract :: Contract Unit
 contract =
@@ -93,10 +84,7 @@ mkContractWithAssertions
   -> Contract Unit
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
-
-  ownAddress <- liftedM "Failed to get own address" $ head <$>
-    getWalletAddresses
-  utxos <- utxosAt ownAddress
+  utxos <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
   oref <-
     liftContractM "Utxo set is empty"
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
@@ -105,17 +93,17 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   tn <- Helpers.mkTokenName "CTLNFT"
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintValue (Value.singleton cs tn one)
         <> Constraints.mustSpendPubKeyOutput oref
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups =
       Lookups.mintingPolicy mp
         <> Lookups.unspentOutputs utxos
 
-  let checks = mkChecks ownAddress (cs /\ tn /\ one)
+  let checks = mkChecks (cs /\ tn /\ one)
   void $ runChecks checks $ lift do
     { txHash, txFinalFee } <-
       submitTxFromConstraintsReturningFee lookups constraints
@@ -123,8 +111,6 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee }
-
-foreign import oneShotMinting :: String
 
 oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicy =
@@ -147,3 +133,5 @@ mkOneShotMintingPolicy unappliedMintingPolicy oref =
     mintingPolicyArgs = Array.singleton (toData oref)
   in
     applyArgs unappliedMintingPolicy mintingPolicyArgs
+
+foreign import oneShotMinting :: String

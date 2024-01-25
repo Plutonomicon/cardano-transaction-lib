@@ -9,9 +9,7 @@ CTL can be imported as an additional dependency into a Purescript project built 
 - [Caveats](#caveats)
 - [Using CTL's overlays](#using-ctls-overlays)
 - [Upgrading CTL](#upgrading-ctl)
-- [Using CTL from JS](#using-ctl-from-js)
-  - [Bundling](#bundling)
-  - [Wrapping CTL into a JS interface](#wrapping-ctl-into-a-js-interface)
+- [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -26,7 +24,7 @@ The following caveats alway applies when using CTL from your project:
 
 CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of your own project to use the same setup as we do, e.g. the same packages and PS builders:
 
-- `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), run CTL contracts on a private testnet using Plutip (`runPlutipTest`), or build Pursuit documentation (`buildSearchablePursDocs` and `launchSearchablePursDocs`)
+- `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), and run CTL contracts on a private testnet using Plutip (`runPlutipTest`).
 - `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, and `plutip-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
 
 We've split the overlays into two components to allow users to more easily choose which parts of CTL's Nix infrastructure they would like to directly consume. For example, some users do not require a pre-packaged runtime and would prefer to build it themselves with more control over its components (e.g. by directly using `ogmios` from their own `inputs`). Such users might still like to use our `purescript` overlay -- splitting the `overlays` allows us to support this. `overlays.runtime` also contains several haskell.nix packages which may cause issues with `hackage.nix` versions in your own project.
@@ -86,35 +84,8 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 
 - Sometimes the WebPack configuration also comes with breaking changes. Common source of problems are changes to `resolve.fallback`, `plugins` and `experiments` fields of the WebPack config. Use `git diff old-revision new-revision webpack.config.js` in the root of a cloned CTL repo, or use `git blame`.
 
-## Using CTL from JS
+## See also
 
-### Bundling
-
-The recommended way to bundle CTL is to use WebPack.
-
-We depend on WebPack's `DefinePlugin` to conditionally load one of our dependency (`cardano-serialization-lib`) nodejs or browser version.
-
-That means that CTL _requires_ bundling it the same way when used as a dependency, as we do in development. If you intend to use another bundler, something like `DefinePlugin` should be used to transform the imports from
-
-```javascript
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = require("@emurgo/cardano-serialization-lib-browser");
-} else {
-  lib = require("@emurgo/cardano-serialization-lib-nodejs");
-}
-```
-
-to only one of the variants.
-
-Our default [WebPack config](../webpack.config.js) uses `BROWSER_RUNTIME` environment variable to differentiate between two bundling options.
-
-The reason why we are tied to WebPack is that it is one of the few bundlers that support async WASM imports.
-
-There's [a claim that Vite bundler can also be used](https://github.com/Plutonomicon/cardano-transaction-lib/issues/79#issuecomment-1257036068), although we don't officially support this method.
-
-### Wrapping CTL into a JS interface
-
-Some users may want to provide a small set of APIs behind a JS/TS interface, instead of dealing with PureScript code.
-
-There's nothing specific to be done for CTL (it's a normal PureScript project), so [this PureScript guide](https://book.purescript.org/chapter10.html#calling-purescript-from-javascript) may be of help. Note that our PureScript version is using CommonJS modules and not ES modules.
+- [How to use CTL-based apps from JS](./using-from-js.md)
+- [Managing Contract environment correctly](./contract-environment.md)
+- [Alternative setup with purs-nix instead of spago2nix](https://github.com/LovelaceAcademy/cardano-transaction-lib/tree/develop/templates/la-scaffold)

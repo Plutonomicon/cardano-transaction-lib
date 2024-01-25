@@ -17,7 +17,7 @@ import Contract.Address (scriptHashAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
 import Contract.TextEnvelope
@@ -32,14 +32,15 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Contract.Wallet (getWalletBalance)
 import Control.Monad.Error.Class (liftMaybe)
-import Data.BigInt as BigInt
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
 import Data.Map as Map
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -60,14 +61,14 @@ example cfg = launchAff_ do
 payToAlwaysFails :: ValidatorHash -> Contract TransactionHash
 payToAlwaysFails vhash = do
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash unitDatum
         Constraints.DatumWitness
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -91,11 +92,11 @@ spendFromAlwaysFails vhash validator txId = do
     )
     (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
   let
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs utxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustNotBeValid
@@ -114,10 +115,18 @@ spendFromAlwaysFails vhash validator txId = do
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
-foreign import alwaysFails :: String
-
 alwaysFailsScript :: Contract Validator
-alwaysFailsScript =
+alwaysFailsScript = do
   liftMaybe (error "Error decoding alwaysFails") do
     envelope <- decodeTextEnvelope alwaysFails
     Validator <$> plutusScriptV1FromEnvelope envelope
+
+alwaysFails :: String
+alwaysFails =
+  """
+{
+    "type": "PlutusScriptV1",
+    "description": "",
+    "cborHex": "581e581c01000033223232222350040071235002353003001498498480048005"
+}
+"""

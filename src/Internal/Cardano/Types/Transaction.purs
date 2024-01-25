@@ -54,6 +54,7 @@ module Ctl.Internal.Cardano.Types.Transaction
   , UnitInterval
   , Update
   , UtxoMap
+  , pprintUtxoMap
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , _auxiliaryData
@@ -94,13 +95,13 @@ import Aeson
   , caseAesonString
   , decodeAeson
   , encodeAeson
-  , partialFiniteNumber
+  , finiteNumber
   )
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value)
+import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value, pprintValue)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.Keys
   ( ed25519SignatureFromBech32
@@ -113,6 +114,7 @@ import Ctl.Internal.Serialization.Address
   , NetworkId
   , Slot(Slot)
   , StakeCredential
+  , addressBech32
   )
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
@@ -130,39 +132,45 @@ import Ctl.Internal.Serialization.Types (Ed25519Signature, PublicKey) as Seriali
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
 import Ctl.Internal.Types.Int as Int
-import Ctl.Internal.Types.OutputDatum (OutputDatum)
-import Ctl.Internal.Types.PlutusData (PlutusData)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash)
+import Ctl.Internal.Types.OutputDatum
+  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  )
+import Ctl.Internal.Types.PlutusData (PlutusData, pprintPlutusData)
+import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash(PubKeyHash))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
 import Data.Array (union)
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Map (Map)
-import Data.Maybe (Maybe(Nothing), fromJust)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (union) as Set
 import Data.Show.Generic (genericShow)
 import Data.String.Utils (startsWith)
-import Data.Symbol (SProxy(SProxy))
 import Data.Tuple (Tuple(Tuple))
-import Data.Tuple.Nested (type (/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
+import Data.UInt as UInt
+import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
+import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
 -- `Transaction`
@@ -597,10 +605,10 @@ instance EncodeAeson MoveInstantaneousReward where
   encodeAeson = case _ of
     ToOtherPot r -> encodeTagged' "ToOtherPot" r
       -- We assume the numbers are finite
-      { pot = unsafePartial partialFiniteNumber r.pot }
+      { pot = unsafePartial $ fromJust $ finiteNumber r.pot }
     ToStakeCreds r -> encodeTagged' "ToStakeCreds" r
       -- We assume the numbers are finite
-      { pot = unsafePartial partialFiniteNumber r.pot }
+      { pot = unsafePartial $ fromJust $ finiteNumber r.pot }
 
 type PoolRegistrationParams =
   { operator :: PoolPubKeyHash -- cwitness (cert)
@@ -616,37 +624,41 @@ type PoolRegistrationParams =
   , poolMetadata :: Maybe PoolMetadata
   }
 
-newtype PoolPubKeyHash = PoolPubKeyHash Ed25519KeyHash
+newtype PoolPubKeyHash = PoolPubKeyHash PubKeyHash
 
 derive instance Newtype PoolPubKeyHash _
 derive instance Eq PoolPubKeyHash
 derive instance Ord PoolPubKeyHash
 derive instance Generic PoolPubKeyHash _
+derive newtype instance ToData PoolPubKeyHash
+derive newtype instance FromData PoolPubKeyHash
 
 instance EncodeAeson PoolPubKeyHash where
   encodeAeson (PoolPubKeyHash kh) =
-    encodeAeson (ed25519KeyHashToBech32 "pool" kh)
+    encodeAeson (ed25519KeyHashToBech32 "pool" $ unwrap kh)
 
 instance DecodeAeson PoolPubKeyHash where
   decodeAeson aeson = do
     str <- decodeAeson aeson
-    PoolPubKeyHash <$> note (TypeMismatch "PoolPubKeyHash")
+    PoolPubKeyHash <<< PubKeyHash <$> note (TypeMismatch "PoolPubKeyHash")
       (ed25519KeyHashFromBech32 str)
 
 instance Show PoolPubKeyHash where
   show (PoolPubKeyHash kh) =
     "(PoolPubKeyHash (Ed25519KeyHash (unsafePartial $ fromJust $ \
     \ed25519KeyHashFromBech32 "
-      <> show (ed25519KeyHashToBech32 "pool" kh)
+      <> show (ed25519KeyHashToBech32 "pool" $ unwrap kh)
       <> ")))"
 
 mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
 mkPoolPubKeyHash str
-  | startsWith "pool" str = PoolPubKeyHash <$> ed25519KeyHashFromBech32 str
+  | startsWith "pool" str = PoolPubKeyHash <<< PubKeyHash <$>
+      ed25519KeyHashFromBech32 str
   | otherwise = Nothing
 
 poolPubKeyHashToBech32 :: PoolPubKeyHash -> Bech32String
-poolPubKeyHashToBech32 = unwrap >>> ed25519KeyHashToBech32Unsafe "pool"
+poolPubKeyHashToBech32 = unwrap >>> unwrap >>> ed25519KeyHashToBech32Unsafe
+  "pool"
 
 data Certificate
   = StakeRegistration StakeCredential
@@ -691,56 +703,56 @@ instance EncodeAeson Certificate where
 --------------------------------------------------------------------------------
 
 _inputs :: Lens' TxBody (Set TransactionInput)
-_inputs = _Newtype <<< prop (SProxy :: SProxy "inputs")
+_inputs = _Newtype <<< prop (Proxy :: Proxy "inputs")
 
 _outputs :: Lens' TxBody (Array TransactionOutput)
-_outputs = _Newtype <<< prop (SProxy :: SProxy "outputs")
+_outputs = _Newtype <<< prop (Proxy :: Proxy "outputs")
 
 _fee :: Lens' TxBody (Coin)
-_fee = _Newtype <<< prop (SProxy :: SProxy "fee")
+_fee = _Newtype <<< prop (Proxy :: Proxy "fee")
 
 _ttl :: Lens' TxBody (Maybe Slot)
-_ttl = _Newtype <<< prop (SProxy :: SProxy "ttl")
+_ttl = _Newtype <<< prop (Proxy :: Proxy "ttl")
 
 _certs :: Lens' TxBody (Maybe (Array Certificate))
-_certs = _Newtype <<< prop (SProxy :: SProxy "certs")
+_certs = _Newtype <<< prop (Proxy :: Proxy "certs")
 
 _withdrawals :: Lens' TxBody (Maybe (Map RewardAddress Coin))
-_withdrawals = _Newtype <<< prop (SProxy :: SProxy "withdrawals")
+_withdrawals = _Newtype <<< prop (Proxy :: Proxy "withdrawals")
 
 _update :: Lens' TxBody (Maybe Update)
-_update = _Newtype <<< prop (SProxy :: SProxy "update")
+_update = _Newtype <<< prop (Proxy :: Proxy "update")
 
 _auxiliaryDataHash :: Lens' TxBody (Maybe AuxiliaryDataHash)
-_auxiliaryDataHash = _Newtype <<< prop (SProxy :: SProxy "auxiliaryDataHash")
+_auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
 
 _validityStartInterval :: Lens' TxBody (Maybe Slot)
 _validityStartInterval =
-  _Newtype <<< prop (SProxy :: SProxy "validityStartInterval")
+  _Newtype <<< prop (Proxy :: Proxy "validityStartInterval")
 
 _mint :: Lens' TxBody (Maybe Mint)
-_mint = _Newtype <<< prop (SProxy :: SProxy "mint")
+_mint = _Newtype <<< prop (Proxy :: Proxy "mint")
 
 _scriptDataHash :: Lens' TxBody (Maybe ScriptDataHash)
-_scriptDataHash = _Newtype <<< prop (SProxy :: SProxy "scriptDataHash")
+_scriptDataHash = _Newtype <<< prop (Proxy :: Proxy "scriptDataHash")
 
 _collateral :: Lens' TxBody (Maybe (Array TransactionInput))
-_collateral = _Newtype <<< prop (SProxy :: SProxy "collateral")
+_collateral = _Newtype <<< prop (Proxy :: Proxy "collateral")
 
 _requiredSigners :: Lens' TxBody (Maybe (Array RequiredSigner))
-_requiredSigners = _Newtype <<< prop (SProxy :: SProxy "requiredSigners")
+_requiredSigners = _Newtype <<< prop (Proxy :: Proxy "requiredSigners")
 
 _networkId :: Lens' TxBody (Maybe NetworkId)
-_networkId = _Newtype <<< prop (SProxy :: SProxy "networkId")
+_networkId = _Newtype <<< prop (Proxy :: Proxy "networkId")
 
 _referenceInputs :: Lens' TxBody (Set TransactionInput)
-_referenceInputs = _Newtype <<< prop (SProxy :: SProxy "referenceInputs")
+_referenceInputs = _Newtype <<< prop (Proxy :: Proxy "referenceInputs")
 
 _collateralReturn :: Lens' TxBody (Maybe TransactionOutput)
-_collateralReturn = _Newtype <<< prop (SProxy :: SProxy "collateralReturn")
+_collateralReturn = _Newtype <<< prop (Proxy :: Proxy "collateralReturn")
 
 _totalCollateral :: Lens' TxBody (Maybe Coin)
-_totalCollateral = _Newtype <<< prop (SProxy :: SProxy "totalCollateral")
+_totalCollateral = _Newtype <<< prop (Proxy :: Proxy "totalCollateral")
 
 --------------------------------------------------------------------------------
 -- `TransactionWitnessSet`
@@ -963,3 +975,33 @@ instance Show TransactionOutput where
   show = genericShow
 
 type UtxoMap = Map TransactionInput TransactionOutput
+
+pprintUtxoMap :: UtxoMap -> TagSet
+pprintUtxoMap utxos = TagSet.fromArray $
+  Map.toUnfoldable utxos <#>
+    \( TransactionInput { transactionId, index } /\
+         TransactionOutput { address, amount, datum, scriptRef }
+     ) ->
+      let
+        datumTagSets = case datum of
+          NoOutputDatum -> []
+          OutputDatumHash datumHash ->
+            [ TagSet.fromArray
+                [ "datum hash" `tag` byteArrayToHex (unwrap datumHash) ]
+            ]
+          OutputDatum plutusData ->
+            [ TagSet.fromArray
+                [ "datum" `tagSetTag` pprintPlutusData (unwrap plutusData) ]
+            ]
+        scriptRefTagSets = case scriptRef of
+          Nothing -> []
+          Just ref -> [ "Script Reference" `tag` show ref ]
+        outputTagSet =
+          [ "amount" `tagSetTag` pprintValue amount
+          , "address" `tag` addressBech32 address
+          ]
+            <> datumTagSets
+            <> scriptRefTagSets
+      in
+        (byteArrayToHex (unwrap transactionId) <> "#" <> UInt.toString index)
+          `tagSetTag` TagSet.fromArray outputTagSet

@@ -36,7 +36,6 @@ module Ctl.Internal.Types.TxConstraints
       , MustWithdrawStakePubKey
       )
   , TxConstraints(TxConstraints)
-  , addTxIn
   , isSatisfiable
   , mustBeSignedBy
   , mustDelegateStakeNativeScript
@@ -122,6 +121,7 @@ import Ctl.Internal.Types.Interval
   , intersection
   , isEmpty
   )
+import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.Scripts
@@ -133,10 +133,7 @@ import Ctl.Internal.Types.Scripts
   )
 import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
-import Data.Array ((:))
 import Data.Array as Array
-import Data.Bifunctor (class Bifunctor)
-import Data.BigInt (BigInt)
 import Data.Foldable (class Foldable, foldMap, foldl, foldr)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -147,6 +144,7 @@ import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt (BigInt)
 import Prim.TypeError (class Warn, Text)
 
 --------------------------------------------------------------------------------
@@ -244,190 +242,157 @@ derive instance Generic DatumPresence _
 instance Show DatumPresence where
   show x = genericShow x
 
-newtype InputConstraint (i :: Type) = InputConstraint
-  { redeemer :: i
+newtype InputConstraint = InputConstraint
+  { redeemer :: PlutusData
   , txOutRef :: TransactionInput
   }
 
-derive instance Generic (InputConstraint i) _
-derive instance Newtype (InputConstraint i) _
-derive instance Functor InputConstraint
-derive newtype instance Eq i => Eq (InputConstraint i)
+derive instance Generic InputConstraint _
+derive instance Newtype InputConstraint _
+derive newtype instance Eq InputConstraint
 
-instance Show i => Show (InputConstraint i) where
+instance Show InputConstraint where
   show = genericShow
 
-newtype OutputConstraint (o :: Type) = OutputConstraint
-  { datum :: o
+newtype OutputConstraint = OutputConstraint
+  { datum :: PlutusData
   , value :: Value
   }
 
-derive instance Generic (OutputConstraint o) _
-derive instance Newtype (OutputConstraint o) _
-derive instance Functor OutputConstraint
-derive newtype instance Eq o => Eq (OutputConstraint o)
+derive instance Generic OutputConstraint _
+derive instance Newtype OutputConstraint _
+derive newtype instance Eq OutputConstraint
 
-instance Show o => Show (OutputConstraint o) where
+instance Show OutputConstraint where
   show = genericShow
 
 -- | Restrictions placed on the allocation of funds to outputs of transactions.
-newtype TxConstraints (i :: Type) (o :: Type) = TxConstraints
+newtype TxConstraints = TxConstraints
   { constraints :: Array TxConstraint
-  , ownInputs :: Array (InputConstraint i)
-  , ownOutputs :: Array (OutputConstraint o)
   }
 
-derive instance Generic (TxConstraints i o) _
-derive instance Newtype (TxConstraints i o) _
-derive newtype instance (Eq i, Eq o) => Eq (TxConstraints i o)
+derive instance Generic TxConstraints _
+derive instance Newtype TxConstraints _
+derive newtype instance Eq TxConstraints
 -- Array concatenation allowing duplicates like Plutus
-derive newtype instance Semigroup (TxConstraints i o)
-derive newtype instance Monoid (TxConstraints i o)
+derive newtype instance Semigroup TxConstraints
+derive newtype instance Monoid TxConstraints
 
-instance (Show i, Show o) => Show (TxConstraints i o) where
+instance Show TxConstraints where
   show = genericShow
-
-instance Bifunctor TxConstraints where
-  bimap f g (TxConstraints txc@{ ownInputs, ownOutputs }) =
-    TxConstraints txc
-      { ownInputs = map (map f) ownInputs
-      , ownOutputs = map (map g) ownOutputs
-      }
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
 
--- | Adds a `TransactionInput` as an input constraint with an arbitrary
--- | redeemer.
-addTxIn
-  :: forall (i :: Type) (o :: Type)
-   . TransactionInput
-  -> i
-  -> TxConstraints i o
-  -> TxConstraints i o
-addTxIn outRef red (TxConstraints txc@{ ownInputs }) =
-  let
-    ic = InputConstraint { redeemer: red, txOutRef: outRef }
-  in
-    TxConstraints txc { ownInputs = ic : ownInputs }
-
 singleton
-  :: forall (i :: Type) (o :: Type). TxConstraint -> TxConstraints i o
+  :: TxConstraint -> TxConstraints
 singleton a = over TxConstraints _ { constraints = Array.singleton a } mempty
 
 -- | `mustValidateIn r` requires the transaction's time range to be contained
 -- |  in `r`.
 mustValidateIn
-  :: forall (i :: Type) (o :: Type). POSIXTimeRange -> TxConstraints i o
+  :: POSIXTimeRange -> TxConstraints
 mustValidateIn = singleton <<< MustValidateIn
 
 -- | Require the transaction to be signed by the public key.
 mustBeSignedBy
-  :: forall (i :: Type) (o :: Type). PaymentPubKeyHash -> TxConstraints i o
+  :: PaymentPubKeyHash -> TxConstraints
 mustBeSignedBy = singleton <<< MustBeSignedBy
 
 -- | Require the transaction to include a datum.
-mustIncludeDatum :: forall (i :: Type) (o :: Type). Datum -> TxConstraints i o
+mustIncludeDatum :: Datum -> TxConstraints
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
 -- | Require the transaction to reference (not spend!) the given unspent
 -- | transaction output.
 mustReferenceOutput
-  :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
+  :: TransactionInput -> TxConstraints
 mustReferenceOutput = singleton <<< MustReferenceOutput
 
 -- | Lock the value with a public key address. (Base Address)
 mustPayToPubKeyAddress
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> StakePubKeyHash
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyAddress pkh skh =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing Nothing
 
 -- | Lock the value and datum with a public key address.
 mustPayToPubKeyAddressWithDatum
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> StakePubKeyHash
   -> Datum
   -> DatumPresence
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyAddressWithDatum pkh skh datum dtp =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
     Nothing
 
 -- | Lock the value and reference script with a public key address.
 mustPayToPubKeyAddressWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> StakePubKeyHash
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) Nothing (Just scriptRef)
 
 -- | Lock the value, datum and reference script with a public key address.
 mustPayToPubKeyAddressWithDatumAndScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> StakePubKeyHash
   -> Datum
   -> DatumPresence
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh datum dtp scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh (Just skh) (Just $ datum /\ dtp)
     (Just scriptRef)
 
 -- | Lock the value with a public key. (Enterprise Address)
 mustPayToPubKey
-  :: forall (i :: Type) (o :: Type)
-   . Warn
+  :: Warn
        ( Text
            "Some wallets may not recognize addresses without a staking key component. Consider using mustPayToPubKeyAddress"
        )
   => PaymentPubKeyHash
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKey pkh =
   singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing Nothing
 
 -- | Lock the value and datum with a payment public key hash.
 mustPayToPubKeyWithDatum
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Datum
   -> DatumPresence
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyWithDatum pkh datum dtp =
   singleton <<< MustPayToPubKeyAddress pkh Nothing (Just $ datum /\ dtp) Nothing
 
 -- | Lock the value and reference script with a payment public key hash.
 mustPayToPubKeyWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyWithScriptRef pkh scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh Nothing Nothing (Just scriptRef)
 
 -- | Lock the value, datum and reference script with a payment public key hash.
 mustPayToPubKeyWithDatumAndScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Datum
   -> DatumPresence
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyWithDatumAndScriptRef pkh datum dtp scriptRef =
   singleton <<< MustPayToPubKeyAddress pkh Nothing (Just $ datum /\ dtp)
     (Just scriptRef)
@@ -438,24 +403,22 @@ mustPayToPubKeyWithDatumAndScriptRef pkh datum dtp scriptRef =
 -- | `mustPayToScript`, and all scripts must be explicitly provided to build
 -- | the transaction.
 mustPayToScript
-  :: forall (i :: Type) (o :: Type)
-   . ValidatorHash
+  :: ValidatorHash
   -> Datum
   -> DatumPresence
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToScript vh dt dtp vl =
   singleton (MustPayToScript vh Nothing dt dtp Nothing vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToScriptAddress
-  :: forall (i :: Type) (o :: Type)
-   . ValidatorHash
+  :: ValidatorHash
   -> Credential
   -> Datum
   -> DatumPresence
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToScriptAddress vh credential dt dtp vl =
   singleton (MustPayToScript vh (Just credential) dt dtp Nothing vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
@@ -464,13 +427,12 @@ mustPayToScriptAddress vh credential dt dtp vl =
 -- | Note that the provided reference script does *not* necessarily need to
 -- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . ValidatorHash
+  :: ValidatorHash
   -> Datum
   -> DatumPresence
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToScriptWithScriptRef vh dt dtp scriptRef vl =
   singleton (MustPayToScript vh Nothing dt dtp (Just scriptRef) vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
@@ -486,7 +448,7 @@ mustPayToScriptAddressWithScriptRef
   -> DatumPresence
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToScriptAddressWithScriptRef vh credential dt dtp scriptRef vl =
   singleton (MustPayToScript vh (Just credential) dt dtp (Just scriptRef) vl)
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
@@ -495,7 +457,7 @@ mustPayToNativeScript
   :: forall (i :: Type) (o :: Type)
    . NativeScriptHash
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToNativeScript nsHash vl =
   singleton (MustPayToNativeScript nsHash Nothing vl)
 
@@ -504,13 +466,13 @@ mustPayToNativeScriptAddress
    . NativeScriptHash
   -> Credential
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToNativeScriptAddress nsHash credential vl =
   singleton (MustPayToNativeScript nsHash (Just credential) vl)
 
 -- | Mint the given `Value`
 -- | The amount to mint must not be zero.
-mustMintValue :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
+mustMintValue :: Value -> TxConstraints
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
 -- | Mint the given `Value` by accessing non-Ada assets.
@@ -519,12 +481,12 @@ mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . Redeemer
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustMintValueWithRedeemer redeemer =
   Array.fold <<< map tokenConstraint <<< flattenNonAdaAssets
   where
   tokenConstraint
-    :: CurrencySymbol /\ TokenName /\ BigInt -> TxConstraints i o
+    :: CurrencySymbol /\ TokenName /\ BigInt -> TxConstraints
   tokenConstraint (cs /\ tn /\ amount) =
     let
       mintingPolicyHash = currencyMPSHash cs
@@ -538,7 +500,7 @@ mustMintCurrency
    . MintingPolicyHash
   -> TokenName
   -> BigInt
-  -> TxConstraints i o
+  -> TxConstraints
 mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph unitRedeemer
 
@@ -547,7 +509,7 @@ mustMintCurrencyUsingNativeScript
    . NativeScript
   -> TokenName
   -> BigInt
-  -> TxConstraints i o
+  -> TxConstraints
 mustMintCurrencyUsingNativeScript ns tk i = singleton
   (MustMintValueUsingNativeScript ns tk i)
 
@@ -559,7 +521,7 @@ mustMintCurrencyUsingScriptRef
   -> TokenName
   -> BigInt
   -> InputWithScriptRef
-  -> TxConstraints i o
+  -> TxConstraints
 mustMintCurrencyUsingScriptRef mph =
   mustMintCurrencyWithRedeemerUsingScriptRef mph unitRedeemer
 
@@ -571,7 +533,7 @@ mustMintCurrencyWithRedeemer
   -> Redeemer
   -> TokenName
   -> BigInt
-  -> TxConstraints i o
+  -> TxConstraints
 mustMintCurrencyWithRedeemer mph red tn amount =
   singleton (MustMintValue mph red tn amount Nothing)
 
@@ -584,21 +546,21 @@ mustMintCurrencyWithRedeemerUsingScriptRef
   -> TokenName
   -> BigInt
   -> InputWithScriptRef
-  -> TxConstraints i o
+  -> TxConstraints
 mustMintCurrencyWithRedeemerUsingScriptRef mph red tn amount =
   singleton <<< MustMintValue mph red tn amount <<< Just
 
 -- | Requirement to spend inputs with at least the given value
-mustSpendAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
+mustSpendAtLeast :: Value -> TxConstraints
 mustSpendAtLeast = singleton <<< MustSpendAtLeast
 
 -- | Requirement to produce outputs with at least the given value
-mustProduceAtLeast :: forall (i :: Type) (o :: Type). Value -> TxConstraints i o
+mustProduceAtLeast :: Value -> TxConstraints
 mustProduceAtLeast = singleton <<< MustProduceAtLeast
 
 -- | Spend the given unspent transaction public key output.
 mustSpendPubKeyOutput
-  :: forall (i :: Type) (o :: Type). TransactionInput -> TxConstraints i o
+  :: TransactionInput -> TxConstraints
 mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 
 -- | Spend the given unspent transaction script output.
@@ -606,7 +568,7 @@ mustSpendScriptOutput
   :: forall (i :: Type) (o :: Type)
    . TransactionInput
   -> Redeemer
-  -> TxConstraints i o
+  -> TxConstraints
 mustSpendScriptOutput txOutRef red =
   singleton (MustSpendScriptOutput txOutRef red Nothing)
 
@@ -617,7 +579,7 @@ mustSpendScriptOutputUsingScriptRef
    . TransactionInput
   -> Redeemer
   -> InputWithScriptRef
-  -> TxConstraints i o
+  -> TxConstraints
 mustSpendScriptOutputUsingScriptRef txOutRef red =
   singleton <<< MustSpendScriptOutput txOutRef red <<< Just
 
@@ -625,56 +587,56 @@ mustSpendNativeScriptOutput
   :: forall (i :: Type) (o :: Type)
    . TransactionInput
   -> NativeScript
-  -> TxConstraints i o
+  -> TxConstraints
 mustSpendNativeScriptOutput txOutRef = singleton <<< MustSpendNativeScriptOutput
   txOutRef
 
 mustHashDatum
-  :: forall (i :: Type) (o :: Type). DataHash -> Datum -> TxConstraints i o
+  :: DataHash -> Datum -> TxConstraints
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
 mustRegisterStakePubKey
-  :: forall (i :: Type) (o :: Type). StakePubKeyHash -> TxConstraints i o
+  :: StakePubKeyHash -> TxConstraints
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 
 mustDeregisterStakePubKey
-  :: forall (i :: Type) (o :: Type). StakePubKeyHash -> TxConstraints i o
+  :: StakePubKeyHash -> TxConstraints
 mustDeregisterStakePubKey = singleton <<< MustDeregisterStakePubKey
 
 mustRegisterStakeScript
-  :: forall (i :: Type) (o :: Type). StakeValidatorHash -> TxConstraints i o
+  :: StakeValidatorHash -> TxConstraints
 mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
 
 mustDeregisterStakePlutusScript
   :: forall (i :: Type) (o :: Type)
    . PlutusScriptStakeValidator
   -> Redeemer
-  -> TxConstraints i o
+  -> TxConstraints
 mustDeregisterStakePlutusScript sv = singleton <<<
   MustDeregisterStakePlutusScript sv
 
 mustDeregisterStakeNativeScript
   :: forall (i :: Type) (o :: Type)
    . NativeScriptStakeValidator
-  -> TxConstraints i o
+  -> TxConstraints
 mustDeregisterStakeNativeScript = singleton <<< MustDeregisterStakeNativeScript
 
 mustRegisterPool
-  :: forall (i :: Type) (o :: Type). PoolRegistrationParams -> TxConstraints i o
+  :: PoolRegistrationParams -> TxConstraints
 mustRegisterPool = singleton <<< MustRegisterPool
 
 mustRetirePool
   :: forall (i :: Type) (o :: Type)
    . PoolPubKeyHash
   -> Epoch
-  -> TxConstraints i o
+  -> TxConstraints
 mustRetirePool poolPubKeyHash = singleton <<< MustRetirePool poolPubKeyHash
 
 mustDelegateStakePubKey
   :: forall (i :: Type) (o :: Type)
    . StakePubKeyHash
   -> PoolPubKeyHash
-  -> TxConstraints i o
+  -> TxConstraints
 mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
   ppkh
 
@@ -683,7 +645,7 @@ mustDelegateStakePlutusScript
    . PlutusScriptStakeValidator
   -> Redeemer
   -> PoolPubKeyHash
-  -> TxConstraints i o
+  -> TxConstraints
 mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
   MustDelegateStakePlutusScript sv redeemer ppkh
 
@@ -691,26 +653,26 @@ mustDelegateStakeNativeScript
   :: forall (i :: Type) (o :: Type)
    . NativeScriptStakeValidator
   -> PoolPubKeyHash
-  -> TxConstraints i o
+  -> TxConstraints
 mustDelegateStakeNativeScript sv ppkh =
   singleton $ MustDelegateStakeNativeScript sv ppkh
 
 mustWithdrawStakePubKey
-  :: forall (i :: Type) (o :: Type). StakePubKeyHash -> TxConstraints i o
+  :: StakePubKeyHash -> TxConstraints
 mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
 
 mustWithdrawStakePlutusScript
   :: forall (i :: Type) (o :: Type)
    . PlutusScriptStakeValidator
   -> Redeemer
-  -> TxConstraints i o
+  -> TxConstraints
 mustWithdrawStakePlutusScript validator redeemer =
   singleton $ MustWithdrawStakePlutusScript validator redeemer
 
 mustWithdrawStakeNativeScript
   :: forall (i :: Type) (o :: Type)
    . NativeScriptStakeValidator
-  -> TxConstraints i o
+  -> TxConstraints
 mustWithdrawStakeNativeScript =
   singleton <<< MustWithdrawStakeNativeScript
 
@@ -721,8 +683,8 @@ mustWithdrawStakeNativeScript =
 mustSatisfyAnyOf
   :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
    . Foldable f
-  => f (TxConstraints i o)
-  -> TxConstraints i o
+  => f (TxConstraints)
+  -> TxConstraints
 mustSatisfyAnyOf =
   Array.fromFoldable
     >>> map (_.constraints <<< unwrap)
@@ -732,11 +694,11 @@ mustSatisfyAnyOf =
 -- | Marks the transaction as invalid, requiring at least one script execution
 -- | to fail. Despite failure, the transaction can still be submitted into the
 -- | chain and collateral will be lost.
-mustNotBeValid :: forall (i :: Type) (o :: Type). TxConstraints i o
+mustNotBeValid :: TxConstraints
 mustNotBeValid = singleton $ MustNotBeValid
 
 -- | Are the constraints satisfiable given the time intervals?
-isSatisfiable :: forall (i :: Type) (o :: Type). TxConstraints i o -> Boolean
+isSatisfiable :: TxConstraints -> Boolean
 isSatisfiable (TxConstraints { constraints }) =
   let
     intervals =
@@ -751,8 +713,7 @@ isSatisfiable (TxConstraints { constraints }) =
     not (isEmpty itvl)
 
 pubKeyPayments
-  :: forall (i :: Type) (o :: Type)
-   . TxConstraints i o
+  :: TxConstraints
   -> Array (PaymentPubKeyHash /\ Value)
 pubKeyPayments (TxConstraints { constraints }) =
   toUnfoldable
@@ -764,7 +725,7 @@ pubKeyPayments (TxConstraints { constraints }) =
 
 -- | The minimum `Value` that satisfies all `MustSpendAtLeast` constraints
 mustSpendAtLeastTotal
-  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Value
+  :: TxConstraints -> Value
 mustSpendAtLeastTotal =
   foldr (join <<< f) mempty <<< _.constraints <<< unwrap
   where
@@ -774,7 +735,7 @@ mustSpendAtLeastTotal =
 
 -- | The minimum `Value` that satisfies all `MustProduceAtLeast` constraints
 mustProduceAtLeastTotal
-  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Value
+  :: TxConstraints -> Value
 mustProduceAtLeastTotal =
   foldr (join <<< f) mempty <<< _.constraints <<< unwrap
   where
@@ -783,8 +744,7 @@ mustProduceAtLeastTotal =
   f _ = mempty
 
 requiredSignatories
-  :: forall (i :: Type) (o :: Type)
-   . TxConstraints i o
+  :: TxConstraints
   -> Array PaymentPubKeyHash
 requiredSignatories = foldMap f <<< _.constraints <<< unwrap
   where
@@ -793,8 +753,7 @@ requiredSignatories = foldMap f <<< _.constraints <<< unwrap
   f _ = []
 
 requiredMonetaryPolicies
-  :: forall (i :: Type) (o :: Type)
-   . TxConstraints i o
+  :: TxConstraints
   -> Array MintingPolicyHash
 requiredMonetaryPolicies = foldMap f <<< _.constraints <<< unwrap
   where
@@ -803,7 +762,7 @@ requiredMonetaryPolicies = foldMap f <<< _.constraints <<< unwrap
   f _ = []
 
 requiredDatums
-  :: forall (i :: Type) (o :: Type). TxConstraints i o -> Array Datum
+  :: TxConstraints -> Array Datum
 requiredDatums = foldMap f <<< _.constraints <<< unwrap
   where
   f :: TxConstraint -> Array Datum

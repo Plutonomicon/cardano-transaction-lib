@@ -4,12 +4,46 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [Exporting scripts from Plutus or Plutarch](#exporting-scripts-from-plutus-or-plutarch)
+  - [Using Plutonomy](#using-plutonomy)
 - [Importing serialized scripts](#importing-serialized-scripts)
 - [Serializing Plutus scripts](#serializing-plutus-scripts)
   - [PlutusTx](#plutustx)
   - [Plutarch](#plutarch)
+  - [plutarch-ctl-bridge](#plutarch-ctl-bridge)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Exporting scripts from Plutus or Plutarch
+
+Usually projects use a Haskell binary called *exporter* that outputs a pre-compiler UPLC bundle into a file.
+
+The output file should be a Cardano envelope:
+
+```json
+{
+    "cborHex": "4e4d01000033222220051200120011",
+    "description": "always-succeeds",
+    "type": "PlutusScriptV2"
+}
+```
+
+- An example of a Plutus exporter can be found [here](https://github.com/Mr-Andersen/ctl-multisign-mre/blob/main/onchain/exporter/Main.hs).
+- For Plutarch, see [the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold)'s [exporter](https://github.com/mlabs-haskell/the-plutus-scaffold/tree/main/onchain/exporter).
+
+
+### Using Plutonomy
+
+It makes sense to use [Plutonomy](https://github.com/well-typed/plutonomy) (an optimizer for UPLC) in the exporter:
+
+```haskell
+import Plutonomy (aggressiveOptimizerOptions, optimizeUPLCWith)
+
+script :: Script
+script = fromCompiledCode $
+  optimizeUPLCWith aggressiveOptimizerOptions $$(PlutusTx.compile [||policy||])
+```
+
 ## Importing serialized scripts
 
 To use your own scripts, compile them to any subdirectory in the root of your project (where `webpack.config.js` is located) and add a relative path to `webpack.config.js` under the `resolve.alias` section. In CTL, we have the `Scripts` alias for this purpose. Note the capitalization of `Scripts`: it is necessary to disambiguate it from local folders.
@@ -137,4 +171,8 @@ Note that we specified plutus version.
 
 ### Plutarch
 
-You can use [`ply`](https://github.com/mlabs-haskell/ply).
+You can use [`ply`](https://github.com/mlabs-haskell/ply) and [`ply-ctl`](https://github.com/mlabs-haskell/ply-ctl).
+
+### plutarch-ctl-bridge
+
+You can use [`plutarch-ctl-bridge`](https://github.com/mlabs-haskell/plutarch-ctl-bridge) to generate Purescript types from your Haskell type definitions and typed script wrappers from parametrized Plutarch scripts. See [example module](https://github.com/mlabs-haskell/plutarch-ctl-bridge/blob/main/example/Main.hs).

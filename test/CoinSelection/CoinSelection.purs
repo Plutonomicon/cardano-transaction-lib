@@ -29,7 +29,6 @@ import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction (TransactionInput)
-import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.Map (fromFoldable, values) as Map
@@ -44,6 +43,7 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throw)
 import Effect.Unsafe (unsafePerformEffect)
+import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.CoinSelection.Arbitrary

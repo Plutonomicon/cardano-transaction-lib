@@ -6,8 +6,6 @@ import Contract.Prelude
 
 import Contract.Address
   ( PaymentPubKeyHash
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -21,14 +19,18 @@ import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
+import Contract.Wallet
+  ( ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
   , mkTokenName
   , mustPayToPubKeyStakeAddress
   ) as Helpers
 import Data.Array (head)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -37,19 +39,19 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.NativeScriptMints"
 
-  pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeysHashes
+  pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeyHashes
 
   mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
   tn <- Helpers.mkTokenName "NSToken"
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintCurrencyUsingNativeScript
         (nsPolicy pkh)
         tn $ BigInt.fromInt 100
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints
@@ -61,16 +63,16 @@ contract = do
 
 toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract Unit
 toSelfContract cs tn amount = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  skh <- join <<< head <$> ownStakePubKeyHashes
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Helpers.mustPayToPubKeyStakeAddress pkh skh
       $ Value.singleton cs tn
       $ amount
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   txId <- submitTxFromConstraints lookups constraints

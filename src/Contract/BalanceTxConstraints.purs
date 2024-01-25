@@ -8,8 +8,10 @@ import Ctl.Internal.BalanceTx.Constraints
   , mustNotSpendUtxoWithOutRef
   , mustNotSpendUtxosWithOutRefs
   , mustSendChangeToAddress
+  , mustSendChangeWithDatum
   , mustUseAdditionalUtxos
   , mustUseCoinSelectionStrategy
+  , mustUseCollateralUtxos
   , mustUseUtxosAtAddress
   , mustUseUtxosAtAddresses
   ) as BalanceTxConstraints

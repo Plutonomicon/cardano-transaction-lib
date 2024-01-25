@@ -11,7 +11,9 @@ import Contract.Config
       , ConnectToEternl
       , ConnectToFlint
       , ConnectToNuFi
+      , ConnectToLace
       )
+  , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
   , mainnetFlintConfig
   , mainnetGeroConfig
@@ -23,16 +25,20 @@ import Contract.Config
   , testnetEternlConfig
   , testnetFlintConfig
   , testnetGeroConfig
+  , testnetLaceConfig
   , testnetLodeConfig
   , testnetNamiConfig
   , testnetNuFiConfig
   )
 import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
+import Ctl.Examples.AdditionalUtxos as AdditionalUtxos
 import Ctl.Examples.AlwaysMints as AlwaysMints
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
+import Ctl.Examples.ChangeGeneration as ChangeGeneration
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
+import Ctl.Examples.DropTokens as DropTokens
 import Ctl.Examples.ECDSA as ECDSA
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
@@ -72,32 +78,67 @@ main = do
   mbApiKey <- getBlockfrostApiKey
   let
     walletsWithBlockfrost =
-      wallets `Map.union` Map.fromFoldable
-        [ "blockfrost-nami-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToNami }
-            /\ Nothing
-        , "blockfrost-gero-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToGero }
-            /\ Nothing
-        , "blockfrost-eternl-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToEternl }
-            /\ Nothing
-        , "blockfrost-lode-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToLode }
-            /\ Nothing
-        , "blockfrost-flint-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToFlint }
-            /\ Nothing
-        , "blockfrost-nufi-preview"
-            /\ (mkBlockfrostPreviewConfig mbApiKey)
-              { walletSpec = Just ConnectToNuFi }
-            /\ Nothing
-        ]
+      wallets `Map.union`
+        if isNothing mbApiKey then Map.empty
+        else
+          Map.fromFoldable
+            [ "blockfrost-nami-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToNami }
+                /\ Nothing
+            , "blockfrost-gero-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToGero }
+                /\ Nothing
+            , "blockfrost-eternl-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToEternl }
+                /\ Nothing
+            , "blockfrost-lode-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToLode }
+                /\ Nothing
+            , "blockfrost-flint-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToFlint }
+                /\ Nothing
+            , "blockfrost-nufi-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToNuFi }
+                /\ Nothing
+            , "blockfrost-lace-preview"
+                /\ (mkBlockfrostPreviewConfig mbApiKey)
+                  { walletSpec = Just ConnectToLace }
+                /\ Nothing
+            , "blockfrost-nami-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToNami }
+                /\ Nothing
+            , "blockfrost-gero-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToGero }
+                /\ Nothing
+            , "blockfrost-eternl-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToEternl }
+                /\ Nothing
+            , "blockfrost-lode-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToLode }
+                /\ Nothing
+            , "blockfrost-flint-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToFlint }
+                /\ Nothing
+            , "blockfrost-nufi-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToNuFi }
+                /\ Nothing
+            , "blockfrost-lace-preprod"
+                /\ (mkBlockfrostPreprodConfig mbApiKey)
+                  { walletSpec = Just ConnectToLace }
+                /\ Nothing
+            ]
   addLinks walletsWithBlockfrost examples
   route walletsWithBlockfrost examples
 
@@ -120,6 +161,7 @@ wallets = Map.fromFoldable
   , "eternl" /\ testnetEternlConfig /\ Nothing
   , "lode" /\ testnetLodeConfig /\ Nothing
   , "nufi" /\ testnetNuFiConfig /\ Nothing
+  , "lace" /\ testnetLaceConfig /\ Nothing
   , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
@@ -142,9 +184,20 @@ mkBlockfrostPreviewConfig apiKey =
         }
     }
 
+mkBlockfrostPreprodConfig :: Maybe String -> ContractParams
+mkBlockfrostPreprodConfig apiKey =
+  testnetConfig
+    { backendParams = mkBlockfrostBackendParams
+        { blockfrostConfig: blockfrostPublicPreprodServerConfig
+        , blockfrostApiKey: apiKey
+        , confirmTxDelay: Just (Seconds 30.0)
+        }
+    }
+
 examples :: Map E2ETestName (Contract Unit)
 examples = Map.fromFoldable
-  [ "AlwaysMints" /\ AlwaysMints.contract
+  [ "AdditionalUtxos" /\ AdditionalUtxos.contract false
+  , "AlwaysMints" /\ AlwaysMints.contract
   , "NativeScriptMints" /\ NativeScriptMints.contract
   , "AlwaysSucceeds" /\ AlwaysSucceeds.contract
   , "AlwaysSucceedsV2" /\ AlwaysSucceedsV2.contract
@@ -166,4 +219,11 @@ examples = Map.fromFoldable
   , "Schnorr" /\ Schnorr.contract
   , "ECDSA" /\ ECDSA.contract
   , "PaysWithDatum" /\ PaysWithDatum.contract
+  , "DropTokens" /\ DropTokens.contract
+  , "ChangeGeneration1-1" /\
+      ChangeGeneration.checkChangeOutputsDistribution 1 1 3
+  , "ChangeGeneration3-1" /\
+      ChangeGeneration.checkChangeOutputsDistribution 3 1 5
+  , "ChangeGeneration1-3" /\
+      ChangeGeneration.checkChangeOutputsDistribution 1 3 7
   ]

@@ -13,7 +13,7 @@ import Contract.Prelude
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash) as Hashing
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, launchAff_, liftedE, runContract)
+import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData
   ( Datum(Datum)
   , PlutusData(Integer)
@@ -22,7 +22,8 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Data.BigInt as BigInt
+import Contract.UnbalancedTx (mkUnbalancedTx)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -42,13 +43,13 @@ testMustSatisfyAnyOf = do
     wrongDatumHash = Hashing.datumHash wrongDatum
     correctDatumHash = Hashing.datumHash unitDatum
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints = Constraints.mustSatisfyAnyOf
       [ Constraints.mustHashDatum wrongDatumHash unitDatum
       , Constraints.mustHashDatum correctDatumHash unitDatum
       ]
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  void $ liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  void $ mkUnbalancedTx lookups constraints

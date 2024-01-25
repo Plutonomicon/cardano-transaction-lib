@@ -6,7 +6,6 @@ module Ctl.Examples.SendsToken (main, example, contract) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -20,6 +19,7 @@ import Contract.Transaction
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value as Value
+import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers
   ( mkCurrencySymbol
@@ -49,24 +49,24 @@ mintToken :: Contract TransactionHash
 mintToken = do
   mp /\ value <- tokenValue
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustMintValue value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
   submitTxFromConstraints lookups constraints
 
 sendToken :: Contract TransactionHash
 sendToken = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  skh <- join <<< head <$> ownStakePubKeyHashes
   _ /\ value <- tokenValue
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Helpers.mustPayToPubKeyStakeAddress pkh skh value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints

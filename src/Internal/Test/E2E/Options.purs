@@ -8,7 +8,6 @@ module Ctl.Internal.Test.E2E.Options
   , CommonOptions_
   , ClusterPortsOptions_
   , ClusterPortsOptions
-  , JQuery_
   , SettingsOptions
   , E2ECommand
       ( RunE2ETests
@@ -87,7 +86,7 @@ import Type.Row (type (+))
 
 -- | CLI options for E2E tests.
 type TestOptions = Record
-  ( NoHeadless_ + Tests_ + TestTimeout_ + ClusterPortsOptions_ + JQuery_
+  ( NoHeadless_ + Tests_ + TestTimeout_ + ClusterPortsOptions_
       + CommonOptions_
       + ()
   )
@@ -100,8 +99,6 @@ type ClusterPortsOptions_ (r :: Row Type) =
   )
 
 type ClusterPortsOptions = Record (ClusterPortsOptions_ ())
-
-type JQuery_ (r :: Row Type) = (skipJQuery :: Boolean | r)
 
 type NoHeadless_ (r :: Row Type) = (noHeadless :: Boolean | r)
 
@@ -299,10 +296,6 @@ testOptionsParser = ado
     [ long "no-headless"
     , help "Show visible browser window"
     ]
-  skipJQuery <- switch $ fold
-    [ long "skip-jquery-download"
-    , help "Skip downloading JQuery (useful for offline mode)"
-    ]
   testTimeout <- option (Just <$> int) $ fold
     [ long "test-timeout"
     , help "Timeout for each test"
@@ -313,7 +306,7 @@ testOptionsParser = ado
   (clusterPorts :: ClusterPortsOptions) <- clusterPortsOptionsParser
   in
     build (merge clusterPorts <<< merge res)
-      { noHeadless, tests, testTimeout, skipJQuery }
+      { noHeadless, tests, testTimeout }
 
 testParser :: ReadM E2ETest
 testParser = eitherReader \str ->

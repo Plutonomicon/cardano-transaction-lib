@@ -9,6 +9,9 @@ This document lists common problems encountered by CTL users and developers.
 - [Bundling-related](#bundling-related)
   - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
+  - [Q: I see `WebAssembly module is included in initial chunk.` error, why?](#q-i-see-webassembly-module-is-included-in-initial-chunk-error-why)
+  - [Q: I see `Cannot use 'import.meta' outside a module` error in the browser, why?](#q-i-see-cannot-use-importmeta-outside-a-module-error-in-the-browser-why)
+  - [Q: I see `Module not found: Error: Can't resolve 'utf-8-validate'` error when bundling, why?](#q-i-see-module-not-found-error-cant-resolve-utf-8-validate-error-when-bundling-why)
 - [Common Contract execution problems](#common-contract-execution-problems)
   - [Q: What are the common reasons behind BalanceInsufficientError?](#q-what-are-the-common-reasons-behind-balanceinsufficienterror)
   - [Q: CTL consumed my collateral](#q-ctl-consumed-my-collateral)
@@ -21,6 +24,7 @@ This document lists common problems encountered by CTL users and developers.
 - [Environment-related](#environment-related)
   - [Q: I use wayland, the E2E browser fails on startup](#q-i-use-wayland-the-e2e-browser-fails-on-startup)
   - [Q: How to keep the number of WebSocket connections to a minimum?](#q-how-to-keep-the-number-of-websocket-connections-to-a-minimum)
+  - [Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'](#package-chromium-10505195125-is-not-supported-on-x86_64-darwin)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
   - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
@@ -48,6 +52,20 @@ URL: https://github.com/purescript/package-sets/releases/download/psc-0.14.5-202
 
 means that the CTL overlay hasn't been properly applied. Add `ctl.overlays.spago`.
 
+### Q: I see `WebAssembly module is included in initial chunk.` error, why?
+
+You may be trying to use `require` instead of `import` in the app entry point, see [here](./using-from-js.md).
+
+### Q: I see `Cannot use 'import.meta' outside a module` error in the browser, why?
+
+`type="module"` is required in the HTML script import, see [here](./using-from-js.md).
+
+Other possible cause may be that you are trying to run a browser-targeted bundle in NodeJS.
+
+### Q: I see `Module not found: Error: Can't resolve 'utf-8-validate'` error when bundling, why?
+
+You probably forgot to set `BROWSER_RUNTIME=1` for the `webpack` command, see [here](./using-from-js.md).
+
 ## Common Contract execution problems
 
 ### Q: What are the common reasons behind BalanceInsufficientError?
@@ -72,7 +90,9 @@ To do anything time-related, it's best to rely on local node chain tip time, ins
 
 ### Q: Time/slot conversion functions return `Nothing`. Why is that?
 
-Time/slot conversion functions depend on `eraSummaries` [Ogmios local state query](https://ogmios.dev/mini-protocols/local-state-query/), that returns era bounds and slotting parameters details, required for proper slot arithmetic. The most common source of the problem is that Ogmios does not return enough epochs into the future.
+Time/slot conversion functions depend on `eraSummaries` [Ogmios local state query](https://ogmios.dev/mini-protocols/local-state-query/), that returns era bounds and slotting parameters details, required for proper slot arithmetic. The most common source of the problem is that Ogmios does not return enough epochs into the future. [A possible symptom](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1057) is `CannotFindTimeInEraSummaries` in the error message.
+
+When using Plutip, a solution may be [to increase the `epochSize` parameter](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1057#issuecomment-1450692539).
 
 ### Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`
 
@@ -127,7 +147,13 @@ If you are under wayland you need to add `--ozone-platform=wayland` to the argum
 
 Use only one `ContractEnv` value. They are implicitly created every time `runContract` is called, so avoid using this function if you need to run multiple `Contract`s.
 
-Instead, initialize the environment with `withContractEnv` and pass it to `runContractInEnv`. The former ensures that the environment is properly finalized, but it forces the developer to follow the bracket pattern, which is not always convenient. As an alternative, `mkContractEnv` can be used. If you are initializing a contract environment with `mkContractEnv` only once during the lifeteime of your app, you should be fine, but if you re-create it dynamically and do not finalize it with `stopContractEnv`, it's fairly easy to hit the max websocket connections limit, which is 200 for Firefox, not to mention that it would be forcing the server to keep the connections.
+See [here](./contract-environment.md) for more info.
+
+### Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'
+
+Chromium is used in [E2E test suite](./e2e-testing.md). Chromium is pinned in nix shell by default, because system versions of chromium may be affected by [this bug](https://bugs.chromium.org/p/chromium/issues/detail?id=706008#c39)
+
+To disable, set `withChromium` to `false` in [`purescriptProject`'s `shell` argument](https://github.com/Plutonomicon/cardano-transaction-lib/blob/946818b72e3ac1321feebe2944ca2986da2ddc01/templates/ctl-scaffold/flake.nix#L96).
 
 ## Miscellaneous
 

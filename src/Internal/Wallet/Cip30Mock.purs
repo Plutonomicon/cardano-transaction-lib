@@ -1,6 +1,13 @@
 module Ctl.Internal.Wallet.Cip30Mock
   ( withCip30Mock
-  , WalletMock(MockFlint, MockGero, MockNami, MockLode, MockNuFi)
+  , WalletMock
+      ( MockFlint
+      , MockGero
+      , MockNami
+      , MockLode
+      , MockNuFi
+      , MockGenericCip30
+      )
   ) where
 
 import Prelude
@@ -13,24 +20,41 @@ import Control.Promise (Promise, fromAff)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Serialization
   ( convertTransactionUnspentOutput
   , convertValue
+  , publicKeyHash
   , toBytes
   )
 import Ctl.Internal.Serialization.Address
   ( Address
-  , NetworkId(TestnetId, MainnetId)
+  , NetworkId(MainnetId, TestnetId)
   )
+import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
+import Ctl.Internal.Types.PubKeyHash
+  ( PubKeyHash(PubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  )
+import Ctl.Internal.Types.RewardAddress
+  ( rewardAddressToBytes
+  , stakePubKeyHashRewardAddress
+  )
 import Ctl.Internal.Wallet
   ( Wallet
-  , WalletExtension(LodeWallet, NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
+  , WalletExtension
+      ( LodeWallet
+      , NamiWallet
+      , GeroWallet
+      , FlintWallet
+      , NuFiWallet
+      , GenericCip30Wallet
+      )
   , mkWalletAff
   )
 import Ctl.Internal.Wallet.Key
@@ -44,7 +68,7 @@ import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
@@ -56,7 +80,13 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 
-data WalletMock = MockFlint | MockGero | MockNami | MockLode | MockNuFi
+data WalletMock
+  = MockFlint
+  | MockGero
+  | MockNami
+  | MockLode
+  | MockNuFi
+  | MockGenericCip30 String
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -93,6 +123,7 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> mkWalletAff NamiWallet
     MockLode -> mkWalletAff LodeWallet
     MockNuFi -> mkWalletAff NuFiWallet
+    MockGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
 
   mockString :: String
   mockString = case mock of
@@ -101,16 +132,21 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNami -> "nami"
     MockLode -> "LodeWallet"
     MockNuFi -> "nufi"
+    MockGenericCip30 name -> name
 
 type Cip30Mock =
   { getNetworkId :: Effect (Promise Int)
+  -- we ignore both the amount parameter and pagination:
   , getUtxos :: Effect (Promise (Array String))
+  -- we ignore the amount parameter:
   , getCollateral :: Effect (Promise (Array String))
   , getBalance :: Effect (Promise String)
+  -- we ignore pagination parameter:
   , getUsedAddresses :: Effect (Promise (Array String))
   , getUnusedAddresses :: Effect (Promise (Array String))
   , getChangeAddress :: Effect (Promise String)
   , getRewardAddresses :: Effect (Promise (Array String))
+  -- we ignore the 'isPartial' parameter
   , signTx :: String -> Promise String
   , signData ::
       Fn2 String String (Promise { key :: String, signature :: String })
@@ -145,6 +181,16 @@ mkCip30Mock pKey mSKey = do
       byteArrayToHex $ unwrap $ toBytes
         ((unwrap keyWallet).address env.networkId :: Address)
 
+    mbRewardAddressHex = mSKey <#> \stakeKey ->
+      let
+        stakePubKey = publicKeyFromPrivateKey (unwrap stakeKey)
+        stakePubKeyHash = publicKeyHash stakePubKey
+        rewardAddress = stakePubKeyHashRewardAddress env.networkId
+          $ StakePubKeyHash
+          $ PubKeyHash stakePubKeyHash
+      in
+        byteArrayToHex $ unwrap $ rewardAddressToBytes rewardAddress
+
   pure $
     { getNetworkId: fromAff $ pure $
         case env.networkId of
@@ -154,11 +200,10 @@ mkCip30Mock pKey mSKey = do
         utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
         let
-          -- filter UTxOs that will be used as collateral
+          collateralOutputs = collateralUtxos <#> unwrap >>> _.input
+          -- filter out UTxOs that will be used as collateral
           nonCollateralUtxos =
-            Map.filter
-              (flip Array.elem (collateralUtxos <#> unwrap >>> _.output))
-              utxos
+            Map.filterKeys (not <<< flip Array.elem collateralOutputs) utxos
         -- Convert to CSL representation and serialize
         cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
           $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
@@ -184,7 +229,7 @@ mkCip30Mock pKey mSKey = do
     , getChangeAddress: fromAff do
         pure addressHex
     , getRewardAddresses: fromAff do
-        pure [ addressHex ]
+        pure (maybe [] pure mbRewardAddressHex)
     , signTx: \str -> unsafePerformEffect $ fromAff do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str

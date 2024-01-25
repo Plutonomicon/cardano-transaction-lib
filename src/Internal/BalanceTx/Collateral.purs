@@ -30,7 +30,6 @@ import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') 
 import Ctl.Internal.Serialization.Address (Address)
 import Ctl.Internal.Types.BigNum (maxValue, toBigInt) as BigNum
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Data.BigInt (BigInt)
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap, foldl)
 import Data.Lens.Setter ((?~))
@@ -38,6 +37,7 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Ord.Max (Max(Max))
 import Effect.Class (liftEffect)
+import JS.BigInt (BigInt)
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral collateral transaction =
@@ -92,10 +92,14 @@ addTxCollateralReturn collateral transaction ownAddress =
     coinsPerUtxoUnit <- askCoinsPerUtxoUnit
 
     -- Calculate the required min ada value for the collateral return output:
-    minAdaValue <-
+    minAdaValue <- do
+      let returnAsTxOut = wrap collReturnOutputRec
       ExceptT $
-        liftEffect (utxoMinAdaValue coinsPerUtxoUnit (wrap collReturnOutputRec))
-          <#> note CollateralReturnMinAdaValueCalcError
+        liftEffect (utxoMinAdaValue coinsPerUtxoUnit returnAsTxOut)
+          <#> note
+            ( CollateralReturnMinAdaValueCalcError coinsPerUtxoUnit
+                returnAsTxOut
+            )
 
     let
       -- Determine the actual ada value of the collateral return output:
@@ -119,9 +123,7 @@ addTxCollateralReturn collateral transaction ownAddress =
           Right $
             transaction # _body <<< _collateralReturn ?~ collReturnOutput
               # _body <<< _totalCollateral ?~ wrap totalCollateral
-        false ->
-          Left $ CollateralReturnError
-            "Negative totalCollateral after covering min-utxo-ada requirement."
+        false -> Left CollateralReturnError
 
 --------------------------------------------------------------------------------
 -- Helpers

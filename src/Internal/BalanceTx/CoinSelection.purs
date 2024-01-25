@@ -29,8 +29,6 @@ import Ctl.Internal.BalanceTx.Error
       , InsufficientUtxoBalanceToCoverAsset
       )
   , Expected(Expected)
-  , ImpossibleError(Impossible)
-  , InvalidInContext(InvalidInContext)
   )
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass(AssetClass), Coin, Value)
@@ -60,8 +58,6 @@ import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (snoc, uncons) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (cons', fromArray, singleton, uncons) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt (abs, fromInt, toString) as BigInt
 import Data.Foldable (foldMap) as Foldable
 import Data.Function (applyFlipped)
 import Data.Generic.Rep (class Generic)
@@ -79,6 +75,8 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (class MonadEffect)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, toString) as BigInt
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Gen (elements) as Arbitrary
 import Type.Proxy (Proxy(Proxy))
@@ -142,7 +140,6 @@ performMultiAssetSelection strategy utxoIndex requiredValue =
     BalanceInsufficientError
       (Expected $ toPlutusValue requiredValue)
       (Actual $ toPlutusValue availableValue)
-      (InvalidInContext $ toPlutusValue mempty)
 
   availableValue :: Value
   availableValue = balance (utxoIndexUniverse utxoIndex)
@@ -356,7 +353,7 @@ runSelectionStep lens state
       let
         balanceInsufficientError :: BalanceTxError
         balanceInsufficientError =
-          InsufficientUtxoBalanceToCoverAsset Impossible lens.assetDisplayString
+          InsufficientUtxoBalanceToCoverAsset lens.assetDisplayString
       in
         lens.selectQuantityCover state
           >>= maybe (throwError balanceInsufficientError) (pure <<< Just)
@@ -374,7 +371,10 @@ runSelectionStep lens state
 
       distanceFromTarget :: SelectionState -> BigInt
       distanceFromTarget =
-        BigInt.abs <<< sub targetQuantity <<< lens.currentQuantity
+        bigIntAbs <<< sub targetQuantity <<< lens.currentQuantity
+
+      bigIntAbs :: BigInt -> BigInt
+      bigIntAbs x = if x < zero then negate x else x
 
       targetMultiplier :: Int
       targetMultiplier =

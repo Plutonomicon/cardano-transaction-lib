@@ -18,12 +18,9 @@ import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
   , getNetworkId
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , payPubKeyHashEnterpriseAddress
   )
-import Contract.Monad (Contract, liftContractM, liftedE, liftedM)
+import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
@@ -34,8 +31,15 @@ import Contract.Transaction
   , submit
   )
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
-import Contract.Wallet (mkKeyWalletFromPrivateKeys, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , mkKeyWalletFromPrivateKeys
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
@@ -49,17 +53,17 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (head)
 import Data.Array as Array
-import Data.BigInt (BigInt)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.List (List, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (unwrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+import JS.BigInt (BigInt)
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces
@@ -200,19 +204,19 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       head <$> withKeyWallet ourWallet getWalletAddresses
     ourUtxos <- utxosAt ourAddr
     ourPkh <- liftedM "Could not get our payment pkh" $
-      head <$> withKeyWallet ourWallet ownPaymentPubKeysHashes
+      head <$> withKeyWallet ourWallet ownPaymentPubKeyHashes
     let
-      lookups :: Lookups.ScriptLookups Void
+      lookups :: Lookups.ScriptLookups
       lookups = Lookups.unspentOutputs ourUtxos
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
 
-      constraints :: Constraints.TxConstraints Void Void
+      constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
-    unbalancedTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+    unbalancedTx <- mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< liftedE (balanceTx unbalancedTx)
+        signTransaction =<< balanceTx unbalancedTx
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx
@@ -225,13 +229,14 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     cache <- asks (unwrap <<< _.usedTxOuts)
     liftEffect $ Ref.write Map.empty cache
   where
-  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints Void Void
+  constraintsForWallet :: WalletInfo -> Constraints.TxConstraints
   constraintsForWallet { utxos, payPkh, stakePkh } =
     -- It's necessary to include `mustBeSignedBy`, we get a
     -- `feeTooSmall` error otherwise. See
     -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/853
-    Constraints.mustBeSignedBy payPkh <>
-      foldMapWithIndex
+    Constraints.mustBeSignedBy payPkh
+      <> Constraints.mustBeSignedBy (wrap $ unwrap stakePkh)
+      <> foldMapWithIndex
         ( \input (TransactionOutputWithRefScript { output }) ->
             Constraints.mustPayToPubKeyAddress payPkh stakePkh
               (unwrap output).amount
@@ -244,11 +249,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     -> KeyWallet
     -> Contract (List WalletInfo)
   addStakeKeyWalletInfo walletsInfo wallet = withKeyWallet wallet $
-    join <<< head <$> ownStakePubKeysHashes >>= case _ of
+    join <<< head <$> ownStakePubKeyHashes >>= case _ of
       Nothing -> pure walletsInfo
       Just stakePkh -> do
         payPkh <- liftedM "Could not get payment pubkeyhash" $
-          head <$> ownPaymentPubKeysHashes
+          head <$> ownPaymentPubKeyHashes
         networkId <- getNetworkId
         addr <- liftContractM "Could not get wallet address" $
           payPubKeyHashEnterpriseAddress networkId payPkh

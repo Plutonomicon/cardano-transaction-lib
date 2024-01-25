@@ -10,6 +10,8 @@ module Ctl.Internal.Test.E2E.Wallets
   , lodeSign
   , namiConfirmAccess
   , namiSign
+  , laceConfirmAccess
+  , laceSign
   ) where
 
 import Prelude
@@ -221,6 +223,51 @@ geroSign extId password re =
   where
   pattern = Pattern $ unExtensionId extId <> "/index.html?#/swap?tx="
 
+laceConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
+laceConfirmAccess extId re = do
+  void $ liftEffect $ throw "Lace support is not implemented"
+  wasInPage <- isJust <$> inWalletPageOptional extId pattern re
+    confirmAccessTimeout
+    \page -> do
+      void $ Toppokki.pageWaitForSelector (wrap $ "button")
+        {}
+        page
+      delaySec 1.0
+      void $ doJQ (buttonWithText "Authorize") click page
+      delaySec 0.1
+      void $ doJQ (buttonWithText "Always") click page
+  when wasInPage do
+    waitForWalletPageClose pattern 10.0 re.browser
+  -- Trigger wallet page opening.
+  -- Lace has a glitch that prevents CIP-30 API promises from resolving until
+  -- the wallet is interacted with at least once after browser startup.
+  -- https://discord.com/channels/826816523368005654/1050085066056925195/1091336339250749511
+  -- Toppokki.newPage re.browser >>=
+  --   Toppokki.goto (wrap $ "chrome-extension://" <> unExtensionId extId <> "/app.html#/assets")
+  where
+  pattern :: Pattern
+  pattern = wrap $ unExtensionId extId <> "/dappConnector.html"
+
+-- Not implemented yet
+laceSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
+laceSign extId password re = do
+  void $ liftEffect $ throw "Lace support is not implemented"
+  inWalletPage pattern re signTimeout \page -> do
+    void $ Toppokki.pageWaitForSelector (wrap $ "button")
+      {}
+      page
+    delaySec 0.1
+    clickButton "Confirm" page
+    delaySec 0.1
+    typeInto (inputType "password") password page
+    delaySec 0.1
+    clickButton "Confirm" page
+    delaySec 1.0
+    clickButton "Close" page
+  -- TODO: continue from here
+  where
+  pattern = Pattern $ unExtensionId extId <> "/dappConnector.html#/dapp/sign-tx"
+
 -- Not implemented yet
 flintConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 flintConfirmAccess _ _ =
@@ -233,7 +280,10 @@ flintSign _ _ _ = do
 
 getJQuery :: RunningE2ETest -> Aff String
 getJQuery re =
-  liftM (error "JQuery not available (E2E_SKIP_JQUERY_DOWNLOAD=true)") re.jQuery
+  liftM (error errMessage) re.jQuery
+  where
+  errMessage =
+    "JQuery not available (wrong E2E runtime type? Please report as bug)"
 
 lodeConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
 lodeConfirmAccess extId re = do

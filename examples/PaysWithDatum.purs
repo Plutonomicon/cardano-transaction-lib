@@ -10,9 +10,6 @@ import Contract.Prelude
 
 import Contract.Address
   ( Address
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash)
@@ -29,8 +26,8 @@ import Contract.Test.Assert
   ( ContractAssertionFailure(CustomFailure)
   , ContractCheck
   , assertContract
+  , assertNewUtxosAtAddress
   , assertionToCheck
-  , checkNewUtxosAtAddress
   , label
   , runChecks
   )
@@ -44,10 +41,15 @@ import Contract.TxConstraints (DatumPresence(DatumInline, DatumWitness))
 import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
+import Contract.Wallet
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithDatum)
 import Data.Array (head)
-import Data.BigInt (fromInt) as BigInt
+import JS.BigInt (fromInt) as BigInt
 
 type ContractResult =
   { address :: Address
@@ -66,8 +68,8 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PaysWithDatum"
 
-  pkh <- liftedM "Could not get own PKH" (head <$> ownPaymentPubKeysHashes)
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Could not get own PKH" (head <$> ownPaymentPubKeyHashes)
+  skh <- join <<< head <$> ownStakePubKeyHashes
   address <- liftedM "Could not get own address" (head <$> getWalletAddresses)
 
   let
@@ -77,12 +79,12 @@ contract = do
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints =
       mustPayToPubKeyStakeAddressWithDatum pkh skh datum DatumWitness value
         <> mustPayToPubKeyStakeAddressWithDatum pkh skh datum DatumInline value
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   void $ runChecks checks $ lift do
@@ -104,7 +106,7 @@ assertTxCreatesOutputWithInlineDatum = assertionToCheck
       assertionFailure :: ContractAssertionFailure
       assertionFailure =
         CustomFailure "Could not find output with given inline datum"
-    checkNewUtxosAtAddress (label address "ownAddress") txHash
+    assertNewUtxosAtAddress (label address "ownAddress") txHash
       \outputs ->
         assertContract assertionFailure $
           hasOutputWithOutputDatum (OutputDatum datum) outputs
@@ -118,7 +120,7 @@ assertTxCreatesOutputWithDatumHash = assertionToCheck
       assertionFailure :: ContractAssertionFailure
       assertionFailure =
         CustomFailure "Could not find output with given datum hash"
-    checkNewUtxosAtAddress (label address "ownAddress") txHash
+    assertNewUtxosAtAddress (label address "ownAddress") txHash
       \outputs ->
         assertContract assertionFailure $
           hasOutputWithOutputDatum (OutputDatumHash datumHash) outputs

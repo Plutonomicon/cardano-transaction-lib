@@ -33,9 +33,9 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.BigInt as BigInt
 import Data.Lens (view)
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -58,7 +58,7 @@ datum = Datum $ Integer $ BigInt.fromInt 42
 payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
 payToIncludeDatum vhash =
   let
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       ( Constraints.mustPayToScript vhash datum Constraints.DatumWitness
           $ Value.lovelaceValueOf
@@ -66,7 +66,7 @@ payToIncludeDatum vhash =
       )
         <> Constraints.mustIncludeDatum datum
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
   in
     submitTxFromConstraints lookups constraints
@@ -82,11 +82,11 @@ spendFromIncludeDatum vhash validator txId = do
   txInput <- liftContractM "no locked output at address"
     (view _input <$> head (lookupTxHash txId utxos))
   let
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs utxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutput txInput unitRedeemer
         <> Constraints.mustIncludeDatum datum
@@ -94,11 +94,19 @@ spendFromIncludeDatum vhash validator txId = do
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
-foreign import includeDatum :: String
-
 -- | checks if the datum equals 42
 only42Script :: Contract Validator
-only42Script =
+only42Script = do
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum
     Validator <$> plutusScriptV1FromEnvelope envelope
+
+includeDatum :: String
+includeDatum =
+  """
+{
+    "type": "PlutusScriptV1",
+    "description": "include-datum",
+    "cborHex": "55540100002225333573466e1cdd6801a40a82930b01"
+}
+"""

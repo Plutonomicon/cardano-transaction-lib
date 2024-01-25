@@ -6,8 +6,6 @@ import Prelude
 
 import Contract.Address
   ( addressToBech32
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
   )
 import Contract.Config (ContractParams)
 import Contract.Hashing (publicKeyHash)
@@ -28,9 +26,15 @@ import Contract.Transaction
   , submit
   , submitTxFromConstraints
   )
-import Contract.Utxos (getWalletBalance, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (valueToCoin')
-import Contract.Wallet (privateKeysToKeyWallet, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , ownPaymentPubKeyHashes
+  , privateKeysToKeyWallet
+  , withKeyWallet
+  )
 import Contract.Wallet.Key
   ( keyWalletPrivatePaymentKey
   , keyWalletPrivateStakeKey
@@ -45,10 +49,12 @@ import Contract.Wallet.KeyFile
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
+import Control.Parallel (parTraverse, parTraverse_)
 import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
 import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
+import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -58,7 +64,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , encodeDistribution
   , keyWallets
   )
-import Ctl.Internal.Types.ScriptLookups (mkUnbalancedTx, unspentOutputs)
+import Ctl.Internal.Types.ScriptLookups (unspentOutputs)
 import Ctl.Internal.Types.TxConstraints
   ( TxConstraint(MustPayToPubKeyAddress)
   , TxConstraints
@@ -67,11 +73,9 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendPubKeyOutput
   , singleton
   )
-import Ctl.Internal.Wallet (KeyWallet)
+import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (catMaybes)
 import Data.Array as Array
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, sum)
 import Data.Lens ((^.))
@@ -98,9 +102,12 @@ import Effect.Class (liftEffect)
 import Effect.Class.Console (info)
 import Effect.Exception (error, throw)
 import Effect.Ref as Ref
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Mote.Monad (mapTest)
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Aff (exists, mkdir, readTextFile, readdir, writeTextFile)
+import Node.FS.Aff (mkdir, readTextFile, readdir, writeTextFile)
+import Node.FS.Sync (exists)
 import Node.Path (FilePath)
 import Node.Path (concat) as Path
 import Type.Prelude (Proxy(Proxy))
@@ -163,8 +170,8 @@ runContractTestsWithKeyDir params backup = do
             "The test engine cannot satisfy the requested ADA distribution "
               <> "because there are not enough funds left. \n\n"
               <> "Total required value is: "
-              <> BigInt.toString distrTotalAmount
-              <> " Lovelace (estimated)\n"
+              <> showLovelace distrTotalAmount
+              <> " (estimated)\n"
               <> "Total available value is: "
               <> BigInt.toString (valueToCoin' balance)
               <> "\nThe test suite is using this address: "
@@ -224,7 +231,7 @@ runContractTestsWithKeyDir params backup = do
 -- | recovery attempts that happen before each test run.
 markAsInactive :: FilePath -> Array KeyWallet -> Contract Unit
 markAsInactive backup wallets = do
-  for_ wallets \wallet -> do
+  flip parTraverse_ wallets \wallet -> do
     networkId <- asks _.networkId
     let
       address = addressBech32 $ (unwrap wallet).address networkId
@@ -240,7 +247,7 @@ markAsInactive backup wallets = do
 restoreWallets :: FilePath -> Aff (Array KeyWallet)
 restoreWallets backup = do
   walletDirs <- readdir backup <#> Array.filter (String.startsWith "addr")
-  catMaybes <$> for walletDirs \walletDir -> do
+  catMaybes <$> flip parTraverse walletDirs \walletDir -> do
     let
       paymentKeyFilePath = Path.concat
         [ backup, walletDir, "payment_signing_key" ]
@@ -248,7 +255,7 @@ restoreWallets backup = do
         [ backup, walletDir, "stake_signing_key" ]
       inactiveFlagFile = Path.concat [ backup, walletDir, "inactive" ]
     -- Skip this wallet if it was marked as inactive
-    exists inactiveFlagFile >>= case _ of
+    liftEffect (exists inactiveFlagFile) >>= case _ of
       true -> pure Nothing
       false -> do
         paymentKeyEnvelope <- readTextFile UTF8 paymentKeyFilePath
@@ -273,19 +280,20 @@ restoreWallets backup = do
 
 -- | Save wallets to files in the backup directory for private keys
 backupWallets :: FilePath -> ContractEnv -> Array KeyWallet -> Aff Unit
-backupWallets backup env walletsArray = liftAff $ for_ walletsArray \wallet ->
-  do
-    let
-      address = addressBech32 $ (unwrap wallet).address env.networkId
-      payment = keyWalletPrivatePaymentKey wallet
-      mbStake = keyWalletPrivateStakeKey wallet
-      folder = Path.concat [ backup, address ]
+backupWallets backup env walletsArray =
+  liftAff $ flip parTraverse_ walletsArray \wallet ->
+    do
+      let
+        address = addressBech32 $ (unwrap wallet).address env.networkId
+        payment = keyWalletPrivatePaymentKey wallet
+        mbStake = keyWalletPrivateStakeKey wallet
+        folder = Path.concat [ backup, address ]
 
-    mkdir folder
-    privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
-      payment
-    for mbStake $ privateStakeKeyToFile
-      (Path.concat [ folder, "stake_signing_key" ])
+      mkdir folder
+      privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
+        payment
+      for mbStake $ privateStakeKeyToFile
+        (Path.concat [ folder, "stake_signing_key" ])
 
 -- | Create a transaction that builds a specific UTxO distribution on the wallets.
 fundWallets
@@ -297,14 +305,14 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
       \(wallet /\ walletDistr) -> flip foldMap walletDistr
         \value -> mustPayToKeyWallet wallet $ lovelaceValueOf value
 
-  txHash <- submitTxFromConstraints (mempty :: _ Void) constraints
+  txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
   let fundTotal = Array.foldl (+) zero $ join distrArray
   -- Use log so we can see, regardless of suppression
   info $ joinWith " "
     [ "Sent"
-    , BigInt.toString fundTotal
-    , "lovelace to test wallets"
+    , showLovelace fundTotal
+    , "to test wallets"
     ]
   pure fundTotal
 
@@ -352,14 +360,15 @@ returnFunds
 returnFunds backup env allWalletsArray mbFundTotal hasRun =
   runContractInEnv env $
     noLogs do
-      nonEmptyWallets <- catMaybes <$> for allWalletsArray \wallet -> do
-        withKeyWallet wallet do
-          utxoMap <- liftedM "Failed to get utxos" $
-            (getWalletAddresses <#> Array.head) >>= traverse utxosAt
-          if Map.isEmpty utxoMap then do
-            markAsInactive backup [ wallet ]
-            pure Nothing
-          else pure $ Just (utxoMap /\ wallet)
+      nonEmptyWallets <- catMaybes <$>
+        flip parTraverse allWalletsArray \wallet -> do
+          withKeyWallet wallet do
+            utxoMap <- liftedM "Failed to get utxos" $
+              (getWalletAddresses <#> Array.head) >>= traverse utxosAt
+            if Map.isEmpty utxoMap then do
+              markAsInactive backup [ wallet ]
+              pure Nothing
+            else pure $ Just (utxoMap /\ wallet)
 
       when (Array.length nonEmptyWallets /= 0) do
         -- Print the messages only if we are running during initial fund recovery
@@ -371,15 +380,15 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
         let utxos = nonEmptyWallets # map fst # Map.unions
 
         pkhs <- fold <$> for nonEmptyWallets
-          (snd >>> flip withKeyWallet ownPaymentPubKeysHashes)
+          (snd >>> flip withKeyWallet ownPaymentPubKeyHashes)
 
         let
           constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTx (lookups :: _ Void) constraints
-        balancedTx <- liftedE $ balanceTx unbalancedTx
+        unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
+        balancedTx <- balanceTx unbalancedTx
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)
@@ -396,13 +405,12 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
 
         info $ joinWith " " $
           [ "Refunded"
-          , BigInt.toString refundTotal
-          , "Lovelace"
+          , showLovelace refundTotal
           ] <> maybe []
             ( \fundTotal ->
                 [ "of"
-                , BigInt.toString fundTotal
-                , "Lovelace from test wallets"
+                , showLovelace fundTotal
+                , "from test wallets"
                 ]
             )
             mbFundTotal
@@ -412,16 +420,25 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
               <> "need any funds to succeed. Consider using `noWallet` to "
               <> "skip funds distribution step"
 
+showLovelace :: BigInt -> String
+showLovelace n =
+  if isAdaExact then BigInt.toString (n `div` million) <> " ADA"
+  else BigInt.toString n <> " Lovelace"
+  where
+  million = BigInt.fromInt 1_000_000
+  isAdaExact =
+    (n `div` million) * million == n
+
 -- | A helper function that abstracts away conversion between `KeyWallet` and
 -- | its address and just gives us a `TxConstraints` value.
 mustPayToKeyWallet
   :: forall (i :: Type) (o :: Type)
    . KeyWallet
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToKeyWallet wallet value =
   let
-    convert = wrap <<< publicKeyHash <<< publicKeyFromPrivateKey
+    convert = publicKeyHash <<< publicKeyFromPrivateKey
     payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
     mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
   in

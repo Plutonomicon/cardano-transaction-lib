@@ -33,11 +33,11 @@ import Ctl.Internal.Types.Interval
   , genUpperRay
   , mkFiniteInterval
   )
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Test.QuickCheck (Result, arbitrary, quickCheck, (===))
 import Test.QuickCheck.Gen (Gen)

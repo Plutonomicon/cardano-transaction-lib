@@ -1,51 +1,45 @@
 /* eslint-disable no-global-assign */
 
-exports.injectCip30Mock = walletName => mock => () => {
-  const hadWindow = typeof window != "undefined";
+export function injectCip30Mock(walletName) {
+  return mock => () => {
+    let window_ = typeof window != "undefined" ? window : (global.window = {});
 
-  if (
-    typeof window == "object" &&
-    typeof window.cardano == "object" &&
-    typeof window.cardano[walletName] != "undefined"
-  ) {
-    throw (
-      "injectCip30Mock: refusing to overwrite existing wallet (" +
-      walletName +
-      ")"
-    );
-  }
-
-  if (typeof window == "undefined") {
-    window = { cardano: {} };
-  } else if (typeof window.cardano == "undefined") {
-    window.cardano = {};
-  }
-
-  window.cardano[walletName] = {
-    enable: () => {
-      return new Promise((resolve, _reject) =>
-        resolve({
-          getNetworkId: mock.getNetworkId,
-          getUtxos: mock.getUtxos,
-          experimental: {
-            getCollateral: mock.getCollateral,
-          },
-          getBalance: mock.getBalance,
-          getUsedAddresses: mock.getUsedAddresses,
-          getUnusedAddresses: mock.getUnusedAddresses,
-          getChangeAddress: mock.getChangeAddress,
-          getRewardAddresses: mock.getRewardAddresses,
-          signTx: mock.signTx,
-          signData: mock.signData,
-        })
+    if (
+      typeof window_ == "object" &&
+      typeof window_.cardano == "object" &&
+      typeof window_.cardano[walletName] != "undefined"
+    ) {
+      throw (
+        "injectCip30Mock: refusing to overwrite existing wallet (" +
+        walletName +
+        ")"
       );
-    },
-  };
-
-  return () => {
-    delete window.cardano[walletName];
-    if (!hadWindow) {
-      window = undefined;
     }
+
+    window_.cardano = {};
+    window_.cardano[walletName] = {
+      enable: () => {
+        return new Promise((resolve, _reject) =>
+          resolve({
+            getNetworkId: mock.getNetworkId,
+            getUtxos: mock.getUtxos,
+            experimental: {
+              getCollateral: mock.getCollateral
+            },
+            getBalance: mock.getBalance,
+            getUsedAddresses: mock.getUsedAddresses,
+            getUnusedAddresses: mock.getUnusedAddresses,
+            getChangeAddress: mock.getChangeAddress,
+            getRewardAddresses: mock.getRewardAddresses,
+            signTx: mock.signTx,
+            signData: mock.signData
+          })
+        );
+      }
+    };
+
+    return () => {
+      delete window_.cardano[walletName];
+    };
   };
-};
+}

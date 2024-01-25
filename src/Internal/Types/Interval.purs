@@ -13,8 +13,6 @@ module Ctl.Internal.Types.Interval
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
       , EndSlotLessThanSlotOrModNonZero
-      , CannotGetBigIntFromNumber'
-      , CannotGetBigNumFromBigInt'
       )
   , RelSlot(RelSlot)
   , RelTime(RelTime)
@@ -50,6 +48,7 @@ module Ctl.Internal.Types.Interval
   , posixTimeRangeToSlotRange
   , posixTimeRangeToTransactionValidity
   , posixTimeToSlot
+  , explainPosixTimeToSlotError
   , singleton
   , slotRangeToPosixTimeRange
   , slotToPosixTime
@@ -73,13 +72,13 @@ import Aeson
   , aesonNull
   , decodeAeson
   , encodeAeson
+  , finiteNumber
   , getField
   , isNull
-  , partialFiniteNumber
   , (.:)
   )
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), runExceptT)
+import Control.Monad.Except (runExcept)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers
   ( contentsProp
@@ -117,9 +116,9 @@ import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
+import Data.Array.NonEmpty (singleton) as NEArray
+import Data.Array.NonEmpty ((:))
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice
@@ -128,16 +127,15 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
-import Data.List (List(Nil), (:))
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.NonEmpty ((:|))
+import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
 import Foreign.Object (Object)
-import Math (trunc, (%)) as Math
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
@@ -169,10 +167,17 @@ instance
     )
 
 instance ToData a => ToData (Extended a) where
-  toData = genericToData
+  toData = case _ of
+    Finite a -> genericToData $ Finite $ toData a
+    NegInf -> genericToData (NegInf :: Extended Void)
+    PosInf -> genericToData (PosInf :: Extended Void)
 
 instance FromData a => FromData (Extended a) where
-  fromData = genericFromData
+  fromData pd =
+    (genericFromData pd :: _ (Extended PlutusData)) >>= case _ of
+      Finite a -> Finite <$> fromData a
+      NegInf -> pure NegInf
+      PosInf -> pure PosInf
 
 derive instance Generic (Extended a) _
 derive instance Eq a => Eq (Extended a)
@@ -349,14 +354,13 @@ instance (DecodeAeson a, Ord a, Ring a) => DecodeAeson (Interval a) where
     pure $ haskIntervalToInterval haskInterval
 
 instance (Arbitrary a, Ord a, Semiring a) => Arbitrary (Interval a) where
-  arbitrary = frequency $ wrap $
+  arbitrary = frequency $
     (0.25 /\ genFiniteInterval arbitrary)
-      :| (0.25 /\ genUpperRay arbitrary)
-        : (0.25 /\ genLowerRay arbitrary)
-        : (0.1 /\ genSingletonInterval)
-        : (0.075 /\ pure always)
-        : (0.075 /\ pure never)
-        : Nil
+      : (0.25 /\ genUpperRay arbitrary)
+      : (0.25 /\ genLowerRay arbitrary)
+      : (0.1 /\ genSingletonInterval)
+      : (0.075 /\ pure always)
+      : NEArray.singleton (0.075 /\ pure never)
 
 -- | those accept a generator since we want to use them
 -- | for Positive Integers in tests
@@ -647,7 +651,7 @@ instance EncodeAeson SlotToPosixTimeError where
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
       -- We assume the numbers are finite
-      [ unsafePartial partialFiniteNumber absTime ]
+      [ unsafePartial $ fromJust $ finiteNumber absTime ]
   encodeAeson CannotGetBigIntFromNumber = do
     encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
@@ -703,8 +707,8 @@ slotToPosixTime
   :: EraSummaries
   -> SystemStart
   -> Slot
-  -> Effect (Either SlotToPosixTimeError POSIXTime)
-slotToPosixTime eraSummaries sysStart slot = runExceptT do
+  -> Either SlotToPosixTimeError POSIXTime
+slotToPosixTime eraSummaries sysStart slot = runExcept do
   -- Find current era:
   currentEra <- liftEither $ findSlotEraSummary eraSummaries slot
   -- Convert absolute slot (relative to System start) to relative slot of era
@@ -853,14 +857,25 @@ data PosixTimeToSlotError
   | PosixTimeBeforeSystemStart POSIXTime
   | StartTimeGreaterThanTime AbsTime
   | EndSlotLessThanSlotOrModNonZero Slot ModTime
-  | CannotGetBigIntFromNumber'
-  | CannotGetBigNumFromBigInt'
 
 derive instance Generic PosixTimeToSlotError _
 derive instance Eq PosixTimeToSlotError
 
 instance Show PosixTimeToSlotError where
   show = genericShow
+
+explainPosixTimeToSlotError :: PosixTimeToSlotError -> String
+explainPosixTimeToSlotError = case _ of
+  CannotFindTimeInEraSummaries atime ->
+    "Time " <> show atime <> " is not in era summaries."
+  PosixTimeBeforeSystemStart t ->
+    "Time " <> show t <> " is before the system start."
+  StartTimeGreaterThanTime atime ->
+    "Time " <> show atime <> " is before the era start time."
+  EndSlotLessThanSlotOrModNonZero slot mtime ->
+    "Time is after the era end time. Calculated slot: " <> show slot
+      <> ", calculated residual time after end: "
+      <> show mtime
 
 posixTimeToSlotErrorStr :: String
 posixTimeToSlotErrorStr = "posixTimeToSlotError"
@@ -886,16 +901,6 @@ instance EncodeAeson PosixTimeToSlotError where
       posixTimeToSlotErrorStr
       "endSlotLessThanSlotOrModNonZero"
       [ encodeAeson slot, encodeAeson modTime ]
-  encodeAeson CannotGetBigIntFromNumber' =
-    encodeAeson $ mkErrorRecord
-      posixTimeToSlotErrorStr
-      "cannotGetBigIntFromNumber'"
-      aesonNull
-  encodeAeson CannotGetBigNumFromBigInt' =
-    encodeAeson $ mkErrorRecord
-      posixTimeToSlotErrorStr
-      "cannotGetBigNumFromBigInt'"
-      aesonNull
 
 instance DecodeAeson PosixTimeToSlotError where
   decodeAeson = aesonObject $ \o -> do
@@ -924,14 +929,6 @@ instance DecodeAeson PosixTimeToSlotError where
           (TypeMismatch "Could not extract second element")
           (index args 1)
         pure $ EndSlotLessThanSlotOrModNonZero as mt
-      "cannotGetBigIntFromNumber'" -> do
-        args <- getField o "args"
-        unless (isNull args) (throwError $ TypeMismatch "Non-empty args")
-        pure CannotGetBigIntFromNumber'
-      "cannotGetBigNumFromBigInt'" -> do
-        args <- getField o "args"
-        unless (isNull args) (throwError $ TypeMismatch "Non-empty args")
-        pure CannotGetBigNumFromBigInt'
       _ -> throwError $ TypeMismatch "Unknown error message"
 
 -- | Converts a `POSIXTime` to `Slot` given an `EraSummaries` and
@@ -940,10 +937,14 @@ posixTimeToSlot
   :: EraSummaries
   -> SystemStart
   -> POSIXTime
-  -> Effect (Either PosixTimeToSlotError Slot)
-posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
-  -- Get POSIX time for system start:
-  sysStartPosix <- liftM CannotGetBigIntFromNumber' $ sysStartUnixTime sysStart
+  -> Either PosixTimeToSlotError Slot
+posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExcept do
+  -- Get POSIX time for system start.
+  -- This is safe, as the only reason for sysStartUnixTime being partial is due
+  -- to a conversion from a Number, which may be an infinity or NaN in the
+  -- general case. However, we know that system time cannot be either of these
+  -- things.
+  let sysStartPosix = unsafePartial $ fromJust $ sysStartUnixTime sysStart
   -- Ensure the time we are converting is after the system start, otherwise
   -- we have negative slots.
   unless (sysStartPosix <= pt)
@@ -956,8 +957,7 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExceptT do
   -- Get relative time from absolute time w.r.t. current era
   relTime <- liftEither $ relTimeFromAbsTime currentEra absTime
   -- Convert to relative slot
-  relSlotMod <- liftM CannotGetBigIntFromNumber' $ relSlotFromRelTime currentEra
-    relTime
+  let relSlotMod = relSlotFromRelTime currentEra relTime
   -- Get absolute slot relative to system start
   liftEither $ slotFromRelSlot currentEra relSlotMod
 
@@ -989,25 +989,34 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
     (throwError $ StartTimeGreaterThanTime at)
   let
     relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
-  wrap <$>
-    ( note CannotGetBigIntFromNumber'
-        <<< BigInt.fromNumber
-        <<< Math.trunc
-    ) relTime
+  -- This conversion cannot fail: since 'relTime' is an offset from the start of
+  -- an era, we can't overflow the 64-bit limit.
+  let
+    relTimeBi = unsafePartial $ fromJust $ BigInt.fromNumber $ Math.trunc
+      relTime
+  pure $ wrap relTimeBi
 
--- | Converts relative time to relative slot (using Euclidean division) and
+-- | Converts relative time to a relative slot (using Euclidean division) and
 -- | modulus for any leftover.
 relSlotFromRelTime
-  :: EraSummary -> RelTime -> Maybe (RelSlot /\ ModTime)
+  :: EraSummary
+  -> RelTime
+  -> (RelSlot /\ ModTime)
 relSlotFromRelTime eraSummary (RelTime relTime) =
   let
     slotLength = getSlotLength eraSummary
-    relSlot = wrap <$>
-      (BigInt.fromNumber <<< Math.trunc) (BigInt.toNumber relTime / slotLength)
-    modTime = wrap <$>
-      BigInt.fromNumber (BigInt.toNumber relTime Math.% slotLength)
+    relTimeBn = BigInt.toNumber relTime
+    relSlot = relTimeBn / slotLength
+    modTime = relTimeBn Math.% slotLength
+  -- Both of these are safe: the conversion from Number to BigInt must be
+  -- partial to account for NaN and infinities, but we can't have either of
+  -- those here.
   in
-    (/\) <$> relSlot <*> modTime
+    (wrap $ toBigIntUnsafe $ Math.trunc $ relSlot) /\
+      (wrap $ toBigIntUnsafe modTime)
+  where
+  toBigIntUnsafe :: Number -> BigInt
+  toBigIntUnsafe x = unsafePartial $ fromJust $ BigInt.fromNumber x
 
 slotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
@@ -1027,7 +1036,9 @@ slotFromRelSlot
     endSlot = maybe (slot + one)
       (BigNum.toBigInt <<< unwrap <<< _.slot <<< unwrap)
       end
-  bnSlot <- liftM CannotGetBigNumFromBigInt' $ BigNum.fromBigInt slot
+  -- Slot numbers should convert without error: they're meant to be 64-bit
+  -- integers anyway.
+  let bnSlot = unsafePartial $ fromJust $ BigNum.fromBigInt slot
   -- Check we are less than the end slot, or if equal, there is no excess:
   unless (slot < endSlot || slot == endSlot && modTime == zero)
     (throwError $ EndSlotLessThanSlotOrModNonZero (wrap bnSlot) mt)
@@ -1057,12 +1068,11 @@ posixTimeRangeToSlotRange
   :: EraSummaries
   -> SystemStart
   -> POSIXTimeRange
-  -> Effect (Either PosixTimeToSlotError SlotRange)
+  -> Either PosixTimeToSlotError SlotRange
 posixTimeRangeToSlotRange
   eraSummaries
   sysStart
-  range = sequenceInterval <$>
-  sequenceInterval (posixTimeToSlot eraSummaries sysStart <$> range)
+  range = sequenceInterval (posixTimeToSlot eraSummaries sysStart <$> range)
 
 -- | Converts a `SlotRange` to `POSIXTimeRange` given an `EraSummaries` and
 -- | `SystemStart` queried from Ogmios.
@@ -1070,12 +1080,11 @@ slotRangeToPosixTimeRange
   :: EraSummaries
   -> SystemStart
   -> SlotRange
-  -> Effect (Either SlotToPosixTimeError POSIXTimeRange)
+  -> Either SlotToPosixTimeError POSIXTimeRange
 slotRangeToPosixTimeRange
   eraSummaries
   sysStart
-  range = sequenceInterval <$>
-  sequenceInterval (slotToPosixTime eraSummaries sysStart <$> range)
+  range = sequenceInterval (slotToPosixTime eraSummaries sysStart <$> range)
 
 type TransactionValiditySlot =
   { validityStartInterval :: Maybe Slot, timeToLive :: Maybe Slot }
@@ -1110,9 +1119,9 @@ posixTimeRangeToTransactionValidity
   :: EraSummaries
   -> SystemStart
   -> POSIXTimeRange
-  -> Effect (Either PosixTimeToSlotError TransactionValiditySlot)
+  -> Either PosixTimeToSlotError TransactionValiditySlot
 posixTimeRangeToTransactionValidity es ss =
-  map (map slotRangeToTransactionValidity) <<< posixTimeRangeToSlotRange es ss
+  map slotRangeToTransactionValidity <<< posixTimeRangeToSlotRange es ss
 
 data ToOnChainPosixTimeRangeError
   = PosixTimeToSlotError' PosixTimeToSlotError
@@ -1262,18 +1271,18 @@ toOnchainPosixTimeRange
   :: EraSummaries
   -> SystemStart
   -> POSIXTimeRange
-  -> Effect (Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange)
-toOnchainPosixTimeRange es ss ptr = runExceptT do
+  -> Either ToOnChainPosixTimeRangeError OnchainPOSIXTimeRange
+toOnchainPosixTimeRange es ss ptr = runExcept do
   { validityStartInterval, timeToLive } <-
-    ExceptT $ posixTimeRangeToTransactionValidity es ss ptr
-      <#> lmap PosixTimeToSlotError'
+    liftEither $ posixTimeRangeToTransactionValidity es ss ptr
+      # lmap PosixTimeToSlotError'
   case validityStartInterval, timeToLive of
     Nothing, Nothing -> liftEither $ Right $ wrap always
-    Just s, Nothing -> ExceptT $ slotToPosixTime es ss s
-      <#> bimap SlotToPosixTimeError' (from >>> wrap)
-    Nothing, Just s -> ExceptT $ slotToPosixTime es ss s
-      <#> bimap SlotToPosixTimeError' (to >>> wrap)
+    Just s, Nothing -> liftEither $ slotToPosixTime es ss s
+      # bimap SlotToPosixTimeError' (from >>> wrap)
+    Nothing, Just s -> liftEither $ slotToPosixTime es ss s
+      # bimap SlotToPosixTimeError' (to >>> wrap)
     Just s1, Just s2 -> do
-      t1 <- ExceptT $ slotToPosixTime es ss s1 <#> lmap SlotToPosixTimeError'
-      t2 <- ExceptT $ slotToPosixTime es ss s2 <#> lmap SlotToPosixTimeError'
+      t1 <- liftEither $ slotToPosixTime es ss s1 # lmap SlotToPosixTimeError'
+      t2 <- liftEither $ slotToPosixTime es ss s2 # lmap SlotToPosixTimeError'
       liftEither $ Right $ wrap $ mkFiniteInterval t1 t2

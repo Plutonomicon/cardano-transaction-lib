@@ -32,12 +32,12 @@ import Data.Maybe (Maybe)
 --------------------------------------------------------------------------------
 -- Conversion between various address types
 --------------------------------------------------------------------------------
--- JsonWsp.Address is a bech32 string, so wrap to Transaction.Types.Bech32
--- | Converts an `JsonWsp.Address` (bech32string) to internal `Address`
+-- JsonRpc2.Address is a bech32 string, so wrap to Transaction.Types.Bech32
+-- | Converts an `JsonRpc2.Address` (bech32string) to internal `Address`
 ogmiosAddressToAddress :: Ogmios.OgmiosAddress -> Maybe Address
 ogmiosAddressToAddress = addressFromBech32
 
--- | Converts an (internal) `Address` to `JsonWsp.Address` (bech32string)
+-- | Converts an (internal) `Address` to `JsonRpc2.Address` (bech32string)
 addressToOgmiosAddress :: Address -> Ogmios.OgmiosAddress
 addressToOgmiosAddress = addressBech32
 

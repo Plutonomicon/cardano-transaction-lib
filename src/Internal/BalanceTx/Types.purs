@@ -2,8 +2,6 @@ module Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , BalanceTxMContext
   , FinalizedTransaction(FinalizedTransaction)
-  , PrebalancedTransaction(PrebalancedTransaction)
-  , askCip30Wallet
   , askCoinsPerUtxoUnit
   , askCostModelsForLanguages
   , askNetworkId
@@ -23,29 +21,27 @@ import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints
   , BalanceTxConstraintsBuilder
   )
-import Ctl.Internal.BalanceTx.Constraints
-  ( buildBalanceTxConstraints
-  ) as Constraints
+import Ctl.Internal.BalanceTx.Constraints (buildBalanceTxConstraints) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
+import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Ctl.Internal.Serialization.Address (NetworkId)
+import Ctl.Internal.Serialization.Address as Csl
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.ScriptLookups (UnattachedUnbalancedTx)
 import Ctl.Internal.Types.Scripts (Language)
-import Ctl.Internal.Wallet (Cip30Wallet, cip30Wallet)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view)
 import Data.Map (filterKeys) as Map
-import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Set (Set)
-import Data.Set (member) as Set
+import Data.Set (fromFoldable, member) as Set
 import Data.Show.Generic (genericShow)
 
-type BalanceTxMContext = { constraints :: BalanceTxConstraints }
+type BalanceTxMContext =
+  { constraints :: BalanceTxConstraints, ownAddresses :: Set Csl.Address }
 
 type BalanceTxM (a :: Type) =
   ExceptT BalanceTxError (ReaderT BalanceTxMContext Contract) a
@@ -69,9 +65,6 @@ askCoinsPerUtxoUnit =
   asksContractEnv
     (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.ledgerConstants)
 
-askCip30Wallet :: BalanceTxM (Maybe Cip30Wallet)
-askCip30Wallet = asksContractEnv (cip30Wallet <=< _.wallet)
-
 askNetworkId :: BalanceTxM NetworkId
 askNetworkId = asksContractEnv _.networkId
 
@@ -80,8 +73,11 @@ withBalanceTxConstraints
    . BalanceTxConstraintsBuilder
   -> ReaderT BalanceTxMContext Contract a
   -> Contract a
-withBalanceTxConstraints constraintsBuilder =
-  flip runReaderT { constraints }
+withBalanceTxConstraints constraintsBuilder m = do
+  -- we can ignore failures due to reward addresses because reward addresses
+  -- do not receive transaction outputs from dApps
+  ownAddresses <- Set.fromFoldable <$> getWalletAddresses
+  flip runReaderT { constraints, ownAddresses } m
   where
   constraints :: BalanceTxConstraints
   constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
@@ -98,12 +94,4 @@ derive instance Newtype FinalizedTransaction _
 derive newtype instance Eq FinalizedTransaction
 
 instance Show FinalizedTransaction where
-  show = genericShow
-
-newtype PrebalancedTransaction = PrebalancedTransaction UnattachedUnbalancedTx
-
-derive instance Generic PrebalancedTransaction _
-derive instance Newtype PrebalancedTransaction _
-
-instance Show PrebalancedTransaction where
   show = genericShow

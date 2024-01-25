@@ -7,12 +7,13 @@ module Ctl.Internal.Test.E2E.Runner
 
 import Prelude
 
-import Affjax (defaultRequest, request) as Affjax
+import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
+import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
@@ -50,7 +51,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsRuntime
   , TmpDir
-  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt)
+  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt, LaceExt)
   , getE2EWalletExtension
   , mkE2ETest
   , mkExtensionId
@@ -63,6 +64,8 @@ import Ctl.Internal.Test.E2E.Wallets
   , flintSign
   , geroConfirmAccess
   , geroSign
+  , laceConfirmAccess
+  , laceSign
   , lodeConfirmAccess
   , lodeSign
   , namiConfirmAccess
@@ -78,7 +81,6 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
@@ -111,6 +113,7 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
@@ -125,8 +128,9 @@ import Node.ChildProcess
   )
 import Node.ChildProcess as ChildProcess
 import Node.Encoding as Encoding
-import Node.FS.Aff (exists, stat, writeFile)
+import Node.FS.Aff (stat, writeFile)
 import Node.FS.Stats (isDirectory)
+import Node.FS.Sync (exists)
 import Node.Path (FilePath, concat, dirname, relative)
 import Node.Process (lookupEnv)
 import Node.Stream (onDataString)
@@ -145,14 +149,12 @@ runE2ECommand = case _ of
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
     portOptions <- liftEffect $ readPorts testOptions
-    skipJQuery <- liftEffect $ readSkipJQuery testOptions.skipJQuery
     extraBrowserArgs <- liftEffect $ readExtraArgs testOptions.extraBrowserArgs
     let
       testOptions' = build (merge portOptions) $ testOptions
         { noHeadless = noHeadless
         , testTimeout = testTimeout
         , tests = tests
-        , skipJQuery = skipJQuery
         , extraBrowserArgs = extraBrowserArgs
         }
     runE2ETests testOptions' runtime
@@ -172,7 +174,7 @@ runE2ECommand = case _ of
 
 ensureDir :: FilePath -> Aff Unit
 ensureDir dir = do
-  dirExists <- exists dir
+  dirExists <- liftEffect $ exists dir
   unless dirExists $ do
     liftEffect $ log $ "Creating directory " <> dir
     void $ spawnAndCollectOutput "mkdir" [ "-p", dir ]
@@ -211,7 +213,11 @@ buildPlutipConfig options =
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.05 }
+      { slotLength: Seconds 0.05
+      , epochSize: Nothing
+      , maxTxSize: Nothing
+      , raiseExUnitsToMax: false
+      }
   }
 
 -- | Plutip does not generate private stake keys for us, so we make one and
@@ -229,11 +235,13 @@ testPlan
 testPlan opts@{ tests } rt@{ wallets } =
   group "E2E tests" do
     for_ tests \testEntry@{ specString } -> test specString $ case testEntry of
+      -- KeyWallet tests
       { url, wallet: NoWallet } -> do
         withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing \browser ->
           do
-            withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
+            withE2ETest true (wrap url) browser \{ page } -> do
               subscribeToTestStatusUpdates page
+      -- Plutip in E2E tests
       { url, wallet: PlutipCluster } -> do
         let
           distr = withStakeKey privateStakeKey
@@ -259,9 +267,10 @@ testPlan opts@{ tests } rt@{ wallets } =
               _ -> liftEffect $ throw "Unsupported backend"
             withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing
               \browser -> do
-                withE2ETest opts.skipJQuery (wrap url) browser \{ page } -> do
+                withE2ETest true (wrap url) browser \{ page } -> do
                   setClusterSetup page clusterSetup
                   subscribeToTestStatusUpdates page
+      -- E2E tests with a light wallet
       { url, wallet: WalletExtension wallet } -> do
         { password, extensionId } <- liftEffect
           $ liftMaybe
@@ -269,7 +278,7 @@ testPlan opts@{ tests } rt@{ wallets } =
           $ Map.lookup wallet wallets
         withBrowser opts.noHeadless opts.extraBrowserArgs rt (Just extensionId)
           \browser -> do
-            withE2ETest opts.skipJQuery (wrap url) browser \re@{ page } -> do
+            withE2ETest false (wrap url) browser \re@{ page } -> do
               let
                 confirmAccess =
                   case wallet of
@@ -278,6 +287,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     GeroExt -> geroConfirmAccess
                     LodeExt -> lodeConfirmAccess
                     NamiExt -> namiConfirmAccess
+                    LaceExt -> laceConfirmAccess
                 sign =
                   case wallet of
                     EternlExt -> eternlSign
@@ -285,6 +295,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     GeroExt -> geroSign
                     LodeExt -> lodeSign
                     NamiExt -> namiSign
+                    LaceExt -> laceSign
                 someWallet =
                   { wallet
                   , name: walletName wallet
@@ -303,8 +314,11 @@ testPlan opts@{ tests } rt@{ wallets } =
                       ConfirmAccess -> rethrow someWallet.confirmAccess
                       Sign -> rethrow someWallet.sign
                       Success -> pure unit
-                      Failure _ -> pure unit -- error raised directly inside `subscribeToBrowserEvents`
+                      -- error will be raised directly inside
+                      -- `subscribeToBrowserEvents`
+                      Failure _ -> pure unit
   where
+  -- A specialized version that does not deal with wallet automation
   subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
   subscribeToTestStatusUpdates page =
     subscribeToBrowserEvents page
@@ -345,7 +359,6 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "testTimeout")
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
-            <<< delete (Proxy :: Proxy "skipJQuery")
             <<< delete (Proxy :: Proxy "kupoPort")
         )
   readBrowserRuntime Nothing $ removeUnneeded testOptions
@@ -386,6 +399,7 @@ readExtensions wallets = do
   gero <- readExtensionParams "GERO" wallets
   lode <- readExtensionParams "LODE" wallets
   eternl <- readExtensionParams "ETERNL" wallets
+  lace <- readExtensionParams "LACE" wallets
 
   pure $ Map.fromFoldable $ catMaybes
     [ Tuple NamiExt <$> nami
@@ -393,6 +407,7 @@ readExtensions wallets = do
     , Tuple GeroExt <$> gero
     , Tuple LodeExt <$> lode
     , Tuple EternlExt <$> eternl
+    , Tuple LaceExt <$> lace
     ]
 
 -- | Read E2E test suite parameters from environment variables and CLI
@@ -556,16 +571,6 @@ retrieveJQuery = toAffE <<< _retrieveJQuery
 
 foreign import _retrieveJQuery :: Toppokki.Page -> Effect (Promise String)
 
-readSkipJQuery :: Boolean -> Effect Boolean
-readSkipJQuery true = pure true
-readSkipJQuery false = do
-  mbStr <- lookupEnv "E2E_SKIP_JQUERY_DOWNLOAD"
-  case mbStr of
-    Nothing -> pure false
-    Just str -> do
-      liftMaybe (error $ "Failed to read E2E_SKIP_JQUERY_DOWNLOAD: " <> str) $
-        readBoolean str
-
 readExtraArgs :: Array BrowserArg -> Effect (Array BrowserArg)
 readExtraArgs old = do
   mbStr <- lookupEnv "E2E_EXTRA_BROWSER_ARGS"
@@ -632,7 +637,7 @@ findSettingsArchive testOptions = do
       )
       pure $ testOptions.settingsArchive
 
-  doesExist <- exists settingsArchive
+  doesExist <- liftEffect $ exists settingsArchive
 
   unless doesExist $ do
     -- Download settings archive from URL if file does not exist
@@ -662,7 +667,7 @@ findChromeProfile testOptions = do
       )
       pure $ testOptions.chromeUserDataDir
 
-  doesExist <- exists chromeDataDir
+  doesExist <- liftEffect $ exists chromeDataDir
   unless doesExist $
     ensureChromeUserDataDir chromeDataDir
   isDir <- isDirectory <$> stat chromeDataDir
@@ -722,7 +727,7 @@ readExtensionParams extName wallets = do
     case crxFile, password, extensionId of
       Nothing, Nothing, Nothing -> pure Nothing
       Just crx, Just pwd, Just extId -> do
-        doesExist <- exists crx
+        doesExist <- liftEffect $ exists crx
         unless doesExist $ do
           -- Download from specified URL if crx file does not exist
           crxFileUrl <-
@@ -756,7 +761,7 @@ packSettings :: SettingsArchive -> ChromeUserDataDir -> Aff Unit
 packSettings settingsArchive userDataDir = do
   -- Passing a non-existent directory to tar will error,
   -- but we can't rely on the existence of these directories.
-  paths <- filterExistingPaths userDataDir
+  paths <- liftEffect $ filterExistingPaths userDataDir
     [ "./Default/IndexedDB/"
     , "./Default/Local Storage/"
     , "./Default/Extension State"
@@ -783,7 +788,7 @@ packSettings settingsArchive userDataDir = do
         defaultErrorReader
 
 -- | Filter out non-existing paths, relative to the given directory
-filterExistingPaths :: FilePath -> Array FilePath -> Aff (Array FilePath)
+filterExistingPaths :: FilePath -> Array FilePath -> Effect (Array FilePath)
 filterExistingPaths base paths = do
   catMaybes <$> for paths \path -> do
     exists (concat [ base, path ]) >>= case _ of
@@ -931,3 +936,4 @@ walletName = case _ of
   GeroExt -> "gero"
   LodeExt -> "lode"
   NamiExt -> "nami"
+  LaceExt -> "lace"

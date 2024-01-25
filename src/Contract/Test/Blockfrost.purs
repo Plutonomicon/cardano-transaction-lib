@@ -19,13 +19,19 @@ import Contract.Config
   )
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Control.Monad.Error.Class (liftMaybe)
+import Ctl.Internal.ServerConfig (defaultKupoServerConfig)
 import Ctl.Internal.Test.ContractTest (ContractTest)
 import Ctl.Internal.Test.E2E.Runner (readBoolean)
 import Ctl.Internal.Test.KeyDir (runContractTestsWithKeyDir)
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing, maybe)
+import Data.Array (any)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust, isNothing, maybe)
 import Data.Newtype (unwrap)
 import Data.Number as Number
+import Data.String (joinWith)
 import Data.Time.Duration (Seconds(Seconds))
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -104,20 +110,11 @@ runContractTestsWithBlockfrost
 executeContractTestsWithBlockfrost
   :: Config
   -> ContractParams
-  -> Maybe CtlBackendParams
   -> TestPlanM ContractTest Unit
   -> Aff Unit
-executeContractTestsWithBlockfrost
-  testConfig
-  contractParams
-  mbCtlBackendParams
-  suite = do
+executeContractTestsWithBlockfrost testConfig contractParams suite = do
   blockfrostApiKey <- liftEffect $
     lookupEnv "BLOCKFROST_API_KEY" <#> notEmptyString
-  when (isNothing blockfrostApiKey) do
-    liftEffect $ Console.warn $
-      "Warning: BLOCKFROST_API_KEY is not set. " <>
-        "If you are using a public instance, the tests will fail"
   privatePaymentKeyFile <-
     getEnvVariable "PRIVATE_PAYMENT_KEY_FILE"
       "Please specify a payment key file"
@@ -134,7 +131,12 @@ executeContractTestsWithBlockfrost
         <> "s."
   testKeysDirectory <- getEnvVariable "BACKUP_KEYS_DIR"
     "Please specify a directory to store temporary private keys in"
-  blockfrostConfig <- liftEffect $ readBlockfrostServerConfig
+  blockfrostConfig /\ mbOgmiosConfig <-
+    liftEffect $ readBlockfrostServerConfigs
+  when (isNothing blockfrostApiKey && isNothing mbOgmiosConfig) do
+    liftEffect $ Console.warn $
+      "Warning: BLOCKFROST_API_KEY is not set. " <>
+        "If you are using a public instance, the tests will fail"
   let
     backendParams =
       { blockfrostConfig
@@ -143,7 +145,11 @@ executeContractTestsWithBlockfrost
       }
   interpretWithConfig testConfig $
     runContractTestsWithBlockfrost contractParams backendParams
-      mbCtlBackendParams
+      ( mbOgmiosConfig <#> \ogmiosConfig ->
+          { ogmiosConfig: ogmiosConfig
+          , kupoConfig: defaultKupoServerConfig -- will never be used
+          }
+      )
       { privateKeySources:
           { payment: PrivatePaymentKeyFile privatePaymentKeyFile
           , stake: PrivateStakeKeyFile <$> mbPrivateStakeKeyFile
@@ -159,13 +165,6 @@ executeContractTestsWithBlockfrost
       Just result -> pure result
     pure res
 
-  -- Treat env variables set to "" as empty
-  notEmptyString :: Maybe String -> Maybe String
-  notEmptyString =
-    case _ of
-      Just "" -> Nothing
-      other -> other
-
   parseConfirmationDelay :: Maybe String -> Effect (Maybe Seconds)
   parseConfirmationDelay =
     notEmptyString >>> maybe (pure Nothing) \str ->
@@ -174,18 +173,67 @@ executeContractTestsWithBlockfrost
           "TX_CONFIRMATION_DELAY_SECONDS must be set to a valid number"
         Just number -> pure $ Just $ Seconds number
 
-readBlockfrostServerConfig :: Effect ServerConfig
-readBlockfrostServerConfig = do
-  port <- lookupEnv "BLOCKFROST_PORT" >>= \mbPort ->
-    liftMaybe (error "Unable to read BLOCKFROST_PORT environment variable")
-      (mbPort >>= UInt.fromString)
-  host <- lookupEnv "BLOCKFROST_HOST" >>=
-    liftMaybe (error "Unable to read BLOCKFROST_HOST")
-  secure <- lookupEnv "BLOCKFROST_SECURE" >>= \mbSecure ->
+readBlockfrostServerConfigs :: Effect (ServerConfig /\ Maybe ServerConfig)
+readBlockfrostServerConfigs =
+  Tuple <$> readServerConfig "BLOCKFROST" <*> readServerConfigMaybe "OGMIOS"
+
+readServerConfig :: String -> Effect ServerConfig
+readServerConfig service = do
+  port <- lookupEnv (service <> "_PORT") >>= \mbPort ->
     liftMaybe
-      ( error
-          "Unable to read BLOCKFROST_SECURE ('true' - use HTTPS, 'false' - use HTTP)"
+      (error $ "Unable to read " <> service <> "_PORT environment variable")
+      (mbPort >>= UInt.fromString)
+  host <- lookupEnv (service <> "_HOST") >>=
+    liftMaybe (error $ "Unable to read " <> service <> "_HOST")
+  secure <- lookupEnv (service <> "_SECURE") >>= \mbSecure ->
+    liftMaybe
+      ( error $
+          "Unable to read " <> service <>
+            "_SECURE ('true' - use HTTPS, 'false' - use HTTP)"
       )
       (mbSecure >>= readBoolean)
-  path <- lookupEnv "BLOCKFROST_PATH"
+  path <- lookupEnv $ service <> "_PATH"
   pure { port, host, secure, path }
+
+readServerConfigMaybe :: String -> Effect (Maybe ServerConfig)
+readServerConfigMaybe service = do
+  mbPort <- (lookupEnv (service <> "_PORT") <#> notEmptyString) >>= traverse
+    \port ->
+      liftMaybe
+        (error $ "Unable to read " <> service <> "_PORT environment variable")
+        (UInt.fromString port)
+  mbHost <- lookupEnv (service <> "_HOST") <#> notEmptyString
+  mbSecure <- lookupEnv (service <> "_SECURE") >>= traverse \secure ->
+    liftMaybe
+      ( error $
+          "Unable to read " <> service <>
+            "_SECURE ('true' - use HTTPS, 'false' - use HTTP)"
+      )
+      (readBoolean secure)
+  mbPath <- lookupEnv (service <> "_PATH")
+  let
+    vars = [ void mbPort, void mbHost, void mbSecure, void mbPath ]
+  when (any isJust vars && any isNothing vars) do
+    liftEffect $ throw $ forgotSomethingError
+  pure $ do
+    port <- mbPort
+    host <- mbHost
+    secure <- mbSecure
+    pure { port, host, secure, path: mbPath }
+  where
+  forgotSomethingError =
+    "All of "
+      <> joinWith ", "
+        [ service <> "_HOST"
+        , service <> "_PORT"
+        , service <> "_SECURE"
+        , service <> "_PATH"
+        ]
+      <> " must be provided!"
+
+-- | Treat env variables set to "" as empty
+notEmptyString :: Maybe String -> Maybe String
+notEmptyString =
+  case _ of
+    Just "" -> Nothing
+    other -> other

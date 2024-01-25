@@ -7,16 +7,13 @@ import Prelude
 
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
   , getNetworkId
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   )
 import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Credential (Credential(ScriptCredential))
 import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
 import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftedE, liftedM)
+import Contract.Monad (Contract, liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
@@ -36,6 +33,7 @@ import Contract.Staking
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
+import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip (runPlutipContract, withStakeKey)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getCurrentEpoch)
@@ -65,15 +63,18 @@ import Contract.TxConstraints
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
   )
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (lovelaceValueOf)
-import Contract.Wallet (withKeyWallet)
+import Contract.Wallet
+  ( ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.IncludeDatum (only42Script)
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Data.Array (head, (!!))
 import Data.Array as Array
-import Data.BigInt as BigInt
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
@@ -94,7 +95,8 @@ import Effect.Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import Mote (group, test)
+import JS.BigInt as BigInt
+import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config) as Common
 import Test.Ctl.Plutip.Common (privateStakeKey)
@@ -141,36 +143,36 @@ suite = do
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*>
                 liftedM "Failed to get Stake PKH"
-                  (join <<< head <$> ownStakePubKeysHashes)
+                  (join <<< head <$> ownStakePubKeyHashes)
 
           -- Register
           do
             let
               constraints = mustRegisterStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Deregister stake key
           do
             let
               constraints = mustDeregisterStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
       test "PlutusScript" do
         let
@@ -181,10 +183,10 @@ suite = do
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*>
                 liftedM "Failed to get Stake PKH"
-                  (join <<< head <$> ownStakePubKeysHashes)
+                  (join <<< head <$> ownStakePubKeyHashes)
           validator1 <- alwaysSucceedsScript <#> unwrap >>>
             PlutusScriptStakeValidator
           validator2 <- only42Script <#> unwrap >>>
@@ -196,16 +198,16 @@ suite = do
           -- Register
           do
             let
-              constraints = mustRegisterStakeScript validatorHash1 <>
-                mustRegisterStakeScript validatorHash2
+              constraints = mustRegisterStakeScript validatorHash1
+                <> mustRegisterStakeScript validatorHash2
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Deregister stake key
           do
@@ -216,13 +218,13 @@ suite = do
                   <> mustDeregisterStakePlutusScript validator2
                     unitRedeemer
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
       test "NativeScript" do
         let
@@ -233,10 +235,10 @@ suite = do
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
-              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*>
                 liftedM "Failed to get Stake PKH"
-                  (join <<< head <$> ownStakePubKeysHashes)
+                  (join <<< head <$> ownStakePubKeyHashes)
           let
             nativeScript = ScriptAny
               [ ScriptPubkey $ unwrap $ unwrap alicePkh ]
@@ -249,26 +251,26 @@ suite = do
             let
               constraints = mustRegisterStakeScript stakeValidatorHash
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Deregister stake key
           do
             let
               constraints = mustDeregisterStakeNativeScript validator
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
     test "Pool registration & retirement" do
       let
@@ -278,22 +280,22 @@ suite = do
           ]
       runPlutipContract config distribution \alice -> withKeyWallet alice do
         alicePkh /\ aliceStakePkh <- Tuple
-          <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+          <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
           <*> liftedM "Failed to get Stake PKH"
-            (join <<< head <$> ownStakePubKeysHashes)
+            (join <<< head <$> ownStakePubKeyHashes)
 
         -- Register stake key
         do
           let
             constraints = mustRegisterStakePubKey aliceStakePkh
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+          ubTx <- mkUnbalancedTx lookups constraints
+          balanceTx ubTx >>= signTransaction >>= submitAndLog
 
         privateStakeKey <- liftM (error "Failed to get private stake key") $
           keyWalletPrivateStakeKey alice
@@ -326,7 +328,7 @@ suite = do
                   }
               , rewardAccount
               , poolOwners:
-                  [ PaymentPubKeyHash $ PubKeyHash $ publicKeyHash $
+                  [ PaymentPubKeyHash $ publicKeyHash $
                       publicKeyFromPrivateKey
                         (unwrap privateStakeKey)
                   ]
@@ -336,13 +338,13 @@ suite = do
 
             constraints = mustRegisterPool poolParams
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+          ubTx <- mkUnbalancedTx lookups constraints
+          balanceTx ubTx >>= signTransaction >>= submitAndLog
 
         -- List pools: the pool must appear in the list
         do
@@ -363,13 +365,13 @@ suite = do
           let
             constraints = mustRetirePool poolOperator retirementEpoch
 
-            lookups :: Lookups.ScriptLookups Void
+            lookups :: Lookups.ScriptLookups
             lookups =
               Lookups.ownPaymentPubKeyHash alicePkh <>
                 Lookups.ownStakePubKeyHash aliceStakePkh
 
-          ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-          liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+          ubTx <- mkUnbalancedTx lookups constraints
+          balanceTx ubTx >>= signTransaction >>= submitAndLog
 
         let
           waitEpoch :: Epoch -> Contract Epoch
@@ -387,226 +389,232 @@ suite = do
           pools <- getPoolIds
           pools `shouldSatisfy` Array.notElem poolOperator
 
-    test "Plutus Stake script: delegate to existing pool & withdraw rewards" do
-      let
-        distribution = withStakeKey privateStakeKey
-          [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
-          ]
-      runPlutipContract config distribution \alice ->
-        withKeyWallet alice do
-          alicePkh /\ aliceStakePkh <- Tuple
-            <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
-            <*> liftedM "Failed to get Stake PKH"
-              (join <<< head <$> ownStakePubKeysHashes)
-          validator <- alwaysSucceedsScript <#> unwrap >>>
-            PlutusScriptStakeValidator
-          let
-            stakeValidatorHash = plutusScriptStakeValidatorHash validator
-            validatorHash = ValidatorHash $ unwrap stakeValidatorHash
-
-          -- Lock funds on the stake script
-          do
-            let
-              constraints =
-                mustPayToScriptAddress validatorHash
-                  (ScriptCredential validatorHash)
-                  unitDatum
-                  DatumWitness
-                  $ lovelaceValueOf
-                  $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
-
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
-
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
-
-          -- Register stake script
-          do
-            let
-              constraints =
-                mustRegisterStakeScript stakeValidatorHash
-
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
-
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
-
-          -- Select a pool
-          poolId <- selectPoolId
-
-          -- Delegate
-          do
-            let
-              constraints =
-                mustDelegateStakePlutusScript validator unitRedeemer poolId
-
-              lookups :: Lookups.ScriptLookups Void
-              lookups =
-                Lookups.ownPaymentPubKeyHash alicePkh <>
-                  Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
-
-          -- Wait until rewards
-          let
-            -- No need for limit on number of retries, because we have a
-            -- timeout for tests.
-            waitUntilRewards = do
-              mbDelegationsAndRewards <-
-                getValidatorHashDelegationsAndRewards stakeValidatorHash
-              case mbDelegationsAndRewards of
-                Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
-                  pure dels
-                _ -> do
-                  liftAff $ delay $ Milliseconds 5000.0
-                  waitUntilRewards
-
-          { rewards: rewardsBefore, delegate } <- waitUntilRewards
-          delegate `shouldEqual` Just poolId
-
-          -- Withdraw
-          do
-            let
-              constraints =
-                mustWithdrawStakePlutusScript validator unitRedeemer
-
-              lookups :: Lookups.ScriptLookups Void
-              lookups =
-                Lookups.ownPaymentPubKeyHash alicePkh <>
-                  Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
-
-          -- Check rewards.
-          -- Not going to deregister here, because the rewards are added too
-          -- soon, and we can't deregister the stake key if there are rewards
-          -- left.
-          -- This will not happen in real life scenarios, because epoch are
-          -- (usually) significantly longer.
-          do
-            { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
-              getValidatorHashDelegationsAndRewards stakeValidatorHash
-            rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
-
-    test "Native Stake script: delegate to existing pool & withdraw rewards" do
-      let
-        distribution =
-          [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
-          ] /\
-            withStakeKey privateStakeKey
-              [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-              , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
-              ]
-      runPlutipContract config distribution \(alice /\ bob) -> do
-        bobPkh /\ bobStakePkh <- withKeyWallet bob do
-          Tuple
-            <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
-            <*> liftedM "Failed to get Stake PKH"
-              (join <<< head <$> ownStakePubKeysHashes)
+    skip $ test
+      "Plutus Stake script: delegate to existing pool & withdraw rewards"
+      do
         let
-          nativeScript = ScriptAny
-            [ ScriptPubkey $ unwrap $ unwrap bobStakePkh ]
-          validator = NativeScriptStakeValidator nativeScript
-          stakeValidatorHash =
-            nativeScriptStakeValidatorHash validator
-
-        -- Alice
-        withKeyWallet alice do
-          -- She locks funds on the stake script (no need for her to validate
-          -- the script in order to do that)
-          do
+          distribution = withStakeKey privateStakeKey
+            [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+            ]
+        runPlutipContract config distribution \alice ->
+          withKeyWallet alice do
+            alicePkh /\ aliceStakePkh <- Tuple
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
+              <*> liftedM "Failed to get Stake PKH"
+                (join <<< head <$> ownStakePubKeyHashes)
+            validator <- alwaysSucceedsScript <#> unwrap >>>
+              PlutusScriptStakeValidator
             let
-              constraints =
-                mustPayToNativeScriptAddress
-                  (NativeScriptHash $ unwrap stakeValidatorHash)
-                  (ScriptCredential $ ValidatorHash $ unwrap stakeValidatorHash)
-                  $ lovelaceValueOf
-                  $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
+              stakeValidatorHash = plutusScriptStakeValidatorHash validator
+              validatorHash = ValidatorHash $ unwrap stakeValidatorHash
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
+            -- Lock funds on the stake script
+            do
+              let
+                constraints =
+                  mustPayToScriptAddress validatorHash
+                    (ScriptCredential validatorHash)
+                    unitDatum
+                    DatumWitness
+                    $ lovelaceValueOf
+                    $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+                lookups :: Lookups.ScriptLookups
+                lookups = mempty
 
-          -- Alice registers stake script (again, no need to validate it)
-          do
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+            -- Register stake script
+            do
+              let
+                constraints =
+                  mustRegisterStakeScript stakeValidatorHash
+
+                lookups :: Lookups.ScriptLookups
+                lookups = mempty
+
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+            -- Select a pool
+            poolId <- selectPoolId
+
+            -- Delegate
+            do
+              let
+                constraints =
+                  mustDelegateStakePlutusScript validator unitRedeemer poolId
+
+                lookups :: Lookups.ScriptLookups
+                lookups =
+                  Lookups.ownPaymentPubKeyHash alicePkh <>
+                    Lookups.ownStakePubKeyHash aliceStakePkh
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+            -- Wait until rewards
             let
-              constraints =
-                mustRegisterStakeScript stakeValidatorHash
+              -- No need for limit on number of retries, because we have a
+              -- timeout for tests.
+              waitUntilRewards = do
+                mbDelegationsAndRewards <-
+                  getValidatorHashDelegationsAndRewards stakeValidatorHash
+                case mbDelegationsAndRewards of
+                  Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
+                    pure dels
+                  _ -> do
+                    liftAff $ delay $ Milliseconds 5000.0
+                    waitUntilRewards
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups = mempty
+            { rewards: rewardsBefore, delegate } <- waitUntilRewards
+            delegate `shouldEqual` Just poolId
 
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            -- Withdraw
+            do
+              let
+                constraints =
+                  mustWithdrawStakePlutusScript validator unitRedeemer
 
-        -- Bob performs operations with the stake script that require his
-        -- (and only his) signature.
-        withKeyWallet bob do
+                lookups :: Lookups.ScriptLookups
+                lookups =
+                  Lookups.ownPaymentPubKeyHash alicePkh <>
+                    Lookups.ownStakePubKeyHash aliceStakePkh
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
 
-          -- Select first pool
-          poolId <- selectPoolId
-
-          -- Delegate
-          do
-            let
-              constraints =
-                mustDelegateStakeNativeScript validator poolId
-
-              lookups :: Lookups.ScriptLookups Void
-              lookups =
-                Lookups.ownPaymentPubKeyHash bobPkh <>
-                  Lookups.ownStakePubKeyHash bobStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
-
-          -- Wait until rewards
-          let
-            -- No need for limit on number of retries, because we have a
-            -- timeout for tests.
-            waitUntilRewards = do
-              mbDelegationsAndRewards <-
+            -- Check rewards.
+            -- Not going to deregister here, because the rewards are added too
+            -- soon, and we can't deregister the stake key if there are rewards
+            -- left.
+            -- This will not happen in real life scenarios, because epoch are
+            -- (usually) significantly longer.
+            do
+              { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
                 getValidatorHashDelegationsAndRewards stakeValidatorHash
-              case mbDelegationsAndRewards of
-                Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
-                  pure dels
-                _ -> do
-                  liftAff $ delay $ Milliseconds 5000.0
-                  waitUntilRewards
+              rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
 
-          { rewards: rewardsBefore, delegate } <- waitUntilRewards
-          delegate `shouldEqual` Just poolId
+    skip $ test
+      "Native Stake script: delegate to existing pool & withdraw rewards"
+      do
+        let
+          distribution =
+            [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
+            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+            ] /\
+              withStakeKey privateStakeKey
+                [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
+                , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+                ]
+        runPlutipContract config distribution \(alice /\ bob) -> do
+          bobPkh /\ bobStakePkh <- withKeyWallet bob do
+            Tuple
+              <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
+              <*> liftedM "Failed to get Stake PKH"
+                (join <<< head <$> ownStakePubKeyHashes)
+          let
+            nativeScript = ScriptAny
+              [ ScriptPubkey $ unwrap $ unwrap bobStakePkh ]
+            validator = NativeScriptStakeValidator nativeScript
+            stakeValidatorHash =
+              nativeScriptStakeValidatorHash validator
 
-          -- Withdraw
-          do
+          -- Alice
+          withKeyWallet alice do
+            -- She locks funds on the stake script (no need for her to validate
+            -- the script in order to do that)
+            do
+              let
+                constraints =
+                  mustPayToNativeScriptAddress
+                    (NativeScriptHash $ unwrap stakeValidatorHash)
+                    ( ScriptCredential $ ValidatorHash $ unwrap
+                        stakeValidatorHash
+                    )
+                    $ lovelaceValueOf
+                    $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
+
+                lookups :: Lookups.ScriptLookups
+                lookups = mempty
+
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+            -- Alice registers stake script (again, no need to validate it)
+            do
+              let
+                constraints =
+                  mustRegisterStakeScript stakeValidatorHash
+
+                lookups :: Lookups.ScriptLookups
+                lookups = mempty
+
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+          -- Bob performs operations with the stake script that require his
+          -- (and only his) signature.
+          withKeyWallet bob do
+
+            -- Select first pool
+            poolId <- selectPoolId
+
+            -- Delegate
+            do
+              let
+                constraints =
+                  mustDelegateStakeNativeScript validator poolId
+
+                lookups :: Lookups.ScriptLookups
+                lookups =
+                  Lookups.ownPaymentPubKeyHash bobPkh <>
+                    Lookups.ownStakePubKeyHash bobStakePkh
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+            -- Wait until rewards
             let
-              constraints =
-                mustWithdrawStakeNativeScript validator
+              -- No need for limit on number of retries, because we have a
+              -- timeout for tests.
+              waitUntilRewards = do
+                mbDelegationsAndRewards <-
+                  getValidatorHashDelegationsAndRewards stakeValidatorHash
+                case mbDelegationsAndRewards of
+                  Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
+                    pure dels
+                  _ -> do
+                    liftAff $ delay $ Milliseconds 5000.0
+                    waitUntilRewards
 
-              lookups :: Lookups.ScriptLookups Void
-              lookups =
-                Lookups.ownPaymentPubKeyHash bobPkh <>
-                  Lookups.ownStakePubKeyHash bobStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            { rewards: rewardsBefore, delegate } <- waitUntilRewards
+            delegate `shouldEqual` Just poolId
 
-          -- Check rewards.
-          -- Not going to deregister here, because the rewards are added too
-          -- soon, and we can't deregister the stake key if there are rewards
-          -- left.
-          -- This will not happen in real life scenarios, because epoch are
-          -- (usually) significantly longer.
-          do
-            { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
-              getValidatorHashDelegationsAndRewards stakeValidatorHash
-            rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
+            -- Withdraw
+            do
+              let
+                constraints =
+                  mustWithdrawStakeNativeScript validator
 
-    test "PubKey: delegate to existing pool & withdraw rewards" do
+                lookups :: Lookups.ScriptLookups
+                lookups =
+                  Lookups.ownPaymentPubKeyHash bobPkh <>
+                    Lookups.ownStakePubKeyHash bobStakePkh
+              ubTx <- mkUnbalancedTx lookups constraints
+              balanceTx ubTx >>= signTransaction >>= submitAndLog
+
+            -- Check rewards.
+            -- Not going to deregister here, because the rewards are added too
+            -- soon, and we can't deregister the stake key if there are rewards
+            -- left.
+            -- This will not happen in real life scenarios, because epoch are
+            -- (usually) significantly longer.
+            do
+              { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
+                getValidatorHashDelegationsAndRewards stakeValidatorHash
+              rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
+
+    skip $ test "PubKey: delegate to existing pool & withdraw rewards" do
       let
         distribution = withStakeKey privateStakeKey
           [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
@@ -615,21 +623,21 @@ suite = do
       runPlutipContract config distribution \alice ->
         withKeyWallet alice do
           alicePkh /\ aliceStakePkh <- Tuple
-            <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeysHashes)
+            <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
             <*> liftedM "Failed to get Stake PKH"
-              (join <<< head <$> ownStakePubKeysHashes)
+              (join <<< head <$> ownStakePubKeyHashes)
 
           -- Register stake key
           do
             let
               constraints = mustRegisterStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Select a pool ID
           poolId <- selectPoolId
@@ -640,12 +648,12 @@ suite = do
               constraints =
                 mustDelegateStakePubKey aliceStakePkh poolId
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Wait until rewards
           let
@@ -673,12 +681,12 @@ suite = do
               constraints =
                 mustWithdrawStakePubKey aliceStakePkh
 
-              lookups :: Lookups.ScriptLookups Void
+              lookups :: Lookups.ScriptLookups
               lookups =
                 Lookups.ownPaymentPubKeyHash alicePkh <>
                   Lookups.ownStakePubKeyHash aliceStakePkh
-            ubTx <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-            liftedE (balanceTx ubTx) >>= signTransaction >>= submitAndLog
+            ubTx <- mkUnbalancedTx lookups constraints
+            balanceTx ubTx >>= signTransaction >>= submitAndLog
 
           -- Check rewards.
           -- Not going to deregister here, because the rewards are added too
@@ -692,4 +700,13 @@ suite = do
                 $ getPubKeyHashDelegationsAndRewards aliceStakePkh
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
   where
-  config = Common.config { clusterConfig = { slotLength: Seconds 0.05 } }
+  config =
+    Common.config
+      { clusterConfig =
+          Common.config.clusterConfig
+            -- changing these constants breaks rewards
+            -- https://github.com/mlabs-haskell/plutip/issues/149
+            { slotLength = Seconds 0.05
+            , epochSize = Just $ UInt.fromInt 80
+            }
+      }

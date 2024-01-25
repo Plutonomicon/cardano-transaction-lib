@@ -10,9 +10,6 @@ import Contract.Prelude
 import Contract.Address
   ( PaymentPubKeyHash
   , StakePubKeyHash
-  , getWalletAddresses
-  , ownPaymentPubKeysHashes
-  , ownStakePubKeysHashes
   , scriptHashAddress
   )
 import Contract.Config (ContractParams, testnetNamiConfig)
@@ -24,7 +21,7 @@ import Contract.Monad
   , liftedM
   , runContract
   )
-import Contract.PlutusData (PlutusData, unitDatum, unitRedeemer)
+import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( MintingPolicy(PlutusMintingPolicy)
@@ -53,6 +50,11 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value as Value
+import Contract.Wallet
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Ctl.Examples.Helpers (mkTokenName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
   ( alwaysMintsPolicyScriptV2
@@ -60,8 +62,8 @@ import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
   )
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
-import Data.BigInt (fromInt) as BigInt
 import Data.Map (toUnfoldable) as Map
+import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -96,23 +98,23 @@ contract = do
 payToAlwaysSucceedsAndCreateScriptRefOutput
   :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
-  skh <- join <<< head <$> ownStakePubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  skh <- join <<< head <$> ownStakePubKeyHashes
   let
     value :: Value
     value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
 
-    createOutputWithScriptRef :: ScriptRef -> TxConstraints Unit Unit
+    createOutputWithScriptRef :: ScriptRef -> TxConstraints
     createOutputWithScriptRef scriptRef =
       mustPayToPubKeyStakeAddressWithScriptRef pkh skh scriptRef value
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash unitDatum DatumWitness value
         <> createOutputWithScriptRef validatorRef
         <> createOutputWithScriptRef mpRef
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -147,7 +149,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
     mph :: MintingPolicyHash
     mph = mintingPolicyHash (PlutusMintingPolicy mp)
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints = mconcat
       [ Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
           (RefInput $ mkTxUnspentOut refValidatorInput refValidatorOutput)
@@ -156,7 +158,7 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
           (RefInput $ mkTxUnspentOut refMpInput refMpOutput)
       ]
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.unspentOutputs scriptAddressUtxos
 
   spendTxId <- submitTxFromConstraints lookups constraints
@@ -178,7 +180,7 @@ mustPayToPubKeyStakeAddressWithScriptRef
   -> Maybe StakePubKeyHash
   -> ScriptRef
   -> Value
-  -> TxConstraints i o
+  -> TxConstraints
 mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing =
   Constraints.mustPayToPubKeyWithScriptRef pkh
 mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
@@ -188,12 +190,12 @@ mintAlwaysMintsV2ToTheScript
   :: TokenName -> Validator -> Int -> Contract Unit
 mintAlwaysMintsV2ToTheScript tokenName validator sum = do
   mp <- alwaysMintsPolicyV2
-  cs <- liftContractM "Cannot get cs" $ Value.scriptCurrencySymbol mp
+  let cs = Value.scriptCurrencySymbol mp
 
   let
     vhash = validatorHash validator
 
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = mconcat
       [ Constraints.mustMintValue
           $ Value.singleton cs tokenName
@@ -203,7 +205,7 @@ mintAlwaysMintsV2ToTheScript tokenName validator sum = do
           $ BigInt.fromInt sum
       ]
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.mintingPolicy mp
 
   txHash <- submitTxFromConstraints lookups constraints

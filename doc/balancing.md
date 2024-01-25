@@ -4,6 +4,8 @@
 - [Configuring balancing process](#configuring-balancing-process)
   - [Balancer constraints](#balancer-constraints)
   - [Concurrent spending](#concurrent-spending)
+  - [Balancing a Tx for other wallet](#balancing-a-tx-for-other-wallet)
+  - [Synchronization](#synchronization)
   - [Balancing process limitations](#balancing-process-limitations)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -16,16 +18,26 @@ Transaction balancing in Cardano is the process of finding a set of inputs and o
 
 CTL allows tweaking the default balancer behavior by letting the user impose constraints on the UTxO set that is used in the process (`balanceTxWithConstraints`):
 
-- providing additional UTxOs to use: `mustUseUtxosAtAddresses` / `mustUseUtxosAtAddress` / `mustUseAdditionalUtxos`
-- overriding change address: `mustSendChangeToAddress`
-- prevent certain UTxOs from being spent: `mustNotSpendUtxosWithOutRefs` / `mustNotSpendUtxoWithOutRef`
-- distribute token outputs equally between change UTxOs: `mustGenChangeOutsWithMaxTokenQuantity`
+- Using arbitrary address as user's own (for transaction balancing): `mustUseUtxosAtAddresses` / `mustUseUtxosAtAddress`
+- Providing additional UTxOs to use: `mustUseAdditionalUtxos`
+- Bypassing wallet's collateral selection and selecting collateral UTxOs from a given set: `mustUseCollateralUtxos`
+- Overriding change address: `mustSendChangeToAddress`
+- Preventing certain UTxOs from being spent: `mustNotSpendUtxosWithOutRefs` / `mustNotSpendUtxoWithOutRef`
+- Distributing token outputs equally between change UTxOs: `mustGenChangeOutsWithMaxTokenQuantity`
 
 ## Concurrent spending
 
-Attempting to spend UTxOs concurrently leads to some of the transactions being rejected. To ensure that no concurrent spending is happening, CTL uses it's own UTxO locking machinery. `balanceTxs` and `balanceTxsWithConstraints` functions can be used to construct multiple transactions at once, ensuring that the sets of inputs do not intersect.
+Attempting to spend UTxOs concurrently leads to some of the transactions being rejected. To ensure that no concurrent spending is happening, CTL uses it's own UTxO locking machinery. `balanceTxs` or `balanceTxsWithConstraints` can be used to construct multiple transactions at once, ensuring that the sets of inputs do not intersect.
 
 Obviously, the number of available UTxOs must be greater than the number of transactions. CTL will throw an exception if it's not the case.
+
+## Balancing a Tx for other wallet
+
+Setting `mustUseUtxosAtAddress`, `mustSendChangeToAddress` and `mustUseCollateralUtxos` at the same time allows to build a transaction without any connection to the current wallet. For example, it's possible to balance it on server-side and send to the user to sign, or balance a Tx on one user's side while leaving fees at the expense of some other user.
+
+## Synchronization
+
+Before balancing, CTL tries to synchronize the wallet state with the query layer, i.e. waits until all UTxOs that the wallet returns are visible in the query layer. Thus the situation when the query layer refuses to validate a Tx (either during ex-units evaluation or on Tx submission) is only possible due to a rollback or a synchronization timeout. Please see [our docs for query layer synchronization](./query-layers.md).
 
 ## Balancing process limitations
 

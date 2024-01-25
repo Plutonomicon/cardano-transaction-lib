@@ -20,13 +20,20 @@ module Ctl.Internal.Plutus.Types.AssocMap
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , decodeAeson
+  , encodeAeson
+  )
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.PlutusData (PlutusData(Map)) as PD
 import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
 import Data.Array ((:))
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, rmap)
+import Data.Bitraversable (rtraverse)
 import Data.Foldable
   ( class Foldable
   , foldMap
@@ -67,8 +74,15 @@ derive instance Generic (Map k v) _
 derive instance Newtype (Map k v) _
 derive newtype instance (Eq k, Eq v) => Eq (Map k v)
 derive newtype instance (Ord k, Ord v) => Ord (Map k v)
-derive newtype instance (EncodeAeson k, EncodeAeson v) => EncodeAeson (Map k v)
-derive newtype instance (DecodeAeson k, DecodeAeson v) => DecodeAeson (Map k v)
+
+instance (EncodeAeson k, EncodeAeson v) => EncodeAeson (Map k v) where
+  encodeAeson = encodeAeson <<< map (rmap encodeAeson) <<< unwrap
+
+instance (DecodeAeson k, DecodeAeson v) => DecodeAeson (Map k v) where
+  decodeAeson x = Map <$>
+    ( traverse (rtraverse decodeAeson)
+        =<< (decodeAeson x :: _ (Array (Tuple k Aeson)))
+    )
 
 instance (Show k, Show v) => Show (Map k v) where
   show = genericShow

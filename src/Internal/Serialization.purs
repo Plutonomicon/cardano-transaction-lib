@@ -671,7 +671,7 @@ convertCert = case _ of
   T.StakeDeregistration stakeCredential ->
     newStakeDeregistrationCertificate stakeCredential
   T.StakeDelegation stakeCredential keyHash ->
-    newStakeDelegationCertificate stakeCredential (unwrap keyHash)
+    newStakeDelegationCertificate stakeCredential (unwrap $ unwrap keyHash)
   T.PoolRegistration
     { operator
     , vrfKeyhash
@@ -688,7 +688,8 @@ convertCert = case _ of
       (unwrap <<< unwrap <$> poolOwners)
     relays' <- convertRelays relays
     poolMetadata' <- for poolMetadata convertPoolMetadata
-    newPoolRegistrationCertificate (unwrap operator) (T.unVRFKeyHash vrfKeyhash)
+    newPoolRegistrationCertificate (unwrap $ unwrap operator)
+      (T.unVRFKeyHash vrfKeyhash)
       pledge
       cost
       margin'
@@ -697,7 +698,7 @@ convertCert = case _ of
       relays'
       (maybeToUor poolMetadata')
   T.PoolRetirement { poolKeyHash, epoch } ->
-    newPoolRetirementCertificate (unwrap poolKeyHash)
+    newPoolRetirementCertificate (unwrap $ unwrap poolKeyHash)
       (UInt.toInt $ unwrap epoch)
   T.GenesisKeyDelegation
     { genesisHash: T.GenesisHash genesisHash
@@ -760,9 +761,9 @@ convertNetworkId = case _ of
 
 convertMint :: T.Mint -> Effect Mint
 convertMint (T.Mint nonAdaAssets) = do
-  let m = Value.unwrapNonAdaAsset nonAdaAssets
   mint <- newMint
-  forWithIndex_ m \scriptHashBytes' values -> do
+  let assetsMap = Value.unwrapNonAdaAsset nonAdaAssets
+  forWithIndex_ assetsMap \scriptHashBytes' values -> do
     let
       mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
         scriptHashBytes'

@@ -28,7 +28,6 @@ import Ctl.Internal.Types.Interval
   , POSIXTime(POSIXTime)
   , PosixTimeToSlotError
       ( CannotFindTimeInEraSummaries
-      , CannotGetBigIntFromNumber'
       , EndSlotLessThanSlotOrModNonZero
       , PosixTimeBeforeSystemStart
       , StartTimeGreaterThanTime
@@ -44,11 +43,11 @@ import Ctl.Internal.Types.Interval
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
 import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
-import Data.BigInt as BigInt
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
+import JS.BigInt as BigInt
 import Mote (group)
 import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
 
@@ -251,7 +250,6 @@ suite = do
         absTimeFixture
       toFromAesonTest "EndSlotLessThanSlotOrModNonZero" $
         EndSlotLessThanSlotOrModNonZero slotFixture modTimeFixture
-      toFromAesonTest "CannotGetBigIntFromNumber'" $ CannotGetBigIntFromNumber'
     group "ToOnChainPosixTimeRangeError" do
       toFromAesonTest "PosixTimeToSlotError'" $ PosixTimeToSlotError'
         posixTimeToSlotErrFixture

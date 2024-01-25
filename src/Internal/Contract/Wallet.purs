@@ -7,7 +7,7 @@ module Ctl.Internal.Contract.Wallet
   , getWallet
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
-  , ownStakePubKeysHashes
+  , ownStakePubKeyHashes
   , withWallet
   , getWalletCollateral
   , getWalletBalance
@@ -17,15 +17,15 @@ module Ctl.Internal.Contract.Wallet
 import Prelude
 
 import Control.Monad.Reader.Trans (asks)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Value)
+import Ctl.Internal.Cardano.Types.Value (Value, valueToCoin)
 import Ctl.Internal.Cardano.Types.Value (geq, lovelaceValueOf) as Value
 import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.Serialization.Address
   ( Address
@@ -34,86 +34,85 @@ import Ctl.Internal.Serialization.Address
   , baseAddressFromAddress
   , stakeCredentialToKeyHash
   )
+import Ctl.Internal.Service.Error (pprintClientError)
 import Ctl.Internal.Types.PubKeyHash
   ( PaymentPubKeyHash
   , PubKeyHash
   , StakePubKeyHash
   )
 import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Wallet
-  ( Wallet
-  , actionBasedOnWallet
-  )
+import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Data.Array (catMaybes, cons, foldMap, head)
+import Data.Array (cons, foldMap, foldr)
 import Data.Array as Array
-import Data.BigInt as BigInt
-import Data.Either (hush)
+import Data.Either (Either(Left, Right), hush)
 import Data.Foldable (fold, foldl)
+import Data.Function (on)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing), fromMaybe, maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for, for_, traverse)
+import Data.Traversable (for_, traverse)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
+import JS.BigInt as BigInt
 
 getUnusedAddresses :: Contract (Array Address)
-getUnusedAddresses = fold <$> do
+getUnusedAddresses =
   withWallet $ actionBasedOnWallet _.getUnusedAddresses mempty
 
-getChangeAddress :: Contract (Maybe Address)
+getChangeAddress :: Contract Address
 getChangeAddress = withWallet do
   actionBasedOnWallet _.getChangeAddress
     \kw -> do
       networkId <- asks _.networkId
-      pure $ pure $ (unwrap kw).address networkId
+      pure $ (unwrap kw).address networkId
 
 getRewardAddresses :: Contract (Array Address)
-getRewardAddresses = fold <$> withWallet do
-  actionBasedOnWallet _.getRewardAddresses
-    \kw -> do
-      networkId <- asks _.networkId
-      pure $ pure $ pure $ (unwrap kw).address networkId
+getRewardAddresses =
+  withWallet $ actionBasedOnWallet _.getRewardAddresses
+    \kw -> asks _.networkId <#> Array.singleton <<< (unwrap kw).address
 
 getWalletAddresses :: Contract (Array Address)
-getWalletAddresses = fold <$> withWallet do
-  actionBasedOnWallet _.getWalletAddresses
+getWalletAddresses = withWallet do
+  actionBasedOnWallet _.getUsedAddresses
     ( \kw -> do
         networkId <- asks _.networkId
-        pure $ pure $ Array.singleton $ (unwrap kw).address networkId
+        pure $ Array.singleton $ (unwrap kw).address networkId
     )
 
-signData :: Address -> RawBytes -> Contract (Maybe DataSignature)
+signData :: Address -> RawBytes -> Contract DataSignature
 signData address payload =
   withWallet $
     actionBasedOnWallet
-      (\w conn -> w.signData conn address payload)
+      (\w -> w.signData address payload)
       \kw -> do
         networkId <- asks _.networkId
-        liftAff $ pure <$> (unwrap kw).signData networkId payload
+        liftAff $ (unwrap kw).signData networkId payload
 
 getWallet :: Contract (Maybe Wallet)
 getWallet = asks _.wallet
 
 ownPubKeyHashes :: Contract (Array PubKeyHash)
-ownPubKeyHashes = catMaybes <$> do
+ownPubKeyHashes = do
   getWalletAddresses >>= traverse \address -> do
     paymentCred <-
       liftM
-        ( error $
-            "Unable to get payment credential from Address"
-        ) $
+        (error $ "Unable to get payment credential from Address") $
         addressPaymentCred address
-    pure $ stakeCredentialToKeyHash paymentCred <#> wrap
+    -- scripts are impossible here, so `stakeCredentialToKeyHash` will never
+    -- return `Nothing` (`catMaybes` is safe)
+    liftM (error "Impossible happened: CIP-30 method returned script address")
+      $ stakeCredentialToKeyHash paymentCred <#> wrap
 
+-- | Gets all wallet `PaymentPubKeyHash`es via `getWalletAddresses`.
 ownPaymentPubKeyHashes :: Contract (Array PaymentPubKeyHash)
 ownPaymentPubKeyHashes = map wrap <$> ownPubKeyHashes
 
-ownStakePubKeysHashes :: Contract (Array (Maybe StakePubKeyHash))
-ownStakePubKeysHashes = do
+ownStakePubKeyHashes :: Contract (Array (Maybe StakePubKeyHash))
+ownStakePubKeyHashes = do
   addresses <- getWalletAddresses
   pure $ addressToMStakePubKeyHash <$> addresses
   where
@@ -158,50 +157,82 @@ getWalletCollateral = do
     -}
     targetCollateral = Value.lovelaceValueOf $ BigInt.fromInt 5_000_000
     utxoValue u = (unwrap (unwrap u).output).amount
-    sufficientUtxos = mbCollateralUTxOs <#> \colUtxos ->
-      foldl
-        ( \us u ->
-            if foldMap utxoValue us `Value.geq` targetCollateral then us
-            else cons u us
-        )
-        []
-        colUtxos
 
-  for_ sufficientUtxos \collateralUTxOs -> do
+    -- used for sorting by ADA value in descending order
+    compareNegatedAdaValues
+      :: TransactionUnspentOutput -> TransactionUnspentOutput -> Ordering
+    compareNegatedAdaValues =
+      compare `on`
+        ( unwrap >>> _.output >>> unwrap >>> _.amount >>> valueToCoin >>> unwrap
+            >>> negate
+        )
+
+    consumeUntilEnough
+      :: Array TransactionUnspentOutput
+      -> TransactionUnspentOutput
+      -> Array TransactionUnspentOutput
+    consumeUntilEnough utxos utxo =
+      if foldMap utxoValue utxos `Value.geq` targetCollateral then utxos
+      else cons utxo utxos
+    mbSufficientUtxos = mbCollateralUTxOs <#>
+      foldl consumeUntilEnough [] <<< Array.sortBy compareNegatedAdaValues
+  for_ mbSufficientUtxos \sufficientUtxos -> do
     let
       tooManyCollateralUTxOs =
-        UInt.fromInt (Array.length collateralUTxOs) >
+        UInt.fromInt (Array.length sufficientUtxos) >
           maxCollateralInputs
     when tooManyCollateralUTxOs do
-      liftEffect $ throw tooManyCollateralUTxOsError
-  pure sufficientUtxos
+      liftEffect $ throw $ tooManyCollateralUTxOsError
+        <> " Minimal set of UTxOs to cover the collateral are: "
+        <> show sufficientUtxos
+  pure mbSufficientUtxos
   where
   tooManyCollateralUTxOsError =
     "Wallet returned too many UTxOs as collateral. This is likely a bug in \
     \the wallet."
 
 getWalletBalance
-  :: Contract (Maybe Value)
+  :: Contract Value
 getWalletBalance = do
   queryHandle <- getQueryHandle
-  getWallet >>= map join <<< traverse do
-    actionBasedOnWallet _.getBalance \_ -> do
+  wallet <- getWallet >>= liftM (error "getWalletBalance: no wallet is active")
+  let
+    getKeyWalletBalance = \_ -> do
       -- Implement via `utxosAt`
       addresses <- getWalletAddresses
-      fold <$> for addresses \address -> do
-        liftAff $ queryHandle.utxosAt address <#> hush >>> map
-          -- Combine `Value`s
-          (fold <<< map _.amount <<< map unwrap <<< Map.values)
+      fold <$> flip parTraverse addresses \address -> do
+        eiResponse <- liftAff $ queryHandle.utxosAt address
+        case eiResponse of
+          Left err -> liftEffect $ throw $
+            "getWalletBalance via KeyWallet: utxosAt call error: " <>
+              pprintClientError err
+          Right utxoMap ->
+            pure $ fold $ map _.amount $ map unwrap $ Map.values utxoMap
+  actionBasedOnWallet _.getBalance getKeyWalletBalance wallet
 
 getWalletUtxos :: Contract (Maybe UtxoMap)
 getWalletUtxos = do
   queryHandle <- getQueryHandle
-  getWallet >>= map join <<< traverse do
-    actionBasedOnWallet
-      (\w conn -> w.getUtxos conn <#> map toUtxoMap)
-      \_ -> do
-        mbAddress <- getWalletAddresses <#> head
-        map join $ for mbAddress $ map hush <<< liftAff <<< queryHandle.utxosAt
+  wallet <- getWallet >>= liftM (error "getWalletUtxos: no wallet is active")
+  let
+    getKeyWalletUtxos = \_ -> do
+      addresses :: Array Address <- getWalletAddresses
+      utxoMaps <- flip parTraverse addresses \address -> do
+        eiResponse <- liftAff $ queryHandle.utxosAt address
+        case eiResponse of
+          Left err ->
+            liftEffect $ throw $
+              "getWalletUtxos via KeyWallet: utxosAt call error: " <>
+                pprintClientError err
+          Right utxoMap ->
+            pure utxoMap
+      -- CIP-30 only returns `null` if the requested amount can't be returned
+      -- but since we only call `getUtxos` *without* a requested amount, we use
+      -- `Just`
+      pure $ Just $ foldr Map.union Map.empty utxoMaps
+
+  actionBasedOnWallet (\w -> w.getUtxos <#> map toUtxoMap) getKeyWalletUtxos
+    wallet
   where
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map

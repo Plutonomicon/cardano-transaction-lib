@@ -1,3 +1,5 @@
-const os = require("os");
+import os from "os";
 
-exports.tmpdir = () => os.tmpdir();
+export function tmpdir() {
+  return os.tmpdir();
+}

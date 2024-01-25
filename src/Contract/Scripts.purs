@@ -7,7 +7,6 @@ module Contract.Scripts
   , module ExportScripts
   , module Hash
   , module NativeScript
-  , module TypedValidator
   , module TypesScripts
   , module X
   ) where
@@ -28,7 +27,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       )
   ) as NativeScript
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Contract.QueryHandle (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
 import Ctl.Internal.Scripts
   ( mintingPolicyHash
@@ -49,18 +48,6 @@ import Ctl.Internal.Types.Scripts
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
   ) as TypesScripts
-import Ctl.Internal.Types.TypedValidator
-  ( class DatumType
-  , class RedeemerType
-  , class ValidatorTypes
-  , TypedValidator(TypedValidator)
-  , ValidatorType
-  , WrappedValidatorType
-  , forwardingMintingPolicy
-  , generalise
-  , typedValidatorHash
-  , typedValidatorScript
-  ) as TypedValidator
 import Data.Either (Either)
 import Data.Map (Map)
 import Data.Map as Map

@@ -5,13 +5,11 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeysHashes, ownStakePubKeysHashes)
 import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Log (logInfo')
+import Contract.Log (logInfo', logWarn')
 import Contract.Monad
   ( Contract
   , launchAff_
-  , liftedE
   , liftedM
   , runContract
   , throwContractError
@@ -21,21 +19,28 @@ import Contract.Transaction
   ( BalancedSignedTransaction
   , TransactionHash
   , awaitTxConfirmed
+  , awaitTxConfirmedWithTimeout
   , signTransaction
   , submit
+  , submitTxFromConstraints
   , withBalancedTxs
   )
 import Contract.TxConstraints as Constraints
-import Contract.Utxos (getWalletUtxos)
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (leq)
 import Contract.Value as Value
+import Contract.Wallet
+  ( getWalletUtxos
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  )
 import Control.Monad.Reader (asks)
 import Data.Array (head)
-import Data.BigInt as BigInt
 import Data.Map (Map, filter)
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
+import JS.BigInt as BigInt
 
 getLockedInputs
   :: Contract (Map TransactionHash (Set UInt))
@@ -49,25 +54,26 @@ main = example testnetNamiConfig
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeysHashes
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeysHashes
+    ownStakePubKeyHashes
 
   -- Early fail if not enough utxos present for 2 transactions
-  unlessM hasSufficientUtxos $ throwContractError
-    "Insufficient Utxos for 2 transactions"
+  unlessM hasSufficientUtxos do
+    logWarn' "Insufficient Utxos for 2 transactions"
+    createAdditionalUtxos
 
   let
-    constraints :: Constraints.TxConstraints Void Void
+    constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKeyAddress pkh skh
       $ Value.lovelaceValueOf
       $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups Void
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  unbalancedTx0 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- liftedE $ Lookups.mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- mkUnbalancedTx lookups constraints
+  unbalancedTx1 <- mkUnbalancedTx lookups constraints
 
   txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
     locked <- getLockedInputs
@@ -107,6 +113,33 @@ contract = do
       <$> getWalletUtxos
 
     pure $ length walletValidUtxos >= 2 -- 2 transactions
+
+createAdditionalUtxos :: Contract Unit
+createAdditionalUtxos = do
+  logInfo' "Creating additional UTxOs for SignMultiple example"
+  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
+  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
+    ownStakePubKeyHashes
+
+  let
+    constraints :: Constraints.TxConstraints
+    constraints =
+      Constraints.mustPayToPubKeyAddress pkh skh
+        ( Value.lovelaceValueOf
+            $ BigInt.fromInt 2_000_000
+        ) <>
+        Constraints.mustPayToPubKeyAddress pkh skh
+          ( Value.lovelaceValueOf
+              $ BigInt.fromInt 2_000_000
+          )
+
+    lookups :: Lookups.ScriptLookups
+    lookups = mempty
+
+  txId <- submitTxFromConstraints lookups constraints
+
+  awaitTxConfirmedWithTimeout (wrap 100.0) txId
+  logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

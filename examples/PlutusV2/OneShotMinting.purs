@@ -40,8 +40,6 @@ contract =
   mkContractWithAssertions "Examples.PlutusV2.OneShotMinting"
     oneShotMintingPolicyV2
 
-foreign import oneShotMinting :: String
-
 oneShotMintingPolicyV2 :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicyV2 =
   map PlutusMintingPolicy <<< oneShotMintingPolicyScriptV2
@@ -54,3 +52,4 @@ oneShotMintingPolicyScriptV2 txInput = do
   liftContractE $
     mkOneShotMintingPolicy script txInput
 
+foreign import oneShotMinting :: String

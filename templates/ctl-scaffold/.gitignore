@@ -16,6 +16,9 @@ result-*
 /node_modules/
 test-data/chrome-user-data
 test-data/preview
+test-data/preprod
+test-data/mainnet
+test-data/keys
 .projectile
 /dist/
 output.js

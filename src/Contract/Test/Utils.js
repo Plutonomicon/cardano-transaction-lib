@@ -1,3 +1,5 @@
-exports.exitCode = code => () => {
-  process.exitCode = code;
-};
+export function exitCode(code) {
+  return () => {
+    process.exitCode = code;
+  };
+}

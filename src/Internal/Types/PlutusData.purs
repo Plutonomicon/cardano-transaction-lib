@@ -6,6 +6,7 @@ module Ctl.Internal.Types.PlutusData
       , Integer
       , Bytes
       )
+  , pprintPlutusData
   ) where
 
 import Prelude
@@ -21,15 +22,19 @@ import Aeson
   )
 import Control.Alt ((<|>))
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
-import Data.BigInt (BigInt)
+import Ctl.Internal.Types.BigNum as BigNum
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested ((/\))
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 
 -- Doesn't distinguish "BuiltinData" and "Data" like Plutus:
 data PlutusData
@@ -104,3 +109,25 @@ instance EncodeAeson PlutusData where
   encodeAeson (List elems) = encodeAeson elems
   encodeAeson (Integer bi) = encodeAeson bi
   encodeAeson (Bytes ba) = encodeAeson ba
+
+pprintPlutusData :: PlutusData -> TagSet
+pprintPlutusData (Constr n children) = TagSet.fromArray
+  [ ("Constr " <> BigInt.toString (BigNum.toBigInt n)) `tagSetTag`
+      TagSet.fromArray (pprintPlutusData <$> children)
+  ]
+pprintPlutusData (Map entries) = TagSet.fromArray
+  [ tagSetTag "Map" $ TagSet.fromArray $
+      entries <#> \(key /\ value) ->
+        TagSet.fromArray
+          [ "key" `tagSetTag` pprintPlutusData key
+          , "value" `tagSetTag` pprintPlutusData value
+          ]
+  ]
+pprintPlutusData (List children) = TagSet.fromArray
+  [ tagSetTag "List" $ TagSet.fromArray $
+      children <#> pprintPlutusData
+  ]
+pprintPlutusData (Integer n) = TagSet.fromArray
+  [ "Integer" `tag` BigInt.toString n ]
+pprintPlutusData (Bytes bytes) = TagSet.fromArray
+  [ "Bytes" `tag` byteArrayToHex bytes ]

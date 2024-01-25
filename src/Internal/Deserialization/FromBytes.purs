@@ -38,6 +38,8 @@ import Ctl.Internal.Serialization.Types
   , TransactionUnspentOutput
   , TransactionWitnessSet
   , Value
+  , Vkeywitness
+  , Vkeywitnesses
   )
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
@@ -132,6 +134,12 @@ instance FromBytes Value where
 
 instance FromBytes VRFKeyHash where
   fromBytes' = fromBytesImpl "VRFKeyHash"
+
+instance FromBytes Vkeywitness where
+  fromBytes' = fromBytesImpl "Vkeywitness"
+
+instance FromBytes Vkeywitnesses where
+  fromBytes' = fromBytesImpl "Vkeywitnesses"
 
 -- for backward compatibility until `Maybe` is abandoned. Then to be renamed.
 fromBytes :: forall (a :: Type). FromBytes a => CborBytes -> Maybe a

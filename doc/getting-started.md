@@ -38,6 +38,8 @@ Then, add `https://public-plutonomicon.cachix.org` and `public-plutonomicon.cach
 
 The easiest way to create a new CTL project is to use our `ctl-scaffold` flake template. This lives in the CTL repo -- you can have a look [here](../templates/ctl-scaffold). It contains a simple, yet complete, flakes-based scaffolding project with example `outputs` for a CTL project, including its runtime.
 
+Alternatively, consider [the-plutus-scaffold](https://github.com/mlabs-haskell/the-plutus-scaffold) flake template. It's a scaffold built on top of the above mentioned `ctl-scaffold`, but includes a react based frontend and a haskell onchain additionaly. It's more of a demo application, than a minimal working example.
+
 A new project can be initialized as follows:
 
 ```
@@ -117,11 +119,11 @@ main = Contract.Monad.launchAff_ do
 
 ### Making the `ContractEnv`
 
-The `ContractEnv` type contains configuration values and websocket connections that are required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ContractParams` should be used instead.
+The `ContractEnv` type contains data that is required to execute contracts written in CTL. The users should not construct it directly - `Contract.Config.ContractParams` should be used instead.
 
 For local development and testing, we provide `Contract.Config.testnetConfig` where all `CtlBackend` service hosts are set to `localhost` and the `logLevel` is set to `Trace`.
 
-It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ContractParams` with `runContract`.
+It is **not recommended to directly construct or manipulate a `ContractEnv` yourself** as the process of making a new config initializes websockets. Instead, use `Contract.Monad.ContractParams` with `runContract` or its variants.
 
 A special `Contract.Config.WalletSpec` type is used to specify which wallet to use during the `Contract` lifetime.
 
@@ -217,15 +219,9 @@ You can import your scripts to use with CTL. See [importing-scripts](./importing
 
 ### Without a light wallet
 
-We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed. To generate a key, you can use `cardano-cli` as follows:
+We provide `KeyWallet` to enable testing outside of the browser, or in-browser without a light wallet installed.
 
-```shell
-$ cardano-cli address key-gen --normal-key --signing-key-file payment.skey --verification-key-file payment.vkey
-```
-
-The signing key can be loaded to CTL using `WalletSpec`'s `UseKeys` constructor. See [`examples/KeyWallet/Internal/Pkh2PkhContract.purs`](../examples/KeyWallet/Internal/Pkh2PkhContract.purs#L49).
-
-From here you can submit transactions that will be signed with your private key, or perhaps export transactions to be tested with external tools such as [`plutip` testing tool](https://github.com/mlabs-haskell/plutip).
+See [here](./key-management.md)
 
 ### With a light wallet
 

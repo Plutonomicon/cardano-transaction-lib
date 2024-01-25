@@ -1,4 +1,4 @@
-module Ctl.Internal.E2E.Route
+module Ctl.Internal.Test.E2E.Route
   ( E2ETestName
   , E2EConfigName
   , route
@@ -111,6 +111,7 @@ addLinks configMaps testMaps = do
     configs = Array.fromFoldable $ Map.keys configMaps
     tests = Array.fromFoldable $ Map.keys testMaps
   _addLinks configs tests
+  _setupBlockfrostApi
 
 -- | Serves given examples conditionally, depending on the URL query part.
 -- |
@@ -223,3 +224,5 @@ foreign import _writeExampleHTML :: String -> Array String -> Effect Unit
 
 foreign import _addLinks
   :: Array E2EConfigName -> Array E2ETestName -> Effect Unit
+
+foreign import _setupBlockfrostApi :: Effect Unit

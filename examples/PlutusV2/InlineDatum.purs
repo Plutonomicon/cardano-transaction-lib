@@ -38,9 +38,9 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Data.BigInt as BigInt
 import Data.Map as Map
 import Effect.Exception (error)
+import JS.BigInt as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -67,14 +67,14 @@ payToCheckDatumIsInline vhash = do
     datum :: Datum
     datum = Datum plutusData
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash datum
         Constraints.DatumInline
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -101,11 +101,11 @@ spendFromCheckDatumIsInline vhash validator txId = do
     redeemer :: Redeemer
     redeemer = Redeemer plutusData
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
       <> Lookups.unspentOutputs utxos
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustSpendScriptOutput txInput redeemer
 
@@ -124,14 +124,14 @@ payToCheckDatumIsInlineWrong vhash = do
     datum :: Datum
     datum = Datum plutusData
 
-    constraints :: TxConstraints Unit Unit
+    constraints :: TxConstraints
     constraints =
       Constraints.mustPayToScript vhash datum
         Constraints.DatumWitness
         $ Value.lovelaceValueOf
         $ BigInt.fromInt 2_000_000
 
-    lookups :: Lookups.ScriptLookups PlutusData
+    lookups :: Lookups.ScriptLookups
     lookups = mempty
 
   submitTxFromConstraints lookups constraints
@@ -161,10 +161,10 @@ readFromCheckDatumIsInline vhash txId = do
   hasTransactionId (TransactionInput tx /\ _) =
     tx.transactionId == txId
 
-foreign import checkDatumIsInline :: String
-
 checkDatumIsInlineScript :: Contract Validator
-checkDatumIsInlineScript =
+checkDatumIsInlineScript = do
   liftMaybe (error "Error decoding checkDatumIsInline") do
     envelope <- decodeTextEnvelope checkDatumIsInline
     Validator <$> plutusScriptV2FromEnvelope envelope
+
+foreign import checkDatumIsInline :: String

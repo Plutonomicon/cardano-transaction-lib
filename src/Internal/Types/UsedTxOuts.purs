@@ -59,7 +59,7 @@ instance Semigroup TxOutRefUnlockKeys where
 instance Monoid TxOutRefUnlockKeys where
   mempty = wrap Map.empty
 
--- | Stores TxOutRefs in a compact map.
+-- | Tracks UTxOs that have already been spent to avoid double-spending attempts.
 newtype UsedTxOuts = UsedTxOuts (Ref TxOutRefCache)
 
 derive instance Newtype UsedTxOuts _

@@ -2,7 +2,6 @@ module Test.Ctl.Blockfrost.GenerateFixtures.NativeScript (main) where
 
 import Contract.Prelude
 
-import Contract.Address (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
@@ -14,7 +13,6 @@ import Contract.Config
   )
 import Contract.Hashing (scriptRefHash) as Hashing
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.ScriptLookups (ScriptLookups) as Lookups
 import Contract.Scripts (NativeScript, ScriptHash)
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
@@ -23,6 +21,7 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints) as Constraints
 import Contract.Value (lovelaceValueOf) as Value
+import Contract.Wallet (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Service.Blockfrost
@@ -32,8 +31,8 @@ import Ctl.Internal.Service.Blockfrost
   )
 import Ctl.Internal.Service.Blockfrost (getScriptByHash) as Blockfrost
 import Data.Array (mapWithIndex)
-import Data.BigInt (fromInt) as BigInt
 import Data.UInt (fromInt) as UInt
+import JS.BigInt (fromInt) as BigInt
 import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
   ( blockfrostBackend
   , getSkeyFilepathFromEnv
@@ -85,15 +84,12 @@ generateFixtures numFixtures = do
     pkh <- liftedM "Failed to get own PKH" ownPaymentPubKeyHash
     skh <- ownStakePubKeyHash
     let
-      constraints :: Constraints.TxConstraints Void Void
+      constraints :: Constraints.TxConstraints
       constraints =
         mustPayToPubKeyStakeAddressWithScriptRef pkh skh nativeScriptRef
           (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
 
-      lookups :: Lookups.ScriptLookups Void
-      lookups = mempty
-
-    txHash <- submitTxFromConstraints lookups constraints
+    txHash <- submitTxFromConstraints mempty constraints
     awaitTxConfirmed txHash
 
     -- TODO:
@@ -121,4 +117,3 @@ generateFixtures numFixtures = do
         NativeScriptByHash h | h == nativeScriptHash ->
           storeBlockfrostFixture i "getNativeScriptByHash" rawResponse
         _ -> pure unit
-

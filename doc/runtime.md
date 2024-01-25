@@ -15,8 +15,6 @@ Our nix environment includes CTL backend services, but for now Blockfrost can be
   - [Using CTL's `runtime` overlay](#using-ctls-runtime-overlay)
   - [Changing network configurations](#changing-network-configurations)
 - [Blockfrost Backend](#blockfrost-backend)
-  - [Blockfrost backend limitations](#blockfrost-backend-limitations)
-    - [Transaction confirmation delays](#transaction-confirmation-delays)
 - [Wallet requirements](#wallet-requirements)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -27,13 +25,15 @@ Info in this section only applies to CTL backend services.
 The services that are currently **required** are:
 
 - [Ogmios](https://ogmios.dev)
-  - You **must** use Ogmios v5.2.0 or greater with CTL
-  - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v1.34.0 or greater is recommended
+  - You **must** use Ogmios v6 or greater with CTL with `--include-transaction-cbor` option
+  - Ogmios itself requires a running Cardano node, so you may also need to deploy a node. Node v8.1.1 or greater is recommended
   - You can also use [our fork](https://github.com/mlabs-haskell/ogmios) which has improved Nix integration
 - [Kupo](https://github.com/CardanoSolutions/kupo)
   - Required to query UTxOs and resolve inline datums and reference scripts
   - You **must** use Kupo v2.2.0 or greater with CTL
   - Like Ogmios, Kupo requires a running Cardano node
+
+To start all of them for tests, run `npm run start-runtime`.
 
 ### Using NixOS module
 
@@ -63,25 +63,7 @@ When changing networks, make sure that `network.magic` is correctly synchronized
 
 ## Blockfrost Backend
 
-Blockfrost backend can be configured by providing a record of values to `mkBlockfrostBackendParams`:
-
-```purescript
-type BlockfrostBackendParams =
-  { blockfrostConfig :: ServerConfig
-  , blockfrostApiKey :: Maybe String
-  , confirmTxDelay :: Maybe Seconds
-  }
-
-mkBlockfrostBackendParams :: BlockfrostBackendParams -> QueryBackendParams
-```
-
-Note that it is possible to use CTL runtime services alongside with Blockfrost for queries it does not support by modifying the `QueryBackendParams` value manually (`CtlBackendParams` is an optional parameter of its constructor).
-
-### Blockfrost backend limitations
-
-#### Transaction confirmation delays
-
-State does not propagate to the chain consistently the moment a transaction gets submitted. So, there's a certain artificial delay that gets added after each Tx submission. You can adjust it with `confirmTxDelay` parameter of `BlockfrostBackendParams`. 20-30 seconds is recommended.
+See [here](./blockfrost.md) for the documentation.
 
 ## Wallet requirements
 

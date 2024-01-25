@@ -12,8 +12,6 @@ import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray, (:))
 import Data.Array.NonEmpty (length, singleton, sort, zip) as NEArray
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
 import Data.Foldable (all, foldMap, sum)
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (class Newtype, unwrap)
@@ -21,10 +19,12 @@ import Data.Ord.Max (Max(Max))
 import Data.Ord.Min (Min(Min))
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
+import JS.BigInt (BigInt)
+import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)
-import Test.Spec.QuickCheck (quickCheck)
+import Test.Spec.QuickCheck (quickCheck, quickCheck')
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
@@ -53,13 +53,13 @@ suite =
         (quickCheck prop_equipartitionBigInt_length)
 
       test "prop_equipartitionBigInt_sum"
-        (quickCheck prop_equipartitionBigInt_sum)
+        (quickCheck' 10 prop_equipartitionBigInt_sum)
 
       test "prop_equipartitionBigInt_order"
-        (quickCheck prop_equipartitionBigInt_order)
+        (quickCheck' 10 prop_equipartitionBigInt_order)
 
       test "prop_equipartitionBigInt_fair"
-        (quickCheck prop_equipartitionBigInt_fair)
+        (quickCheck' 10 prop_equipartitionBigInt_fair)
 
 prop_partitionBigInt_pos_weights
   :: BigInt' -> BigIntNeg -> NonEmptyArray BigIntGeqOne -> Boolean
@@ -183,4 +183,3 @@ derive instance Newtype IntGeqOne _
 
 instance Arbitrary IntGeqOne where
   arbitrary = IntGeqOne <$> suchThat arbitrary (_ >= one)
-

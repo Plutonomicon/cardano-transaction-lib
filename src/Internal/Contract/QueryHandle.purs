@@ -1,28 +1,16 @@
 module Ctl.Internal.Contract.QueryHandle
-  ( getQueryHandle
-  , QueryHandle
-  , AffE
+  ( queryHandleForCtlBackend
+  , queryHandleForBlockfrostBackend
+  , queryHandleForSelfHostedBlockfrostBackend
   ) where
 
 import Prelude
 
-import Contract.Log (logDebug', logWarn')
+import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PoolPubKeyHash
-  , Transaction
-  , TransactionOutput
-  , UtxoMap
-  )
-import Ctl.Internal.Contract.Monad (Contract, ContractEnv, runQueryM)
-import Ctl.Internal.Contract.QueryBackend
-  ( BlockfrostBackend
-  , CtlBackend
-  , QueryBackend(BlockfrostBackend, CtlBackend)
-  )
-import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
+import Ctl.Internal.Contract.LogParams (LogParams)
+import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend, CtlBackend)
+import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
 import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
@@ -31,85 +19,44 @@ import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as QueryM
 import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as QueryM
 import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
+  , getOutputAddressesByTxHash
   , getScriptByHash
   , getTxMetadata
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
   ) as Kupo
-import Ctl.Internal.QueryM.Ogmios
-  ( AdditionalUtxoSet
-  , CurrentEpoch
-  , SubmitTxR(SubmitFail, SubmitTxSuccess)
-  , TxEvaluationR
-  )
-import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
+import Ctl.Internal.QueryM.Ogmios (SubmitTxR(SubmitFail, SubmitTxSuccess))
 import Ctl.Internal.QueryM.Pools
   ( getPoolIds
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   ) as QueryM
 import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
-import Ctl.Internal.Serialization.Address (Address, NetworkId)
-import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
 import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
-import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.Types.Datum (DataHash, Datum)
-import Ctl.Internal.Types.EraSummaries (EraSummaries)
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
-import Ctl.Internal.Types.Scripts (StakeValidatorHash)
-import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
-import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Either (Either(Left, Right))
-import Data.Map as Map
-import Data.Maybe (Maybe, fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 
-type AffE (a :: Type) = Aff (Either ClientError a)
-
-type QueryHandle =
-  { getDatumByHash :: DataHash -> AffE (Maybe Datum)
-  , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
-  , getTxMetadata ::
-      TransactionHash
-      -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
-  , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
-  , doesTxExist :: TransactionHash -> AffE Boolean
-  , utxosAt :: Address -> AffE UtxoMap
-  , getChainTip :: AffE Chain.Tip
-  , getCurrentEpoch :: Aff CurrentEpoch
-  -- TODO Capture errors from all backends
-  , submitTx :: Transaction -> Aff (Either ClientError TransactionHash)
-  , evaluateTx :: Transaction -> AdditionalUtxoSet -> Aff TxEvaluationR
-  , getEraSummaries :: AffE EraSummaries
-  , getPoolIds :: AffE (Array PoolPubKeyHash)
-  , getPubKeyHashDelegationsAndRewards ::
-      NetworkId -> StakePubKeyHash -> AffE (Maybe DelegationsAndRewards)
-  , getValidatorHashDelegationsAndRewards ::
-      NetworkId -> StakeValidatorHash -> AffE (Maybe DelegationsAndRewards)
-  }
-
-getQueryHandle :: Contract QueryHandle
-getQueryHandle = ask <#> \contractEnv ->
-  case contractEnv.backend of
-    CtlBackend backend _ ->
-      queryHandleForCtlBackend contractEnv backend
-    BlockfrostBackend backend _ -> do
-      queryHandleForBlockfrostBackend contractEnv backend
-
-queryHandleForCtlBackend :: ContractEnv -> CtlBackend -> QueryHandle
-queryHandleForCtlBackend contractEnv backend =
+queryHandleForCtlBackend
+  :: forall rest
+   . (forall (a :: Type). LogParams rest -> CtlBackend -> QueryM a -> Aff a)
+  -> LogParams rest
+  -> CtlBackend
+  -> QueryHandle
+queryHandleForCtlBackend runQueryM params backend =
   { getDatumByHash: runQueryM' <<< Kupo.getDatumByHash
   , getScriptByHash: runQueryM' <<< Kupo.getScriptByHash
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
+  , getOutputAddressesByTxHash: runQueryM' <<< Kupo.getOutputAddressesByTxHash
   , doesTxExist: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
   , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
   , utxosAt: runQueryM' <<< Kupo.utxosAt
@@ -140,14 +87,16 @@ queryHandleForCtlBackend contractEnv backend =
 
   where
   runQueryM' :: forall (a :: Type). QueryM a -> Aff a
-  runQueryM' = runQueryM contractEnv backend
+  runQueryM' = runQueryM params backend
 
 queryHandleForBlockfrostBackend
-  :: ContractEnv -> BlockfrostBackend -> QueryHandle
-queryHandleForBlockfrostBackend contractEnv backend =
+  :: forall rest. LogParams rest -> BlockfrostBackend -> QueryHandle
+queryHandleForBlockfrostBackend logParams backend =
   { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
   , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
   , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
+  , getOutputAddressesByTxHash: runBlockfrostServiceM' <<<
+      Blockfrost.getOutputAddressesByTxHash
   , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
   , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
@@ -157,10 +106,8 @@ queryHandleForBlockfrostBackend contractEnv backend =
         Right epoch -> pure $ wrap epoch
         Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
-  , evaluateTx: \tx additionalUtxos -> runBlockfrostServiceM' do
-      unless (Map.isEmpty $ unwrap additionalUtxos) do
-        logWarn' "Blockfrost does not support explicit additional utxos"
-      Blockfrost.evaluateTx tx
+  , evaluateTx: \tx additionalUtxos ->
+      runBlockfrostServiceM' $ Blockfrost.evaluateTx tx additionalUtxos
   , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
   , getPubKeyHashDelegationsAndRewards: \networkId stakePubKeyHash ->
@@ -177,5 +124,27 @@ queryHandleForBlockfrostBackend contractEnv backend =
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM
-    (fromMaybe logWithLevel contractEnv.customLogger contractEnv.logLevel)
+    (fromMaybe logWithLevel logParams.customLogger logParams.logLevel)
     backend
+
+queryHandleForSelfHostedBlockfrostBackend
+  :: forall rest
+   . LogParams rest
+  -> BlockfrostBackend
+  -> (forall (a :: Type). LogParams rest -> CtlBackend -> QueryM a -> Aff a)
+  -> CtlBackend
+  -> QueryHandle
+queryHandleForSelfHostedBlockfrostBackend
+  params
+  blockfrostBackend
+  runQueryM
+  ctlBackend =
+  let
+    blockfrostQueryHandle = queryHandleForBlockfrostBackend params
+      blockfrostBackend
+    ctlQueryHandle = queryHandleForCtlBackend runQueryM params ctlBackend
+  in
+    blockfrostQueryHandle
+      { evaluateTx = ctlQueryHandle.evaluateTx
+      , submitTx = ctlQueryHandle.submitTx
+      }

@@ -194,8 +194,6 @@ import Ctl.Internal.Types.TransactionMetadata
   )
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Bifunctor (bimap, lmap)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either)
 import Data.Map as M
@@ -208,6 +206,8 @@ import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Data.Variant (Variant)
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Type.Row (type (+))
 
 -- | Deserializes CBOR encoded transaction to a CTL's native type.
@@ -220,10 +220,9 @@ deserializeTransaction txCbor = fromBytes' (unwrap txCbor) >>=
 convertTransaction
   :: forall (r :: Row Type). Csl.Transaction -> Err r T.Transaction
 convertTransaction tx = addErrTrace "convertTransaction" do
-  witnessSet <- cslErr "convertWitnessSet" $ convertWitnessSet
-    (_txWitnessSet tx)
   body <- convertTxBody $ _txBody tx
   let
+    witnessSet = convertWitnessSet (_txWitnessSet tx)
     auxiliaryData = convertAuxiliaryData <$>
       _txAuxiliaryData maybeFfiHelper tx
   pure $ T.Transaction
@@ -336,7 +335,7 @@ convertCertificate = _convertCert certConvHelper
   certConvHelper =
     { stakeDeregistration: T.StakeDeregistration
     , stakeRegistration: T.StakeRegistration
-    , stakeDelegation: \sc -> T.StakeDelegation sc <<< wrap
+    , stakeDelegation: \sc -> T.StakeDelegation sc <<< wrap <<< wrap
     , poolRegistration: convertPoolRegistration
     , poolRetirement: convertPoolRetirement
     , genesisKeyDelegation: \genesisHash genesisDelegateHash vrfKeyhash -> do
@@ -365,7 +364,7 @@ convertPoolRegistration params = do
   let
     relays = convertRelay <$> poolParamsRelays containerHelper params
   T.PoolRegistration
-    { operator: PoolPubKeyHash $ poolParamsOperator params
+    { operator: PoolPubKeyHash $ wrap $ poolParamsOperator params
     , vrfKeyhash: VRFKeyHash $ poolParamsVrfKeyhash params
     , pledge: poolParamsPledge params
     , cost: poolParamsCost params
@@ -438,7 +437,7 @@ convertPoolRetirement
   -> UInt
   -> T.Certificate
 convertPoolRetirement poolKeyHash epoch = do
-  T.PoolRetirement { poolKeyHash: wrap poolKeyHash, epoch: wrap epoch }
+  T.PoolRetirement { poolKeyHash: wrap $ wrap poolKeyHash, epoch: wrap epoch }
 
 convertMint :: Csl.Mint -> T.Mint
 convertMint mint = T.Mint $ mkNonAdaAsset

@@ -9,6 +9,7 @@ module Ctl.Internal.Helpers
   , appendMap
   , appendRightMap
   , bigIntToUInt
+  , bugTrackerLink
   , concatPaths
   , contentsProp
   , encodeMap
@@ -31,16 +32,16 @@ module Ctl.Internal.Helpers
   , showWithParens
   , tagProp
   , uIntToBigInt
+  , pprintTagSet
   ) where
 
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
 import Control.Monad.Error.Class (class MonadError, throwError)
+import Ctl.Internal.Helpers.Formatter (showTags)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt)
-import Data.BigInt as BigInt
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either(Right), either)
 import Data.Function (on)
@@ -49,6 +50,7 @@ import Data.List.Lazy as LL
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
+import Data.Log.Tag (TagSet)
 import Data.Map (Map, toUnfoldable)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
@@ -66,8 +68,18 @@ import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
 import Foreign.Object as Obj
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
+
+bugTrackerLink :: String
+bugTrackerLink =
+  "https://github.com/Plutonomicon/cardano-transaction-lib/issues"
+
+pprintTagSet :: String -> TagSet -> String
+pprintTagSet message tags =
+  message <> " " <> showTags tags
 
 -- | Throws provided error on `Nothing`
 fromJustEff :: forall (a :: Type). String -> Maybe a -> Effect a

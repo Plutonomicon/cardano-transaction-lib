@@ -43,9 +43,11 @@ module Ctl.Internal.Cardano.Types.Value
   , numNonAdaCurrencySymbols
   , numTokenNames
   , posNonAdaAsset
+  , pprintNonAdaAsset
+  , pprintValue
+  , scriptHashAsCurrencySymbol
   , split
   , sumTokenNameLengths
-  , scriptHashAsCurrencySymbol
   , unionWith
   , unionWithNonAda
   , unwrapNonAdaAsset
@@ -90,6 +92,7 @@ import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Ctl.Internal.Types.TokenName
   ( TokenName
   , adaToken
+  , fromTokenName
   , getTokenName
   , mkTokenName
   , mkTokenNames
@@ -99,7 +102,6 @@ import Data.Array (fromFoldable) as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, singleton, zipWith) as NEArray
 import Data.Bifunctor (bimap)
-import Data.BigInt (BigInt, fromInt, toNumber)
 import Data.Bitraversable (bitraverse, ltraverse)
 import Data.Either (Either(Left), note)
 import Data.Foldable (any, fold, foldl, length)
@@ -110,6 +112,8 @@ import Data.Int (ceil) as Int
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice, join, meet)
 import Data.List (List(Nil), all, (:))
 import Data.List (nubByEq) as List
+import Data.Log.Tag (TagSet, tag, tagSetTag)
+import Data.Log.Tag as TagSet
 import Data.Map (Map, keys, lookup, toUnfoldable, unions, values)
 import Data.Map as Map
 import Data.Map.Gen (genMap)
@@ -121,6 +125,8 @@ import Data.These (These(Both, That, This))
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
+import JS.BigInt (BigInt, fromInt, toNumber)
+import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt, suchThat, vectorOf)
@@ -131,7 +137,7 @@ import Test.QuickCheck.Gen (Gen, chooseInt, suchThat, vectorOf)
 -- to `split` and `negate` (it's just 6 functions) in total without the need of
 -- a somewhat meaningless typeclass.
 
--- We could write a Ring instance to get `negate` but I'm not sure this would
+-- We could write a Group instance to get `negate` but I'm not sure this would
 -- make much sense for Value. Plutus uses a custom AdditiveGroup.
 -- We could define a Data.Group although zero-valued tokens don't degenerate
 -- from our map currently - I don't think we'd want this behaviour.
@@ -160,6 +166,10 @@ derive newtype instance Ord Coin
 derive newtype instance DecodeAeson Coin
 derive newtype instance EncodeAeson Coin
 derive newtype instance Equipartition Coin
+derive newtype instance Semiring Coin
+derive newtype instance Ring Coin
+derive newtype instance CommutativeRing Coin
+derive newtype instance EuclideanRing Coin
 
 instance Arbitrary Coin where
   arbitrary = Coin <<< fromInt <$> suchThat arbitrary (_ >= zero)
@@ -334,6 +344,15 @@ instance Equipartition NonAdaAsset where
         map (mkSingletonNonAdaAsset cs tn)
           (equipartition tokenQuantity numParts)
 
+pprintNonAdaAsset :: NonAdaAsset -> TagSet
+pprintNonAdaAsset mp = TagSet.fromArray $
+  Map.toUnfoldable (unwrapNonAdaAsset mp) <#> \(currency /\ tokens) ->
+    byteArrayToHex (getCurrencySymbol currency) `tagSetTag` TagSet.fromArray
+      ( Map.toUnfoldable tokens <#> \(tokenName /\ amount) ->
+          fromTokenName byteArrayToHex show tokenName `tag` BigInt.toString
+            amount
+      )
+
 -- | Partitions a `NonAdaAsset` into smaller `NonAdaAsset`s, where the
 -- | quantity of each token is equipartitioned across the resultant
 -- | `NonAdaAsset`s, with the goal that no token quantity in any of the
@@ -478,6 +497,16 @@ instance Equipartition Value where
     NEArray.zipWith mkValue
       (equipartition coin numParts)
       (equipartition nonAdaAssets numParts)
+
+pprintValue :: Value -> TagSet
+pprintValue value = TagSet.fromArray $
+  [ "Lovelace" `tag` BigInt.toString (unwrap (valueToCoin value)) ]
+    <>
+      if nonAdaAssets /= mempty then
+        [ "Assets" `tagSetTag` pprintNonAdaAsset nonAdaAssets ]
+      else []
+  where
+  nonAdaAssets = getNonAdaAsset value
 
 -- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the
 -- | quantity of each token is equipartitioned across the resultant `Value`s,
