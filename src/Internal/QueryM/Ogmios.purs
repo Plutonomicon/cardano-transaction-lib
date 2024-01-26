@@ -66,7 +66,6 @@ module Ctl.Internal.QueryM.Ogmios
   , releaseMempoolCall
   , submitTxCall
   , submitSuccessPartialResp
-  , slotLengthFactor
   , parseIpv6String
   , rationalToSubcoin
   , showRedeemerPointer
@@ -76,113 +75,35 @@ module Ctl.Internal.QueryM.Ogmios
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , Aeson
-  , JsonDecodeError(AtKey, TypeMismatch, UnexpectedValue, MissingValue)
-  , caseAesonArray
-  , caseAesonNull
-  , caseAesonObject
-  , caseAesonString
-  , decodeAeson
-  , encodeAeson
-  , fromArray
-  , fromString
-  , getField
-  , isNull
-  , stringifyAeson
-  , (.:)
-  , (.:?)
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(AtKey, TypeMismatch, UnexpectedValue, MissingValue), caseAesonArray, caseAesonNull, caseAesonObject, caseAesonString, decodeAeson, encodeAeson, fromArray, fromString, getField, isNull, stringifyAeson, (.:), (.:?))
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Cardano.Types.NativeScript
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  )
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , ExUnitPrices
-  , ExUnits
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , PoolPubKeyHash
-  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
-  , SubCoin
-  , URL(URL)
-  , UnitInterval
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , Value
-  , getCurrencySymbol
-  , getLovelace
-  , getNonAdaAsset
-  , unwrapNonAdaAsset
-  , valueToCoin
-  )
+import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry))
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
+import Ctl.Internal.Cardano.Types.Transaction (CostModel(CostModel), Costmdls(Costmdls), ExUnitPrices, ExUnits, Ipv4(Ipv4), Ipv6(Ipv6), PoolMetadata(PoolMetadata), PoolMetadataHash(PoolMetadataHash), PoolPubKeyHash, Relay(MultiHostName, SingleHostAddr, SingleHostName), SubCoin, URL(URL), UnitInterval)
+import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value, getCurrencySymbol, getLovelace, getNonAdaAsset, unwrapNonAdaAsset, valueToCoin)
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
-import Ctl.Internal.QueryM.JsonRpc2
-  ( class DecodeOgmios
-  , JsonRpc2Call
-  , JsonRpc2Request
-  , OgmiosError
-  , decodeErrorOrResult
-  , decodeResult
-  , mkCallType
-  )
+import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, JsonRpc2Call, JsonRpc2Request, OgmiosError, decodeErrorOrResult, decodeResult, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , hexToByteArray
-  )
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  , EraSummaryParameters(EraSummaryParameters)
-  )
+import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters))
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.ProtocolParameters
-  ( CoinsPerUtxoUnit(CoinsPerUtxoByte)
-  , ProtocolParameters(ProtocolParameters)
-  )
+import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit(CoinsPerUtxoByte), ProtocolParameters(ProtocolParameters))
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , PlutusScript(PlutusScript)
-  )
-import Ctl.Internal.Types.SystemStart
-  ( SystemStart
-  , sysStartFromOgmiosTimestamp
-  , sysStartToOgmiosTimestamp
-  )
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
+import Ctl.Internal.Types.SystemStart (SystemStart, sysStartFromOgmiosTimestamp, sysStartToOgmiosTimestamp)
 import Ctl.Internal.Types.TokenName (getTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
@@ -547,10 +468,7 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- wrap <$>
-        ( (*) slotLengthFactor <$>
-            (flip getField "seconds" =<< getField o "slotLength")
-        )
+      slotLength <- getField o "slotLength"
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -574,10 +492,6 @@ instance EncodeAeson OgmiosEraSummaries where
         , "safeZone": params.safeZone
         }
 
--- Ogmios returns `slotLength` in seconds, and we use milliseconds,
--- so we need to convert between them.
-slotLengthFactor :: Number
-slotLengthFactor = 1000.0
 
 instance DecodeOgmios OgmiosEraSummaries where
   decodeOgmios = decodeResult decodeAeson
@@ -995,7 +909,7 @@ rationalToSubcoin (PParamRational rat) = do
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
   , "minFeeConstant" ::
-      { "lovelace" :: UInt }
+      { "ada" :: { "lovelace" :: UInt } }
   , "minUtxoDepositCoefficient" :: BigInt
   , "maxBlockBodySize" ::
       { "bytes" :: UInt }
@@ -1006,9 +920,9 @@ type ProtocolParametersRaw =
   , "maxValueSize" ::
       { "bytes" :: UInt }
   , "stakeCredentialDeposit" ::
-      { "lovelace" :: BigInt }
+      { "ada" :: { "lovelace" :: BigInt } }
   , "stakePoolDeposit" ::
-      { "lovelace" :: BigInt }
+      { "ada" :: { "lovelace" :: BigInt } }
   , "stakePoolRetirementEpochBound" :: BigInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
@@ -1019,7 +933,7 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minStakePoolCost" ::
-      { "lovelace" :: BigInt }
+      { "ada" :: { "lovelace" :: BigInt } }
   , "plutusCostModels" ::
       { "plutus:v1" :: Array Csl.Int
       , "plutus:v2" :: Maybe (Array Csl.Int)
@@ -1061,11 +975,11 @@ instance DecodeAeson OgmiosProtocolParameters where
       , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
       , maxBlockBodySize: ps.maxBlockBodySize.bytes
       , maxTxSize: ps.maxTransactionSize.bytes
-      , txFeeFixed: ps.minFeeConstant.lovelace
+      , txFeeFixed: ps.minFeeConstant.ada.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.lovelace
-      , stakePoolDeposit: Coin ps.stakePoolDeposit.lovelace
-      , minPoolCost: Coin ps.minStakePoolCost.lovelace
+      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.ada.lovelace
+      , stakePoolDeposit: Coin ps.stakePoolDeposit.ada.lovelace
+      , minPoolCost: Coin ps.minStakePoolCost.ada.lovelace
       , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
       , stakePoolTargetNum: ps.desiredNumberOfStakePools
       , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence

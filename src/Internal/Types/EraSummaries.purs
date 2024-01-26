@@ -4,30 +4,26 @@ module Ctl.Internal.Types.EraSummaries
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   , EraSummaryTime(EraSummaryTime)
-  , RelativeTime(RelativeTime)
+  , Seconds(Seconds)
+  , fromMilliseconds
+  , Milliseconds(Milliseconds)
+  , fromSeconds
   , SafeZone(SafeZone)
-  , SlotLength(SlotLength)
+  , SlotLength
   ) where
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , encodeAeson
-  , finiteNumber
-  , getField
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson, getField)
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Ctl.Internal.Types.Epoch (Epoch)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
-import JS.BigInt (BigInt)
-import Partial.Unsafe (unsafePartial)
+import JS.BigInt (BigInt, fromInt)
 
 --------------------------------------------------------------------------------
 -- EraSummaries
@@ -70,6 +66,38 @@ instance Show EraSummary where
 -- EraSummaryTime
 --------------------------------------------------------------------------------
 
+newtype Seconds = Seconds BigInt
+
+derive instance Newtype Seconds _
+derive newtype instance Show Seconds
+derive newtype instance Eq Seconds
+
+instance EncodeAeson Seconds where
+  encodeAeson (Seconds seconds) = encodeAeson { seconds }
+
+instance DecodeAeson Seconds where
+  decodeAeson aeson = decodeAeson aeson
+            >>= \obj -> getField obj "seconds"
+
+fromMilliseconds :: Milliseconds -> Seconds
+fromMilliseconds (Milliseconds n) = Seconds $ n / fromInt 1000
+
+newtype Milliseconds = Milliseconds BigInt
+
+derive instance Newtype Milliseconds _
+derive newtype instance Show Milliseconds
+derive newtype instance Eq Milliseconds
+
+instance EncodeAeson Milliseconds where
+  encodeAeson (Milliseconds milliseconds) = encodeAeson { milliseconds }
+
+instance DecodeAeson Milliseconds where
+  decodeAeson aeson = decodeAeson aeson
+            >>= \obj -> getField obj "milliseconds"
+
+fromSeconds :: Seconds -> Milliseconds
+fromSeconds (Seconds n) = Milliseconds $ n * fromInt 1000
+
 -- | time: Time in seconds relative to the start time of the network.
 -- |
 -- | slot: Absolute slot number.
@@ -81,7 +109,7 @@ instance Show EraSummary where
 -- |
 -- | epoch: Epoch number.
 newtype EraSummaryTime = EraSummaryTime
-  { time :: RelativeTime
+  { time :: Seconds
   , slot :: Slot
   , epoch :: Epoch
   }
@@ -130,24 +158,6 @@ instance Show EraSummaryParameters where
 -- RelativeTime, Epoch, EpochLength, SlotLength, SafeZone
 --------------------------------------------------------------------------------
 
--- | A time in seconds relative to another one (typically, system start or era
--- | start).
-newtype RelativeTime = RelativeTime Number
-
-derive instance Generic RelativeTime _
-derive instance Newtype RelativeTime _
-derive newtype instance Eq RelativeTime
-derive newtype instance Ord RelativeTime
-derive newtype instance DecodeAeson RelativeTime
-
-instance EncodeAeson RelativeTime where
-  encodeAeson (RelativeTime rt) =
-    -- We assume the numbers are finite.
-    encodeAeson $ unsafePartial $ fromJust $ finiteNumber rt
-
-instance Show RelativeTime where
-  show (RelativeTime rt) = showWithParens "RelativeTime" rt
-
 newtype EpochLength = EpochLength BigInt
 
 derive instance Generic EpochLength _
@@ -160,20 +170,7 @@ instance Show EpochLength where
   show (EpochLength epochLength) = showWithParens "EpochLength" epochLength
 
 -- | A slot length, in milliseconds.
-newtype SlotLength = SlotLength Number
-
-derive instance Generic SlotLength _
-derive instance Newtype SlotLength _
-derive newtype instance Eq SlotLength
-derive newtype instance DecodeAeson SlotLength
-
-instance EncodeAeson SlotLength where
-  encodeAeson (SlotLength sl) =
-    -- We assume the numbers are finite.
-    encodeAeson $ unsafePartial $ fromJust $ finiteNumber sl
-
-instance Show SlotLength where
-  show (SlotLength slotLength) = showWithParens "SlotLength" slotLength
+type SlotLength = Milliseconds
 
 -- | Number of slots from the tip of the ledger in which it is guaranteed that
 -- | no hard fork can take place. This should be (at least) the number of slots
