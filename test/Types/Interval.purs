@@ -87,7 +87,7 @@ eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
   { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
     "queryLedgerState-eraSummaries"
-    "d8b19110b9580cddfa3895eea34c2139"
+    "02441dc72ecb030059b33e5db1dca2e9"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart

@@ -76,8 +76,9 @@ instance EncodeAeson Seconds where
   encodeAeson (Seconds seconds) = encodeAeson { seconds }
 
 instance DecodeAeson Seconds where
-  decodeAeson aeson = decodeAeson aeson
-            >>= \obj -> getField obj "seconds"
+  decodeAeson = decodeAeson 
+            >=> flip getField "seconds"
+            >=> pure <<< wrap
 
 fromMilliseconds :: Milliseconds -> Seconds
 fromMilliseconds (Milliseconds n) = Seconds $ n / fromInt 1000
@@ -92,8 +93,9 @@ instance EncodeAeson Milliseconds where
   encodeAeson (Milliseconds milliseconds) = encodeAeson { milliseconds }
 
 instance DecodeAeson Milliseconds where
-  decodeAeson aeson = decodeAeson aeson
-            >>= \obj -> getField obj "milliseconds"
+  decodeAeson = decodeAeson
+            >=> flip getField "milliseconds"
+            >=> pure <<< wrap
 
 fromSeconds :: Seconds -> Milliseconds
 fromSeconds (Seconds n) = Milliseconds $ n * fromInt 1000
