@@ -44980,11 +44980,11 @@
         "ogmios": "ogmios_6"
       },
       "locked": {
-        "lastModified": 1706113167,
-        "narHash": "sha256-SIOemKCgCGbhsgGEwXMOelY330I9o3mGPAjveIQYhBU=",
+        "lastModified": 1706653960,
+        "narHash": "sha256-aN8sk8WGo0l5rFoSf642lPv7m2kr3S5ECyu9i7/IwRY=",
         "owner": "Fourierlabs",
         "repo": "ogmios-nixos",
-        "rev": "f164cf55a47c064367de45e2bff5dd31d2612c96",
+        "rev": "01099c7aaf9db0c025aafa6047bd99e9715f39a2",
         "type": "github"
       },
       "original": {
@@ -45064,11 +45064,11 @@
     "ogmios_6": {
       "flake": false,
       "locked": {
-        "lastModified": 1705061170,
-        "narHash": "sha256-MGDBvABOl1+fR90YaFBCbV0mYoLhQj24IjlDmZN9QxY=",
+        "lastModified": 1705944692,
+        "narHash": "sha256-2vSSSolca9sJ4jptoMroeEqROkmR+LAQUKxpCyq7zeM=",
         "owner": "CardanoSolutions",
         "repo": "ogmios",
-        "rev": "54e47dfe3f63d08b9039cffda649393c72438645",
+        "rev": "c1a2e301ad6a351db6c31040e249b81d14c7acc4",
         "type": "github"
       },
       "original": {
