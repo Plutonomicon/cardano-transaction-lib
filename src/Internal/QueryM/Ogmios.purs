@@ -547,10 +547,12 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- wrap <$>
-        ( (*) slotLengthFactor <$>
-            (flip getField "seconds" =<< getField o "slotLength")
-        )
+      slotLength <-
+        ( wrap <$>
+            ( (*) slotLengthFactor <$>
+                (flip getField "seconds" =<< getField o "slotLength")
+            )
+        ) <|> getField o "slotLength"
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -561,8 +563,8 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummary :: EraSummary -> Aeson
     encodeEraSummary (EraSummary { start, end, parameters }) =
       encodeAeson
-        { "start": start
-        , "end": end
+        { "start": encodeAeson start
+        , "end": encodeAeson end
         , "parameters": encodeEraSummaryParameters parameters
         }
 
@@ -570,7 +572,7 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummaryParameters (EraSummaryParameters params) =
       encodeAeson
         { "epochLength": params.epochLength
-        , "slotLength": { "seconds": params.slotLength }
+        , "slotLength": encodeAeson params.slotLength
         , "safeZone": params.safeZone
         }
 
