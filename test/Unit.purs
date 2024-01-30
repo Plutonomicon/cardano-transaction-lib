@@ -28,6 +28,7 @@ import Test.Ctl.Internal.Plutus.Time as Plutus.Time
 import Test.Ctl.Metadata.Cip25 as Cip25
 import Test.Ctl.MustSpendTotal as MustSpendTotal
 import Test.Ctl.NativeScript as NativeScript
+import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.Address as Ogmios.Address
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.Ctl.Partition as Partition
@@ -75,8 +76,7 @@ testPlan = do
   Transaction.suite
   UsedTxOuts.suite
   Ogmios.Address.suite
-  -- TODO enable Ogmios.Aeson.suite unit tests
-  --Ogmios.Aeson.suite
+  Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   -- TODO enable Blockfrost.Aeson.suite unit tests

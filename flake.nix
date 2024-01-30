@@ -125,7 +125,9 @@
               echo "$path"
               json=$(cat "$path")
               md5=($(md5sum <<< "$json"))
-              printf "%s" "$json" > "ogmios/$command-$md5.json"
+              target="ogmios/$command-$md5.json"
+              echo "to $target"
+              printf "%s" "$json" > "$target"
             fi
           }
           export -f on_file
