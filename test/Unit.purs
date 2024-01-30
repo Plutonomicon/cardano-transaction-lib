@@ -68,8 +68,7 @@ testPlan = do
   Partition.suite
   Plutus.Conversion.Address.suite
   Plutus.Conversion.Value.suite
-  -- TODO enable Plutus.Time.suite unit tests
-  skip Plutus.Time.suite
+  Plutus.Time.suite
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite

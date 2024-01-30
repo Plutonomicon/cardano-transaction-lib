@@ -92,7 +92,7 @@ import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters))
+import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters), EraSummaryTime(..))
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
@@ -454,7 +454,8 @@ instance DecodeAeson OgmiosEraSummaries where
     where
     decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
     decodeEraSummary = aesonObject \o -> do
-      start <- getField o "start"
+      start' <- getField o "start"
+      start <- decodeAeson start'
       -- The field "end" is required by Ogmios API, but it can optionally return
       -- Null, so we want to fail if the field is absent but make Null value
       -- acceptable in presence of the field (hence why "end" is wrapped in
@@ -468,7 +469,8 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- getField o "slotLength"
+      slotLength' <- getField o "slotLength"
+      slotLength <- decodeAeson slotLength'
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -479,8 +481,8 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummary :: EraSummary -> Aeson
     encodeEraSummary (EraSummary { start, end, parameters }) =
       encodeAeson
-        { "start": start
-        , "end": end
+        { "start": encodeAeson start
+        , "end": encodeAeson end
         , "parameters": encodeEraSummaryParameters parameters
         }
 
@@ -488,7 +490,7 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummaryParameters (EraSummaryParameters params) =
       encodeAeson
         { "epochLength": params.epochLength
-        , "slotLength": { "seconds": params.slotLength }
+        , "slotLength": encodeAeson params.slotLength
         , "safeZone": params.safeZone
         }
 

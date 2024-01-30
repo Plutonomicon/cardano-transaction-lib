@@ -14,15 +14,7 @@ module Test.Ctl.Utils
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , class EncodeAeson
-  , Aeson
-  , JsonDecodeError
-  , decodeAeson
-  , encodeAeson
-  , parseJsonStringToAeson
-  )
+import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError, decodeAeson, encodeAeson, parseJsonStringToAeson)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right), either)
