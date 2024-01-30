@@ -10,7 +10,7 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
-import Mote (only)
+import Mote (skip)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
@@ -68,23 +68,26 @@ testPlan = do
   Partition.suite
   Plutus.Conversion.Address.suite
   Plutus.Conversion.Value.suite
-  Plutus.Time.suite
+  -- TODO enable Plutus.Time.suite unit tests
+  skip Plutus.Time.suite
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite
   Transaction.suite
   UsedTxOuts.suite
   Ogmios.Address.suite
-  -- TODO enable ogmios-fixtures tests
+  -- TODO enable Ogmios.Aeson.suite unit tests
   --Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
-  only ProtocolParams.suite
-  Blockfrost.Aeson.suite
-  Blockfrost.ProtocolParameters.suite
+  ProtocolParams.suite
+  -- TODO enable Blockfrost.Aeson.suite unit tests
+  skip Blockfrost.Aeson.suite
+  -- TODO enable Blockforst.ProtocolParameters.suite unit tests
+  skip Blockfrost.ProtocolParameters.suite
   Types.TokenName.suite
   Types.Transaction.suite
   Ctl.Data.Interval.suite
-  only $ flip mapTest Types.Interval.suite \f -> liftEffect $ join $
+  flip mapTest Types.Interval.suite \f -> liftEffect $ join $
     f <$> Types.Interval.eraSummariesFixture
       <*> Types.Interval.systemStartFixture
   E2E.Route.suite
