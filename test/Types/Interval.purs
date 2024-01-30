@@ -94,7 +94,7 @@ systemStartFixture :: Effect SystemStart
 systemStartFixture = do
   { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture
     "queryNetwork-startTime"
-    "02fa6f9e7ed04ebfe3294c7648be54d5"
+    "95d62e836da63d5bd06518b6884a9d29"
   pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit

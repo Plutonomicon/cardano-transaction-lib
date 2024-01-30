@@ -11,17 +11,8 @@ import Contract.Backend.Ogmios.Mempool (MempoolSizeAndCapacity)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.QueryM.JsonRpc2
-  ( class DecodeOgmios
-  , OgmiosDecodeError(ErrorResponse)
-  , decodeOgmios
-  )
-import Ctl.Internal.QueryM.Ogmios
-  ( HasTxR
-  , SubmitTxR
-  , TxEvaluationR
-  , aesonObject
-  )
+import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, OgmiosDecodeError(ErrorResponse), decodeOgmios)
+import Ctl.Internal.QueryM.Ogmios (HasTxR, SubmitTxR, TxEvaluationR, aesonObject)
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, groupAllBy, nubBy)
@@ -35,6 +26,7 @@ import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
+import Debug (spy)
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class (liftEffect)

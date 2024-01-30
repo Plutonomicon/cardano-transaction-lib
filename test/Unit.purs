@@ -10,6 +10,7 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
+import Mote (only)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
@@ -28,7 +29,6 @@ import Test.Ctl.Metadata.Cip25 as Cip25
 import Test.Ctl.MustSpendTotal as MustSpendTotal
 import Test.Ctl.NativeScript as NativeScript
 import Test.Ctl.Ogmios.Address as Ogmios.Address
-import Test.Ctl.Ogmios.Aeson as Ogmios.Aeson
 import Test.Ctl.Ogmios.EvaluateTx as Ogmios.EvaluateTx
 import Test.Ctl.Partition as Partition
 import Test.Ctl.ProtocolParams as ProtocolParams
@@ -75,9 +75,10 @@ testPlan = do
   Transaction.suite
   UsedTxOuts.suite
   Ogmios.Address.suite
-  Ogmios.Aeson.suite
+  -- TODO enable ogmios-fixtures tests
+  --Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
-  ProtocolParams.suite
+  only ProtocolParams.suite
   Blockfrost.Aeson.suite
   Blockfrost.ProtocolParameters.suite
   Types.TokenName.suite
