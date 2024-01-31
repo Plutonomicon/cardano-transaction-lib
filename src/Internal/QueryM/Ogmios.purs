@@ -805,8 +805,8 @@ instance DecodeAeson ScriptFailure where
     errorData <- maybe (Left (AtKey "data" MissingValue)) pure error.data
     case error.code of
       3011 -> do
-        res :: { missingScripts :: Array String } <- decodeAeson errorData
-        missing <- traverse decodeRedeemerPointer res.missingScripts
+        res :: { missingScripts :: Array { index :: Natural, purpose :: String } } <- decodeAeson errorData
+        missing <- traverse decodeRedeemerPointer_ res.missingScripts
         pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
         res :: { validationError :: String, traces :: Array String } <-
@@ -823,8 +823,8 @@ instance DecodeAeson ScriptFailure where
           , txId: res.unsuitableOutputReference.transaction.id
           }
       3110 -> do
-        res :: { extraneousRedeemers :: Array String } <- decodeAeson errorData
-        ExtraRedeemers <$> traverse decodeRedeemerPointer
+        res :: { extraneousRedeemers :: Array { index :: Natural, purpose :: String } } <- decodeAeson errorData
+        ExtraRedeemers <$> traverse decodeRedeemerPointer_
           res.extraneousRedeemers
       3111 -> do
         res :: { missingDatums :: Array String } <- decodeAeson errorData
