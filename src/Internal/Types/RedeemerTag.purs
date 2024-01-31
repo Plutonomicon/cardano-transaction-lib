@@ -18,8 +18,8 @@ fromString :: String -> Maybe RedeemerTag
 fromString = case _ of
   "spend" -> Just Spend
   "mint" -> Just Mint
-  "certificate" -> Just Cert
-  "withdrawal" -> Just Reward
+  "publish" -> Just Cert
+  "withdraw" -> Just Reward
   _ -> Nothing
 
 derive instance Generic RedeemerTag _

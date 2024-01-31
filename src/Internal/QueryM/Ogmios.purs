@@ -71,6 +71,7 @@ module Ctl.Internal.QueryM.Ogmios
   , showRedeemerPointer
   , decodeRedeemerPointer
   , redeemerPtrTypeMismatch
+  , redeemerPtrTypeMismatch_
   ) where
 
 import Prelude
@@ -92,7 +93,7 @@ import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters), EraSummaryTime(..))
+import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters))
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
@@ -722,16 +723,21 @@ instance DecodeAeson TxEvaluationResult where
       :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem elem = do
       res
-        :: { validator :: String
+        :: { validator :: { index :: Natural, purpose :: String }
            , budget :: { memory :: Natural, cpu :: Natural }
            } <- decodeAeson elem
-      redeemerPtr <- decodeRedeemerPointer res.validator
+      redeemerPtr <- decodeRedeemerPointer_ res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
 
 redeemerPtrTypeMismatch :: JsonDecodeError
 redeemerPtrTypeMismatch = TypeMismatch
   "Expected redeemer pointer to be encoded as: \
-  \^(spend|mint|certificate|withdrawal):[0-9]+$"
+  \^(spend|mint|publish|withdraw):[0-9]+$"
+
+redeemerPtrTypeMismatch_ :: JsonDecodeError
+redeemerPtrTypeMismatch_ = TypeMismatch
+  "Expected redeemer pointer to be encoded as: \
+  \^(spend|mint|publish|withdraw)$"
 
 decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
 decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
@@ -741,6 +747,11 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <$> RedeemerTag.fromString tagRaw
         <*> Natural.fromString indexRaw
     _ -> Nothing
+
+decodeRedeemerPointer_ :: { index :: Natural, purpose :: String } -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer_ { index, purpose }
+  = note redeemerPtrTypeMismatch_
+  $ (\redeemerTag -> { redeemerTag, redeemerIndex: index }) <$> RedeemerTag.fromString purpose
 
 type OgmiosDatum = String
 type OgmiosScript = String
@@ -863,8 +874,8 @@ instance DecodeAeson TxEvaluationFailure where
 
     where
     parseElem elem = do
-      res :: { validator :: String, error :: ScriptFailure } <- decodeAeson elem
-      (_ /\ res.error) <$> decodeRedeemerPointer res.validator
+      res :: { validator :: { index :: Natural, purpose :: String }, error :: ScriptFailure } <- decodeAeson elem
+      (_ /\ res.error) <$> decodeRedeemerPointer_ res.validator
 
     collectIntoMap :: forall k v. Ord k => Array (k /\ v) -> Map k (List v)
     collectIntoMap = foldl
