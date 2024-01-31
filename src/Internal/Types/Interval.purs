@@ -64,28 +64,71 @@ module Ctl.Internal.Types.Interval
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(AtKey, Named, TypeMismatch, UnexpectedValue), aesonNull, decodeAeson, encodeAeson, finiteNumber, getField, isNull, (.:))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(AtKey, Named, TypeMismatch, UnexpectedValue)
+  , aesonNull
+  , decodeAeson
+  , encodeAeson
+  , finiteNumber
+  , getField
+  , isNull
+  , (.:)
+  )
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
-import Ctl.Internal.Helpers (contentsProp, encodeTagged', liftEither, liftM, mkErrorRecord, showWithParens, tagProp)
-import Ctl.Internal.Plutus.Types.DataSchema (class HasPlutusSchema, type (:+), type (:=), type (@@), PNil)
+import Ctl.Internal.Helpers
+  ( contentsProp
+  , encodeTagged'
+  , liftEither
+  , liftM
+  , mkErrorRecord
+  , showWithParens
+  , tagProp
+  )
+import Ctl.Internal.Plutus.Types.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , PNil
+  )
 import Ctl.Internal.QueryM.Ogmios (aesonObject)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
-import Ctl.Internal.Types.BigNum (add, fromBigInt, maxValue, one, toBigInt, zero) as BigNum
-import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), Seconds(..), fromSeconds)
+import Ctl.Internal.Types.BigNum
+  ( add
+  , fromBigInt
+  , maxValue
+  , one
+  , toBigInt
+  , zero
+  ) as BigNum
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , Seconds(..)
+  , fromSeconds
+  )
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
-import Data.Array.NonEmpty ((:))
 import Data.Array.NonEmpty (singleton) as NEArray
+import Data.Array.NonEmpty ((:))
 import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(Left, Right), note)
 import Data.Generic.Rep (class Generic)
-import Data.Lattice (class BoundedJoinSemilattice, class BoundedMeetSemilattice, class JoinSemilattice, class MeetSemilattice)
+import Data.Lattice
+  ( class BoundedJoinSemilattice
+  , class BoundedMeetSemilattice
+  , class JoinSemilattice
+  , class MeetSemilattice
+  )
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (trunc, (%)) as Math
@@ -673,7 +716,8 @@ slotToPosixTime eraSummaries sysStart slot = runExcept do
   -- Convert absolute slot (relative to System start) to relative slot of era
   relSlot <- liftEither $ relSlotFromSlot currentEra slot
   -- Convert relative slot to relative time for that era
-  relTime <- liftM CannotGetBigIntFromNumber $ Just $ relTimeFromRelSlot currentEra
+  relTime <- liftM CannotGetBigIntFromNumber $ Just $ relTimeFromRelSlot
+    currentEra
     relSlot
   absTime <- liftEither $ absTimeFromRelTime currentEra relTime
   -- Get POSIX time for system start
@@ -930,12 +974,12 @@ findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
   where
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-      unwrap (fromSeconds (unwrap start).time) <= at
-        && maybe true
+    unwrap (fromSeconds (unwrap start).time) <= at
+      && maybe true
         ( (<) at <<< unwrap <<< fromSeconds <<< _.time <<<
-              unwrap
-          )
-          end
+            unwrap
+        )
+        end
 
 relTimeFromAbsTime
   :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime

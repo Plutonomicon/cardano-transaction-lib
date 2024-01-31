@@ -17,7 +17,13 @@ import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries))
-import Ctl.Internal.Types.Interval (POSIXTime(POSIXTime), SlotToPosixTimeError(CannotFindSlotInEraSummaries), findSlotEraSummary, getSlotLength, slotToPosixTime)
+import Ctl.Internal.Types.Interval
+  ( POSIXTime(POSIXTime)
+  , SlotToPosixTimeError(CannotFindSlotInEraSummaries)
+  , findSlotEraSummary
+  , getSlotLength
+  , slotToPosixTime
+  )
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural as Natural
 import Ctl.Internal.Types.SystemStart (SystemStart)

@@ -4,13 +4,45 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
-import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries(OgmiosEraSummaries), OgmiosSystemStart)
+import Ctl.Internal.QueryM.Ogmios
+  ( OgmiosEraSummaries(OgmiosEraSummaries)
+  , OgmiosSystemStart
+  )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries (EpochLength(EpochLength), EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters), EraSummaryTime(EraSummaryTime), Milliseconds, SafeZone(SafeZone), Seconds, SlotLength)
-import Ctl.Internal.Types.Interval (AbsTime(AbsTime), ModTime(ModTime), POSIXTime(POSIXTime), PosixTimeToSlotError(CannotFindTimeInEraSummaries, EndSlotLessThanSlotOrModNonZero, PosixTimeBeforeSystemStart, StartTimeGreaterThanTime), RelSlot(RelSlot), RelTime(RelTime), SlotToPosixTimeError(CannotFindSlotInEraSummaries, CannotGetBigIntFromNumber, EndTimeLessThanTime, StartingSlotGreaterThanSlot), ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError'))
+import Ctl.Internal.Types.EraSummaries
+  ( EpochLength(EpochLength)
+  , EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , EraSummaryParameters(EraSummaryParameters)
+  , EraSummaryTime(EraSummaryTime)
+  , Milliseconds
+  , SafeZone(SafeZone)
+  , Seconds
+  , SlotLength
+  )
+import Ctl.Internal.Types.Interval
+  ( AbsTime(AbsTime)
+  , ModTime(ModTime)
+  , POSIXTime(POSIXTime)
+  , PosixTimeToSlotError
+      ( CannotFindTimeInEraSummaries
+      , EndSlotLessThanSlotOrModNonZero
+      , PosixTimeBeforeSystemStart
+      , StartTimeGreaterThanTime
+      )
+  , RelSlot(RelSlot)
+  , RelTime(RelTime)
+  , SlotToPosixTimeError
+      ( CannotFindSlotInEraSummaries
+      , CannotGetBigIntFromNumber
+      , EndTimeLessThanTime
+      , StartingSlotGreaterThanSlot
+      )
+  , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
+  )
 import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap, wrap)
@@ -193,7 +225,8 @@ eraSummaryLengthToSeconds :: EraSummary -> EraSummary
 eraSummaryLengthToSeconds old@(EraSummary { parameters }) =
   let
     newSlotLength :: SlotLength
-    newSlotLength = wrap $ unwrap (unwrap parameters).slotLength `mod` BigInt.fromInt 1000
+    newSlotLength = wrap $ unwrap (unwrap parameters).slotLength `mod`
+      BigInt.fromInt 1000
 
     newParameters :: EraSummaryParameters
     newParameters = wrap $ (unwrap parameters) { slotLength = newSlotLength }

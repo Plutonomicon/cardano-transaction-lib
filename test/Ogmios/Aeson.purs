@@ -11,8 +11,17 @@ import Contract.Backend.Ogmios.Mempool (MempoolSizeAndCapacity)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, OgmiosDecodeError(ErrorResponse), decodeOgmios)
-import Ctl.Internal.QueryM.Ogmios (HasTxR, SubmitTxR, TxEvaluationR, aesonObject)
+import Ctl.Internal.QueryM.JsonRpc2
+  ( class DecodeOgmios
+  , OgmiosDecodeError(ErrorResponse)
+  , decodeOgmios
+  )
+import Ctl.Internal.QueryM.Ogmios
+  ( HasTxR
+  , SubmitTxR
+  , TxEvaluationR
+  , aesonObject
+  )
 import Ctl.Internal.QueryM.Ogmios as O
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, groupAllBy, nubBy)

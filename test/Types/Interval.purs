@@ -14,7 +14,23 @@ import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.BigNum (fromInt) as BigNum
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
-import Ctl.Internal.Types.Interval (Interval, POSIXTime(POSIXTime), PosixTimeToSlotError(PosixTimeBeforeSystemStart), always, contains, from, hull, intersection, isEmpty, member, mkFiniteInterval, never, posixTimeToSlot, slotToPosixTime, to)
+import Ctl.Internal.Types.Interval
+  ( Interval
+  , POSIXTime(POSIXTime)
+  , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
+  , always
+  , contains
+  , from
+  , hull
+  , intersection
+  , isEmpty
+  , member
+  , mkFiniteInterval
+  , never
+  , posixTimeToSlot
+  , slotToPosixTime
+  , to
+  )
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)
@@ -37,8 +53,10 @@ suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval" do
     group "EraSumaries related" do
-      skip $ test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
-      skip $ test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
+      skip $ test "Inverse posixTimeToSlot >>> slotToPosixTime "
+        testPosixTimeToSlot
+      skip $ test "Inverse slotToPosixTime >>> posixTimeToSlot "
+        testSlotToPosixTime
       test "PosixTimeToSlot errors" testPosixTimeToSlotError
     group "Properties" do
       test "UpperRay" $ liftToTest testUpperRay

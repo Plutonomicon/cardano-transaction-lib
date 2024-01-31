@@ -14,7 +14,13 @@ module Ctl.Internal.Types.EraSummaries
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson, getField)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , decodeAeson
+  , encodeAeson
+  , getField
+  )
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
@@ -76,9 +82,9 @@ instance EncodeAeson Seconds where
   encodeAeson (Seconds seconds) = encodeAeson { seconds }
 
 instance DecodeAeson Seconds where
-  decodeAeson = decodeAeson 
-            >=> flip getField "seconds"
-            >=> pure <<< wrap
+  decodeAeson = decodeAeson
+    >=> flip getField "seconds"
+    >=> pure <<< wrap
 
 fromMilliseconds :: Milliseconds -> Seconds
 fromMilliseconds (Milliseconds n) = Seconds $ n / fromInt 1000
@@ -94,8 +100,8 @@ instance EncodeAeson Milliseconds where
 
 instance DecodeAeson Milliseconds where
   decodeAeson = decodeAeson
-            >=> flip getField "milliseconds"
-            >=> pure <<< wrap
+    >=> flip getField "milliseconds"
+    >=> pure <<< wrap
 
 fromSeconds :: Seconds -> Milliseconds
 fromSeconds (Seconds n) = Milliseconds $ n * fromInt 1000

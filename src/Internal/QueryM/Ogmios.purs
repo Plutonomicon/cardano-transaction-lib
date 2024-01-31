@@ -76,35 +76,113 @@ module Ctl.Internal.QueryM.Ogmios
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, Aeson, JsonDecodeError(AtKey, TypeMismatch, UnexpectedValue, MissingValue), caseAesonArray, caseAesonNull, caseAesonObject, caseAesonString, decodeAeson, encodeAeson, fromArray, fromString, getField, isNull, stringifyAeson, (.:), (.:?))
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(AtKey, TypeMismatch, UnexpectedValue, MissingValue)
+  , caseAesonArray
+  , caseAesonNull
+  , caseAesonObject
+  , caseAesonString
+  , decodeAeson
+  , encodeAeson
+  , fromArray
+  , fromString
+  , getField
+  , isNull
+  , stringifyAeson
+  , (.:)
+  , (.:?)
+  )
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry))
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
-import Ctl.Internal.Cardano.Types.Transaction (CostModel(CostModel), Costmdls(Costmdls), ExUnitPrices, ExUnits, Ipv4(Ipv4), Ipv6(Ipv6), PoolMetadata(PoolMetadata), PoolMetadataHash(PoolMetadataHash), PoolPubKeyHash, Relay(MultiHostName, SingleHostAddr, SingleHostName), SubCoin, URL(URL), UnitInterval)
-import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value, getCurrencySymbol, getLovelace, getNonAdaAsset, unwrapNonAdaAsset, valueToCoin)
+import Ctl.Internal.Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  )
+import Ctl.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+  )
+import Ctl.Internal.Cardano.Types.Transaction
+  ( CostModel(CostModel)
+  , Costmdls(Costmdls)
+  , ExUnitPrices
+  , ExUnits
+  , Ipv4(Ipv4)
+  , Ipv6(Ipv6)
+  , PoolMetadata(PoolMetadata)
+  , PoolMetadataHash(PoolMetadataHash)
+  , PoolPubKeyHash
+  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
+  , SubCoin
+  , URL(URL)
+  , UnitInterval
+  )
+import Ctl.Internal.Cardano.Types.Value
+  ( Coin(Coin)
+  , Value
+  , getCurrencySymbol
+  , getLovelace
+  , getNonAdaAsset
+  , unwrapNonAdaAsset
+  , valueToCoin
+  )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
-import Ctl.Internal.QueryM.JsonRpc2 (class DecodeOgmios, JsonRpc2Call, JsonRpc2Request, OgmiosError, decodeErrorOrResult, decodeResult, mkCallType)
+import Ctl.Internal.QueryM.JsonRpc2
+  ( class DecodeOgmios
+  , JsonRpc2Call
+  , JsonRpc2Request
+  , OgmiosError
+  , decodeErrorOrResult
+  , decodeResult
+  , mkCallType
+  )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArray
+  , byteArrayToHex
+  , hexToByteArray
+  )
 import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
-import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries), EraSummary(EraSummary), EraSummaryParameters(EraSummaryParameters))
+import Ctl.Internal.Types.EraSummaries
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  , EraSummaryParameters(EraSummaryParameters)
+  )
 import Ctl.Internal.Types.Int as Csl
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit(CoinsPerUtxoByte), ProtocolParameters(ProtocolParameters))
+import Ctl.Internal.Types.ProtocolParameters
+  ( CoinsPerUtxoUnit(CoinsPerUtxoByte)
+  , ProtocolParameters(ProtocolParameters)
+  )
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2), PlutusScript(PlutusScript))
-import Ctl.Internal.Types.SystemStart (SystemStart, sysStartFromOgmiosTimestamp, sysStartToOgmiosTimestamp)
+import Ctl.Internal.Types.Scripts
+  ( Language(PlutusV1, PlutusV2)
+  , PlutusScript(PlutusScript)
+  )
+import Ctl.Internal.Types.SystemStart
+  ( SystemStart
+  , sysStartFromOgmiosTimestamp
+  , sysStartToOgmiosTimestamp
+  )
 import Ctl.Internal.Types.TokenName (getTokenName)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
@@ -495,7 +573,6 @@ instance EncodeAeson OgmiosEraSummaries where
         , "safeZone": params.safeZone
         }
 
-
 instance DecodeOgmios OgmiosEraSummaries where
   decodeOgmios = decodeResult decodeAeson
 
@@ -748,10 +825,12 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <*> Natural.fromString indexRaw
     _ -> Nothing
 
-decodeRedeemerPointer_ :: { index :: Natural, purpose :: String } -> Either JsonDecodeError RedeemerPointer
-decodeRedeemerPointer_ { index, purpose }
-  = note redeemerPtrTypeMismatch_
-  $ (\redeemerTag -> { redeemerTag, redeemerIndex: index }) <$> RedeemerTag.fromString purpose
+decodeRedeemerPointer_
+  :: { index :: Natural, purpose :: String }
+  -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer_ { index, purpose } = note redeemerPtrTypeMismatch_
+  $ (\redeemerTag -> { redeemerTag, redeemerIndex: index }) <$>
+      RedeemerTag.fromString purpose
 
 type OgmiosDatum = String
 type OgmiosScript = String
@@ -805,7 +884,9 @@ instance DecodeAeson ScriptFailure where
     errorData <- maybe (Left (AtKey "data" MissingValue)) pure error.data
     case error.code of
       3011 -> do
-        res :: { missingScripts :: Array { index :: Natural, purpose :: String } } <- decodeAeson errorData
+        res
+          :: { missingScripts :: Array { index :: Natural, purpose :: String } } <-
+          decodeAeson errorData
         missing <- traverse decodeRedeemerPointer_ res.missingScripts
         pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
@@ -823,7 +904,10 @@ instance DecodeAeson ScriptFailure where
           , txId: res.unsuitableOutputReference.transaction.id
           }
       3110 -> do
-        res :: { extraneousRedeemers :: Array { index :: Natural, purpose :: String } } <- decodeAeson errorData
+        res
+          :: { extraneousRedeemers ::
+                 Array { index :: Natural, purpose :: String }
+             } <- decodeAeson errorData
         ExtraRedeemers <$> traverse decodeRedeemerPointer_
           res.extraneousRedeemers
       3111 -> do
@@ -874,7 +958,10 @@ instance DecodeAeson TxEvaluationFailure where
 
     where
     parseElem elem = do
-      res :: { validator :: { index :: Natural, purpose :: String }, error :: ScriptFailure } <- decodeAeson elem
+      res
+        :: { validator :: { index :: Natural, purpose :: String }
+           , error :: ScriptFailure
+           } <- decodeAeson elem
       (_ /\ res.error) <$> decodeRedeemerPointer_ res.validator
 
     collectIntoMap :: forall k v. Ord k => Array (k /\ v) -> Map k (List v)

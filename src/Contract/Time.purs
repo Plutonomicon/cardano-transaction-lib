@@ -157,8 +157,9 @@ normalizeTimeInterval
 normalizeTimeInterval = case _ of
   desired@(Interval.FiniteInterval start end) -> do
     era <- getCurrentEra
-    let params = unwrap (unwrap era).parameters
-        slotLength = unwrap params.slotLength
+    let
+      params = unwrap (unwrap era).parameters
+      slotLength = unwrap params.slotLength
     let offset = unwrap params.safeZone + slotLength
     let endTime = start + Interval.POSIXTime offset
     let oneSecond = Interval.POSIXTime $ BigInt.fromInt 1_000
