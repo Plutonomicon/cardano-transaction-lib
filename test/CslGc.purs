@@ -36,7 +36,7 @@ type CslGcTestConfig =
   }
 
 -- We consider the test successfull if external memory consumption
--- stops growing after i-th iteration. 
+-- stops growing after i-th iteration.
 --
 -- Note, that wasm has no support for memory shrinking, i.e. once
 -- the allocated memory is freed, it will be reused in subsequent

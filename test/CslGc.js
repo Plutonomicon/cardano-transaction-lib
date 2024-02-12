@@ -17,7 +17,7 @@ export const testExternalMemLeakImpl = config => async () => {
 
     for (let j = 0; j < config.numArrays; j++) {
       let bytes = new Uint8Array(Array(config.arrSize).fill(0));
-      const _pd = lib.PlutusData.new_bytes(bytes);
+      lib.PlutusData.new_bytes(bytes);
     }
 
     await new Promise(r => setTimeout(r, config.delay));
