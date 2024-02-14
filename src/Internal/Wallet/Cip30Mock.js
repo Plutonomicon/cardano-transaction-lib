@@ -2,7 +2,7 @@
 
 export function injectCip30Mock(walletName) {
   return mock => () => {
-    let window_ = typeof window != "undefined" ? window : (global.window_ = {});
+    let window_ = typeof window != "undefined" ? window : (global.window = {});
 
     if (
       typeof window_ == "object" &&
@@ -40,9 +40,6 @@ export function injectCip30Mock(walletName) {
 
     return () => {
       delete window_.cardano[walletName];
-      if (typeof window == "undefined") {
-        global.window_ = undefined;
-      }
     };
   };
 }

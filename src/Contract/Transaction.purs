@@ -41,7 +41,6 @@ import Contract.Metadata (GeneralTransactionMetadata)
 import Contract.Monad
   ( Contract
   , liftContractM
-  , liftedM
   , runContractInEnv
   )
 import Contract.TxConstraints (TxConstraints)
@@ -56,7 +55,6 @@ import Ctl.Internal.BalanceTx.Error
   , BalanceTxError
       ( BalanceInsufficientError
       , CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetChangeAddress
       , CouldNotGetCollateral
       , InsufficientCollateralUtxos
       , CouldNotGetUtxos
@@ -263,7 +261,6 @@ signTransaction
   -> Contract BalancedSignedTransaction
 signTransaction =
   map BalancedSignedTransaction
-    <<< liftedM "Error signing the transaction"
     <<< Contract.signTransaction
     <<< unwrap
 

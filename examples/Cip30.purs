@@ -1,5 +1,5 @@
 -- | This module demonstrates the use of the CIP-30 functions
--- | using an external wallet.
+-- | using an external wallet. Uses `purescript-cip30`
 module Ctl.Examples.Cip30
   ( main
   , example
@@ -8,23 +8,22 @@ module Ctl.Examples.Cip30
 
 import Contract.Prelude
 
+import Cardano.Wallet.Cip30
+  ( getApiVersion
+  , getAvailableWallets
+  , getIcon
+  , getName
+  )
+import Cardano.Wallet.Cip30.TypeSafe as Cip30
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
 import Contract.Prim.ByteArray (rawBytesFromAscii)
 import Contract.Wallet
-  ( WalletExtension
-  , apiVersion
-  , getChangeAddress
+  ( getChangeAddress
   , getRewardAddresses
   , getUnusedAddresses
-  , getWallet
-  , icon
-  , isEnabled
-  , isWalletAvailable
-  , name
   , signData
-  , walletToWalletExtension
   )
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
@@ -35,25 +34,22 @@ main = example testnetNamiConfig
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
-  mWallet <- runContract cfg getWallet
-  let mSupportWallet = walletToWalletExtension =<< mWallet
-  _ <- traverse nonConfigFunctions mSupportWallet
+  traverse_ nonConfigFunctions =<< liftEffect getAvailableWallets
   runContract cfg contract
 
-nonConfigFunctions :: WalletExtension -> Aff Unit
+nonConfigFunctions :: String -> Aff Unit
 nonConfigFunctions extensionWallet = do
   log "Functions that don't depend on `Contract`"
-  performAndLog "isWalletAvailable" (liftEffect <<< isWalletAvailable)
-  performAndLog "isEnabled" isEnabled
-  performAndLog "apiVersion" apiVersion
-  performAndLog "name" name
-  performAndLog "icon" icon
+  performAndLog "isEnabled" $ Cip30.isEnabled
+  performAndLog "apiVersion" $ liftEffect <<< getApiVersion
+  performAndLog "name" $ liftEffect <<< getName
+  performAndLog "icon" $ liftEffect <<< getIcon
   where
   performAndLog
     :: forall (a :: Type)
      . Show a
     => String
-    -> (WalletExtension -> Aff a)
+    -> (String -> Aff a)
     -> Aff Unit
   performAndLog msg f = do
     result <- f extensionWallet
@@ -70,8 +66,7 @@ contract = do
   mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
   rewardAddr <- liftMaybe (error "can't get reward address")
     $ head mRewardAddress
-  mChangeAddress <- performAndLog "getChangeAddress" getChangeAddress
-  changeAddress <- liftMaybe (error "can't get change address") mChangeAddress
+  changeAddress <- performAndLog "getChangeAddress" getChangeAddress
   _ <- performAndLog "signData changeAddress" $ signData changeAddress dataBytes
   void $ performAndLog "signData rewardAddress" $ signData rewardAddr dataBytes
   where

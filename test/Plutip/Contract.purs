@@ -162,7 +162,7 @@ import Ctl.Internal.Wallet.Cip30Mock
   , withCip30Mock
   )
 import Data.Array (head, (!!))
-import Data.Either (Either(Left, Right), isLeft, isRight)
+import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
@@ -1897,164 +1897,155 @@ suite = do
             args
           result `shouldEqual` (unwrap fullyAppliedScriptFixture)
 
-    group "CIP-30 mock interface" do
-      test "Wallet cleanup" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
-            isLeft
-          try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
-            isLeft
-          try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
-            shouldSatisfy
-            isLeft
-          try (liftEffect $ isWalletAvailable NuFiWallet) >>= flip shouldSatisfy
-            isLeft
+  group "CIP-30 mock interface" do
+    test "Wallet cleanup" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
 
-          withCip30Mock alice MockNami do
-            (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
-          try (liftEffect $ isWalletAvailable NamiWallet) >>= flip shouldSatisfy
-            isLeft
+        withCip30Mock alice MockNami do
+          (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable NamiWallet) >>= hush >>> shouldEqual
+          (Just false)
 
-          withCip30Mock alice MockGero do
-            (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
-          try (liftEffect $ isWalletAvailable GeroWallet) >>= flip shouldSatisfy
-            isLeft
+        withCip30Mock alice MockGero do
+          (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable GeroWallet) >>= hush >>> shouldEqual
+          (Just false)
 
-          withCip30Mock alice MockFlint do
-            (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
-          try (liftEffect $ isWalletAvailable FlintWallet) >>= flip
-            shouldSatisfy
-            isLeft
+        withCip30Mock alice MockFlint do
+          (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable FlintWallet) >>= hush >>>
+          shouldEqual
+            (Just false)
 
-          withCip30Mock alice MockNuFi do
-            (liftEffect $ isWalletAvailable NuFiWallet) >>= shouldEqual true
-          try (liftEffect $ isWalletAvailable NuFiWallet) >>= flip shouldSatisfy
-            isLeft
+        withCip30Mock alice MockNuFi do
+          (liftEffect $ isWalletAvailable NuFiWallet) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable NuFiWallet) >>= hush >>> shouldEqual
+          (Just false)
 
-      test "Collateral selection returns UTxO with smaller amount" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          withCip30Mock alice MockNami do
-            getWalletCollateral >>= liftEffect <<< case _ of
-              Nothing -> throw "Unable to get collateral"
-              Just
-                [ TransactionUnspentOutput
-                    { output: TransactionOutputWithRefScript { output } }
-                ] -> do
-                let amount = (unwrap output).amount
-                unless
-                  (amount == lovelaceValueOf (BigInt.fromInt 50_000_000))
-                  $ throw "Wrong UTxO selected as collateral"
-              Just _ -> do
-                throw $ "More than one UTxO in collateral. " <>
-                  "Not a bug, but unexpected in this test, please update it."
+    test "Collateral selection returns UTxO with smaller amount" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
+        withCip30Mock alice MockNami do
+          getWalletCollateral >>= liftEffect <<< case _ of
+            Nothing -> throw "Unable to get collateral"
+            Just
+              [ TransactionUnspentOutput
+                  { output: TransactionOutputWithRefScript { output } }
+              ] -> do
+              let amount = (unwrap output).amount
+              unless
+                (amount == lovelaceValueOf (BigInt.fromInt 50_000_000))
+                $ throw "Wrong UTxO selected as collateral"
+            Just _ -> do
+              throw $ "More than one UTxO in collateral. " <>
+                "Not a bug, but unexpected in this test, please update it."
 
-      test "Get own UTxOs" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          utxos <- withCip30Mock alice MockNami do
-            getWalletUtxos
-          utxos `shouldSatisfy` isJust
+    test "Get own UTxOs" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
+        utxos <- withCip30Mock alice MockNami do
+          getWalletUtxos
+        utxos `shouldSatisfy` isJust
 
-      test "Get own address" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          mockAddress <- withCip30Mock alice MockNami do
-            mbAddr <- head <$> getWalletAddresses
-            mbAddr `shouldSatisfy` isJust
-            pure mbAddr
-          kwAddress <- head <$> withKeyWallet alice do
-            getWalletAddresses
-          mockAddress `shouldEqual` kwAddress
+    test "Get own address" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
+        mockAddress <- withCip30Mock alice MockNami do
+          mbAddr <- head <$> getWalletAddresses
+          mbAddr `shouldSatisfy` isJust
+          pure mbAddr
+        kwAddress <- head <$> withKeyWallet alice do
+          getWalletAddresses
+        mockAddress `shouldEqual` kwAddress
 
-      test "Payment key hash to payment key hash Tx" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          withCip30Mock alice MockNami do
-            pkh <- liftedM "Failed to get PKH" $ head <$>
-              ownPaymentPubKeyHashes
-            stakePkh <- join <<< head <$> ownStakePubKeyHashes
-            pkh2PkhContract pkh stakePkh
+    test "Payment key hash to payment key hash Tx" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
+        withCip30Mock alice MockNami do
+          pkh <- liftedM "Failed to get PKH" $ head <$>
+            ownPaymentPubKeyHashes
+          stakePkh <- join <<< head <$> ownStakePubKeyHashes
+          pkh2PkhContract pkh stakePkh
 
-      test "getWalletBalance works" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          withKeyWallet alice do
-            getWalletBalance >>= shouldEqual
-              ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
-              )
-          withCip30Mock alice MockNami do
-            getWalletBalance >>= shouldEqual
-              ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
-              )
+    test "getWalletBalance works" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
+        withKeyWallet alice do
+          getWalletBalance >>= shouldEqual
+            ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
+            )
+        withCip30Mock alice MockNami do
+          getWalletBalance >>= shouldEqual
+            ( Just $ coinToValue $ Coin $ BigInt.fromInt 1_050_000_000
+            )
 
-      test "getWalletBalance works (2)" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigInt.fromInt 5_000_000
-            , BigInt.fromInt 2_000_000
-            , BigInt.fromInt 1_000_000
-            ]
-        withWallets distribution \alice -> do
-          withCip30Mock alice MockNami do
-            getWalletBalance >>= flip shouldSatisfy
-              (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
+    test "getWalletBalance works (2)" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigInt.fromInt 5_000_000
+          , BigInt.fromInt 2_000_000
+          , BigInt.fromInt 1_000_000
+          ]
+      withWallets distribution \alice -> do
+        withCip30Mock alice MockNami do
+          getWalletBalance >>= flip shouldSatisfy
+            (eq $ Just $ coinToValue $ Coin $ BigInt.fromInt 8_000_000)
 
-      test "CIP-30 utilities" do
-        let
-          distribution :: InitialUTxOsWithStakeKey
-          distribution = withStakeKey privateStakeKey
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 50_000_000
-            ]
-        withWallets distribution \alice -> do
-          withCip30Mock alice MockNami do
-            Cip30.contract
-          withCip30Mock alice (MockGenericCip30 "nami") do
-            Cip30.contract
-      test "ECDSA example" do
-        let
-          distribution = withStakeKey privateStakeKey
-            [ BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            ]
-        withWallets distribution \alice -> do
-          withCip30Mock alice MockNami $ ECDSA.contract
+    test "CIP-30 utilities" do
+      let
+        distribution :: InitialUTxOsWithStakeKey
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 1_000_000_000
+          , BigInt.fromInt 50_000_000
+          ]
+      withWallets distribution \alice -> do
+        withCip30Mock alice MockNami do
+          Cip30.contract
+        withCip30Mock alice (MockGenericCip30 "nami") do
+          Cip30.contract
+    test "ECDSA example" do
+      let
+        distribution = withStakeKey privateStakeKey
+          [ BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+          ]
+      withWallets distribution \alice -> do
+        withCip30Mock alice MockNami $ ECDSA.contract
 
   group "CIP-49 Plutus Crypto Primitives" do
     test "ECDSA: a script that checks if a signature is correct" do

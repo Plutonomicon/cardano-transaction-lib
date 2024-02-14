@@ -6,7 +6,6 @@ module Ctl.Internal.BalanceTx.Error
   , BalanceTxError
       ( BalanceInsufficientError
       , CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetChangeAddress
       , CouldNotGetCollateral
       , InsufficientCollateralUtxos
       , CouldNotGetUtxos
@@ -79,7 +78,6 @@ import JS.BigInt (toString) as BigInt
 data BalanceTxError
   = BalanceInsufficientError Expected Actual
   | CouldNotConvertScriptOutputToTxInput
-  | CouldNotGetChangeAddress
   | CouldNotGetCollateral
   | InsufficientCollateralUtxos UtxoMap
   | CouldNotGetUtxos
@@ -107,8 +105,6 @@ explainBalanceTxError = case _ of
       pprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
   CouldNotConvertScriptOutputToTxInput ->
     "Could not convert script output to transaction input"
-  CouldNotGetChangeAddress ->
-    "Could not get change address from the wallet or from the balancer constraints"
   CouldNotGetCollateral -> "Could not get collateral from wallet"
   CouldNotGetUtxos ->
     "Could not get UTxOs from the wallet or the specified source addresses"
