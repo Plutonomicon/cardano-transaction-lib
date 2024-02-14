@@ -13,9 +13,6 @@ import Prelude
 import Contract.Monad (Contract)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
-import Data.Tuple (fst, snd)
-import Data.Tuple.Nested ((/\))
-import Mote.Monad (group, mapTest)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet
 -- | `UtxoDistribution`.
