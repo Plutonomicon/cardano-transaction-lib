@@ -72,6 +72,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Fixed
 
+- WebAssembly memory leaks (`csl-gc-wrapper` used to depend on unstable `wasm-bidngen` API [that got changed](https://github.com/mlabs-haskell/csl-gc-wrapper/commit/2dea38228b77f7c904aafef12eece7e5af195977)) ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1595))
+
 ### Removed
 
 - `ModifyTx` error: made conversion functions total and removed the need to handle it
