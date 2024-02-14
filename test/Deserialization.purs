@@ -4,6 +4,9 @@ import Prelude
 
 import Aeson (decodeAeson, parseJsonStringToAeson)
 import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.BigNum (fromBigInt, toBigInt) as BigNum
+import Cardano.Types.NativeScript (toCsl) as NSS
+import Cardano.Types.TransactionInput (TransactionInput) as T
 import Contract.CborBytes (hexToCborBytesUnsafe)
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Prim.ByteArray (ByteArray)
@@ -23,24 +26,17 @@ import Ctl.Internal.Deserialization.BigInt as DB
 import Ctl.Internal.Deserialization.NativeScript as NSD
 import Ctl.Internal.Deserialization.PlutusData as DPD
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
-import Ctl.Internal.Deserialization.UnspentOutput
-  ( convertUnspentOutput
-  , mkTransactionUnspentOutput
-  )
 import Ctl.Internal.Deserialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Plutip.Types (StartClusterResponse)
 import Ctl.Internal.Serialization (convertTransaction) as TS
 import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serialization
 import Ctl.Internal.Serialization.BigInt as SB
-import Ctl.Internal.Serialization.NativeScript (convertNativeScript) as NSS
 import Ctl.Internal.Serialization.PlutusData as SPD
 import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
 import Ctl.Internal.Serialization.Types (Vkeywitness) as Serialization
 import Ctl.Internal.Serialization.WitnessSet (convertVkeywitness) as Serialization
 import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromBigInt, toBigInt) as BigNum
-import Ctl.Internal.Types.Transaction (TransactionInput) as T
 import Data.Array as Array
 import Data.Either (Either, hush, isRight)
 import Data.Foldable (fold)

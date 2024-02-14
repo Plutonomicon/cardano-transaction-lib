@@ -2,8 +2,8 @@ module Test.Ctl.Types.TokenName (suite) where
 
 import Prelude
 
+import Cardano.Types.AssetName (mkTokenName)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.TokenName (mkTokenName)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)

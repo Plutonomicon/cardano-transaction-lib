@@ -4,13 +4,13 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Ctl.Internal.QueryM.Ogmios
   ( OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosSystemStart
   )
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.EraSummaries
   ( EpochLength(EpochLength)

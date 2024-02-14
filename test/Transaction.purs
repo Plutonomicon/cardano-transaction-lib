@@ -2,6 +2,7 @@ module Test.Ctl.Transaction (suite) where
 
 import Prelude
 
+import Cardano.Types.PlutusData (PlutusData(Integer))
 import Contract.Keys (publicKeyFromBech32)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
@@ -23,7 +24,6 @@ import Ctl.Internal.Transaction
   , setScriptDataHash
   )
 import Ctl.Internal.Types.Datum (Datum(Datum))
-import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)

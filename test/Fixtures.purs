@@ -83,6 +83,8 @@ import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types.AssetName (TokenName, mkTokenName)
+import Cardano.Types.PlutusData as PD
 import Contract.Keys (publicKeyFromBech32)
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromBigInt, fromInt, one, zero) as BigNum
@@ -177,11 +179,6 @@ import Ctl.Internal.Serialization.Hash
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
-import Ctl.Internal.Types.PlutusData as PD
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress))
 import Ctl.Internal.Types.Scripts
@@ -191,7 +188,6 @@ import Ctl.Internal.Types.Scripts
   , plutusV1Script
   , plutusV2Script
   )
-import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)

@@ -3,6 +3,8 @@ module Test.Ctl.Serialization (suite) where
 import Prelude
 
 import Cardano.Serialization.Lib (fromBytes, publicKey_fromBytes, toBytes)
+import Cardano.Types.BigNum (fromString, one) as BN
+import Cardano.Types.PlutusData as PD
 import Contract.Keys (publicKeyFromBech32)
 import Ctl.Internal.Cardano.Types.Transaction (PublicKey, Transaction)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
@@ -13,9 +15,7 @@ import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromString, one) as BN
 import Ctl.Internal.Types.CborBytes (cborBytesToHex)
-import Ctl.Internal.Types.PlutusData as PD
 import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)

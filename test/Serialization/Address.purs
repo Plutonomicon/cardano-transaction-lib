@@ -3,6 +3,7 @@ module Test.Ctl.Serialization.Address (suite) where
 import Prelude
 
 import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Contract.Address (addressWithNetworkTagFromBech32)
 import Ctl.Internal.Serialization.Address
   ( NetworkId(MainnetId, TestnetId)
@@ -40,7 +41,6 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)

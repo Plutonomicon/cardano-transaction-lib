@@ -2,6 +2,8 @@ module Test.Ctl.Hashing (suite) where
 
 import Prelude
 
+import Cardano.Types.DataHash (DataHash)
+import Cardano.Types.PlutusData (PlutusData(Integer))
 import Ctl.Internal.Hashing
   ( blake2b256Hash
   , blake2b256HashHex
@@ -14,9 +16,7 @@ import Ctl.Internal.Hashing
   ) as Hashing
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
 import Ctl.Internal.Types.Scripts (PlutusScript, plutusV1Script, plutusV2Script)
-import Ctl.Internal.Types.Transaction (DataHash)
 import Data.ByteArray
   ( ByteArray
   , byteArrayFromAscii

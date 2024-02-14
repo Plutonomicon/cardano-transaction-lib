@@ -5,6 +5,8 @@ import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
 import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Deserialization.PlutusData as PDD
@@ -29,8 +31,6 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , ConsI
   , NilI
   )
-import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
