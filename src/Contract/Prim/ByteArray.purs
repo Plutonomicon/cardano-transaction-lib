@@ -7,16 +7,6 @@ module Contract.Prim.ByteArray
 
 import Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
-  , cborBytesFromAscii
-  , cborBytesFromByteArray
-  , cborBytesFromIntArray
-  , cborBytesFromIntArrayUnsafe
-  , cborBytesToByteArray
-  , cborBytesToHex
-  , cborBytesToIntArray
-  , hexToCborBytes
-  , hexToCborBytesUnsafe
-  , rawBytesAsCborBytes
   ) as CborBytes
 import Ctl.Internal.Types.RawBytes
   ( RawBytes(RawBytes)

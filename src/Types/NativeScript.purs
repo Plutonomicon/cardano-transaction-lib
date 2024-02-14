@@ -42,21 +42,16 @@ import Cardano.Serialization.Lib.Internal
   ( packListContainer
   , unpackListContainer
   )
+import Cardano.Types.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.BigNum (fromString)
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Ed25519KeyHash (Ed25519KeyHash(..))
 import Cardano.Types.Slot (Slot(..))
 import Control.Alt ((<|>))
 import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Metadata.Helpers (errExpectedObject)
-import Ctl.Internal.Serialization.Address (Slot)
-import Ctl.Internal.Serialization.Hash
-  ( Ed25519KeyHash
-  , ed25519KeyHashFromBytes
-  , ed25519KeyHashToBytes
-  )
-import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Data.Array.NonEmpty (fromFoldable)
-import Data.ByteArray (hexToByteArrayUnsafe)
+import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Int as Int
@@ -102,9 +97,10 @@ instance Arbitrary NativeScript where
     ]
     where
     pk :: Ed25519KeyHash
-    pk = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
-      hexToByteArrayUnsafe
-        "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
+    pk = unsafePartial $ fromJust $ decodeCbor
+      $ wrap
+      $ hexToByteArrayUnsafe
+          "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
 instance DecodeAeson NativeScript where
   decodeAeson = caseAesonObject errExpectedObject $ \obj -> do
@@ -138,7 +134,7 @@ instance EncodeAeson NativeScript where
 pprintNativeScript :: NativeScript -> TagSet
 pprintNativeScript = case _ of
   ScriptPubkey kh -> TagSet.fromArray
-    [ "PubKey" `tag` rawBytesToHex (ed25519KeyHashToBytes kh) ]
+    [ "PubKey" `tag` byteArrayToHex (unwrap $ encodeCbor kh) ]
   ScriptAll scripts -> "All of" `tagSetTag` TagSet.fromArray
     (pprintNativeScript <$> scripts)
   ScriptAny scripts -> "Any of" `tagSetTag` TagSet.fromArray

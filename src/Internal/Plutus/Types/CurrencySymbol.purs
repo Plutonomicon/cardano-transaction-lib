@@ -96,7 +96,8 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes byteArr $> CurrencySymbol byteArr
+      (scriptHashFromBytes byteArr :: Maybe ScriptHash) $> CurrencySymbol
+        byteArr
 
 --------------------------------------------------------------------------------
 -- Internal

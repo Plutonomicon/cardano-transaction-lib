@@ -36,10 +36,6 @@ import Ctl.Internal.Serialization.Address
 import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
 import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
 import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
-import Ctl.Internal.Types.PubKeyHash
-  ( PubKeyHash(PubKeyHash)
-  , StakePubKeyHash(StakePubKeyHash)
-  )
 import Ctl.Internal.Types.RewardAddress
   ( rewardAddressToBytes
   , stakePubKeyHashRewardAddress

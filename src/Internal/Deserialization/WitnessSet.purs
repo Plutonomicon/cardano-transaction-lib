@@ -10,13 +10,17 @@ module Ctl.Internal.Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (toBigInt) as BigNum
+import Cardano.Types.PlutusData (PlutusData) as T
+import Cardano.Types.PlutusScript as S
+import Cardano.Types.Vkey as T
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript) as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( BootstrapWitness
   , ExUnits
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
 import Ctl.Internal.Deserialization.Language (convertLanguage)
@@ -44,11 +48,7 @@ import Ctl.Internal.Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.PlutusData (PlutusData) as T
 import Ctl.Internal.Types.RedeemerTag as Tag
-import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
 import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)

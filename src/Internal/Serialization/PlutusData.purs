@@ -5,6 +5,8 @@ module Ctl.Internal.Serialization.PlutusData
 
 import Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.PlutusData as T
 import Ctl.Internal.FfiHelpers
   ( ContainerHelper
   , MaybeFfiHelper
@@ -18,8 +20,6 @@ import Ctl.Internal.Serialization.Types
   , PlutusList
   , PlutusMap
   )
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.PlutusData as T
 import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe, fromJust)
 import Data.Tuple (Tuple, fst, snd)

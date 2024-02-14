@@ -23,7 +23,8 @@ instance Show Asset where
   show = genericShow
 
 instance Arbitrary Asset where
-  arbitrary = oneOf $ cons' (pure AdaAsset) [ Asset <$> arbitrary <*> arbitrary ]
+  arbitrary = oneOf $ cons' (pure AdaAsset)
+    [ Asset <$> arbitrary <*> arbitrary ]
 
 fromAssetClass :: AssetClass -> Asset
 fromAssetClass (AssetClass sh tn) = Asset sh tn

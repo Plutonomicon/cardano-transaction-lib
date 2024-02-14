@@ -6,6 +6,7 @@ module Ctl.Internal.BalanceTx.Collateral
 
 import Prelude
 
+import Cardano.Types.BigNum (maxValue, toBigInt) as BigNum
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral) as X
@@ -25,10 +26,9 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   )
-import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset)
-import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
+import Ctl.Internal.Cardano.Types.Value (Coin, MultiAsset)
+import Ctl.Internal.Cardano.Types.Value (getMultiAsset, mkValue, valueToCoin') as Value
 import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Types.BigNum (maxValue, toBigInt) as BigNum
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap, foldl)
@@ -64,27 +64,27 @@ addTxCollateralReturn collateral transaction ownAddress =
     collAdaValue :: BigInt
     collAdaValue = foldl adaValue' zero collateral
 
-    collNonAdaAsset :: NonAdaAsset
-    collNonAdaAsset = foldMap nonAdaAsset collateral
+    collMultiAsset :: MultiAsset
+    collMultiAsset = foldMap nonAdaAsset collateral
   in
-    case collAdaValue <= minRequiredCollateral && collNonAdaAsset == mempty of
+    case collAdaValue <= minRequiredCollateral && collMultiAsset == mempty of
       true ->
         pure transaction
       false ->
-        setTxCollateralReturn collAdaValue collNonAdaAsset
+        setTxCollateralReturn collAdaValue collMultiAsset
   where
   setTxCollateralReturn
     :: BigInt
-    -> NonAdaAsset
+    -> MultiAsset
     -> BalanceTxM Transaction
-  setTxCollateralReturn collAdaValue collNonAdaAsset = do
+  setTxCollateralReturn collAdaValue collMultiAsset = do
     let
       maxBigNumAdaValue :: Coin
       maxBigNumAdaValue = wrap (BigNum.toBigInt BigNum.maxValue)
 
       collReturnOutputRec =
         { address: ownAddress
-        , amount: Value.mkValue maxBigNumAdaValue collNonAdaAsset
+        , amount: Value.mkValue maxBigNumAdaValue collMultiAsset
         , datum: NoOutputDatum
         , scriptRef: Nothing
         }
@@ -111,7 +111,7 @@ addTxCollateralReturn collateral transaction ownAddress =
       collReturnOutput :: TransactionOutput
       collReturnOutput = wrap $
         collReturnOutputRec
-          { amount = Value.mkValue (wrap collReturnAda) collNonAdaAsset }
+          { amount = Value.mkValue (wrap collReturnAda) collMultiAsset }
 
       totalCollateral :: BigInt
       totalCollateral = collAdaValue - collReturnAda
@@ -136,6 +136,6 @@ adaValue =
 adaValue' :: BigInt -> TransactionUnspentOutput -> BigInt
 adaValue' init = add init <<< adaValue
 
-nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
+nonAdaAsset :: TransactionUnspentOutput -> MultiAsset
 nonAdaAsset =
-  Value.getNonAdaAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
+  Value.getMultiAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap

@@ -1,5 +1,5 @@
 module Cardano.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
+  ( OutputDatum(OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   , pprintOutputDatum
@@ -18,7 +18,7 @@ import Aeson
   )
 import Cardano.Types.AsCbor (encodeCbor)
 import Cardano.Types.DataHash (DataHash)
-import Cardano.Types.PlutusData (pprintPlutusData)
+import Cardano.Types.PlutusData (PlutusData, pprintPlutusData)
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Plutus.Types.DataSchema
@@ -40,7 +40,7 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap)
 import Data.Show.Generic (genericShow)
 
-data OutputDatum = NoOutputDatum | OutputDatumHash DataHash | OutputDatum Datum
+data OutputDatum = OutputDatumHash DataHash | OutputDatum PlutusData
 
 derive instance Generic OutputDatum _
 derive instance Eq OutputDatum
@@ -50,13 +50,12 @@ instance Show OutputDatum where
 
 instance
   HasPlutusSchema OutputDatum
-    ( "NoOutputDatum" := PNil @@ Z
-        :+ "OutputDatumHash"
+    ( "OutputDatumHash"
         := PNil
-        @@ (S Z)
+        @@ Z
         :+ "OutputDatum"
         := PNil
-        @@ (S (S Z))
+        @@ (S Z)
         :+ PNil
     )
 
@@ -68,7 +67,6 @@ instance FromData OutputDatum where
 
 instance EncodeAeson OutputDatum where
   encodeAeson = case _ of
-    NoOutputDatum -> encodeTagged' "NoOutputDatum" {}
     OutputDatumHash r -> encodeTagged' "OutputDatumHash" r
     OutputDatum r -> encodeTagged' "OutputDatum" r
 
@@ -77,8 +75,6 @@ instance DecodeAeson OutputDatum where
     \obj -> do
       tag <- obj .: "tag"
       case tag of
-        "NoOutputDatum" ->
-          pure NoOutputDatum
         "OutputDatumHash" -> do
           dataHash <- obj .: "contents"
           pure $ OutputDatumHash dataHash
@@ -91,16 +87,15 @@ instance DecodeAeson OutputDatum where
 
 pprintOutputDatum :: OutputDatum -> TagSet
 pprintOutputDatum = TagSet.fromArray <<< case _ of
-  NoOutputDatum -> [ "datum" `tag` "none" ]
   OutputDatumHash hash ->
     [ "datumHash" `tag` byteArrayToHex (unwrap $ encodeCbor hash) ]
   OutputDatum d ->
-    [ "datum" `tagSetTag` pprintPlutusData (unwrap d) ]
+    [ "datum" `tagSetTag` pprintPlutusData d ]
 
 outputDatumDataHash :: OutputDatum -> Maybe DataHash
 outputDatumDataHash (OutputDatumHash hash) = Just hash
 outputDatumDataHash _ = Nothing
 
-outputDatumDatum :: OutputDatum -> Maybe Datum
+outputDatumDatum :: OutputDatum -> Maybe PlutusData
 outputDatumDatum (OutputDatum datum) = Just datum
 outputDatumDatum _ = Nothing

@@ -6,14 +6,14 @@ module Ctl.Internal.Serialization.AuxiliaryData
 import Prelude
 
 import Cardano.Serialization.Lib (toBytes)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
   ) as T
 import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
-import Ctl.Internal.Helpers (fromJustEff)
-import Ctl.Internal.Serialization.NativeScript (convertNativeScripts)
-import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Helpers (fromJustEff, notImplemented)
 import Ctl.Internal.Serialization.Types
   ( AuxiliaryData
   , AuxiliaryDataHash
@@ -22,9 +22,6 @@ import Ctl.Internal.Serialization.Types
   , PlutusScripts
   , TransactionMetadatum
   )
-import Ctl.Internal.Serialization.WitnessSet (addPlutusScript, newPlutusScripts)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.TransactionMetadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
@@ -85,17 +82,19 @@ hashAuxiliaryData =
 convertAuxiliaryData :: T.AuxiliaryData -> Effect AuxiliaryData
 convertAuxiliaryData
   (T.AuxiliaryData { metadata, nativeScripts, plutusScripts }) = do
-  ad <- newAuxiliaryData
-  for_ metadata $
-    convertGeneralTransactionMetadata >=>
-      setAuxiliaryDataGeneralTransactionMetadata ad
-  for_ nativeScripts $
-    convertNativeScripts >>> setAuxiliaryDataNativeScripts ad
-  for_ plutusScripts \ps -> do
-    scripts <- newPlutusScripts
-    for_ ps (convertPlutusScript >>> addPlutusScript scripts)
-    setAuxiliaryDataPlutusScripts ad scripts
-  pure ad
+  notImplemented
+
+-- ad <- newAuxiliaryData
+-- for_ metadata $
+--   convertGeneralTransactionMetadata >=>
+--     setAuxiliaryDataGeneralTransactionMetadata ad
+-- for_ nativeScripts $
+--   convertNativeScripts >>> setAuxiliaryDataNativeScripts ad
+-- for_ plutusScripts \ps -> do
+--   scripts <- newPlutusScripts
+--   for_ ps (convertPlutusScript >>> addPlutusScript scripts)
+--   setAuxiliaryDataPlutusScripts ad scripts
+-- pure ad
 
 convertGeneralTransactionMetadata
   :: T.GeneralTransactionMetadata -> Effect GeneralTransactionMetadata

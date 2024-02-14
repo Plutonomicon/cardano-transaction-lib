@@ -7,7 +7,12 @@ module Cardano.Types.ByronAddress
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import Cardano.Serialization.Lib (byronAddress_fromBase58, byronAddress_toBase58, fromBytes, toBytes)
+import Cardano.Serialization.Lib
+  ( byronAddress_fromBase58
+  , byronAddress_toBase58
+  , fromBytes
+  , toBytes
+  )
 import Cardano.Serialization.Lib as Csl
 import Cardano.Types.AsCbor (class AsCbor)
 import Ctl.Internal.Helpers (compareViaCslBytes, eqOrd, showFromBytes)

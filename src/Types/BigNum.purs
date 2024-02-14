@@ -9,7 +9,7 @@ module Cardano.Types.BigNum
   , fromUInt
   , maxValue
   , mul
-  , minus
+  , sub
   , one
   , toBigInt
   , toInt
@@ -17,22 +17,43 @@ module Cardano.Types.BigNum
   , toString
   , toUInt
   , zero
+  , max
+  , abs
   ) where
 
 import Prelude
 
-import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
 import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
-import Cardano.Serialization.Lib (bigNum_checkedAdd, bigNum_checkedMul, bigNum_checkedSub, bigNum_compare, bigNum_divFloor, bigNum_fromStr, bigNum_maxValue, bigNum_one, bigNum_toStr, bigNum_zero, fromBytes, toBytes)
+import Aeson (JsonDecodeError(TypeMismatch)) as Aeson
+import Cardano.Serialization.Lib
+  ( bigNum_checkedAdd
+  , bigNum_checkedMul
+  , bigNum_checkedSub
+  , bigNum_compare
+  , bigNum_divFloor
+  , bigNum_fromStr
+  , bigNum_max
+  , bigNum_maxValue
+  , bigNum_one
+  , bigNum_toStr
+  , bigNum_zero
+  , fromBytes
+  , toBytes
+  )
 import Cardano.Serialization.Lib as Csl
 import Cardano.Types.AsCbor (class AsCbor)
 import Ctl.Internal.Deserialization.Error (FromCslRepError, fromCslRepError)
 import Ctl.Internal.Error (E, noteE)
 import Ctl.Internal.Helpers (eqOrd)
-import Ctl.Internal.Partition (class Equipartition, class Partition, equipartition, partition)
+import Ctl.Internal.Partition
+  ( class Equipartition
+  , class Partition
+  , equipartition
+  , partition
+  )
 import Data.Either (note)
 import Data.Int (fromString) as Int
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe, fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Nullable (toMaybe)
 import Data.UInt (UInt)
@@ -80,7 +101,7 @@ instance Partition BigNum where
 instance Equipartition BigNum where
   equipartition bn = unsafePartial
     $ map (fromJust <<< fromBigInt)
-    <<< equipartition (toBigInt bn)
+        <<< equipartition (toBigInt bn)
 
 -- Semiring cannot be implemented, because add and mul returns Maybe BigNum
 
@@ -96,8 +117,14 @@ add (BigNum a) (BigNum b) = coerce $ toMaybe $ bigNum_checkedAdd a b
 mul :: BigNum -> BigNum -> Maybe BigNum
 mul (BigNum a) (BigNum b) = coerce $ toMaybe $ bigNum_checkedMul a b
 
-minus :: BigNum -> BigNum -> Maybe BigNum
-minus (BigNum a) (BigNum b) = coerce $ toMaybe $ bigNum_checkedSub a b
+sub :: BigNum -> BigNum -> Maybe BigNum
+sub (BigNum a) (BigNum b) = coerce $ toMaybe $ bigNum_checkedSub a b
+
+max :: BigNum -> BigNum -> BigNum
+max = coerce bigNum_max
+
+abs :: BigNum -> BigNum
+abs n = max n (fromMaybe zero $ sub zero n)
 
 divFloor :: BigNum -> BigNum -> BigNum
 divFloor (BigNum a) (BigNum b) = BigNum $ bigNum_divFloor a b

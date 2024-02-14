@@ -11,7 +11,6 @@ module Ctl.Internal.Helpers
   , bigIntToUInt
   , bugTrackerLink
   , concatPaths
-  , contentsProp
   , encodeMap
   , encodeTagged
   , encodeTagged'
@@ -30,23 +29,36 @@ module Ctl.Internal.Helpers
   , mkErrorRecord
   , notImplemented
   , showWithParens
-  , tagProp
   , uIntToBigInt
   , pprintTagSet
   , eqOrd
   , showFromBytes
+  , showFromCbor
+  , compareViaCslBytes
+  , decodeMap
   ) where
 
 import Prelude
 
-import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
+import Aeson
+  ( class DecodeAeson
+  , class DecodeTupleAux
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError
+  , decodeAeson
+  , encodeAeson
+  , toString
+  )
 import Cardano.Serialization.Lib (class IsBytes, toBytes)
 import Cardano.Serialization.Lib.Internal (class IsCsl)
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Ctl.Internal.Helpers.Formatter (showTags)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (ltraverse)
+import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either(Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
@@ -61,8 +73,8 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
-import Data.Traversable (traverse)
-import Data.Tuple (snd, uncurry)
+import Data.Traversable (for, traverse)
+import Data.Tuple (fst, snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
@@ -71,6 +83,7 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
+import Foreign.Object (Object)
 import Foreign.Object as Obj
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
@@ -268,19 +281,34 @@ encodeMap m =
   pairs :: Array (Aeson /\ Aeson)
   pairs = map (bimap encodeAeson encodeAeson) $ toUnfoldable m
 
-tagProp :: String
-tagProp = "tag"
-
-contentsProp :: String
-contentsProp = "contents"
+-- TODO: test with encodeMap
+decodeMap
+  :: forall (k :: Type) (v :: Type)
+   . DecodeAeson k
+  => Ord k
+  => DecodeAeson v
+  => DecodeTupleAux (k /\ v)
+  => Aeson
+  -> Either JsonDecodeError (Map k v)
+decodeMap aeson = do
+  decodeAsArray <|> decodeAsObject
+  where
+  decodeAsObject = do
+    props <- (decodeAeson aeson :: Either _ (Object v))
+    Map.fromFoldable <$> for (Obj.toUnfoldable props :: Array (String /\ v))
+      \(kString /\ v) -> do
+        k <- decodeAeson (encodeAeson kString)
+        pure $ k /\ v
+  decodeAsArray = do
+    Map.fromFoldable <$> (decodeAeson aeson :: Either _ (Array (k /\ v)))
 
 -- | Args: tag value encoder
 -- | Encodes `value` using `encoder` as `{ "tag": *encoded tag*, "contents": *encoded value* }`
 encodeTagged :: forall a. String -> a -> (a -> Aeson) -> Aeson
 encodeTagged tag a encoder =
   encodeAeson $ Obj.fromFoldable
-    [ tagProp /\ encodeAeson tag
-    , contentsProp /\ encoder a
+    [ "tag" /\ encodeAeson tag
+    , "contents" /\ encoder a
     ]
 
 -- | A wrapper around `encodeTagged` function that uses
@@ -309,8 +337,26 @@ infixl 5 fromMaybeFlipped as ??
 eqOrd :: forall a. Ord a => a -> a -> Boolean
 eqOrd a b = compare a b == EQ
 
+compareViaCslBytes
+  :: forall a b
+   . IsCsl a
+  => IsBytes a
+  => IsCsl b
+  => IsBytes b
+  => a
+  -> b
+  -> Ordering
+compareViaCslBytes a b =
+  compare (byteArrayToHex $ toBytes a) (byteArrayToHex $ toBytes b)
+
 showFromBytes :: forall a. IsCsl a => IsBytes a => String -> a -> String
 showFromBytes typeName a = "(" <> typeName
   <> " $ unsafePartial $ fromJust $ fromBytes "
+  <> show (toBytes a)
+  <> ")"
+
+showFromCbor :: forall a. IsCsl a => IsBytes a => String -> a -> String
+showFromCbor typeName a = "(" <> typeName
+  <> " $ unsafePartial $ fromJust $ decodeCbor $ CborBytes $ "
   <> show (toBytes a)
   <> ")"

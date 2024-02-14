@@ -7,9 +7,9 @@ module Ctl.Internal.Types.Datum
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
+import Cardano.Types.PlutusData (PlutusData)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.Transaction (DataHash(DataHash)) as X
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)

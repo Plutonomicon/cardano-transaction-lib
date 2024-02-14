@@ -77,7 +77,7 @@ import Contract.Transaction
   , getTxMetadata
   )
 import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
+import Contract.Value (AssetName, CurrencySymbol, Value, valueOf, valueToCoin')
 import Contract.Wallet (getWalletBalance, getWalletUtxos)
 import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.Error.Class as E
@@ -139,7 +139,7 @@ data ContractAssertionFailure
   | UnexpectedMetadataValue Label (ExpectedActual String)
   | UnexpectedRefScriptInOutput (Labeled TransactionOutputWithRefScript)
       (ExpectedActual (Maybe ScriptRef))
-  | UnexpectedTokenDelta (Maybe (Labeled Address)) TokenName
+  | UnexpectedTokenDelta (Maybe (Labeled Address)) AssetName
       (ExpectedActual BigInt)
   | FailedToGetExpectedValue String
   | MaxExUnitsExceeded (ExpectedActual ExUnits)
@@ -557,7 +557,7 @@ checkLossAtAddress' addr minLoss =
 checkTokenDeltaAtAddress
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName)
+  -> (CurrencySymbol /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> (BigInt -> BigInt -> Boolean)
   -> ContractCheck a
@@ -584,7 +584,7 @@ checkTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
 checkTokenGainAtAddress
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName)
+  -> (CurrencySymbol /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenGainAtAddress addr token getMinGain =
@@ -595,7 +595,7 @@ checkTokenGainAtAddress addr token getMinGain =
 checkTokenGainAtAddress'
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> (CurrencySymbol /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
   checkTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
@@ -605,7 +605,7 @@ checkTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
 checkTokenLossAtAddress
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName)
+  -> (CurrencySymbol /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenLossAtAddress addr token getMinLoss =
@@ -616,7 +616,7 @@ checkTokenLossAtAddress addr token getMinLoss =
 checkTokenLossAtAddress'
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> (CurrencySymbol /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenLossAtAddress' addr (cs /\ tn /\ minLoss) =
   checkTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
@@ -703,7 +703,7 @@ checkLossInWallet' minLoss =
 
 checkTokenDeltaInWallet
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName)
+   . (CurrencySymbol /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> (BigInt -> BigInt -> Boolean)
   -> ContractCheck a
@@ -729,7 +729,7 @@ checkTokenDeltaInWallet (cs /\ tn) getExpected comp contract =
 -- | by calling the contract.
 checkTokenGainInWallet
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName)
+   . (CurrencySymbol /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenGainInWallet token getMinGain =
@@ -739,7 +739,7 @@ checkTokenGainInWallet token getMinGain =
 -- | by calling the contract.
 checkTokenGainInWallet'
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName /\ BigInt)
+   . (CurrencySymbol /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenGainInWallet' (cs /\ tn /\ minGain) =
   checkTokenGainInWallet (cs /\ tn) (const $ pure minGain)
@@ -748,7 +748,7 @@ checkTokenGainInWallet' (cs /\ tn /\ minGain) =
 -- | by calling the contract.
 checkTokenLossInWallet
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName)
+   . (CurrencySymbol /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenLossInWallet token getMinLoss =
@@ -758,7 +758,7 @@ checkTokenLossInWallet token getMinLoss =
 -- | by calling the contract.
 checkTokenLossInWallet'
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName /\ BigInt)
+   . (CurrencySymbol /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenLossInWallet' (cs /\ tn /\ minLoss) =
   checkTokenLossInWallet (cs /\ tn) (const $ pure minLoss)

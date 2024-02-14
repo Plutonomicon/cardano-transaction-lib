@@ -4,13 +4,13 @@ module Ctl.Internal.ProcessConstraints
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Hashing (plutusScriptStakeValidatorHash)
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.Address (addressPaymentValidatorHash)
 import Ctl.Internal.BalanceTx.RedeemerIndex
   ( RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
   , UnindexedRedeemer(UnindexedRedeemer)
@@ -43,7 +43,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   )
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
-  , getNonAdaAsset
+  , getMultiAsset
   , isZero
   , mkSingletonValue'
   , mpsSymbol
@@ -143,11 +143,6 @@ import Ctl.Internal.Types.Interval
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
-import Ctl.Internal.Types.PubKeyHash
-  ( payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
-  , stakePubKeyHashRewardAddress
-  )
 import Ctl.Internal.Types.RewardAddress
   ( stakePubKeyHashRewardAddress
   , stakeValidatorHashRewardAddress
@@ -159,7 +154,6 @@ import Ctl.Internal.Types.Scripts
   , Validator
   , ValidatorHash
   )
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
   , InputWithScriptRef(SpendInput, RefInput)
@@ -624,13 +618,13 @@ processConstraint mpsMap osMap c = do
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
+          pure $ map getMultiAsset $ value i
         else if i == zero then do
           throwError $ CannotMintZero cs tn
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
+          pure $ map getMultiAsset $ value i
       _redeemers <>=
         [ UnindexedRedeemer { purpose: ForMint mpsHash, datum: unwrap red } ]
       -- Remove mint redeemers from array before reindexing.
@@ -651,11 +645,11 @@ processConstraint mpsMap osMap c = do
         if i < zero then do
           v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
           _valueSpentBalancesInputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
+          pure $ map getMultiAsset $ value i
         else do
           v <- liftM (CannotMakeValue cs tn i) (value i)
           _valueSpentBalancesOutputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
+          pure $ map getMultiAsset $ value i
 
       _cpsTransaction <<< _body <<< _mint <>= map wrap mintVal
 

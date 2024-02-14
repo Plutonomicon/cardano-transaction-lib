@@ -19,12 +19,12 @@ import Aeson
   , JsonDecodeError(TypeMismatch)
   , decodeAeson
   )
+import Cardano.Types.PlutusData (PlutusData)
 import Control.Alt ((<|>))
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.PlutusData (PlutusData)
 import Ctl.Internal.Types.TransactionMetadata (TransactionMetadatum)
 import Data.Array ((:))
 import Data.Array as Array

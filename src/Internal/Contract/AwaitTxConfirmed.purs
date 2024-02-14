@@ -7,6 +7,7 @@ module Ctl.Internal.Contract.AwaitTxConfirmed
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Monad (liftedE)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf)
@@ -15,7 +16,6 @@ import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.QueryBackend (getBlockfrostBackend)
 import Ctl.Internal.Serialization.Address (Slot)
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Transaction
   ( TransactionHash

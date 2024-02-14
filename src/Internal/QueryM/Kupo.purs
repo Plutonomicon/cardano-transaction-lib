@@ -25,6 +25,8 @@ import Affjax (Error, Response, defaultRequest) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
 import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.AssetName (mkAssetName)
+import Cardano.Types.BigNum (toString) as BigNum
 import Contract.Log (logTrace')
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
@@ -41,10 +43,10 @@ import Ctl.Internal.Cardano.Types.Transaction
   , UtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value
-  ( NonAdaAsset
+  ( MultiAsset
   , Value
   , mkCurrencySymbol
-  , mkSingletonNonAdaAsset
+  , mkSingletonMultiAsset
   , mkValue
   )
 import Ctl.Internal.Contract.QueryHandle.Error
@@ -70,7 +72,6 @@ import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString)
-import Ctl.Internal.Types.BigNum (toString) as BigNum
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.OutputDatum
@@ -78,7 +79,6 @@ import Ctl.Internal.Types.OutputDatum
   )
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
-import Ctl.Internal.Types.TokenName (mkTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -274,11 +274,11 @@ instance DecodeAeson KupoTransactionOutput where
         assets <-
           getFieldOptional obj "assets"
             <#> fromMaybe mempty <<< map (Object.toUnfoldable :: _ -> Array _)
-        mkValue coins <<< fold <$> traverse decodeNonAdaAsset assets
+        mkValue coins <<< fold <$> traverse decodeMultiAsset assets
       where
-      decodeNonAdaAsset
-        :: (String /\ BigInt) -> Either JsonDecodeError NonAdaAsset
-      decodeNonAdaAsset (assetString /\ assetQuantity) =
+      decodeMultiAsset
+        :: (String /\ BigInt) -> Either JsonDecodeError MultiAsset
+      decodeMultiAsset (assetString /\ assetQuantity) =
         let
           csString /\ tnString =
             case String.indexOf (String.Pattern ".") assetString of
@@ -288,14 +288,14 @@ instance DecodeAeson KupoTransactionOutput where
                 String.splitAt ix assetString
                   # \{ before, after } -> before /\ String.drop 1 after
         in
-          mkSingletonNonAdaAsset
+          mkSingletonMultiAsset
             <$>
               ( note (assetStringTypeMismatch "CurrencySymbol" csString)
                   (mkCurrencySymbol =<< hexToByteArray csString)
               )
             <*>
-              ( note (assetStringTypeMismatch "TokenName" tnString)
-                  (mkTokenName =<< hexToByteArray tnString)
+              ( note (assetStringTypeMismatch "AssetName" tnString)
+                  (mkAssetName =<< hexToByteArray tnString)
               )
             <*> pure assetQuantity
         where

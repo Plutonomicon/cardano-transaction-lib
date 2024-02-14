@@ -5,6 +5,7 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Numeric.Natural (fromInt') as Natural
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
@@ -60,7 +61,6 @@ import Ctl.Internal.TxOutput
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.Scripts (Language, PlutusScript)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, notElem) as Array
 import Data.Bifunctor (bimap)

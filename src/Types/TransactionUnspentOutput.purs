@@ -1,16 +1,23 @@
 module Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   , transactionUnspentOutputsToUtxoMap
+  , fromCsl
   ) where
 
 import Prelude
 
 import Aeson (class EncodeAeson)
-import Cardano.Serialization.Lib (transactionUnspentOutput_input)
+import Cardano.Serialization.Lib
+  ( transactionUnspentOutput_input
+  , transactionUnspentOutput_new
+  , transactionUnspentOutput_output
+  )
 import Cardano.Serialization.Lib as Csl
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionInput as TransactionInput
-import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
+import Cardano.Types.TransactionOutput (TransactionOutput)
+import Cardano.Types.TransactionOutput as TransactionOutput
+import Cardano.Types.UtxoMap (UtxoMap)
 import Data.Generic.Rep (class Generic)
 import Data.Map as Map
 import Data.Newtype (class Newtype)
@@ -40,4 +47,9 @@ fromCsl tuo = do
   let
     input = TransactionInput.fromCsl $ transactionUnspentOutput_input tuo
     output = TransactionOutput.fromCsl $ transactionUnspentOutput_output tuo
-  T.TransactionUnspentOutput { input, output }
+  TransactionUnspentOutput { input, output }
+
+toCsl :: TransactionUnspentOutput -> Csl.TransactionUnspentOutput
+toCsl (TransactionUnspentOutput { input, output }) =
+  transactionUnspentOutput_new (TransactionInput.toCsl input)
+    (TransactionOutput.toCsl output)

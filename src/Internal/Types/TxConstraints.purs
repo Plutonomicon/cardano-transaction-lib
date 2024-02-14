@@ -96,6 +96,13 @@ module Ctl.Internal.Types.TxConstraints
 
 import Prelude hiding (join)
 
+import Cardano.Types.AssetName (AssetName)
+import Cardano.Types.BigNum (BigNum(..))
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash(..))
+import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.ScriptHash (ScriptHash(..))
+import Cardano.Types.StakePubKeyHash (StakePubKeyHash(..))
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -103,6 +110,7 @@ import Ctl.Internal.Cardano.Types.Transaction
   , PoolPubKeyHash
   , PoolRegistrationParams
   )
+import Ctl.Internal.Helpers (notImplemented)
 import Ctl.Internal.NativeScripts (NativeScriptHash)
 import Ctl.Internal.Plutus.Types.Credential (Credential)
 import Ctl.Internal.Plutus.Types.CurrencySymbol
@@ -113,7 +121,7 @@ import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript)
 import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
   )
-import Ctl.Internal.Plutus.Types.Value (Value, flattenNonAdaAssets)
+import Ctl.Internal.Plutus.Types.Value (Value, flattenMultiAssets)
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.Interval
   ( POSIXTimeRange
@@ -121,8 +129,6 @@ import Ctl.Internal.Types.Interval
   , intersection
   , isEmpty
   )
-import Ctl.Internal.Types.PlutusData (PlutusData)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.Scripts
   ( MintingPolicyHash
@@ -131,7 +137,6 @@ import Ctl.Internal.Types.Scripts
   , StakeValidatorHash
   , ValidatorHash
   )
-import Ctl.Internal.Types.TokenName (TokenName)
 import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
 import Data.Array as Array
 import Data.Foldable (class Foldable, foldMap, foldl, foldr)
@@ -141,10 +146,9 @@ import Data.Map (Map, fromFoldableWith, toUnfoldable)
 import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, over, unwrap)
+import Data.Newtype (class Newtype, over, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
-import JS.BigInt (BigInt)
 import Prim.TypeError (class Warn, Text)
 
 --------------------------------------------------------------------------------
@@ -165,9 +169,9 @@ data TxConstraint
   | MustSpendNativeScriptOutput TransactionInput NativeScript
   | MustSpendScriptOutput TransactionInput Redeemer (Maybe InputWithScriptRef)
   | MustReferenceOutput TransactionInput
-  | MustMintValue MintingPolicyHash Redeemer TokenName BigInt
+  | MustMintValue MintingPolicyHash Redeemer AssetName BigNum
       (Maybe InputWithScriptRef)
-  | MustMintValueUsingNativeScript NativeScript TokenName BigInt
+  | MustMintValueUsingNativeScript NativeScript AssetName BigNum
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
       (Maybe (Datum /\ DatumPresence))
       (Maybe ScriptRef)
@@ -482,24 +486,22 @@ mustMintValueWithRedeemer
    . Redeemer
   -> Value
   -> TxConstraints
-mustMintValueWithRedeemer redeemer =
-  Array.fold <<< map tokenConstraint <<< flattenNonAdaAssets
-  where
-  tokenConstraint
-    :: CurrencySymbol /\ TokenName /\ BigInt -> TxConstraints
-  tokenConstraint (cs /\ tn /\ amount) =
-    let
-      mintingPolicyHash = currencyMPSHash cs
-    in
-      mustMintCurrencyWithRedeemer mintingPolicyHash redeemer tn amount
+mustMintValueWithRedeemer redeemer = notImplemented -- TODO: replace with MultiAsset
+
+-- Array.fold <<< map tokenConstraint <<< MultiAsset.flatten
+-- where
+-- tokenConstraint
+--   :: ScriptHash /\ AssetName /\ BigNum -> TxConstraints
+-- tokenConstraint (cs /\ tn /\ amount) =
+--   mustMintCurrencyWithRedeemer (wrap cs) redeemer tn amount
 
 -- | Create the given amount of the currency.
 -- | The amount to mint must not be zero.
 mustMintCurrency
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
-  -> TokenName
-  -> BigInt
+  -> AssetName
+  -> BigNum
   -> TxConstraints
 mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph unitRedeemer
@@ -507,8 +509,8 @@ mustMintCurrency mph =
 mustMintCurrencyUsingNativeScript
   :: forall (i :: Type) (o :: Type)
    . NativeScript
-  -> TokenName
-  -> BigInt
+  -> AssetName
+  -> BigNum
   -> TxConstraints
 mustMintCurrencyUsingNativeScript ns tk i = singleton
   (MustMintValueUsingNativeScript ns tk i)
@@ -518,8 +520,8 @@ mustMintCurrencyUsingNativeScript ns tk i = singleton
 mustMintCurrencyUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
-  -> TokenName
-  -> BigInt
+  -> AssetName
+  -> BigNum
   -> InputWithScriptRef
   -> TxConstraints
 mustMintCurrencyUsingScriptRef mph =
@@ -531,8 +533,8 @@ mustMintCurrencyWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
   -> Redeemer
-  -> TokenName
-  -> BigInt
+  -> AssetName
+  -> BigNum
   -> TxConstraints
 mustMintCurrencyWithRedeemer mph red tn amount =
   singleton (MustMintValue mph red tn amount Nothing)
@@ -543,8 +545,8 @@ mustMintCurrencyWithRedeemerUsingScriptRef
   :: forall (i :: Type) (o :: Type)
    . MintingPolicyHash
   -> Redeemer
-  -> TokenName
-  -> BigInt
+  -> AssetName
+  -> BigNum
   -> InputWithScriptRef
   -> TxConstraints
 mustMintCurrencyWithRedeemerUsingScriptRef mph red tn amount =

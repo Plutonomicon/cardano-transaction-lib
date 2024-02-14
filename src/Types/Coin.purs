@@ -9,8 +9,10 @@ import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Partition (class Equipartition, class Partition)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Semiring as Num
+import Safe.Coerce (coerce)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)
 
@@ -42,3 +44,6 @@ fromInt = Coin <<< BigNum.fromInt
 
 zero :: Coin
 zero = Coin BigNum.zero
+
+add :: Coin -> Coin -> Maybe Coin
+add = coerce BigNum.add

@@ -25,10 +25,6 @@ import Prelude
 import Contract.Monad (Contract, liftContractM)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Address
-  ( addressPaymentValidatorHash
-  , addressStakeValidatorHash
-  ) as Address
 import Ctl.Internal.Plutus.Conversion
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -69,26 +65,15 @@ import Ctl.Internal.Serialization.Address (addressFromBech32) as SA
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash) as X
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Ctl.Internal.Types.Aliases (Bech32String) as TypeAliases
-import Ctl.Internal.Types.PaymentPubKey (PaymentPubKey(PaymentPubKey)) as X
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash
-  , PubKeyHash
-  , StakePubKeyHash
-  )
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  , StakePubKeyHash(StakePubKeyHash)
-  ) as X
-import Ctl.Internal.Types.PubKeyHash
-  ( payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
-  , payPubKeyHashRewardAddress
-  , pubKeyHashBaseAddress
-  , pubKeyHashEnterpriseAddress
-  , pubKeyHashRewardAddress
-  , stakePubKeyHashRewardAddress
-  ) as PubKeyHash
+-- import Ctl.Internal.Types.PubKeyHash
+--   ( payPubKeyHashBaseAddress
+--   , payPubKeyHashEnterpriseAddress
+--   , payPubKeyHashRewardAddress
+--   , pubKeyHashBaseAddress
+--   , pubKeyHashEnterpriseAddress
+--   , pubKeyHashRewardAddress
+--   , stakePubKeyHashRewardAddress
+--   ) as PubKeyHash
 import Ctl.Internal.Types.Scripts (StakeValidatorHash, ValidatorHash)
 import Data.Maybe (Maybe)
 import Effect.Exception (error)

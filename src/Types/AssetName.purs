@@ -2,7 +2,6 @@ module Cardano.Types.AssetName where
 
 import Prelude
 
-import Test.QuickCheck (class Arbitrary, arbitrary)
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
@@ -31,6 +30,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String as String
 import Data.TextEncoder (encodeUtf8)
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (resize)
 
 newtype AssetName = AssetName Csl.AssetName

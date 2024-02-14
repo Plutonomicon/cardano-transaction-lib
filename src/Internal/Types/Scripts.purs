@@ -1,16 +1,13 @@
 module Ctl.Internal.Types.Scripts
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , MintingPolicyHash(MintingPolicyHash)
-  , PlutusScript(PlutusScript)
   , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
   , NativeScriptStakeValidator(NativeScriptStakeValidator)
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
-  , Language(PlutusV1, PlutusV2)
-  , plutusV1Script
-  , plutusV2Script
   , stakeValidatorHashToBech32
+  , module X
   ) where
 
 import Prelude
@@ -19,76 +16,31 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch, UnexpectedValue)
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
-  , caseAesonString
   , decodeAeson
   , encodeAeson
-  , fromString
   , getField
-  , toStringifiedNumbersJson
   )
+import Cardano.Types.Language (Language(..), fromCsl, toCsl) as X
+import Cardano.Types.NativeScript (NativeScript)
+import Cardano.Types.PlutusScript (PlutusScript(..))
 import Control.Alt ((<|>))
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
 import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBech32Unsafe)
 import Ctl.Internal.ToData (class ToData)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Data.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested (type (/\), (/\))
-
-data Language
-  = PlutusV1
-  | PlutusV2
-
-derive instance Eq Language
-derive instance Ord Language
-derive instance Generic Language _
-
-instance DecodeAeson Language where
-  decodeAeson = caseAesonString
-    (Left $ TypeMismatch "Expected string")
-    case _ of
-      "PlutusV1" -> pure PlutusV1
-      "PlutusV2" -> pure PlutusV2
-      other -> Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
-        other
-
-instance EncodeAeson Language where
-  encodeAeson = encodeAeson <<< case _ of
-    PlutusV1 -> "PlutusV1"
-    PlutusV2 -> "PlutusV2"
-
-instance Show Language where
-  show = genericShow
+import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
 -- `PlutusScript` newtypes and `TypedValidator`
 --------------------------------------------------------------------------------
--- | Corresponds to "Script" in Plutus
-newtype PlutusScript = PlutusScript (ByteArray /\ Language)
-
-derive instance Generic PlutusScript _
-derive instance Newtype PlutusScript _
-derive newtype instance Eq PlutusScript
-derive newtype instance Ord PlutusScript
-derive newtype instance DecodeAeson PlutusScript
-derive newtype instance EncodeAeson PlutusScript
-
-instance Show PlutusScript where
-  show = genericShow
-
-plutusV1Script :: ByteArray -> PlutusScript
-plutusV1Script ba = PlutusScript (ba /\ PlutusV1)
-
-plutusV2Script :: ByteArray -> PlutusScript
-plutusV2Script ba = PlutusScript (ba /\ PlutusV2)
 
 decodeAesonHelper
   :: ∀ (a :: Type) (b :: Type)
@@ -230,4 +182,5 @@ instance Show StakeValidatorHash where
   show = genericShow
 
 stakeValidatorHashToBech32 :: StakeValidatorHash -> Bech32String
-stakeValidatorHashToBech32 = unwrap >>> scriptHashToBech32Unsafe "script"
+stakeValidatorHashToBech32 = unsafePartial $ unwrap >>> scriptHashToBech32Unsafe
+  "script"

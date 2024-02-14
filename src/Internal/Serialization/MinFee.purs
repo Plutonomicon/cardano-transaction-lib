@@ -3,6 +3,8 @@ module Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum as BigNum
 import Contract.Keys (publicKeyFromBech32)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAll))
@@ -19,8 +21,6 @@ import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Serialization as Serialization
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.Types (ExUnitPrices, Transaction)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )

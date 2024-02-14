@@ -14,6 +14,7 @@ module Contract.Backend.Ogmios.Mempool
 
 import Contract.Prelude
 
+import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Ctl.Internal.Cardano.Types.Transaction (Transaction)
@@ -31,7 +32,6 @@ import Ctl.Internal.QueryM.Ogmios
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
   ) as Ogmios
-import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
 import Data.ByteArray (hexToByteArray)
 import Data.List (List(Cons))

@@ -13,7 +13,6 @@ module Ctl.Internal.Cardano.Types.Transaction
       )
   , CostModel(CostModel)
   , Costmdls(Costmdls)
-  , Ed25519Signature(Ed25519Signature)
   , mkEd25519Signature
   , Epoch(Epoch)
   , ExUnitPrices
@@ -34,24 +33,18 @@ module Ctl.Internal.Cardano.Types.Transaction
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate
   , ProtocolVersion
-  , PublicKey(PublicKey)
-  , PrivateKey(PrivateKey)
   , Redeemer(Redeemer)
   , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , RequiredSigner(RequiredSigner)
   , ScriptDataHash(ScriptDataHash)
   , SubCoin
   , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
   , PoolRegistrationParams
   , TransactionWitnessSet(TransactionWitnessSet)
   , TxBody(TxBody)
   , URL(URL)
   , UnitInterval
   , Update
-  , UtxoMap
-  , pprintUtxoMap
-  , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , _auxiliaryData
   , _auxiliaryDataHash
@@ -93,6 +86,7 @@ import Aeson
   , encodeAeson
   , finiteNumber
   )
+import Cardano.Plutus.Types.PubKeyHash (PubKeyHash(..))
 import Cardano.Serialization.Lib
   ( ed25519Signature_fromBech32
   , ed25519Signature_toBech32
@@ -104,11 +98,28 @@ import Cardano.Serialization.Lib
   , toBytes
   )
 import Cardano.Serialization.Lib as Csl
+import Cardano.Types.Address as Address
+import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.Coin (Coin)
+import Cardano.Types.Ed25519Signature (Ed25519Signature(..))
+import Cardano.Types.Language (Language)
+import Cardano.Types.MultiAsset (MultiAsset(MultiAsset))
+import Cardano.Types.NetworkId (NetworkId)
+import Cardano.Types.OutputDatum (OutputDatum(..))
+import Cardano.Types.PlutusData (PlutusData, pprintPlutusData)
+import Cardano.Types.PlutusScript (PlutusScript(..))
+import Cardano.Types.PublicKey (PublicKey(..))
+import Cardano.Types.Slot (Slot(..))
+import Cardano.Types.StakeCredential (StakeCredential(..))
+import Cardano.Types.TransactionOutput (TransactionOutput(..))
+import Cardano.Types.TransactionOutput as X
+import Cardano.Types.Value (Value, pprintValue)
+import Cardano.Types.Vkey (Vkey(..))
 import Control.Alternative ((<|>))
 import Control.Apply (lift2)
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset, Value, pprintValue)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Helpers
   ( appendMap
@@ -118,13 +129,6 @@ import Ctl.Internal.Helpers
   , (</>)
   , (<<>>)
   )
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId
-  , Slot(Slot)
-  , StakeCredential
-  , addressBech32
-  )
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ed25519KeyHashFromBech32
@@ -133,16 +137,9 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (BigNum)
 import Ctl.Internal.Types.Int as Int
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
-import Ctl.Internal.Types.PlutusData (PlutusData, pprintPlutusData)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, PubKeyHash(PubKeyHash))
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts (Language, PlutusScript)
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash)
@@ -197,28 +194,28 @@ derive newtype instance EncodeAeson Transaction
 instance Show Transaction where
   show = genericShow
 
-instance Semigroup Transaction where
-  append (Transaction tx) (Transaction tx') =
-    Transaction
-      { body: txCheck tx.body <> txCheck' tx'.body
-      , witnessSet: txCheck tx.witnessSet <> txCheck' tx'.witnessSet
-      , isValid: tx.isValid && tx'.isValid
-      , auxiliaryData: txCheck tx.auxiliaryData <> txCheck' tx'.auxiliaryData
-      }
-    where
-    txCheck :: forall (m :: Type). Monoid m => m -> m
-    txCheck = guard tx.isValid
+-- instance Semigroup Transaction where
+--   append (Transaction tx) (Transaction tx') =
+--     Transaction
+--       { body: txCheck tx.body <> txCheck' tx'.body
+--       , witnessSet: txCheck tx.witnessSet <> txCheck' tx'.witnessSet
+--       , isValid: tx.isValid && tx'.isValid
+--       , auxiliaryData: txCheck tx.auxiliaryData <> txCheck' tx'.auxiliaryData
+--       }
+--     where
+--     txCheck :: forall (m :: Type). Monoid m => m -> m
+--     txCheck = guard tx.isValid
 
-    txCheck' :: forall (m :: Type). Monoid m => m -> m
-    txCheck' = guard tx'.isValid
+--     txCheck' :: forall (m :: Type). Monoid m => m -> m
+--     txCheck' = guard tx'.isValid
 
-instance Monoid Transaction where
-  mempty = Transaction
-    { body: mempty
-    , witnessSet: mempty
-    , isValid: true
-    , auxiliaryData: Nothing
-    }
+-- instance Monoid Transaction where
+--   mempty = Transaction
+--     { body: mempty
+--     , witnessSet: mempty
+--     , isValid: true
+--     , auxiliaryData: Nothing
+--     }
 
 --------------------------------------------------------------------------------
 -- `Transaction` Lenses
@@ -272,53 +269,53 @@ derive newtype instance Eq TxBody
 instance Show TxBody where
   show = genericShow
 
-instance Semigroup TxBody where
-  append (TxBody txB) (TxBody txB') = TxBody
-    { inputs: txB.inputs `Set.union` txB'.inputs
-    , outputs: txB.outputs `union` txB'.outputs
-    , fee: txB.fee <> txB'.fee
-    , ttl: lift2 lowerbound txB.ttl txB'.ttl
-    , certs: lift2 union txB.certs txB'.certs
-    , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
-    , update: txB.update </> txB'.update
-    , auxiliaryDataHash: txB.auxiliaryDataHash </> txB'.auxiliaryDataHash
-    , validityStartInterval:
-        lift2 lowerbound
-          txB.validityStartInterval
-          txB'.validityStartInterval
-    , mint: txB.mint <> txB'.mint
-    , referenceInputs: txB.referenceInputs <> txB'.referenceInputs
-    , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
-    , collateral: lift2 union txB.collateral txB'.collateral
-    , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
-    , networkId: txB.networkId </> txB'.networkId
-    , collateralReturn: txB.collateralReturn <|> txB.collateralReturn
-    , totalCollateral: txB.totalCollateral <|> txB.totalCollateral
-    }
-    where
-    lowerbound :: Slot -> Slot -> Slot
-    lowerbound (Slot x) (Slot y) = Slot $ min x y
+-- instance Semigroup TxBody where
+--   append (TxBody txB) (TxBody txB') = TxBody
+--     { inputs: txB.inputs `Set.union` txB'.inputs
+--     , outputs: txB.outputs `union` txB'.outputs
+--     , fee: txB.fee <> txB'.fee
+--     , ttl: lift2 lowerbound txB.ttl txB'.ttl
+--     , certs: lift2 union txB.certs txB'.certs
+--     , withdrawals: lift2 appendMap txB.withdrawals txB'.withdrawals
+--     , update: txB.update </> txB'.update
+--     , auxiliaryDataHash: txB.auxiliaryDataHash </> txB'.auxiliaryDataHash
+--     , validityStartInterval:
+--         lift2 lowerbound
+--           txB.validityStartInterval
+--           txB'.validityStartInterval
+--     , mint: txB.mint <> txB'.mint
+--     , referenceInputs: txB.referenceInputs <> txB'.referenceInputs
+--     , scriptDataHash: txB.scriptDataHash </> txB'.scriptDataHash
+--     , collateral: lift2 union txB.collateral txB'.collateral
+--     , requiredSigners: lift2 union txB.requiredSigners txB'.requiredSigners
+--     , networkId: txB.networkId </> txB'.networkId
+--     , collateralReturn: txB.collateralReturn <|> txB.collateralReturn
+--     , totalCollateral: txB.totalCollateral <|> txB.totalCollateral
+--     }
+--     where
+--     lowerbound :: Slot -> Slot -> Slot
+--     lowerbound (Slot x) (Slot y) = Slot $ min x y
 
-instance Monoid TxBody where
-  mempty = TxBody
-    { inputs: mempty
-    , outputs: mempty
-    , fee: mempty
-    , ttl: Nothing
-    , certs: Nothing
-    , withdrawals: Nothing
-    , update: Nothing
-    , auxiliaryDataHash: Nothing
-    , validityStartInterval: Nothing
-    , mint: Nothing
-    , scriptDataHash: Nothing
-    , collateral: Nothing
-    , requiredSigners: Nothing
-    , networkId: Nothing
-    , collateralReturn: Nothing
-    , totalCollateral: Nothing
-    , referenceInputs: mempty
-    }
+-- instance Monoid TxBody where
+--   mempty = TxBody
+--     { inputs: mempty
+--     , outputs: mempty
+--     , fee: mempty
+--     , ttl: Nothing
+--     , certs: Nothing
+--     , withdrawals: Nothing
+--     , update: Nothing
+--     , auxiliaryDataHash: Nothing
+--     , validityStartInterval: Nothing
+--     , mint: Nothing
+--     , scriptDataHash: Nothing
+--     , collateral: Nothing
+--     , requiredSigners: Nothing
+--     , networkId: Nothing
+--     , collateralReturn: Nothing
+--     , totalCollateral: Nothing
+--     , referenceInputs: mempty
+--     }
 
 instance EncodeAeson TxBody where
   encodeAeson (TxBody r) = encodeAeson $ r
@@ -334,14 +331,13 @@ derive newtype instance EncodeAeson ScriptDataHash
 instance Show ScriptDataHash where
   show = genericShow
 
-newtype Mint = Mint NonAdaAsset
+newtype Mint = Mint MultiAsset
 
 derive instance Generic Mint _
 derive instance Newtype Mint _
 derive newtype instance Eq Mint
-derive newtype instance Semigroup Mint
-derive newtype instance Monoid Mint
 derive newtype instance EncodeAeson Mint
+derive newtype instance DecodeAeson Mint
 
 instance Show Mint where
   show = genericShow
@@ -622,7 +618,7 @@ type PoolRegistrationParams =
   , cost :: BigNum -- >= pparams.minPoolCost
   , margin :: UnitInterval -- proportion that goes to the reward account
   , rewardAccount :: RewardAddress
-  , poolOwners :: Array PaymentPubKeyHash
+  , poolOwners :: Array PubKeyHash
   -- payment key hashes that contribute to pledge amount
   , relays :: Array Relay
   , poolMetadata :: Maybe PoolMetadata
@@ -661,8 +657,8 @@ mkPoolPubKeyHash str
   | otherwise = Nothing
 
 poolPubKeyHashToBech32 :: PoolPubKeyHash -> Bech32String
-poolPubKeyHashToBech32 = unwrap >>> unwrap >>> ed25519KeyHashToBech32Unsafe
-  "pool"
+poolPubKeyHashToBech32 = unsafePartial $ unwrap >>> unwrap >>>
+  ed25519KeyHashToBech32Unsafe "pool"
 
 data Certificate
   = StakeRegistration StakeCredential
@@ -857,30 +853,6 @@ derive instance Newtype Vkeywitness _
 instance Show Vkeywitness where
   show = genericShow
 
-newtype Vkey = Vkey PublicKey
-
-derive instance Generic Vkey _
-derive instance Newtype Vkey _
-derive newtype instance Eq Vkey
-derive newtype instance Ord Vkey
-derive newtype instance EncodeAeson Vkey
-
-instance Show Vkey where
-  show = genericShow
-
-newtype PrivateKey = PrivateKey Csl.PrivateKey
-
-derive instance Newtype PrivateKey _
-
-instance Eq PrivateKey where
-  eq = eqOrd
-
-instance Ord PrivateKey where
-  compare = compare `on` (unwrap >>> privateKey_asBytes)
-
-instance EncodeAeson PrivateKey where
-  encodeAeson = unwrap >>> privateKey_asBytes >>> encodeAeson
-
 -- ToData/FromData instances are intentionally not provided:
 -- it is pointless to store PrivateKeys in plutus script contexts,
 -- so the instances are commented-out to prevent people from doing
@@ -891,49 +863,6 @@ instance EncodeAeson PrivateKey where
 
 -- instance FromData PrivateKey where
 --   fromData = map wrap <<< toMaybe <<< privateKey_fromNormalBytes <=< fromData
-
-instance Show PrivateKey where
-  show pk = "(PrivateKey " <> (privateKey_toBech32 <<< unwrap $ pk) <> ")"
-
-newtype PublicKey = PublicKey Csl.PublicKey
-
-derive instance Newtype PublicKey _
-
-instance Eq PublicKey where
-  eq = eqOrd
-
-instance Ord PublicKey where
-  compare = compare `on` (unwrap >>> publicKey_asBytes)
-
-instance EncodeAeson PublicKey where
-  encodeAeson = unwrap >>> publicKey_asBytes >>> encodeAeson
-
-instance ToData PublicKey where
-  toData (PublicKey pk) = toData $ publicKey_asBytes pk
-
-instance FromData PublicKey where
-  fromData = map wrap <<< toMaybe <<< publicKey_fromBytes <=< fromData
-
-instance Show PublicKey where
-  show pk = "(PublicKey " <> (publicKey_toBech32 <<< unwrap $ pk) <> ")"
-
-newtype Ed25519Signature = Ed25519Signature Csl.Ed25519Signature
-
-derive instance Newtype Ed25519Signature _
-
-instance Eq Ed25519Signature where
-  eq a b = compare a b == EQ
-
-instance Ord Ed25519Signature where
-  compare = compare `on` (unwrap >>> toBytes)
-
-instance EncodeAeson Ed25519Signature where
-  encodeAeson = unwrap >>> toBytes >>> encodeAeson
-
-instance Show Ed25519Signature where
-  show sig = "(Ed25519Signature "
-    <> show (ed25519Signature_toBech32 <<< unwrap $ sig)
-    <> ")"
 
 mkEd25519Signature :: Bech32String -> Maybe Ed25519Signature
 mkEd25519Signature =
@@ -983,52 +912,3 @@ instance Monoid AuxiliaryData where
     , nativeScripts: Nothing
     , plutusScripts: Nothing
     }
-
-newtype TransactionOutput = TransactionOutput
-  { address :: Address
-  , amount :: Value
-  , datum :: OutputDatum
-  , scriptRef :: Maybe ScriptRef
-  }
-
-derive instance Generic TransactionOutput _
-derive instance Newtype TransactionOutput _
-derive newtype instance Eq TransactionOutput
-derive newtype instance EncodeAeson TransactionOutput
-
-instance Show TransactionOutput where
-  show = genericShow
-
-type UtxoMap = Map TransactionInput TransactionOutput
-
-pprintUtxoMap :: UtxoMap -> TagSet
-pprintUtxoMap utxos = TagSet.fromArray $
-  Map.toUnfoldable utxos <#>
-    \( TransactionInput { transactionId, index } /\
-         TransactionOutput { address, amount, datum, scriptRef }
-     ) ->
-      let
-        datumTagSets = case datum of
-          NoOutputDatum -> []
-          OutputDatumHash datumHash ->
-            [ TagSet.fromArray
-                [ "datum hash" `tag` byteArrayToHex (unwrap datumHash) ]
-            ]
-          OutputDatum plutusData ->
-            [ TagSet.fromArray
-                [ "datum" `tagSetTag` pprintPlutusData (unwrap plutusData) ]
-            ]
-        scriptRefTagSets = case scriptRef of
-          Nothing -> []
-          Just ref -> [ "Script Reference" `tag` show ref ]
-        outputTagSet =
-          [ "amount" `tagSetTag` pprintValue amount
-          , "address" `tag` addressBech32 address
-          ]
-            <> datumTagSets
-            <> scriptRefTagSets
-      in
-        ( byteArrayToHex (toBytes $ unwrap transactionId) <> "#" <>
-            UInt.toString index
-        )
-          `tagSetTag` TagSet.fromArray outputTagSet

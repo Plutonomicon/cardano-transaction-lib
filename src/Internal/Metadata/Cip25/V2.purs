@@ -27,6 +27,9 @@ import Aeson
   , (.:?)
   )
 import Aeson as Aeson
+import Cardano.Types.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Types.AssetName (mkAssetName, unAssetName)
+import Cardano.Types.PlutusData (PlutusData(Map, Integer))
 import Control.Alt ((<|>))
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Metadata.Cip25.Cip25String
@@ -37,8 +40,8 @@ import Ctl.Internal.Metadata.Cip25.Cip25String
   , toMetadataString
   )
 import Ctl.Internal.Metadata.Cip25.Common
-  ( Cip25MetadataFile(Cip25MetadataFile)
-  , Cip25TokenName(Cip25TokenName)
+  ( Cip25AssetName(Cip25AssetName)
+  , Cip25MetadataFile(Cip25MetadataFile)
   , nftMetadataLabel
   )
 import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
@@ -50,13 +53,9 @@ import Ctl.Internal.Metadata.Helpers
 import Ctl.Internal.Metadata.MetadataType (class MetadataType)
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
-import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
 import Ctl.Internal.Types.Int as Int
-import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
-import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
-import Ctl.Internal.Types.TokenName (getTokenName, mkTokenName)
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(Int, MetadataMap)
   )
@@ -91,7 +90,7 @@ import Partial.Unsafe (unsafePartial)
 -- | ```
 newtype Cip25MetadataEntry = Cip25MetadataEntry
   { policyId :: MintingPolicyHash
-  , assetName :: Cip25TokenName
+  , assetName :: Cip25AssetName
   -- metadata_details:
   , name :: Cip25String
   , image :: String
@@ -164,7 +163,7 @@ metadataEntryToMetadata (Cip25MetadataEntry entry) = toMetadata $
 
 metadataEntryFromMetadata
   :: MintingPolicyHash
-  -> Cip25TokenName
+  -> Cip25AssetName
   -> TransactionMetadatum
   -> Maybe Cip25MetadataEntry
 metadataEntryFromMetadata policyId assetName contents = do
@@ -195,7 +194,7 @@ metadataEntryToData (Cip25MetadataEntry entry) = toData $ AssocMap.Map $
 
 metadataEntryFromData
   :: MintingPolicyHash
-  -> Cip25TokenName
+  -> Cip25AssetName
   -> PlutusData
   -> Maybe Cip25MetadataEntry
 metadataEntryFromData policyId assetName contents = do
@@ -209,7 +208,7 @@ metadataEntryFromData policyId assetName contents = do
 
 metadataEntryDecodeAeson
   :: MintingPolicyHash
-  -> Cip25TokenName
+  -> Cip25AssetName
   -> Aeson
   -> Either JsonDecodeError Cip25MetadataEntry
 metadataEntryDecodeAeson policyId assetName =
@@ -229,21 +228,21 @@ metadataEntryDecodeAeson policyId assetName =
 -- | key
 encodePolicyIdKey :: Cip25MetadataEntry -> String
 encodePolicyIdKey (Cip25MetadataEntry { policyId }) =
-  rawBytesToHex $ scriptHashToBytes $ unwrap policyId
+  byteArrayToHex $ unwrap $ encodeCbor $ unwrap policyId
 
 -- | Decode the CIP25 policy id key
 decodePolicyIdKey :: String -> Maybe MintingPolicyHash
-decodePolicyIdKey = map wrap <<< scriptHashFromBytes <=< hexToByteArray
+decodePolicyIdKey = map wrap <<< decodeCbor <=< map wrap <<< hexToByteArray
 
 -- | Encode the entry's asset name to the string used as the metadata
 -- | key
 encodeAssetNameKey :: Cip25MetadataEntry -> String
 encodeAssetNameKey (Cip25MetadataEntry { assetName }) =
-  byteArrayToHex $ getTokenName $ unwrap assetName
+  byteArrayToHex $ unAssetName $ unwrap assetName
 
 -- | Decode the CIP25 asset name key
-decodeAssetNameKey :: String -> Maybe Cip25TokenName
-decodeAssetNameKey = map wrap <<< mkTokenName <=< hexToByteArray
+decodeAssetNameKey :: String -> Maybe Cip25AssetName
+decodeAssetNameKey = map wrap <<< mkAssetName <=< hexToByteArray
 
 newtype Cip25Metadata = Cip25Metadata (Array Cip25MetadataEntry)
 
@@ -372,12 +371,12 @@ instance DecodeAeson Cip25Metadata where
     decodePolicyId =
       note (TypeMismatch "Expected hex-encoded policy id")
         <<< map wrap
-        <<< (scriptHashFromBytes <=< hexToByteArray)
+        <<< (decodeCbor <=< map wrap <<< hexToByteArray)
 
-    decodeAssetName :: String -> Either JsonDecodeError Cip25TokenName
+    decodeAssetName :: String -> Either JsonDecodeError Cip25AssetName
     decodeAssetName =
       note (TypeMismatch "Expected UTF-8 encoded asset name")
         <<< map wrap
-        <<< mkTokenName
+        <<< mkAssetName
         <<< wrap
         <<< encodeUtf8

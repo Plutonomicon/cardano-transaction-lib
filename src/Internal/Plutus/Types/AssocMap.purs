@@ -27,9 +27,9 @@ import Aeson
   , decodeAeson
   , encodeAeson
   )
+import Cardano.Types.PlutusData (PlutusData(Map)) as PD
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.PlutusData (PlutusData(Map)) as PD
 import Data.Array (any, deleteAt, filter, findIndex, mapMaybe, null, singleton) as Array
 import Data.Array ((:))
 import Data.Bifunctor (bimap, rmap)

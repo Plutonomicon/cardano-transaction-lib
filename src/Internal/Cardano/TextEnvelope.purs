@@ -8,27 +8,21 @@ module Ctl.Internal.Cardano.TextEnvelope
       , Other
       )
   , decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  , plutusScriptV2FromEnvelope
+  , plutusScriptFromEnvelope
   ) where
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , decodeAeson
-  , parseJsonStringToAeson
-  )
+import Aeson (class DecodeAeson, decodeAeson, parseJsonStringToAeson)
+import Cardano.Types.Language (Language(..))
+import Cardano.Types.PlutusScript (PlutusScript(..))
+import Control.Alt ((<|>))
 import Ctl.Internal.Types.Cbor (toByteArray)
-import Ctl.Internal.Types.Scripts
-  ( PlutusScript
-  , plutusV1Script
-  , plutusV2Script
-  )
 import Data.ByteArray (ByteArray, hexToByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
+import Data.Tuple.Nested ((/\))
 
 data TextEnvelopeType
   = PlutusScriptV1
@@ -89,21 +83,14 @@ decodeTextEnvelope json = do
   pure $ wrap { type_, description, bytes: ba }
 
 plutusScriptFromEnvelope
-  :: TextEnvelopeType
-  -> (ByteArray -> PlutusScript)
-  -> TextEnvelope
-  -> Maybe PlutusScript
-plutusScriptFromEnvelope type_ bytesToScript (TextEnvelope envelope) = do
-  -- Check TextEnvelope type match to desirable
-  unless (envelope.type_ == type_) Nothing
-  pure $ bytesToScript envelope.bytes
-
-plutusScriptV1FromEnvelope
   :: TextEnvelope -> Maybe PlutusScript
-plutusScriptV1FromEnvelope envelope = do
-  plutusScriptFromEnvelope PlutusScriptV1 plutusV1Script envelope
+plutusScriptFromEnvelope (TextEnvelope envelope) =
+  plutusScriptV1FromEnvelope <|> plutusScriptV2FromEnvelope
+  where
+  plutusScriptV1FromEnvelope = do
+    unless (envelope.type_ == PlutusScriptV1) Nothing
+    pure $ PlutusScript $ envelope.bytes /\ PlutusV1
 
-plutusScriptV2FromEnvelope
-  :: TextEnvelope -> Maybe PlutusScript
-plutusScriptV2FromEnvelope envelope =
-  plutusScriptFromEnvelope PlutusScriptV2 plutusV2Script envelope
+  plutusScriptV2FromEnvelope = do
+    unless (envelope.type_ == PlutusScriptV2) Nothing
+    pure $ PlutusScript $ envelope.bytes /\ PlutusV2

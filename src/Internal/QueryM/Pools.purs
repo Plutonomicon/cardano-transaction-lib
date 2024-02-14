@@ -28,7 +28,6 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.ByteArray (byteArrayToHex)
 import Data.Map (Map)

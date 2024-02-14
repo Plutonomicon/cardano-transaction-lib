@@ -9,7 +9,7 @@ module Ctl.Internal.Metadata.Helpers
 import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
-import Ctl.Internal.Types.PlutusData (PlutusData(Map, Bytes))
+import Cardano.Types.PlutusData (PlutusData(Map, Bytes))
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, Text)
   )

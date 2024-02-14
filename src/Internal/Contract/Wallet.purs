@@ -35,11 +35,6 @@ import Ctl.Internal.Serialization.Address
   , stakeCredentialToKeyHash
   )
 import Ctl.Internal.Service.Error (pprintClientError)
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash
-  , PubKeyHash
-  , StakePubKeyHash
-  )
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet (Wallet, actionBasedOnWallet)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)

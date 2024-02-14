@@ -3,7 +3,11 @@ module Cardano.Types.Value where
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson, encodeAeson)
-import Cardano.Serialization.Lib (value_coin, value_multiasset)
+import Cardano.Serialization.Lib
+  ( value_coin
+  , value_multiasset
+  , value_newWithAssets
+  )
 import Cardano.Serialization.Lib as Csl
 import Cardano.Types.Asset (Asset(Asset, AdaAsset))
 import Cardano.Types.AssetClass (AssetClass(AssetClass))
@@ -13,7 +17,12 @@ import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin (Coin(Coin))
 import Cardano.Types.Coin as Coin
-import Cardano.Types.MultiAsset (MultiAsset(MultiAsset), pprintMultiAsset, unionNonAda, unionWithNonAda)
+import Cardano.Types.MultiAsset
+  ( MultiAsset(MultiAsset)
+  , pprintMultiAsset
+  , unionNonAda
+  , unionWithNonAda
+  )
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.ScriptHash (ScriptHash)
 import Ctl.Internal.Partition (class Equipartition, equipartition)
@@ -36,6 +45,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
+import Prelude as Prelude
 import Test.QuickCheck (class Arbitrary, arbitrary)
 
 -- | In Plutus, Ada is is stored inside the map (with currency symbol and token
@@ -69,6 +79,12 @@ instance Equipartition Value where
     NEArray.zipWith Value
       (equipartition coin numParts)
       (equipartition nonAdaAssets numParts)
+
+zero :: Value
+zero = Value Coin.zero MultiAsset.empty
+
+add :: Value -> Value -> Maybe Value
+add = unionWith BigNum.add
 
 -- for compatibility with older CTL
 mkValue :: Coin -> MultiAsset -> Value
@@ -132,7 +148,8 @@ equipartitionAssetsWithTokenQuantityUpperBound
   :: MultiAsset -> BigInt -> NonEmptyArray MultiAsset /\ Int
 equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
   case
-    maxTokenQuantity <= zero || BigNum.toBigInt currentMaxTokenQuantity <= maxTokenQuantity
+    maxTokenQuantity <= Prelude.zero || BigNum.toBigInt currentMaxTokenQuantity
+      <= maxTokenQuantity
     of
     true ->
       NEArray.singleton nonAdaAssets /\ one
@@ -150,7 +167,6 @@ equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
   currentMaxTokenQuantity =
     foldl (\quantity tn -> quantity `max` tokenQuantity tn) BigNum.zero
       (MultiAsset.flatten nonAdaAssets)
-
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#geq
 -- | Check whether one `Value` is greater than or equal to another. See `Value` for an explanation of how operations on `Value`s work.
@@ -181,7 +197,10 @@ lt l r = not (isZero l && isZero r) && checkBinRel (<) l r
 -- inequality is redundant. So we use strict equality instead.
 -- | Checks if every asset has positive quantity
 isPositive :: Value -> Boolean
-isPositive val = (all (\(_ /\ _ /\ a) -> a > BigNum.zero) $ MultiAsset.flatten $ getMultiAsset val) && valueOf AdaAsset val > BigNum.zero
+isPositive val =
+  ( all (\(_ /\ _ /\ a) -> a > BigNum.zero) $ MultiAsset.flatten $ getMultiAsset
+      val
+  ) && valueOf AdaAsset val > BigNum.zero
 
 -- From https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#isZero
 -- | Check whether a `Value` is zero.
@@ -213,7 +232,7 @@ checkBinRel f l r =
     checkPred unThese l r
 
 minus :: Value -> Value -> Maybe Value
-minus = unionWith BigNum.minus
+minus = unionWith BigNum.sub
 
 assetToValue :: AssetClass -> BigNum -> Value
 assetToValue (AssetClass cs tn) quantity =
@@ -247,6 +266,10 @@ valueToCoin = Coin <<< valueOf AdaAsset
 fromCsl :: Csl.Value -> Value
 fromCsl value = Value coin multiAsset
   where
-    coin = Coin $ wrap $ value_coin value
-    multiAsset = fromMaybe MultiAsset.empty $
-      MultiAsset.fromCsl <$> toMaybe (value_multiasset value)
+  coin = Coin $ wrap $ value_coin value
+  multiAsset = fromMaybe MultiAsset.empty $
+    MultiAsset.fromCsl <$> toMaybe (value_multiasset value)
+
+toCsl :: Value -> Csl.Value
+toCsl (Value coin multiAsset) =
+  value_newWithAssets (unwrap $ unwrap coin) (MultiAsset.toCsl multiAsset)

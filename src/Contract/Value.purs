@@ -1,11 +1,14 @@
 -- | A module that defines tokens in Cardano and helpers.
 module Contract.Value
   ( module CurrencySymbol
-  , module Scripts
-  , module TokenName
+  , module AssetName
   , module Value
   ) where
 
+import Cardano.Types.AssetName
+  ( AssetName
+  , mkAssetName
+  ) as AssetName
 import Ctl.Internal.Plutus.Types.CurrencySymbol
   ( CurrencySymbol
   , adaSymbol
@@ -19,7 +22,7 @@ import Ctl.Internal.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
-  , flattenNonAdaAssets
+  , flattenMultiAssets
   , flattenValue
   , geq
   , getLovelace
@@ -41,11 +44,3 @@ import Ctl.Internal.Plutus.Types.Value
   , valueToCoin
   , valueToCoin'
   ) as Value
-import Ctl.Internal.Scripts (scriptCurrencySymbol) as Scripts
-import Ctl.Internal.Types.TokenName
-  ( TokenName
-  , adaToken
-  , getTokenName
-  , mkTokenName
-  , mkTokenNames
-  ) as TokenName

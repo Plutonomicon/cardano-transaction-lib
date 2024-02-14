@@ -2,9 +2,25 @@ module Cardano.Types.BaseAddress where
 
 import Prelude
 
-import Aeson (class DecodeAeson, class EncodeAeson, JsonDecodeError(..), decodeAeson, encodeAeson)
-import Cardano.Serialization.Lib (address_fromBech32, address_networkId, address_toBech32, baseAddress_fromAddress, baseAddress_new, baseAddress_paymentCred, baseAddress_stakeCred, baseAddress_toAddress)
+import Aeson
+  ( class DecodeAeson
+  , class EncodeAeson
+  , JsonDecodeError(..)
+  , decodeAeson
+  , encodeAeson
+  )
+import Cardano.Serialization.Lib
+  ( address_fromBech32
+  , address_networkId
+  , address_toBech32
+  , baseAddress_fromAddress
+  , baseAddress_new
+  , baseAddress_paymentCred
+  , baseAddress_stakeCred
+  , baseAddress_toAddress
+  )
 import Cardano.Serialization.Lib as Csl
+import Cardano.Types.Credential as Credential
 import Cardano.Types.NetworkId (NetworkId)
 import Cardano.Types.NetworkId as NetworkId
 import Cardano.Types.PaymentCredential (PaymentCredential)
@@ -33,26 +49,35 @@ instance Show BaseAddress where
 -- no AsCbor instance, because there is no to_bytes method in CSL
 
 instance EncodeAeson BaseAddress where
-  encodeAeson = toCsl >>> baseAddress_toAddress >>> flip address_toBech32 (unsafeCoerce undefined) >>> encodeAeson
+  encodeAeson = toCsl >>> baseAddress_toAddress
+    >>> flip address_toBech32 (unsafeCoerce undefined)
+    >>> encodeAeson
 
 instance DecodeAeson BaseAddress where
-  decodeAeson = note (TypeMismatch "BaseAddress") <<< decodeBech32 <=< decodeAeson
+  decodeAeson = note (TypeMismatch "BaseAddress") <<< decodeBech32 <=<
+    decodeAeson
     where
-      decodeBech32 = map fromCsl <<< toMaybe <<< baseAddress_fromAddress <=< fromBech32
-      fromBech32 :: Bech32String -> Maybe Csl.Address
-      fromBech32 = toMaybe <<< address_fromBech32
+    decodeBech32 = map fromCsl <<< toMaybe <<< baseAddress_fromAddress <=<
+      fromBech32
+
+    fromBech32 :: Bech32String -> Maybe Csl.Address
+    fromBech32 = toMaybe <<< address_fromBech32
 
 toCsl :: BaseAddress -> Csl.BaseAddress
 toCsl (BaseAddress nid pc sc) =
-    baseAddress_new
-      (Int.toNumber $ NetworkId.toInt nid)
-      (unwrap pc)
-      (unwrap sc)
+  baseAddress_new
+    (Int.toNumber $ NetworkId.toInt nid)
+    (Credential.toCsl $ unwrap pc)
+    (Credential.toCsl $ unwrap sc)
 
 fromCsl :: Csl.BaseAddress -> BaseAddress
-fromCsl addr =
-  BaseAddress networkId  (wrap $ baseAddress_paymentCred addr)
-  (wrap $ baseAddress_stakeCred addr)
+fromCsl addr = BaseAddress
+  networkId
+  (wrap $ Credential.fromCsl $ baseAddress_paymentCred addr)
+  (wrap $ Credential.fromCsl $ baseAddress_stakeCred addr)
   where
-    networkId :: NetworkId
-    networkId = unsafePartial $ fromJust $ NetworkId.fromInt $ fromJust $ Int.fromNumber $ address_networkId $ baseAddress_toAddress addr
+  networkId :: NetworkId
+  networkId = unsafePartial $ fromJust $ NetworkId.fromInt $ fromJust
+    $ Int.fromNumber
+    $ address_networkId
+    $ baseAddress_toAddress addr

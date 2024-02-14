@@ -9,10 +9,11 @@ import Cardano.Types.AsCbor (encodeCbor)
 import Cardano.Types.AssetName (AssetName, fromAssetName)
 import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum as BigNum
+import Control.Bind (bindFlipped)
 import Ctl.Internal.Helpers (decodeMap, encodeMap)
 import Ctl.Internal.Partition (class Equipartition, equipartition)
 import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Data.Array (filter)
+import Data.Array (filter, foldr)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty (replicate, zipWith) as NEArray
 import Data.ByteArray (byteArrayToHex)
@@ -74,6 +75,7 @@ instance Equipartition MultiAsset where
       (flatten nonAdaAssets)
     where
     append' a b = unsafePartial $ fromJust $ add a b
+
     accumulate
       :: NonEmptyArray MultiAsset
       -> (ScriptHash /\ AssetName /\ BigNum)
@@ -89,6 +91,9 @@ empty = MultiAsset Map.empty
 add :: MultiAsset -> MultiAsset -> Maybe MultiAsset
 add = unionWithNonAda BigNum.add
 
+sum :: Array MultiAsset -> Maybe MultiAsset
+sum = foldr (bindFlipped <<< add) (Just empty)
+
 flatten :: MultiAsset -> Array (ScriptHash /\ AssetName /\ BigNum)
 flatten (MultiAsset mp) =
   Map.toUnfoldable mp >>= \(sh /\ mp') -> do
@@ -98,8 +103,8 @@ unflatten :: Array (ScriptHash /\ AssetName /\ BigNum) -> Maybe MultiAsset
 unflatten =
   foldM accumulate empty
   where
-    uncurry2 f (a /\ b /\ c) = f a b c
-    accumulate ma = unionWithNonAda BigNum.add ma <<< uncurry2 singleton
+  uncurry2 f (a /\ b /\ c) = f a b c
+  accumulate ma = unionWithNonAda BigNum.add ma <<< uncurry2 singleton
 
 singleton :: ScriptHash -> AssetName -> BigNum -> MultiAsset
 singleton sh tn amount = MultiAsset $ Map.singleton sh $ Map.singleton tn amount
@@ -192,12 +197,14 @@ union l r =
     Map.fromFoldable (ls' <> rs'')
 
 toCsl :: MultiAsset -> Csl.MultiAsset
-toCsl (MultiAsset mp) = packMapContainer $ map (unwrap *** assetsToCsl) $ Map.toUnfoldable mp
+toCsl (MultiAsset mp) = packMapContainer $ map (unwrap *** assetsToCsl) $
+  Map.toUnfoldable mp
   where
-    assetsToCsl :: Map AssetName BigNum -> Csl.Assets
-    assetsToCsl assets = packMapContainer $ map (unwrap *** unwrap) $ Map.toUnfoldable assets
+  assetsToCsl :: Map AssetName BigNum -> Csl.Assets
+  assetsToCsl assets = packMapContainer $ map (unwrap *** unwrap) $
+    Map.toUnfoldable assets
 
 fromCsl :: Csl.MultiAsset -> MultiAsset
 fromCsl multiAsset = MultiAsset $ Map.fromFoldable $
   unpackMapContainer multiAsset <#> wrap *** \asset ->
-  Map.fromFoldable (unpackMapContainer asset <#> wrap *** wrap)
+    Map.fromFoldable (unpackMapContainer asset <#> wrap *** wrap)

@@ -6,11 +6,6 @@ module Ctl.Internal.Types.PaymentPubKey
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PublicKey
-  , RequiredSigner(RequiredSigner)
-  , Vkey(Vkey)
-  )
 import Ctl.Internal.Serialization (publicKeyHash)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)

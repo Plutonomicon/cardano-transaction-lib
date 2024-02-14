@@ -14,11 +14,9 @@ import Cardano.Serialization.Lib
   , privateKey_fromNormalBytes
   , publicKey_fromBytes
   ) as Csl
+import Cardano.Types.PrivateKey (PrivateKey(..))
+import Cardano.Types.PublicKey (PublicKey(..))
 import Contract.Prim.ByteArray (RawBytes)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PrivateKey(PrivateKey)
-  , PublicKey(PublicKey)
-  )
 import Ctl.Internal.Cardano.Types.Transaction (mkEd25519Signature) as X
 import Ctl.Internal.Deserialization.Keys (publicKeyFromBech32) as Csl
 import Ctl.Internal.Types.Aliases (Bech32String)

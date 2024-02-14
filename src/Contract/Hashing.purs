@@ -7,6 +7,7 @@ module Contract.Hashing
 
 import Prelude
 
+import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Scripts (plutusScriptStakeValidatorHash) as X
 import Ctl.Internal.Cardano.Types.Transaction
   ( AuxiliaryData
@@ -33,8 +34,6 @@ import Ctl.Internal.NativeScripts (nativeScriptHash) as X
 import Ctl.Internal.Serialization (convertTransaction)
 import Ctl.Internal.Serialization (publicKeyHash) as Internal
 import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
-import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
-import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
 

@@ -9,7 +9,8 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 
-newtype Pointer = Pointer { slot :: Slot, txIndex :: BigNum, certIndex :: BigNum }
+newtype Pointer = Pointer
+  { slot :: Slot, txIndex :: BigNum, certIndex :: BigNum }
 
 derive instance Eq Pointer
 derive instance Ord Pointer

@@ -14,11 +14,13 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   )
+import Cardano.Types.AsCbor (decodeCbor)
+import Cardano.Types.AssetName (AssetName, mkAssetName)
+import Cardano.Types.ScriptHash (ScriptHash)
 import Control.Apply (lift2)
-import Ctl.Internal.Cardano.Types.Value (CurrencySymbol, mkCurrencySymbol)
-import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Data.ByteArray (hexToByteArray)
 import Data.Either (Either(Left), note)
+import Data.Newtype (wrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\))
 import Foreign.Object (Object)
@@ -48,14 +50,14 @@ decodeAssetClass
   :: String
   -> String
   -> String
-  -> Either JsonDecodeError (CurrencySymbol /\ TokenName)
+  -> Either JsonDecodeError (ScriptHash /\ AssetName)
 decodeAssetClass assetString csString tnString =
   lift2 Tuple
     ( note (assetStringTypeMismatch "CurrencySymbol" csString)
-        (mkCurrencySymbol =<< hexToByteArray csString)
+        (decodeCbor <<< wrap =<< hexToByteArray csString)
     )
-    ( note (assetStringTypeMismatch "TokenName" tnString)
-        (mkTokenName =<< hexToByteArray tnString)
+    ( note (assetStringTypeMismatch "AssetName" tnString)
+        (mkAssetName =<< hexToByteArray tnString)
     )
   where
   assetStringTypeMismatch :: String -> String -> JsonDecodeError

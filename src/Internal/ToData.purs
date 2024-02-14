@@ -14,6 +14,9 @@ module Ctl.Internal.ToData
 
 import Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromInt, one, toBigInt, zero) as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Ctl.Internal.Helpers (uIntToBigInt)
 import Ctl.Internal.Plutus.Types.DataSchema
@@ -26,10 +29,7 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , class GetLabelIndex
   , class GetWithLabel
   )
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromInt, one, toBigInt, zero) as BigNum
 import Ctl.Internal.Types.CborBytes (CborBytes)
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer, List, Bytes))
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Array (cons, sortWith)
 import Data.Array as Array

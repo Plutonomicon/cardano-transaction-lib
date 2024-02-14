@@ -1,12 +1,16 @@
 module Cardano.Types.AssetClass where
 
-
 import Prelude hiding (join)
 
 import Aeson (class EncodeAeson, encodeAeson)
 import Cardano.Types.AssetName (AssetName)
 import Cardano.Types.Coin (Coin(Coin))
-import Cardano.Types.MultiAsset (MultiAsset(..), pprintMultiAsset, unionNonAda, unionWithNonAda)
+import Cardano.Types.MultiAsset
+  ( MultiAsset(..)
+  , pprintMultiAsset
+  , unionNonAda
+  , unionWithNonAda
+  )
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.ScriptHash (ScriptHash)
 import Ctl.Internal.Partition (class Equipartition, equipartition)

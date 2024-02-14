@@ -23,7 +23,6 @@ import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)

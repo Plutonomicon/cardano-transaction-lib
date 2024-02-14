@@ -16,6 +16,7 @@ import Cardano.Serialization.Lib
   , toBytes
   )
 import Cardano.Serialization.Lib as Csl
+import Cardano.Types.AsCbor (class AsCbor)
 import Cardano.Types.PlutusData (PlutusData(Bytes))
 import Ctl.Internal.FfiHelpers (partialToMaybe)
 import Ctl.Internal.FromData (class FromData)
@@ -50,6 +51,10 @@ instance Show Ed25519KeyHash where
     "(Ed25519KeyHash $ unsafePartial $ fromJust $ ed25519KeyHashFromBech32 "
       <> show (ed25519KeyHashToBech32 "pool" edkh)
       <> ")"
+
+instance AsCbor Ed25519KeyHash where
+  encodeCbor = unwrap >>> toBytes >>> wrap
+  decodeCbor = unwrap >>> fromBytes >>> map wrap
 
 instance ToData Ed25519KeyHash where
   toData = toData <<< unwrap <<< ed25519KeyHashToBytes

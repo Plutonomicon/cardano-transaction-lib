@@ -88,4 +88,3 @@ instance EncodeAeson TransactionMetadatum where
     Int n -> encodeTagged' "Int" n
     Bytes bytes -> encodeTagged' "Bytes" bytes
     Text string -> encodeTagged' "Text" string
-

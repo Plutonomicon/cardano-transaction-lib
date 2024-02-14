@@ -1,6 +1,5 @@
 module Ctl.Internal.CoinSelection.UtxoIndex
-  ( Asset(Asset, AssetLovelace)
-  , SelectionFilter(SelectAnyWith, SelectPairWith, SelectSingleton)
+  ( SelectionFilter(SelectAnyWith, SelectPairWith, SelectSingleton)
   , TxUnspentOutput
   , UtxoIndex
   , UtxoIndexInvariantStatus
@@ -22,18 +21,18 @@ module Ctl.Internal.CoinSelection.UtxoIndex
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , UtxoMap
-  )
+import Cardano.Types.Asset (Asset(AdaAsset))
+import Cardano.Types.Asset as Asset
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionOutput (TransactionOutput(..))
+import Cardano.Types.UtxoMap (UtxoMap)
 import Ctl.Internal.Cardano.Types.Value (AssetClass, Value)
 import Ctl.Internal.Cardano.Types.Value
-  ( getAssetQuantity
-  , valueAssetClasses
+  ( valueAssetClasses
   , valueAssets
-  , valueToCoin'
+  , valueOf
   ) as Value
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (all, foldl) as Array
 import Data.Array ((!!))
 import Data.Array.NonEmpty (cons')
@@ -107,20 +106,6 @@ instance Show UtxoIndex where
 utxoIndexUniverse :: UtxoIndex -> UtxoMap
 utxoIndexUniverse = view _utxos
 
--- | Taken from cardano-wallet:
--- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L485
-data Asset = AssetLovelace | Asset AssetClass
-
-derive instance Generic Asset _
-derive instance Eq Asset
-derive instance Ord Asset
-
-instance Show Asset where
-  show = genericShow
-
-instance Arbitrary Asset where
-  arbitrary = oneOf $ cons' (pure AssetLovelace) [ Asset <$> arbitrary ]
-
 -- | Indicates whether or not a given bundle includes a given asset.
 -- |
 -- | Both ada and non-ada assets can be queried.
@@ -128,10 +113,8 @@ instance Arbitrary Asset where
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/9d73b57e23392e25148cfc8db560cb8f656cb56a/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L526
 valueHasAsset :: Value -> Asset -> Boolean
-valueHasAsset amount AssetLovelace =
-  (Value.valueToCoin' amount) > (BigInt.fromInt 0)
-valueHasAsset amount (Asset asset) =
-  Value.getAssetQuantity asset amount >= one
+valueHasAsset amount asset =
+  Value.valueOf asset amount > BigNum.zero
 
 --------------------------------------------------------------------------------
 -- Builders
@@ -203,17 +186,20 @@ updateUtxoIndex
 updateUtxoIndex out manageEntry =
   case categorizeUtxoEntry out of
     BundleWithNoAssets ->
-      _indexSingletons %~ manageEntry AssetLovelace
-    BundleWithOneAsset asset ->
-      (_indexPairs %~ manageEntry AssetLovelace)
-        <<< (_indexSingletons %~ manageEntry (Asset asset))
+      _indexSingletons %~ manageEntry AdaAsset
+    BundleWithOneAsset assetClass ->
+      (_indexPairs %~ manageEntry AdaAsset)
+        <<< (_indexSingletons %~ manageEntry (Asset.fromAssetClass assetClass))
     BundleWithTwoAssets asset0 asset1 ->
-      (_indexAnyWith %~ manageEntry AssetLovelace)
-        <<< (_indexPairs %~ manageEntry (Asset asset0))
-        <<< (_indexPairs %~ manageEntry (Asset asset1))
+      (_indexAnyWith %~ manageEntry AdaAsset)
+        <<< (_indexPairs %~ manageEntry (Asset.fromAssetClass asset0))
+        <<< (_indexPairs %~ manageEntry (Asset.fromAssetClass asset1))
     BundleWithMultipleAssets assets ->
-      (_indexAnyWith %~ flip (foldl (flip (manageEntry <<< Asset))) assets)
-        <<< (_indexAnyWith %~ manageEntry AssetLovelace)
+      ( _indexAnyWith %~ flip
+          (foldl (flip (manageEntry <<< Asset.fromAssetClass)))
+          assets
+      )
+        <<< (_indexAnyWith %~ manageEntry AdaAsset)
 
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/791541da69b9b3f434bb9ead43de406cc18b0373/lib/primitive/lib/Cardano/Wallet/Primitive/Types/UTxOIndex/Internal.hs#L537
@@ -373,18 +359,18 @@ checkUtxoIndexComplete utxoIndex =
   hasEntries (oref /\ out) =
     case categorizeUtxoEntry out of
       BundleWithNoAssets ->
-        _indexSingletons `hasEntryForAsset` AssetLovelace
+        _indexSingletons `hasEntryForAsset` AdaAsset
       BundleWithOneAsset asset ->
-        _indexPairs `hasEntryForAsset` AssetLovelace
-          && _indexSingletons `hasEntryForAsset` Asset asset
+        _indexPairs `hasEntryForAsset` AdaAsset
+          && _indexSingletons `hasEntryForAsset` Asset.fromAssetClass asset
       BundleWithTwoAssets asset0 asset1 ->
-        _indexAnyWith `hasEntryForAsset` AssetLovelace
-          && _indexPairs `hasEntryForAsset` Asset asset0
-          && _indexPairs `hasEntryForAsset` Asset asset1
+        _indexAnyWith `hasEntryForAsset` AdaAsset
+          && _indexPairs `hasEntryForAsset` Asset.fromAssetClass asset0
+          && _indexPairs `hasEntryForAsset` Asset.fromAssetClass asset1
       BundleWithMultipleAssets assets ->
-        _indexAnyWith `hasEntryForAsset` AssetLovelace &&
+        _indexAnyWith `hasEntryForAsset` AdaAsset &&
           flip Foldable.all assets \asset ->
-            (_indexAnyWith `hasEntryForAsset` Asset asset)
+            (_indexAnyWith `hasEntryForAsset` Asset.fromAssetClass asset)
     where
     hasEntryForAsset
       :: Lens' UtxoIndex (Map Asset UtxoMap) -> Asset -> Boolean
@@ -422,22 +408,22 @@ checkUtxoIndexMinimal utxoIndex =
         Map.lookup oref (utxoIndexUniverse utxoIndex)
 
   txOutputHasOneAsset :: TransactionOutput -> Asset -> Boolean
-  txOutputHasOneAsset txOutput AssetLovelace =
+  txOutputHasOneAsset txOutput AdaAsset =
     txOutputAssetCount txOutput == zero
   txOutputHasOneAsset txOutput asset =
     txOutputHasAsset txOutput asset && txOutputAssetCount txOutput == one
 
   txOutputHasTwoAssetsWith :: TransactionOutput -> Asset -> Boolean
-  txOutputHasTwoAssetsWith txOutput AssetLovelace =
+  txOutputHasTwoAssetsWith txOutput AdaAsset =
     txOutputAssetCount txOutput == one
   txOutputHasTwoAssetsWith txOutput asset =
     txOutputHasAsset txOutput asset
       && txOutputAssetCount txOutput == BigInt.fromInt 2
 
   txOutputHasAsset :: TransactionOutput -> Asset -> Boolean
-  txOutputHasAsset _ AssetLovelace = true
-  txOutputHasAsset (TransactionOutput { amount }) (Asset asset) =
-    Value.getAssetQuantity asset amount >= one
+  txOutputHasAsset _ AdaAsset = true
+  txOutputHasAsset (TransactionOutput { amount }) (asset) =
+    Value.valueOf asset amount >= BigNum.one
 
   txOutputAssetCount :: TransactionOutput -> BigInt
   txOutputAssetCount =

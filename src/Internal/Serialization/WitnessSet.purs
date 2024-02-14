@@ -35,18 +35,18 @@ module Ctl.Internal.Serialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromBigInt) as BigNum
+import Cardano.Types.Vkey as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( BootstrapWitness
   , ExUnits
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   ) as T
 import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
-import Ctl.Internal.Serialization.NativeScript (convertNativeScripts)
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
-import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
+import Ctl.Internal.Helpers (notImplemented)
 import Ctl.Internal.Serialization.Types
   ( BootstrapWitness
   , Ed25519Signature
@@ -65,8 +65,6 @@ import Ctl.Internal.Serialization.Types
   )
 import Ctl.Internal.Serialization.Types (PlutusData) as PDS
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt) as BigNum
 import Ctl.Internal.Types.RedeemerTag as Tag
 import Data.ByteArray (ByteArray)
 import Data.Maybe (maybe)
@@ -95,22 +93,23 @@ setWitnesses f ws = f containerHelper ws
 
 convertWitnessSet :: T.TransactionWitnessSet -> Effect TransactionWitnessSet
 convertWitnessSet (T.TransactionWitnessSet tws) = do
-  ws <- newTransactionWitnessSet
-  for_ tws.vkeys
-    (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
-  for_ tws.nativeScripts $
-    transactionWitnessSetSetNativeScripts ws <<< convertNativeScripts
-  for_ tws.bootstraps
-    (traverse convertBootstrap >=> _wsSetBootstraps containerHelper ws)
-  for_ tws.plutusScripts \ps -> do
-    scripts <- newPlutusScripts
-    for_ ps (convertPlutusScript >>> addPlutusScript scripts)
-    txWitnessSetSetPlutusScripts ws scripts
-  for_ tws.plutusData
-    (map convertPlutusData >>> _wsSetPlutusData containerHelper ws)
-  for_ tws.redeemers
-    (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
-  pure ws
+  -- ws <- newTransactionWitnessSet
+  -- for_ tws.vkeys
+  --   (convertVkeywitnesses >=> transactionWitnessSetSetVkeys ws)
+  -- for_ tws.nativeScripts $
+  --   transactionWitnessSetSetNativeScripts ws <<< convertNativeScripts
+  -- for_ tws.bootstraps
+  --   (traverse convertBootstrap >=> _wsSetBootstraps containerHelper ws)
+  -- for_ tws.plutusScripts \ps -> do
+  --   scripts <- newPlutusScripts
+  --   for_ ps (convertPlutusScript >>> addPlutusScript scripts)
+  --   txWitnessSetSetPlutusScripts ws scripts
+  -- for_ tws.plutusData
+  --   (map convertPlutusData >>> _wsSetPlutusData containerHelper ws)
+  -- for_ tws.redeemers
+  --   (traverse convertRedeemer >=> _wsSetRedeemers containerHelper ws)
+  -- pure ws
+  notImplemented
 
 convertRedeemers :: Array T.Redeemer -> Effect Redeemers
 convertRedeemers redeemers = do
@@ -118,12 +117,13 @@ convertRedeemers redeemers = do
 
 convertRedeemer :: T.Redeemer -> Effect Redeemer
 convertRedeemer (T.Redeemer { tag, index, "data": data_, exUnits }) = do
-  tag' <- convertRedeemerTag tag
-  index' <- maybe (throw "Failed to convert redeemer index") pure $
-    BigNum.fromBigInt index
-  let data' = convertPlutusData data_
-  exUnits' <- convertExUnits exUnits
-  newRedeemer tag' index' data' exUnits'
+  -- tag' <- convertRedeemerTag tag
+  -- index' <- maybe (throw "Failed to convert redeemer index") pure $
+  --   BigNum.fromBigInt index
+  -- let data' = convertPlutusData data_
+  -- exUnits' <- convertExUnits exUnits
+  -- newRedeemer tag' index' data' exUnits'
+  notImplemented
 
 convertRedeemerTag :: Tag.RedeemerTag -> Effect RedeemerTag
 convertRedeemerTag = _newRedeemerTag <<< case _ of

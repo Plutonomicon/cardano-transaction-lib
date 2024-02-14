@@ -7,12 +7,10 @@ import Prelude
 
 import Aeson (JsonDecodeError(TypeMismatch))
 import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.Slot (Slot(Slot))
 import Ctl.Internal.Cardano.Types.NativeScript as T
-import Ctl.Internal.FfiHelpers
-  ( ContainerHelper
-  , containerHelper
-  )
-import Ctl.Internal.Serialization.Address (Slot(Slot))
+import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.Types
   ( NativeScript
@@ -23,7 +21,6 @@ import Ctl.Internal.Serialization.Types
   , TimelockExpiry
   , TimelockStart
   )
-import Ctl.Internal.Types.BigNum (BigNum)
 import Data.ByteArray (ByteArray)
 import Data.Either (Either, note)
 

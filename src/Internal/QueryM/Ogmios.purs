@@ -95,6 +95,16 @@ import Aeson
   , (.:?)
   )
 import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.Types.AssetName (unAssetName)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromBigInt, fromString) as BigNum
+import Cardano.Types.Ed25519KeyHash (Ed25519KeyHash)
+import Cardano.Types.PlutusScript (PlutusScript(..))
+import Cardano.Types.RewardAddress (RewardAddress)
+import Cardano.Types.ScriptHash (ScriptHash)
+import Cardano.Types.Slot (Slot(..))
+import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Cardano.Types.NativeScript
@@ -128,10 +138,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.Value
   ( Coin(Coin)
   , Value
-  , getCurrencySymbol
-  , getLovelace
-  , getNonAdaAsset
-  , unwrapNonAdaAsset
+  , getMultiAsset
   , valueToCoin
   )
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
@@ -144,11 +151,8 @@ import Ctl.Internal.QueryM.JsonRpc2
   , decodeResult
   , mkCallType
   )
-import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
-import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.Aliases (Bech32String)
+import Ctl.Internal.Types.CborBytes (CborBytes(..))
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
@@ -166,18 +170,12 @@ import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
-import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , PlutusScript(PlutusScript)
-  )
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2))
 import Ctl.Internal.Types.SystemStart
   ( SystemStart
   , sysStartFromOgmiosTimestamp
   , sysStartToOgmiosTimestamp
   )
-import Ctl.Internal.Types.TokenName (getTokenName)
-import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
@@ -255,7 +253,7 @@ queryDelegationsAndRewards = mkOgmiosCallType
       }
   }
 
-type OgmiosAddress = String
+type OgmiosAddress = Bech32String
 
 --------------------------------------------------------------------------------
 -- Local Tx Submission Protocol
@@ -268,7 +266,7 @@ submitTxCall :: JsonRpc2Call (TransactionHash /\ CborBytes) SubmitTxR
 submitTxCall = mkOgmiosCallType
   { method: "submitTransaction"
   , params: \(_ /\ cbor) ->
-      { transaction: { cbor: cborBytesToHex cbor }
+      { transaction: { cbor: byteArrayToHex $ unwrap cbor }
       }
   }
 
@@ -278,7 +276,7 @@ evaluateTxCall :: JsonRpc2Call (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
   { method: "evaluateTransaction"
   , params: \(cbor /\ utxoqr) ->
-      { transaction: { cbor: cborBytesToHex cbor }
+      { transaction: { cbor: byteArrayToHex $ unwrap cbor }
       , additionalUtxo: utxoqr
       }
   }
@@ -989,7 +987,7 @@ type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
   , "minFeeConstant" ::
       { "lovelace" :: UInt }
-  , "minUtxoDepositCoefficient" :: BigInt
+  , "minUtxoDepositCoefficient" :: BigNum
   , "maxBlockBodySize" ::
       { "bytes" :: UInt }
   , "maxBlockHeaderSize" ::
@@ -999,9 +997,9 @@ type ProtocolParametersRaw =
   , "maxValueSize" ::
       { "bytes" :: UInt }
   , "stakeCredentialDeposit" ::
-      { "lovelace" :: BigInt }
+      { "lovelace" :: BigNum }
   , "stakePoolDeposit" ::
-      { "lovelace" :: BigInt }
+      { "lovelace" :: BigNum }
   , "stakePoolRetirementEpochBound" :: BigInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
@@ -1012,7 +1010,7 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minStakePoolCost" ::
-      { "lovelace" :: BigInt }
+      { "lovelace" :: BigNum }
   , "plutusCostModels" ::
       { "plutus:v1" :: Array Csl.Int
       , "plutus:v2" :: Maybe (Array Csl.Int)
@@ -1224,14 +1222,14 @@ instance EncodeAeson AdditionalUtxoSet where
       adaPart = Map.fromFoldable
         [ ( "ada" /\
               ( Map.fromFoldable
-                  [ ("lovelace" /\ (value # valueToCoin # getLovelace)) ]
+                  [ ("lovelace" /\ (value # valueToCoin # unwrap)) ]
               )
           )
         ]
-      nonAdaPart = mapKeys (byteArrayToHex <<< getCurrencySymbol)
-        $ map (mapKeys (byteArrayToHex <<< getTokenName))
-        $ unwrapNonAdaAsset
-        $ getNonAdaAsset value
+      nonAdaPart = mapKeys (byteArrayToHex <<< unwrap <<< encodeCbor)
+        $ map (mapKeys (byteArrayToHex <<< unAssetName))
+        $ unwrap
+        $ getMultiAsset value
 
       mapKeys :: forall k1 k2 a. Ord k2 => (k1 -> k2) -> Map k1 a -> Map k2 a
       mapKeys f = (Map.toUnfoldable :: Map k1 a -> Array (k1 /\ a)) >>> foldl

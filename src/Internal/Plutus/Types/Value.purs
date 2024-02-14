@@ -2,7 +2,7 @@ module Ctl.Internal.Plutus.Types.Value
   ( Coin(Coin)
   , Value
   , coinToValue
-  , flattenNonAdaAssets
+  , flattenMultiAssets
   , flattenValue
   , geq
   , getLovelace
@@ -23,6 +23,8 @@ module Ctl.Internal.Plutus.Types.Value
   , valueOf
   , valueToCoin
   , valueToCoin'
+  , adaToken
+  , pprintValue
   ) where
 
 import Prelude hiding (eq)
@@ -38,7 +40,7 @@ import Aeson
   )
 import Control.Apply (lift3)
 import Ctl.Internal.FromData (class FromData)
-import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Helpers (notImplemented, showWithParens)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map)) as Plutus
 import Ctl.Internal.Plutus.Types.AssocMap
   ( keys
@@ -54,14 +56,14 @@ import Ctl.Internal.Plutus.Types.CurrencySymbol
   )
 import Ctl.Internal.QuickCheck (genPositive, unMaybeGen)
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.TokenName (TokenName, adaToken, mkTokenName)
 import Data.Array (concatMap, filter, replicate)
 import Data.ByteArray (ByteArray)
 import Data.Either (Either(Left))
 import Data.Foldable (all, fold)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
-import Data.Maybe (Maybe(Nothing), fromMaybe)
+import Data.Log.Tag (TagSet)
+import Data.Maybe (Maybe(Nothing), fromJust, fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.These (These(Both, That, This), these)
 import Data.Traversable (sequence)
@@ -69,8 +71,16 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
+import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, chooseInt)
+
+adaToken = mempty -- TODO remove
+
+type TokenName = ByteArray
+
+mkTokenName = identity
+toTokenName = identity
 
 newtype Value = Value (Plutus.Map CurrencySymbol (Plutus.Map TokenName BigInt))
 
@@ -89,7 +99,7 @@ instance EncodeAeson Value where
 arbitrarySingletonValue :: Gen Value
 arbitrarySingletonValue = do
   currencySymbol <- arbitrary
-  tokenName <- unMaybeGen $ mkTokenName <$> arbitrary
+  tokenName <- arbitrary
   num <- BigInt.fromInt <$> genPositive
   pure $ singleton currencySymbol tokenName num
 
@@ -182,7 +192,7 @@ singleton' :: ByteArray -> ByteArray -> BigInt -> Maybe Value
 singleton' cs tn amount
   | cs == mempty && tn /= mempty = Nothing
   | otherwise =
-      lift3 singleton (mkCurrencySymbol cs) (mkTokenName tn)
+      lift3 singleton (mkCurrencySymbol cs) (pure $ mkTokenName tn)
         (pure amount)
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#valueOf
@@ -250,8 +260,8 @@ flattenValue (Value (Plutus.Map arr)) =
 
 -- | Converts a value to a simple list, keeping only the non-Ada assets
 -- | with non-zero amounts.
-flattenNonAdaAssets :: Value -> Array (CurrencySymbol /\ TokenName /\ BigInt)
-flattenNonAdaAssets = filter (notEq adaSymbol <<< fst) <<< flattenValue
+flattenMultiAssets :: Value -> Array (CurrencySymbol /\ TokenName /\ BigInt)
+flattenMultiAssets = filter (notEq adaSymbol <<< fst) <<< flattenValue
 
 -- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#geq
 -- | Checks whether one `Value` is greater than or equal to another.
@@ -296,3 +306,6 @@ checkPred f l r = all (all f) (unionVal l r)
 -- supplying 0 where a key is only present in one of them.
 checkBinRel :: (BigInt -> BigInt -> Boolean) -> Value -> Value -> Boolean
 checkBinRel f l r = checkPred (these (flip f zero) (f zero) f) l r
+
+pprintValue :: Value -> TagSet
+pprintValue = notImplemented

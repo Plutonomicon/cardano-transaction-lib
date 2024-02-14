@@ -12,9 +12,11 @@ import Aeson
   , decodeAeson
   , (.:)
   )
+import Cardano.Plutus.Types.PubKeyHash (PubKeyHash)
+import Cardano.Types.Slot (Slot)
 import Contract.Prelude (type (/\))
 import Ctl.Internal.FromData (class FromData, genericFromData)
-import Ctl.Internal.Helpers (contentsProp, encodeTagged', tagProp)
+import Ctl.Internal.Helpers (encodeTagged')
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
   , type (:+)
@@ -23,14 +25,9 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Ctl.Internal.Serialization.Address
-  ( CertificateIndex
-  , Slot
-  , TransactionIndex
-  )
+import Ctl.Internal.Serialization.Address (CertificateIndex, TransactionIndex)
 import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
-import Ctl.Internal.Types.PubKeyHash (PubKeyHash)
 import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Bifunctor (lmap)
@@ -79,11 +76,11 @@ instance EncodeAeson Credential where
 instance DecodeAeson Credential where
   decodeAeson a = lmap (Named "Credential") do
     obj <- decodeAeson a
-    tag <- obj .: tagProp
+    tag <- obj .: "tag"
     case tag of
-      "PubKeyCredential" -> PubKeyCredential <$> obj .: contentsProp
-      "ScriptCredential" -> ScriptCredential <$> obj .: contentsProp
-      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
+      "PubKeyCredential" -> PubKeyCredential <$> obj .: "contents"
+      "ScriptCredential" -> ScriptCredential <$> obj .: "contents"
+      _ -> Left $ AtKey "tag" $ UnexpectedValue $ encodeString tag
 
 instance ToData Credential where
   toData = genericToData
@@ -142,11 +139,11 @@ instance EncodeAeson StakingCredential where
 instance DecodeAeson StakingCredential where
   decodeAeson a = lmap (Named "StakingCredential") do
     obj <- decodeAeson a
-    tag <- obj .: tagProp
+    tag <- obj .: "tag"
     case tag of
-      "StakingHash" -> StakingHash <$> obj .: contentsProp
-      "StakingPtr" -> toStakingPtr <$> obj .: contentsProp
-      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
+      "StakingHash" -> StakingHash <$> obj .: "contents"
+      "StakingPtr" -> toStakingPtr <$> obj .: "contents"
+      _ -> Left $ AtKey "tag" $ UnexpectedValue $ encodeString tag
     where
     toStakingPtr
       :: (Slot /\ TransactionIndex /\ CertificateIndex) -> StakingCredential

@@ -22,6 +22,9 @@ module Contract.PlutusData
 
 import Prelude
 
+import Cardano.Types.PlutusData
+  ( PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as PlutusData
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
@@ -88,9 +91,6 @@ import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum(Datum), unitDatum) as
 import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   ) as OutputDatum
-import Ctl.Internal.Types.PlutusData
-  ( PlutusData(Constr, Map, List, Integer, Bytes)
-  ) as PlutusData
 import Ctl.Internal.Types.Redeemer
   ( Redeemer(Redeemer)
   , RedeemerHash(RedeemerHash)

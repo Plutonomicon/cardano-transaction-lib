@@ -13,7 +13,7 @@ import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
+-- import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Either (either)
 import Data.Maybe (Maybe)

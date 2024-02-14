@@ -6,25 +6,30 @@ module Ctl.Internal.BalanceTx.Collateral.Select
 
 import Prelude
 
-import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithNonAdaAssets)
+import Cardano.Types.BigNum (BigNum(..))
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Coin (Coin(..))
+import Cardano.Types.Coin as Coin
+import Cardano.Types.MultiAsset (MultiAsset(..))
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionOutput (TransactionOutput(..))
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(..))
+import Cardano.Types.UtxoMap (UtxoMap)
+import Cardano.Types.Value as Value
+import Control.Bind (bindFlipped)
+import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithMultiAssets)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput
-  , UtxoMap
-  )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Cardano.Types.Value (NonAdaAsset)
-import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, valueToCoin') as Value
+import Ctl.Internal.Helpers (notImplemented)
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Data.Array (foldr)
+import Data.Array as Array
 import Data.Foldable (foldMap, foldl)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Traversable (traverse)
@@ -34,9 +39,10 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import JS.BigInt (BigInt)
 import JS.BigInt (fromInt) as BigInt
+import Safe.Coerce (coerce)
 
-minRequiredCollateral :: BigInt
-minRequiredCollateral = BigInt.fromInt 5_000_000
+minRequiredCollateral :: BigNum
+minRequiredCollateral = BigNum.fromInt 5_000_000
 
 -- | A constant that limits the number of candidate utxos for collateral
 -- | selection, thus maintaining acceptable time complexity.
@@ -48,12 +54,12 @@ maxCandidateUtxos = 10
 --------------------------------------------------------------------------------
 
 collateralReturnMinAdaValue
-  :: CoinsPerUtxoUnit -> List TransactionUnspentOutput -> Effect (Maybe BigInt)
+  :: CoinsPerUtxoUnit -> List TransactionUnspentOutput -> Maybe BigNum
 collateralReturnMinAdaValue coinsPerUtxoUnit =
-  utxoMinAdaValue coinsPerUtxoUnit <<< fakeOutputWithNonAdaAssets <<< foldMap
-    nonAdaAsset
+  utxoMinAdaValue coinsPerUtxoUnit <<< fakeOutputWithMultiAssets <=<
+    MultiAsset.sum <<< Array.fromFoldable <<< map nonAdaAsset
 
-type ReturnOutMinAdaValue = BigInt
+type ReturnOutMinAdaValue = BigNum
 
 newtype CollateralCandidate =
   CollateralCandidate (List TransactionUnspentOutput /\ ReturnOutMinAdaValue)
@@ -115,29 +121,34 @@ selectCollateral
   -> UtxoMap
   -> Effect (Maybe (List TransactionUnspentOutput))
 selectCollateral coinsPerUtxoUnit maxCollateralInputs =
-  -- Sort candidate utxo combinations in ascending order by utxo min ada value
-  -- of return output, then select the first utxo combination:
-  map (map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort)
-    -- For each candidate utxo combination calculate
-    -- the min Ada value of the corresponding collateral return output:
-    <<< map (List.mapMaybe mkCollateralCandidate)
-    <<< traverse
-      (\x -> Tuple x <$> collateralReturnMinAdaValue coinsPerUtxoUnit x)
-    -- Filter out all utxo combinations
-    -- with total Ada value < `minRequiredCollateral`:
-    <<< List.filter
-      (\x -> foldl consumeUtxoAdaValue zero x >= minRequiredCollateral)
-    -- Get all possible non-empty utxo combinations
-    -- with the number of utxos <= `maxCollateralInputs`:
-    <<< combinations maxCollateralInputs
-    -- Limit the number of candidate utxos for collateral selection to
-    -- maintain acceptable time complexity:
-    <<< List.take maxCandidateUtxos
-    <<< map unwrap
+  notImplemented
+    -- -- Sort candidate utxo combinations in ascending order by utxo min ada value
+    -- -- of return output, then select the first utxo combination:
+    -- map (map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort)
+    --   -- For each candidate utxo combination calculate
+    --   -- the min Ada value of the corresponding collateral return output:
+    --   <<< map (List.mapMaybe mkCollateralCandidate)
+    --   <<< map
+    --     (\x -> Tuple x $ collateralReturnMinAdaValue coinsPerUtxoUnit x)
+    --   -- Filter out all utxo combinations
+    --   -- with total Ada value < `minRequiredCollateral`:
+    --   <<< List.filter
+    --     (\x -> foldl (map (fromMaybe zero) <<< consumeUtxoAdaValue) zero x >= coerce minRequiredCollateral)
+    --   -- Get all possible non-empty utxo combinations
+    --   -- with the number of utxos <= `maxCollateralInputs`:
+    --   <<< combinations maxCollateralInputs
+    --   -- Limit the number of candidate utxos for collateral selection to
+    --   -- maintain acceptable time complexity:
+    --   <<< List.take maxCandidateUtxos
+    --   <<< map unwrap
     -- Sort utxos by ada value in decreasing order:
-    <<< List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
-    <<< map (AdaOut <<< asTxUnspentOutput)
-    <<< Map.toUnfoldable
+    <<< sortByDecreasingAda
+  where
+  sortByDecreasingAda :: UtxoMap -> List AdaOut
+  sortByDecreasingAda =
+    List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
+      <<< map (AdaOut <<< asTxUnspentOutput)
+      <<< Map.toUnfoldable
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -158,16 +169,16 @@ asTxUnspentOutput
   :: TransactionInput /\ TransactionOutput -> TransactionUnspentOutput
 asTxUnspentOutput (input /\ output) = wrap { input, output }
 
-adaValue :: TransactionUnspentOutput -> BigInt
+adaValue :: TransactionUnspentOutput -> Coin
 adaValue =
-  Value.valueToCoin' <<< _.amount <<< unwrap <<< _.output <<< unwrap
+  Value.getCoin <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
-consumeUtxoAdaValue :: BigInt -> TransactionUnspentOutput -> BigInt
-consumeUtxoAdaValue acc = add acc <<< adaValue
+consumeUtxoAdaValue :: Coin -> TransactionUnspentOutput -> Maybe Coin
+consumeUtxoAdaValue acc = Coin.add acc <<< adaValue
 
-nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
+nonAdaAsset :: TransactionUnspentOutput -> MultiAsset
 nonAdaAsset =
-  Value.getNonAdaAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
+  Value.getMultiAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
 -- | Returns a list of all subsequences of the given list.
 subsequences :: forall (a :: Type). List a -> List (List a)

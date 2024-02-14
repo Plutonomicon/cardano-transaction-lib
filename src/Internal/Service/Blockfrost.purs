@@ -82,6 +82,8 @@ import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affja
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
 import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum as BigNum
 import Contract.RewardAddress
   ( rewardAddressToBech32
   , stakePubKeyHashRewardAddress
@@ -122,7 +124,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
 import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
-  , mkSingletonNonAdaAsset
+  , mkSingletonMultiAsset
   , mkValue
   ) as Value
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
@@ -181,8 +183,6 @@ import Ctl.Internal.Service.Helpers
   , decodeAssetClass
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
@@ -203,7 +203,6 @@ import Ctl.Internal.Types.ProtocolParameters
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel
   )
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts
@@ -1182,7 +1181,7 @@ instance DecodeAeson BlockfrostTransactionOutput where
           assetString -> do
             let { before: csStr, after: tnStr } = String.splitAt 56 assetString
             decodeAssetClass assetString csStr tnStr <#> \(cs /\ tn) ->
-              Value.mkValue mempty $ Value.mkSingletonNonAdaAsset cs tn quantity
+              Value.mkValue mempty $ Value.mkSingletonMultiAsset cs tn quantity
 
     decodeOutputDatum :: Object Aeson -> Either JsonDecodeError OutputDatum
     decodeOutputDatum obj =

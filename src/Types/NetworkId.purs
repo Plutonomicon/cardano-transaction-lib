@@ -3,7 +3,13 @@ module Cardano.Types.NetworkId where
 import Prelude
 
 import Aeson (class EncodeAeson)
-import Cardano.Serialization.Lib (fromBytes, networkId_kind, networkId_mainnet, networkId_testnet, toBytes)
+import Cardano.Serialization.Lib
+  ( fromBytes
+  , networkId_kind
+  , networkId_mainnet
+  , networkId_testnet
+  , toBytes
+  )
 import Cardano.Serialization.Lib as Csl
 import Cardano.Types.AsCbor (class AsCbor)
 import Ctl.Internal.Helpers (encodeTagged')
@@ -59,5 +65,6 @@ toCsl = case _ of
   MainnetId -> networkId_mainnet
 
 fromCsl :: Csl.NetworkId -> NetworkId
-fromCsl cslNetworkId = unsafePartial $ fromJust $
-  fromInt <=< Int.fromNumber $ networkId_kind cslNetworkId
+fromCsl cslNetworkId = unsafePartial $ fromJust
+  $ fromInt <=< Int.fromNumber
+  $ networkId_kind cslNetworkId

@@ -3,10 +3,12 @@ module Cardano.Types.AuxiliaryData where
 import Prelude
 
 import Aeson (class EncodeAeson)
+import Cardano.Serialization.Lib as Csl
+import Cardano.Types.GeneralTransactionMetadata (GeneralTransactionMetadata(..))
+import Cardano.Types.NativeScript (NativeScript)
+import Cardano.Types.PlutusScript (PlutusScript(..))
 import Control.Apply (lift2)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
-import Ctl.Internal.Types.Scripts (PlutusScript)
-import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
+import Ctl.Internal.Helpers (notImplemented)
 import Data.Array (union)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(Nothing))
@@ -41,3 +43,23 @@ instance Monoid AuxiliaryData where
     , nativeScripts: Nothing
     , plutusScripts: Nothing
     }
+
+toCsl :: AuxiliaryData -> Csl.AuxiliaryData
+toCsl
+  (AuxiliaryData { metadata, nativeScripts, plutusScripts }) =
+  notImplemented
+
+-- ad <- newAuxiliaryData
+-- for_ metadata $
+--   convertGeneralTransactionMetadata >=>
+--     setAuxiliaryDataGeneralTransactionMetadata ad
+-- for_ nativeScripts $
+--   convertNativeScripts >>> setAuxiliaryDataNativeScripts ad
+-- for_ plutusScripts \ps -> do
+--   scripts <- newPlutusScripts
+--   for_ ps (convertPlutusScript >>> addPlutusScript scripts)
+--   setAuxiliaryDataPlutusScripts ad scripts
+-- pure ad
+
+fromCsl :: Csl.AuxiliaryData -> AuxiliaryData
+fromCsl = notImplemented

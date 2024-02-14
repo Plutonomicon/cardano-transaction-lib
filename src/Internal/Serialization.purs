@@ -17,12 +17,22 @@ module Ctl.Internal.Serialization
 import Prelude
 
 import Cardano.Serialization.Lib
-  ( VRFKeyHash
+  ( Address
+  , RewardAddress
+  , StakeCredential
+  , VRFKeyHash
   , fromBytes
   , toBytes
   , transactionInput_new
   )
 import Cardano.Serialization.Lib.Internal (packListContainer)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
+import Cardano.Types.NativeScript (toCsl)
+import Cardano.Types.NetworkId as T
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.RewardAddress as T
+import Cardano.Types.TransactionOutput as T
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   ) as T
@@ -51,7 +61,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Redeemer
   , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , Transaction(Transaction)
-  , TransactionOutput(TransactionOutput)
   , TxBody(TxBody)
   , URL(URL)
   , UnitInterval
@@ -67,23 +76,13 @@ import Ctl.Internal.FfiHelpers
   , containerHelper
   , maybeFfiHelper
   )
-import Ctl.Internal.Helpers (fromJustEff)
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , RewardAddress
-  , StakeCredential
-  )
-import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId)) as T
-import Ctl.Internal.Serialization.AuxiliaryData (convertAuxiliaryData)
+import Ctl.Internal.Helpers (fromJustEff, notImplemented)
 import Ctl.Internal.Serialization.BigInt as Serialization
 import Ctl.Internal.Serialization.Hash
   ( Ed25519KeyHash
   , ScriptHash
   , scriptHashFromBytes
   )
-import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
-import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
 import Ctl.Internal.Serialization.Types
   ( AssetName
   , Assets
@@ -149,17 +148,9 @@ import Ctl.Internal.Serialization.WitnessSet
   , convertWitnessSet
   )
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt, fromStringUnsafe, toString) as BigNum
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Int as Csl
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
-import Ctl.Internal.Types.PlutusData as PlutusData
-import Ctl.Internal.Types.RewardAddress (RewardAddress, unRewardAddress) as T
 import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
-import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash)) as T
 import Data.Array as Array
@@ -485,52 +476,53 @@ foreign import setTxIsValid :: Transaction -> Boolean -> Effect Unit
 
 convertTxBody :: T.TxBody -> Effect TransactionBody
 convertTxBody (T.TxBody body) = do
-  let inputs = convertTxInputs $ Array.fromFoldable body.inputs
-  outputs <- convertTxOutputs body.outputs
-  fee <- fromJustEff "Failed to convert fee" $ BigNum.fromBigInt
-    (unwrap body.fee)
-  txBody <- newTransactionBody inputs outputs fee
-  for_ body.ttl $ unwrap >>> setTxBodyTtl txBody
-  for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
-  for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
-  for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
-  for_ body.auxiliaryDataHash $
-    unwrap >>> fromBytes >>> fromJustEff
-      "Failed to convert auxiliary data hash"
-      >=> transactionBodySetAuxiliaryDataHash txBody
-  for_ body.validityStartInterval
-    $ unwrap
-        >>> BigNum.toString
-        >>> BigNum.fromStringUnsafe
-        >>>
-          transactionBodySetValidityStartInterval txBody
-  for_ body.requiredSigners
-    $ map unwrap
-        >>> transactionBodySetRequiredSigners containerHelper txBody
-  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
-  for_ body.mint $ convertMint >=> setTxBodyMint txBody
-  for_ body.scriptDataHash $
-    unwrap >>> fromBytes >>> fromJustEff
-      "Failed to convert script data hash"
-      >=> setTxBodyScriptDataHash txBody
-  for_ body.collateral $ convertTxInputs >>> setTxBodyCollateral txBody
-  for_ body.requiredSigners
-    $ map unwrap
-        >>> transactionBodySetRequiredSigners containerHelper txBody
-  for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
-  for_ body.collateralReturn $ convertTxOutput >=> setTxBodyCollateralReturn
-    txBody
-  for_ body.totalCollateral
-    $
-      unwrap
-        >>> BigNum.fromBigInt
-        >>> fromJustEff "Failed to convert fee"
-        >=>
-          setTxBodyTotalCollateral txBody
-  if Foldable.null body.referenceInputs then pure unit
-  else convertTxInputs (Array.fromFoldable body.referenceInputs) #
-    setTxBodyReferenceInputs txBody
-  pure txBody
+  -- let inputs = convertTxInputs $ Array.fromFoldable body.inputs
+  -- outputs <- convertTxOutputs body.outputs
+  -- fee <- fromJustEff "Failed to convert fee" $ BigNum.fromBigInt
+  --   (unwrap body.fee)
+  -- txBody <- newTransactionBody inputs outputs fee
+  -- for_ body.ttl $ unwrap >>> setTxBodyTtl txBody
+  -- for_ body.certs $ convertCerts >=> setTxBodyCerts txBody
+  -- for_ body.withdrawals $ convertWithdrawals >=> setTxBodyWithdrawals txBody
+  -- for_ body.update $ convertUpdate >=> setTxBodyUpdate txBody
+  -- for_ body.auxiliaryDataHash $
+  --   unwrap >>> fromBytes >>> fromJustEff
+  --     "Failed to convert auxiliary data hash"
+  --     >=> transactionBodySetAuxiliaryDataHash txBody
+  -- for_ body.validityStartInterval
+  --   $ unwrap
+  --       >>> BigNum.toString
+  --       >>> BigNum.fromStringUnsafe
+  --       >>>
+  --         transactionBodySetValidityStartInterval txBody
+  -- for_ body.requiredSigners
+  --   $ map unwrap
+  --       >>> transactionBodySetRequiredSigners containerHelper txBody
+  -- for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  -- for_ body.mint $ convertMint >=> setTxBodyMint txBody
+  -- for_ body.scriptDataHash $
+  --   unwrap >>> fromBytes >>> fromJustEff
+  --     "Failed to convert script data hash"
+  --     >=> setTxBodyScriptDataHash txBody
+  -- for_ body.collateral $ convertTxInputs >>> setTxBodyCollateral txBody
+  -- for_ body.requiredSigners
+  --   $ map unwrap
+  --       >>> transactionBodySetRequiredSigners containerHelper txBody
+  -- for_ body.networkId $ convertNetworkId >=> setTxBodyNetworkId txBody
+  -- for_ body.collateralReturn $ convertTxOutput >=> setTxBodyCollateralReturn
+  --   txBody
+  -- for_ body.totalCollateral
+  --   $
+  --     unwrap
+  --       >>> BigNum.fromBigInt
+  --       >>> fromJustEff "Failed to convert fee"
+  --       >=>
+  --         setTxBodyTotalCollateral txBody
+  -- if Foldable.null body.referenceInputs then pure unit
+  -- else convertTxInputs (Array.fromFoldable body.referenceInputs) #
+  --   setTxBodyReferenceInputs txBody
+  -- pure txBody
+  notImplemented
 
 convertTransaction :: T.Transaction -> Effect Transaction
 convertTransaction
@@ -540,7 +532,7 @@ convertTransaction
   do
     txBody <- convertTxBody body
     ws <- convertWitnessSet witnessSet
-    mbAuxiliaryData <- for auxiliaryData convertAuxiliaryData
+    mbAuxiliaryData <- for auxiliaryData notImplemented
     tx <- case mbAuxiliaryData of
       Nothing -> newTransaction_ txBody ws
       Just ad -> newTransaction txBody ws ad
@@ -593,55 +585,56 @@ convertProtocolParamUpdate
   , collateralPercentage
   , maxCollateralInputs
   } = do
-  ppu <- newProtocolParamUpdate
-  for_ minfeeA $ ppuSetMinfeeA ppu
-    <=< fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
-      <<< BigNum.fromBigInt
-      <<< unwrap
-  for_ minfeeB $ ppuSetMinfeeB ppu
-    <=< fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
-      <<< BigNum.fromBigInt
-      <<< unwrap
-  for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
-  for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
-  for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
-  for_ keyDeposit $ ppuSetKeyDeposit ppu
-    <=<
-      fromJustEff
-        "convertProtocolParamUpdate: key_deposit must not be negative"
-        <<< BigNum.fromBigInt
-        <<< unwrap
-  for_ poolDeposit $ ppuSetPoolDeposit ppu
-    <=<
-      fromJustEff
-        "convertProtocolParamUpdate: pool_deposit must not be negative"
-        <<< BigNum.fromBigInt
-        <<< unwrap
-  for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
-  for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
-  for_ poolPledgeInfluence
-    $ mkUnitInterval
-        >=> ppuSetPoolPledgeInfluence ppu
-  for_ expansionRate
-    $ mkUnitInterval
-        >=> ppuSetExpansionRate ppu
-  for_ treasuryGrowthRate
-    $ mkUnitInterval
-        >=> ppuSetTreasuryGrowthRate ppu
-  for_ protocolVersion \pv ->
-    ppuSetProtocolVersion ppu =<<
-      newProtocolVersion (UInt.toInt pv.major)
-        (UInt.toInt pv.minor)
-  for_ minPoolCost $ ppuSetMinPoolCost ppu
-  for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
-  for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
-  for_ executionCosts $ convertExUnitPrices >=> ppuSetExecutionCosts ppu
-  for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
-  for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
-  for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
-  for_ collateralPercentage $ UInt.toInt >>> ppuSetCollateralPercentage ppu
-  for_ maxCollateralInputs $ UInt.toInt >>> ppuSetMaxCollateralInputs ppu
-  pure ppu
+  -- ppu <- newProtocolParamUpdate
+  -- for_ minfeeA $ ppuSetMinfeeA ppu
+  --   <=< fromJustEff "convertProtocolParamUpdate: min_fee_a must not be negative"
+  --     <<< BigNum.fromBigInt
+  --     <<< unwrap
+  -- for_ minfeeB $ ppuSetMinfeeB ppu
+  --   <=< fromJustEff "convertProtocolParamUpdate: min_fee_b must not be negative"
+  --     <<< BigNum.fromBigInt
+  --     <<< unwrap
+  -- for_ maxBlockBodySize $ ppuSetMaxBlockBodySize ppu <<< UInt.toInt
+  -- for_ maxTxSize $ ppuSetMaxTxSize ppu <<< UInt.toInt
+  -- for_ maxBlockHeaderSize $ ppuSetMaxBlockHeaderSize ppu <<< UInt.toInt
+  -- for_ keyDeposit $ ppuSetKeyDeposit ppu
+  --   <=<
+  --     fromJustEff
+  --       "convertProtocolParamUpdate: key_deposit must not be negative"
+  --       <<< BigNum.fromBigInt
+  --       <<< unwrap
+  -- for_ poolDeposit $ ppuSetPoolDeposit ppu
+  --   <=<
+  --     fromJustEff
+  --       "convertProtocolParamUpdate: pool_deposit must not be negative"
+  --       <<< BigNum.fromBigInt
+  --       <<< unwrap
+  -- for_ maxEpoch $ ppuSetMaxEpoch ppu <<< UInt.toInt <<< unwrap
+  -- for_ nOpt $ ppuSetNOpt ppu <<< UInt.toInt
+  -- for_ poolPledgeInfluence
+  --   $ mkUnitInterval
+  --       >=> ppuSetPoolPledgeInfluence ppu
+  -- for_ expansionRate
+  --   $ mkUnitInterval
+  --       >=> ppuSetExpansionRate ppu
+  -- for_ treasuryGrowthRate
+  --   $ mkUnitInterval
+  --       >=> ppuSetTreasuryGrowthRate ppu
+  -- for_ protocolVersion \pv ->
+  --   ppuSetProtocolVersion ppu =<<
+  --     newProtocolVersion (UInt.toInt pv.major)
+  --       (UInt.toInt pv.minor)
+  -- for_ minPoolCost $ ppuSetMinPoolCost ppu
+  -- for_ adaPerUtxoByte $ ppuSetAdaPerUtxoByte ppu
+  -- for_ costModels $ convertCostmdls >=> ppuSetCostModels ppu
+  -- for_ executionCosts $ convertExUnitPrices >=> ppuSetExecutionCosts ppu
+  -- for_ maxTxExUnits $ convertExUnits >=> ppuSetMaxTxExUnits ppu
+  -- for_ maxBlockExUnits $ convertExUnits >=> ppuSetMaxBlockExUnits ppu
+  -- for_ maxValueSize $ UInt.toInt >>> ppuSetMaxValueSize ppu
+  -- for_ collateralPercentage $ UInt.toInt >>> ppuSetCollateralPercentage ppu
+  -- for_ maxCollateralInputs $ UInt.toInt >>> ppuSetMaxCollateralInputs ppu
+  -- pure ppu
+  notImplemented
 
 mkUnitInterval
   :: T.UnitInterval -> Effect UnitInterval
@@ -655,12 +648,13 @@ convertExUnitPrices { memPrice, stepPrice } =
     stepPrice
 
 convertWithdrawals :: Map.Map T.RewardAddress Value.Coin -> Effect Withdrawals
-convertWithdrawals mp =
-  newWithdrawals containerHelper =<< do
-    for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
-      Tuple (T.unRewardAddress k) <$> fromJustEff
-        "convertWithdrawals: Failed to convert BigNum"
-        (BigNum.fromBigInt v)
+convertWithdrawals mp = notImplemented
+
+-- newWithdrawals containerHelper =<< do
+--   for (Map.toUnfoldable mp) \(k /\ Value.Coin v) -> do
+--     Tuple (T.unRewardAddress k) <$> fromJustEff
+--       "convertWithdrawals: Failed to convert BigNum"
+--       (BigNum.fromBigInt v)
 
 convertCerts :: Array T.Certificate -> Effect Certificates
 convertCerts certs = do
@@ -669,65 +663,66 @@ convertCerts certs = do
   pure certificates
 
 convertCert :: T.Certificate -> Effect Certificate
-convertCert = case _ of
-  T.StakeRegistration stakeCredential ->
-    newStakeRegistrationCertificate stakeCredential
-  T.StakeDeregistration stakeCredential ->
-    newStakeDeregistrationCertificate stakeCredential
-  T.StakeDelegation stakeCredential keyHash ->
-    newStakeDelegationCertificate stakeCredential (unwrap $ unwrap keyHash)
-  T.PoolRegistration
-    { operator
-    , vrfKeyhash
-    , pledge
-    , cost
-    , margin
-    , rewardAccount
-    , poolOwners
-    , relays
-    , poolMetadata
-    } -> do
-    margin' <- newUnitInterval margin.numerator margin.denominator
-    poolOwners' <- convertPoolOwners containerHelper
-      (unwrap <<< unwrap <$> poolOwners)
-    relays' <- convertRelays relays
-    poolMetadata' <- for poolMetadata convertPoolMetadata
-    newPoolRegistrationCertificate (unwrap $ unwrap operator)
-      (unwrap vrfKeyhash)
-      pledge
-      cost
-      margin'
-      (T.unRewardAddress rewardAccount)
-      poolOwners'
-      relays'
-      (maybeToUor poolMetadata')
-  T.PoolRetirement { poolKeyHash, epoch } ->
-    newPoolRetirementCertificate (unwrap $ unwrap poolKeyHash)
-      (UInt.toInt $ unwrap epoch)
-  T.GenesisKeyDelegation
-    { genesisHash: T.GenesisHash genesisHash
-    , genesisDelegateHash: T.GenesisDelegateHash genesisDelegateHash
-    , vrfKeyhash: T.VRFKeyHash vrfKeyhash
-    } -> do
-    join $ newGenesisKeyDelegationCertificate
-      <$>
-        ( fromJustEff "Failed to convert genesis hash"
-            $ fromBytes genesisHash
-        )
-      <*>
-        ( fromJustEff "Failed to convert genesis delegate hash"
-            $ fromBytes genesisDelegateHash
-        )
-      <*>
-        pure vrfKeyhash
-  T.MoveInstantaneousRewardsCert mir -> do
-    newMoveInstantaneousRewardsCertificate =<<
-      convertMoveInstantaneousReward mir
+convertCert =
+  -- T.StakeRegistration stakeCredential ->
+  --   newStakeRegistrationCertificate stakeCredential
+  -- T.StakeDeregistration stakeCredential ->
+  --   newStakeDeregistrationCertificate stakeCredential
+  -- T.StakeDelegation stakeCredential keyHash ->
+  --   newStakeDelegationCertificate stakeCredential (unwrap $ unwrap keyHash)
+  -- T.PoolRegistration
+  --   { operator
+  --   , vrfKeyhash
+  --   , pledge
+  --   , cost
+  --   , margin
+  --   , rewardAccount
+  --   , poolOwners
+  --   , relays
+  --   , poolMetadata
+  --   } -> do
+  --   margin' <- newUnitInterval margin.numerator margin.denominator
+  --   poolOwners' <- convertPoolOwners containerHelper
+  --     (unwrap <<< unwrap <$> poolOwners)
+  --   relays' <- convertRelays relays
+  --   poolMetadata' <- for poolMetadata convertPoolMetadata
+  --   newPoolRegistrationCertificate (unwrap $ unwrap operator)
+  --     (unwrap vrfKeyhash)
+  --     pledge
+  --     cost
+  --     margin'
+  --     (T.unRewardAddress rewardAccount)
+  --     poolOwners'
+  --     relays'
+  --     (maybeToUor poolMetadata')
+  -- T.PoolRetirement { poolKeyHash, epoch } ->
+  --   newPoolRetirementCertificate (unwrap $ unwrap poolKeyHash)
+  --     (UInt.toInt $ unwrap epoch)
+  -- T.GenesisKeyDelegation
+  --   { genesisHash: T.GenesisHash genesisHash
+  --   , genesisDelegateHash: T.GenesisDelegateHash genesisDelegateHash
+  --   , vrfKeyhash: T.VRFKeyHash vrfKeyhash
+  --   } -> do
+  --   join $ newGenesisKeyDelegationCertificate
+  --     <$>
+  --       ( fromJustEff "Failed to convert genesis hash"
+  --           $ fromBytes genesisHash
+  --       )
+  --     <*>
+  --       ( fromJustEff "Failed to convert genesis delegate hash"
+  --           $ fromBytes genesisDelegateHash
+  --       )
+  --     <*>
+  --       pure vrfKeyhash
+  -- T.MoveInstantaneousRewardsCert mir -> do
+  --   newMoveInstantaneousRewardsCertificate =<<
+  --     convertMoveInstantaneousReward mir
+  notImplemented
 
 convertMIRToStakeCredentials
   :: T.MIRToStakeCredentials -> Effect MIRToStakeCredentials
 convertMIRToStakeCredentials (T.MIRToStakeCredentials mp) =
-  newMIRToStakeCredentials containerHelper (Map.toUnfoldable mp)
+  notImplemented -- newMIRToStakeCredentials containerHelper (Map.toUnfoldable mp)
 
 convertMoveInstantaneousReward
   :: T.MoveInstantaneousReward -> Effect MoveInstantaneousReward
@@ -757,31 +752,33 @@ convertRelays relays = do
       newMultiHostName dnsName
 
 convertNetworkId :: T.NetworkId -> Effect NetworkId
-convertNetworkId = case _ of
-  T.TestnetId -> networkIdTestnet
-  T.MainnetId -> networkIdMainnet
+convertNetworkId = -- case _ of
+  -- T.TestnetId -> networkIdTestnet
+  -- T.MainnetId -> networkIdMainnet
+  notImplemented
 
 convertMint :: T.Mint -> Effect Mint
 convertMint (T.Mint nonAdaAssets) = do
-  mint <- newMint
-  let assetsMap = Value.unwrapNonAdaAsset nonAdaAssets
-  forWithIndex_ assetsMap \scriptHashBytes' values -> do
-    let
-      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
-        scriptHashBytes'
-    scripthash <- fromJustEff
-      "scriptHashFromBytes failed while converting value"
-      mScripthash
-    assets <- newMintAssets
-    forWithIndex_ values \tokenName' bigIntValue -> do
-      let tokenName = TokenName.getTokenName tokenName'
-      assetName <- newAssetName tokenName
-      let bigInt = Serialization.convertBigInt bigIntValue
-      int <- fromJustEff "convertMint: numeric overflow or underflow" $
-        _bigIntToInt maybeFfiHelper bigInt
-      insertMintAsset assets assetName int
-    insertMintAssets mint scripthash assets
-  pure mint
+  -- mint <- newMint
+  -- let assetsMap = Value.unwrapMultiAsset nonAdaAssets
+  -- forWithIndex_ assetsMap \scriptHashBytes' values -> do
+  --   let
+  --     mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+  --       scriptHashBytes'
+  --   scripthash <- fromJustEff
+  --     "scriptHashFromBytes failed while converting value"
+  --     mScripthash
+  --   assets <- newMintAssets
+  --   forWithIndex_ values \tokenName' bigIntValue -> do
+  --     let tokenName = AssetName.getAssetName tokenName'
+  --     assetName <- newAssetName tokenName
+  --     let bigInt = Serialization.convertBigInt bigIntValue
+  --     int <- fromJustEff "convertMint: numeric overflow or underflow" $
+  --       _bigIntToInt maybeFfiHelper bigInt
+  --     insertMintAsset assets assetName int
+  --   insertMintAssets mint scripthash assets
+  -- pure mint
+  notImplemented
 
 convertTxInputs
   :: Array T.TransactionInput
@@ -802,71 +799,76 @@ convertTxOutputs arrOutputs = do
 convertTxOutput :: T.TransactionOutput -> Effect TransactionOutput
 convertTxOutput
   (T.TransactionOutput { address, amount, datum, scriptRef }) = do
-  value <- convertValue amount
-  txo <- newTransactionOutput address value
-  case datum of
-    NoOutputDatum -> pure unit
-    OutputDatumHash dataHash -> do
-      for_ (fromBytes $ unwrap dataHash) $
-        transactionOutputSetDataHash txo
-    OutputDatum datumValue -> do
-      transactionOutputSetPlutusData txo
-        $ convertPlutusData
-        $ unwrap datumValue
-  for_ scriptRef $
-    convertScriptRef >>> transactionOutputSetScriptRef txo
-  pure txo
+  -- value <- convertValue amount
+  -- txo <- newTransactionOutput address value
+  -- case datum of
+  --   NoOutputDatum -> pure unit
+  --   OutputDatumHash dataHash -> do
+  --     for_ (fromBytes $ unwrap dataHash) $
+  --       transactionOutputSetDataHash txo
+  --   OutputDatum datumValue -> do
+  --     transactionOutputSetPlutusData txo
+  --       $ convertPlutusData
+  --       $ unwrap datumValue
+  -- for_ scriptRef $
+  --   convertScriptRef >>> transactionOutputSetScriptRef txo
+  -- pure txo
+  notImplemented
 
 convertScriptRef :: T.ScriptRef -> ScriptRef
-convertScriptRef (T.NativeScriptRef nativeScript) =
-  scriptRefNewNativeScript $ convertNativeScript nativeScript
-convertScriptRef (T.PlutusScriptRef plutusScript) =
-  scriptRefNewPlutusScript $ convertPlutusScript plutusScript
+convertScriptRef = notImplemented --  (T.NativeScriptRef nativeScript) =
+
+--   scriptRefNewNativeScript $ convertNativeScript nativeScript
+-- convertScriptRef (T.PlutusScriptRef plutusScript) =
+--   scriptRefNewPlutusScript $ convertPlutusScript plutusScript
 
 convertValue :: Value.Value -> Effect Value
 convertValue val = do
-  let
-    lovelace = Value.valueToCoin' val
-    m = Value.getNonAdaAsset' val
-  multiasset <- newMultiAsset
-  forWithIndex_ m \scriptHashBytes' values -> do
-    let
-      mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
-        scriptHashBytes'
-    scripthash <- fromJustEff
-      "scriptHashFromBytes failed while converting value"
-      mScripthash
-    assets <- newAssets
-    forWithIndex_ values \tokenName' bigIntValue -> do
-      let tokenName = TokenName.getTokenName tokenName'
-      assetName <- newAssetName tokenName
-      value <- fromJustEff "convertValue: number must not be negative" $
-        BigNum.fromBigInt bigIntValue
-      insertAssets assets assetName value
-    insertMultiAsset multiasset scripthash assets
-  value <- newValueFromAssets multiasset
-  valueSetCoin value =<< fromJustEff
-    "convertValue: coin value must not be negative"
-    (BigNum.fromBigInt lovelace)
-  pure value
+  -- let
+  --   lovelace = Value.valueToCoin' val
+  --   m = Value.getMultiAsset' val
+  -- multiasset <- newMultiAsset
+  -- forWithIndex_ m \scriptHashBytes' values -> do
+  --   let
+  --     mScripthash = scriptHashFromBytes $ Value.getCurrencySymbol
+  --       scriptHashBytes'
+  --   scripthash <- fromJustEff
+  --     "scriptHashFromBytes failed while converting value"
+  --     mScripthash
+  --   assets <- newAssets
+  --   forWithIndex_ values \tokenName' bigIntValue -> do
+  --     let tokenName = AssetName.getAssetName tokenName'
+  --     assetName <- newAssetName tokenName
+  --     value <- fromJustEff "convertValue: number must not be negative" $
+  --       BigNum.fromBigInt bigIntValue
+  --     insertAssets assets assetName value
+  --   insertMultiAsset multiasset scripthash assets
+  -- value <- newValueFromAssets multiasset
+  -- valueSetCoin value =<< fromJustEff
+  --   "convertValue: coin value must not be negative"
+  --   (BigNum.fromBigInt lovelace)
+  -- pure value
+  notImplemented
 
 convertCostmdls :: T.Costmdls -> Effect Costmdls
 convertCostmdls (T.Costmdls cs) = do
-  costmdls <- newCostmdls
-  forWithIndex_ cs \language costModel -> do
-    language' <- case language of
-      S.PlutusV1 -> newPlutusV1
-      S.PlutusV2 -> newPlutusV2
-    costModel' <- convertCostModel costModel
-    costmdlsSetCostModel costmdls language' costModel'
-  pure costmdls
+  -- costmdls <- newCostmdls
+  -- forWithIndex_ cs \language costModel -> do
+  --   language' <- case language of
+  --     S.PlutusV1 -> newPlutusV1
+  --     S.PlutusV2 -> newPlutusV2
+  --   costModel' <- convertCostModel costModel
+  --   costmdlsSetCostModel costmdls language' costModel'
+  -- pure costmdls
+  notImplemented
 
 convertCostModel :: T.CostModel -> Effect CostModel
 convertCostModel (T.CostModel costs) = do
-  costModel <- newCostModel
-  forWithIndex_ costs $ \operation cost ->
-    costModelSetCost costModel operation cost
-  pure costModel
+  -- costModel <- newCostModel
+  -- forWithIndex_ costs $ \operation cost ->
+  --   costModelSetCost costModel operation cost
+  -- pure costModel
+  notImplemented
 
 convertTransactionUnspentOutput
   :: T.TransactionUnspentOutput -> Effect TransactionUnspentOutput
@@ -882,14 +884,16 @@ hashScriptData
   -> Array PlutusData.PlutusData
   -> Effect ScriptDataHash
 hashScriptData cms rs ps = do
-  rs' <- newRedeemers
-  cms' <- convertCostmdls cms
-  traverse_ (addRedeemer rs' <=< convertRedeemer) rs
-  -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
-  -- function, the resulting hash will be wrong
-  case ps of
-    [] -> _hashScriptDataNoDatums rs' cms'
-    _ -> _hashScriptData rs' cms' $ map convertPlutusData ps
+  -- rs' <- newRedeemers
+  -- cms' <- convertCostmdls cms
+  -- traverse_ (addRedeemer rs' <=< convertRedeemer) rs
+  -- -- If an empty `PlutusData` array is passed to CSL's script integrity hashing
+  -- -- function, the resulting hash will be wrong
+  -- case ps of
+  --   [] -> _hashScriptDataNoDatums rs' cms'
+  --   _ -> _hashScriptData rs' cms' $ map convertPlutusData ps
+  notImplemented
 
 serializeData :: forall (a :: Type). ToData a => a -> CborBytes
-serializeData = wrap <<< toBytes <<< convertPlutusData <<< toData
+serializeData = -- wrap <<< toBytes <<< convertPlutusData <<< toData
+  notImplemented
