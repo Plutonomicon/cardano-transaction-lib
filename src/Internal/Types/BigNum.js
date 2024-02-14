@@ -1,12 +1,4 @@
-/* global BROWSER_RUNTIME */
-
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
-} else {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
-  // lib = (await import("../../../../cardano-serialization-lib-gc/nodejs/index.js"));
-}
+import * as lib from "@mlabs-haskell/cardano-serialization-lib-gc";
 
 export function bnCompare(lhs) {
   return rhs => lhs.compare(rhs);

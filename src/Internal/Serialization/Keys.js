@@ -1,5 +1,3 @@
-/* global BROWSER_RUNTIME */
-
 const bytesFromKey = key => key.as_bytes();
 
 export { bytesFromKey as bytesFromPublicKey };
