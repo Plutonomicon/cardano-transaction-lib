@@ -1,15 +1,4 @@
-/* global BROWSER_RUNTIME */
-
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
-} else {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
-}
-
-export function hashToBytes(hash) {
-  return hash.to_bytes();
-}
+import * as lib from "@mlabs-haskell/cardano-serialization-lib-gc";
 
 export function hashFromBytes(name) {
   return maybe => bytes => {
@@ -61,8 +50,4 @@ export function _scriptHashFromBech32Impl(maybe) {
   return bech32str => {
     return hashFromImpl(lib.ScriptHash.from_bech32)(maybe)(bech32str);
   };
-}
-
-export function nativeScriptHash(script) {
-  return script.hash();
 }

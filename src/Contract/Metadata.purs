@@ -10,10 +10,10 @@ import Ctl.Internal.Metadata.Cip25.Cip25String
   , unCip25String
   ) as Cip25String
 import Ctl.Internal.Metadata.Cip25.V2
-  ( Cip25Metadata(Cip25Metadata)
+  ( Cip25AssetName(Cip25AssetName)
+  , Cip25Metadata(Cip25Metadata)
   , Cip25MetadataEntry(Cip25MetadataEntry)
   , Cip25MetadataFile(Cip25MetadataFile)
-  , Cip25TokenName(Cip25TokenName)
   , nftMetadataLabel
   ) as Cip25Metadata
 import Ctl.Internal.Types.TransactionMetadata

@@ -7,6 +7,7 @@ module Ctl.Internal.Contract.WaitUntilSlot
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Log (logTrace')
 import Control.Monad.Error.Class (liftEither, liftMaybe)
 import Control.Monad.Reader (asks)
@@ -14,7 +15,6 @@ import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries))
 import Ctl.Internal.Types.Interval

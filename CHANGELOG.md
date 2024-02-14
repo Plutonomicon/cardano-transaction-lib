@@ -69,12 +69,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Changed
 
 - Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
+- Renamings for better confirmity with CSL:
+  - `TokenName` renamed to `AssetName`
+  - `NonAdaAsset` renamed to `MultiAsset`
+- `Coin` now wraps BigNum instead of BigInt (in line with CSL)
+- Instances for `Address` type:
+  - `Show`, `EncodeAeson` and `DecodeAeson` return a data-generic representation instead of Bech32-based.
+- `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
+- `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via Maybe in `TransactionOutput`
+- `TransactionMetadatum` constructor naming, in PS and JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
 
 ### Fixed
 
 ### Removed
 
 - `ModifyTx` error: made conversion functions total and removed the need to handle it
+- `Contract.CborBytes` utils:
+  - `cborBytesToByteArray`
+  - `cborBytesFromByteArray`
+  - `cborBytesFromAscii`
+  - `cborBytesToIntArray`
+  - `cborBytesFromIntArray`
+  - `cborBytesFromIntArrayUnsafe`
+  - `cborBytesToHex`
+  - `cborByteLength`
+  - `hexToCborBytes`
+  - `hexToCborBytesUnsafe`
+  - `rawBytesAsCborBytes`
+- `ToData`/`FromData` Instances for `purescript-noble-secp256k1` types (PS does not allow orphans)
+- `ToMetadata`/`FromMetadata` instance for `BigInt`: it was partial and unsafe
+- `Cardano.Types.BigNum.toInt'` method
+
+
 
 ## [v7.0.0]
 

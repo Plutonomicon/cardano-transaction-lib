@@ -13,7 +13,7 @@ import Ctl.Internal.Serialization.Hash
   , ed25519KeyHashFromBytes
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Right))
 import Data.Maybe (fromJust)
 import Data.Set as Set

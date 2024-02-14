@@ -15,7 +15,7 @@ import Ctl.Internal.Serialization.Hash
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Eq ((==))
 import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)

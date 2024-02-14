@@ -6,9 +6,8 @@ module Contract.Wallet.Key
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction (PublicKey, mkFromCslPubKey)
-import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey) as Internal
-import Ctl.Internal.Serialization.Types (PrivateKey)
+import Cardano.Serialization.Lib (privateKey_toPublic)
+import Ctl.Internal.Cardano.Types.Transaction (PrivateKey, PublicKey)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , keyWalletPrivatePaymentKey
@@ -20,6 +19,7 @@ import Ctl.Internal.Wallet.Spec
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , mkKeyWalletFromMnemonic
   ) as X
+import Data.Newtype (unwrap, wrap)
 
 publicKeyFromPrivateKey :: PrivateKey -> PublicKey
-publicKeyFromPrivateKey = mkFromCslPubKey <<< Internal.publicKeyFromPrivateKey
+publicKeyFromPrivateKey = wrap <<< privateKey_toPublic <<< unwrap

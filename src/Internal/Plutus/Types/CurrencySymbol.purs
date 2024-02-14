@@ -29,9 +29,9 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashToBytes
   )
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash(MintingPolicyHash))
 import Data.Array.NonEmpty (fromArray)
+import Data.ByteArray (ByteArray, hexToByteArrayUnsafe)
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap)
@@ -96,7 +96,8 @@ mkCurrencySymbol byteArr
   | byteArr == mempty =
       pure adaSymbol
   | otherwise =
-      scriptHashFromBytes byteArr $> CurrencySymbol byteArr
+      (scriptHashFromBytes byteArr :: Maybe ScriptHash) $> CurrencySymbol
+        byteArr
 
 --------------------------------------------------------------------------------
 -- Internal

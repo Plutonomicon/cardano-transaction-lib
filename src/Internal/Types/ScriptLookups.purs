@@ -15,14 +15,13 @@ module Ctl.Internal.Types.ScriptLookups
 
 import Prelude hiding (join)
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Hashing (datumHash) as Hashing
 import Ctl.Internal.Helpers ((<\>))
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.PaymentPubKey (PaymentPubKey)
-import Ctl.Internal.Types.PubKeyHash (PaymentPubKeyHash, StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (MintingPolicy, Validator)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton, union) as Array
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map, empty, singleton, union)

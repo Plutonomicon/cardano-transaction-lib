@@ -35,13 +35,18 @@ module Ctl.Internal.Plutus.Conversion
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.NetworkId (NetworkId)
+import Cardano.Types.TransactionOutput (TransactionOutput) as Cardano
+import Cardano.Types.UtxoMap (UtxoMap) as Cardano
+import Cardano.Types.Value as Value
 import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap) as Cardano
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Cardano
 import Ctl.Internal.Cardano.Types.Value (Coin) as Cardano
 import Ctl.Internal.Hashing (scriptRefHash)
+import Ctl.Internal.Helpers (notImplemented)
 import Ctl.Internal.Plutus.Conversion.Address
   ( fromPlutusAddress
   , fromPlutusAddressWithNetworkTag
@@ -63,8 +68,7 @@ import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput
   ) as Plutus
 import Ctl.Internal.Plutus.Types.Value (Coin) as Plutus
-import Ctl.Internal.Serialization.Address (NetworkId)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 
@@ -72,11 +76,11 @@ import Data.Traversable (traverse)
 -- Plutus Coin <-> Cardano Coin
 --------------------------------------------------------------------------------
 
-fromPlutusCoin :: Plutus.Coin -> Cardano.Coin
-fromPlutusCoin = wrap <<< unwrap
+fromPlutusCoin :: Plutus.Coin -> Maybe Cardano.Coin
+fromPlutusCoin = map wrap <<< BigNum.fromBigInt <<< unwrap
 
 toPlutusCoin :: Cardano.Coin -> Plutus.Coin
-toPlutusCoin = wrap <<< unwrap
+toPlutusCoin = wrap <<< BigNum.toBigInt <<< unwrap
 
 --------------------------------------------------------------------------------
 -- Plutus TransactionOutput <-> Cardano TransactionOutput
@@ -93,15 +97,15 @@ fromPlutusTxOutput networkId scriptRef plutusTxOut =
   in
     wrap
       { address: fromPlutusAddress networkId rec.address
-      , amount: fromPlutusValue rec.amount
-      , datum: rec.datum
+      , amount: fromMaybe Value.zero $ fromPlutusValue rec.amount
+      , datum: Just rec.datum
       , scriptRef
       }
 
 toPlutusTxOutput
   :: Cardano.TransactionOutput -> Maybe Plutus.TransactionOutput
 toPlutusTxOutput cardanoTxOut = do
-  let rec = unwrap cardanoTxOut
+  let rec = notImplemented -- unwrap cardanoTxOut
   address <- toPlutusAddress rec.address
   let
     amount = toPlutusValue rec.amount

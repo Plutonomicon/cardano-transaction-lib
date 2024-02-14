@@ -3,8 +3,7 @@ module Ctl.Internal.Hashing
   , blake2b224HashHex
   , blake2b256Hash
   , blake2b256HashHex
-  , datumHash
-  , hashPlutusData
+  , plutusDataHash
   , md5HashHex
   , plutusScriptHash
   , scriptRefHash
@@ -13,30 +12,33 @@ module Ctl.Internal.Hashing
   , sha3_256Hash
   , sha3_256HashHex
   , transactionHash
+  , mintingPolicyHash
   ) where
 
 import Prelude
 
+import Cardano.Serialization.Lib
+  ( hashPlutusData
+  , nativeScript_hash
+  , plutusScript_hash
+  )
+import Cardano.Types.DataHash (DataHash)
+import Cardano.Types.NativeScript (NativeScript)
+import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.ScriptHash (ScriptHash)
 import Ctl.Internal.Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
-import Ctl.Internal.Deserialization.Transaction (_txBody)
-import Ctl.Internal.Serialization (toBytes)
-import Ctl.Internal.Serialization.Hash (ScriptHash, nativeScriptHash)
-import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
-import Ctl.Internal.Serialization.PlutusScript (convertPlutusScript)
-import Ctl.Internal.Serialization.Types
-  ( DataHash
-  , PlutusData
-  , PlutusScript
-  , Transaction
-  ) as Serialization
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.Datum (Datum)
-import Ctl.Internal.Types.Scripts (PlutusScript)
-import Ctl.Internal.Types.Transaction (DataHash, TransactionHash)
-import Data.Newtype (unwrap, wrap)
+import Ctl.Internal.Helpers (notImplemented)
+import Ctl.Internal.Serialization.Types (Transaction) as Serialization
+import Ctl.Internal.Types.Scripts (MintingPolicy(..))
+import Ctl.Internal.Types.Transaction (TransactionHash)
+import Data.ByteArray (ByteArray)
+import Data.Newtype (wrap)
 import Effect (Effect)
 import Node.Buffer (fromString, toString) as Buffer
 import Node.Crypto.Hash (createHash, digest, update) as Hash
@@ -49,11 +51,6 @@ foreign import blake2b224HashHex :: ByteArray -> String
 foreign import blake2b256Hash :: ByteArray -> ByteArray
 
 foreign import blake2b256HashHex :: ByteArray -> String
-
-foreign import hashPlutusData
-  :: Serialization.PlutusData -> Serialization.DataHash
-
-foreign import hashPlutusScript :: Serialization.PlutusScript -> ScriptHash
 
 foreign import sha256Hash :: ByteArray -> ByteArray
 
@@ -69,22 +66,33 @@ md5HashHex contents = do
   digest <- Hash.createHash "md5" >>= Hash.update buf >>= Hash.digest
   Buffer.toString Hex digest
 
-datumHash :: Datum -> DataHash
-datumHash =
-  wrap <<< unwrap <<< toBytes <<< hashPlutusData
-    <<< convertPlutusData
-    <<< unwrap
+plutusDataHash :: PlutusData -> DataHash
+plutusDataHash =
+  wrap <<< hashPlutusData <<< PlutusData.toCsl
+
+-- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
+mintingPolicyHash :: MintingPolicy -> ScriptHash
+mintingPolicyHash = case _ of
+  PlutusMintingPolicy script -> plutusScriptHash script
+  NativeMintingPolicy nscript -> nativeScriptHash nscript
 
 -- | Calculates the hash of the transaction by applying `blake2b256Hash` to
 -- | the cbor-encoded transaction body.
 transactionHash :: Serialization.Transaction -> TransactionHash
-transactionHash =
-  wrap <<< blake2b256Hash <<< unwrap <<< toBytes <<< _txBody
+transactionHash tx =
+  notImplemented
+
+-- -- can't fail, because the length is correct
+-- wrap $ unsafePartial $ fromJust $ fromBytes $ blake2b256Hash $ toBytes
+--   $ _txBody
+--   $ tx
 
 plutusScriptHash :: PlutusScript -> ScriptHash
-plutusScriptHash = hashPlutusScript <<< convertPlutusScript
+plutusScriptHash = wrap <<< plutusScript_hash <<< PlutusScript.toCsl
+
+nativeScriptHash :: NativeScript -> ScriptHash
+nativeScriptHash = wrap <<< nativeScript_hash <<< NativeScript.toCsl
 
 scriptRefHash :: ScriptRef -> ScriptHash
 scriptRefHash (PlutusScriptRef plutusScript) = plutusScriptHash plutusScript
-scriptRefHash (NativeScriptRef nativeScript) =
-  nativeScriptHash $ convertNativeScript nativeScript
+scriptRefHash (NativeScriptRef nativeScript) = nativeScriptHash nativeScript

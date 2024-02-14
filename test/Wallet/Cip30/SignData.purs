@@ -7,7 +7,13 @@ module Test.Ctl.Wallet.Cip30.SignData
 
 import Prelude
 
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Cardano.Serialization.Lib (toBytes)
+import Cardano.Serialization.Lib as Csl
+import Contract.Keys (publicKeyFromBytes)
+import Ctl.Internal.Cardano.Types.Transaction
+  ( PrivateKey(PrivateKey)
+  , PublicKey
+  )
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Address
@@ -19,10 +25,7 @@ import Ctl.Internal.Serialization.Keys
   ( bytesFromPublicKey
   , publicKeyFromPrivateKey
   )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Serialization.Types (PrivateKey, PublicKey)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (byteArrayFromIntArrayUnsafe)
 import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
@@ -32,6 +35,7 @@ import Ctl.Internal.Wallet.Key
   , PrivateStakeKey
   , privateKeysToAddress
   )
+import Data.ByteArray (byteArrayFromIntArrayUnsafe)
 import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse_)
@@ -79,10 +83,10 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
   assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
     (getCoseKeyHeaderX coseKey == Just (bytesFromPublicKey publicPaymentKey))
   where
-  privatePaymentKey :: PrivateKey
-  privatePaymentKey = unwrap $ unwrap $ privateKey
+  privatePaymentKey :: Csl.PrivateKey
+  privatePaymentKey = unwrap $ unwrap $ unwrap privateKey
 
-  publicPaymentKey :: PublicKey
+  publicPaymentKey :: Csl.PublicKey
   publicPaymentKey = publicKeyFromPrivateKey privatePaymentKey
 
 checkCip30SignDataResponse
@@ -104,7 +108,7 @@ checkCip30SignDataResponse address { key, signature } = do
 
     assertTrue "COSE_Sign1's \"address\" header must be set to address bytes"
       ( getCoseSign1ProtectedHeaderAddress coseSign1
-          == Just (toBytes address)
+          == Just (wrap $ toBytes $ unwrap address)
       )
 
   checkCoseKeyHeaders :: COSEKey -> Aff Unit
@@ -129,7 +133,7 @@ checkCip30SignDataResponse address { key, signature } = do
   checkVerification coseSign1 coseKey = do
     publicKey <-
       errMaybe "COSE_Key's x (-2) header must be set to public key bytes"
-        $ getCoseKeyHeaderX coseKey >>= fromBytes <<< wrap <<< unwrap
+        $ getCoseKeyHeaderX coseKey >>= publicKeyFromBytes
     sigStructBytes <- getSignedData coseSign1
     assertTrue "Signature verification failed"
       =<< verifySignature coseSign1 publicKey sigStructBytes
@@ -161,7 +165,8 @@ derive instance Newtype ArbitraryPrivateKey _
 
 instance Arbitrary ArbitraryPrivateKey where
   arbitrary =
-    wrap <<< unsafePartial fromJust <<< privateKeyFromBytes <$> privateKeyBytes
+    wrap <<< wrap <<< unsafePartial fromJust <<< privateKeyFromBytes <$>
+      privateKeyBytes
     where
     privateKeyBytes :: Gen RawBytes
     privateKeyBytes =

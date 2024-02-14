@@ -6,6 +6,7 @@ module Ctl.Internal.Contract.QueryHandle
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
 import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
@@ -32,7 +33,7 @@ import Ctl.Internal.QueryM.Pools
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   ) as QueryM
-import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
+import Ctl.Internal.Serialization (convertTransaction) as Serialization
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
@@ -41,7 +42,7 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Data.Either (Either(Left, Right))
 import Data.Maybe (fromMaybe, isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
@@ -66,13 +67,18 @@ queryHandleForCtlBackend runQueryM params backend =
       cslTx <- liftEffect $ Serialization.convertTransaction tx
       let txHash = Hashing.transactionHash cslTx
       logDebug' $ "Pre-calculated tx hash: " <> show txHash
-      let txCborBytes = Serialization.toBytes cslTx
-      result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes
-      case result of
-        SubmitTxSuccess a -> pure $ pure $ wrap a
-        SubmitFail err -> pure $ Left $ ClientOtherError $ show err
+      let txCborBytes = wrap $ toBytes cslTx
+      result <- QueryM.submitTxOgmios txHash txCborBytes
+      pure $ case result of
+        SubmitTxSuccess th -> do
+          if th == txHash then Right th
+          else Left
+            ( ClientOtherError
+                "Computed TransactionHash is not equal to the one returned by Ogmios, please report as bug!"
+            )
+        SubmitFail err -> Left $ ClientOtherError $ show err
   , evaluateTx: \tx additionalUtxos -> runQueryM' do
-      txBytes <- Serialization.toBytes <$> liftEffect
+      txBytes <- wrap <<< toBytes <$> liftEffect
         (Serialization.convertTransaction tx)
       QueryM.evaluateTxOgmios txBytes additionalUtxos
   , getEraSummaries: Right <$> runQueryM' QueryM.getEraSummaries

@@ -3,7 +3,7 @@ module Test.Ctl.ByteArray where
 import Prelude
 
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray
+import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArray
   , byteArrayFromIntArrayUnsafe

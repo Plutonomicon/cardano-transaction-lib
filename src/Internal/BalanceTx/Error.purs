@@ -24,20 +24,19 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionOutput (TransactionOutput)
+import Cardano.Types.UtxoMap (UtxoMap, pprintUtxoMap)
+import Cardano.Types.Value (Value)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , Transaction
-  , TransactionOutput
-  , UtxoMap
   , _redeemers
   , _witnessSet
-  , pprintUtxoMap
   )
 import Ctl.Internal.Cardano.Types.Value (pprintValue)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
-import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
-import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
   , ScriptFailure
@@ -55,7 +54,6 @@ import Ctl.Internal.QueryM.Ogmios
   ) as Ogmios
 import Ctl.Internal.Types.Natural (toBigInt) as Natural
 import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
 import Data.Either (Either(Left, Right), either, isLeft)
@@ -140,7 +138,7 @@ explainBalanceTxError = case _ of
     "Could not calculate min ADA for UTxO"
   where
   prettyValue :: String -> Value -> String
-  prettyValue str = fromPlutusValue >>> pprintValue >>> pprintTagSet str
+  prettyValue str = pprintValue >>> pprintTagSet str
 
 newtype Actual = Actual Value
 

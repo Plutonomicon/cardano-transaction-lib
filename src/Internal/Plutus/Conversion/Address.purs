@@ -7,7 +7,14 @@ module Ctl.Internal.Plutus.Conversion.Address
 
 import Prelude
 
+import Cardano.Plutus.Types.PubKeyHash (PubKeyHash(..))
+import Cardano.Serialization.Lib (baseAddress_toAddress)
+import Cardano.Serialization.Lib as Csl
+import Cardano.Types.Address (Address)
+import Cardano.Types.BaseAddress as BA
+import Cardano.Types.NetworkId (NetworkId)
 import Control.Alt ((<|>))
+import Ctl.Internal.Helpers (notImplemented)
 import Ctl.Internal.Plutus.Types.Address
   ( Address(Address)
   , AddressWithNetworkTag(AddressWithNetworkTag)
@@ -16,34 +23,6 @@ import Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
   , StakingCredential(StakingHash, StakingPtr)
   )
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId
-  , Pointer
-  , StakeCredential
-  , addressNetworkId
-  , baseAddressDelegationCred
-  , baseAddressFromAddress
-  , baseAddressPaymentCred
-  , baseAddressToAddress
-  , enterpriseAddressFromAddress
-  , enterpriseAddressPaymentCred
-  , enterpriseAddressToAddress
-  , paymentKeyHashEnterpriseAddress
-  , paymentKeyHashPointerAddress
-  , paymentKeyHashScriptHashAddress
-  , paymentKeyHashStakeKeyHashAddress
-  , pointerAddressFromAddress
-  , pointerAddressPaymentCred
-  , pointerAddressStakePointer
-  , pointerAddressToAddress
-  , scriptHashEnterpriseAddress
-  , scriptHashPointerAddress
-  , scriptHashScriptHashAddress
-  , scriptHashStakeKeyHashAddress
-  , withStakeCredential
-  ) as Csl
-import Ctl.Internal.Types.PubKeyHash (PubKeyHash(PubKeyHash))
 import Ctl.Internal.Types.Scripts (ValidatorHash(ValidatorHash))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
@@ -55,59 +34,60 @@ import Data.Newtype (unwrap, wrap)
 fromPlutusAddressWithNetworkTag
   :: Plutus.AddressWithNetworkTag -> Csl.Address
 fromPlutusAddressWithNetworkTag (Plutus.AddressWithNetworkTag rec) =
-  fromPlutusAddress rec.networkId rec.address
+  notImplemented -- fromPlutusAddress rec.networkId rec.address
 
 -- | Builds a CSL-level address from a Plutus address.
 -- | CIP-0019: https://cips.cardano.org/cips/cip19/
 fromPlutusAddress
-  :: Csl.NetworkId -> Plutus.Address -> Csl.Address
+  :: NetworkId -> Plutus.Address -> Address
 fromPlutusAddress
   networkId
   (Plutus.Address { addressCredential, addressStakingCredential }) =
-  case addressCredential, addressStakingCredential of
-    -- %b0000 | network tag | key hash | key hash
-    PubKeyCredential (PubKeyHash pkh),
-    Just (StakingHash (PubKeyCredential (PubKeyHash skh))) ->
-      Csl.baseAddressToAddress $
-        Csl.paymentKeyHashStakeKeyHashAddress networkId pkh skh
+  notImplemented
 
-    -- %b0001 | network tag | script hash | key hash
-    ScriptCredential (ValidatorHash sh),
-    Just (StakingHash (PubKeyCredential (PubKeyHash skh))) ->
-      Csl.baseAddressToAddress $
-        Csl.scriptHashStakeKeyHashAddress networkId sh skh
+-- case addressCredential, addressStakingCredential of
+--   -- %b0000 | network tag | key hash | key hash
+--   PubKeyCredential (PubKeyHash pkh),
+--   Just (StakingHash (PubKeyCredential (PubKeyHash skh))) ->
+--     baseAddress_toAddress $ BA.BaseAddress networkId pkh skh
 
-    -- %b0010 | network tag | key hash | script hash
-    PubKeyCredential (PubKeyHash pkh),
-    Just (StakingHash (ScriptCredential (ValidatorHash sh))) ->
-      Csl.baseAddressToAddress $
-        Csl.paymentKeyHashScriptHashAddress networkId pkh sh
+--   -- %b0001 | network tag | script hash | key hash
+--   ScriptCredential (ValidatorHash sh),
+--   Just (StakingHash (PubKeyCredential (PubKeyHash skh))) ->
+--     Csl.baseAddressToAddress $
+--       Csl.scriptHashStakeKeyHashAddress networkId sh skh
 
-    -- %b0011 | network tag | script hash | script hash
-    ScriptCredential (ValidatorHash sh),
-    Just (StakingHash (ScriptCredential (ValidatorHash sh'))) ->
-      Csl.baseAddressToAddress $
-        Csl.scriptHashScriptHashAddress networkId sh sh'
+--   -- %b0010 | network tag | key hash | script hash
+--   PubKeyCredential (PubKeyHash pkh),
+--   Just (StakingHash (ScriptCredential (ValidatorHash sh))) ->
+--     Csl.baseAddressToAddress $
+--       Csl.paymentKeyHashScriptHashAddress networkId pkh sh
 
-    -- %b0100 | network tag | key hash | pointer
-    PubKeyCredential (PubKeyHash pkh), Just (StakingPtr ptr) ->
-      Csl.pointerAddressToAddress $
-        Csl.paymentKeyHashPointerAddress networkId pkh ptr
+--   -- %b0011 | network tag | script hash | script hash
+--   ScriptCredential (ValidatorHash sh),
+--   Just (StakingHash (ScriptCredential (ValidatorHash sh'))) ->
+--     Csl.baseAddressToAddress $
+--       Csl.scriptHashScriptHashAddress networkId sh sh'
 
-    -- %b0101 | network tag | script hash | pointer
-    ScriptCredential (ValidatorHash sh), Just (StakingPtr ptr) ->
-      Csl.pointerAddressToAddress $
-        Csl.scriptHashPointerAddress networkId sh ptr
+--   -- %b0100 | network tag | key hash | pointer
+--   PubKeyCredential (PubKeyHash pkh), Just (StakingPtr ptr) ->
+--     Csl.pointerAddressToAddress $
+--       Csl.paymentKeyHashPointerAddress networkId pkh ptr
 
-    -- %b0110 | network tag | key hash
-    PubKeyCredential (PubKeyHash pkh), Nothing ->
-      Csl.enterpriseAddressToAddress $
-        Csl.paymentKeyHashEnterpriseAddress networkId pkh
+--   -- %b0101 | network tag | script hash | pointer
+--   ScriptCredential (ValidatorHash sh), Just (StakingPtr ptr) ->
+--     Csl.pointerAddressToAddress $
+--       Csl.scriptHashPointerAddress networkId sh ptr
 
-    -- %b0111 | network tag | script hash
-    ScriptCredential (ValidatorHash sh), Nothing ->
-      Csl.enterpriseAddressToAddress $
-        Csl.scriptHashEnterpriseAddress networkId sh
+--   -- %b0110 | network tag | key hash
+--   PubKeyCredential (PubKeyHash pkh), Nothing ->
+--     Csl.enterpriseAddressToAddress $
+--       Csl.paymentKeyHashEnterpriseAddress networkId pkh
+
+--   -- %b0111 | network tag | script hash
+--   ScriptCredential (ValidatorHash sh), Nothing ->
+--     Csl.enterpriseAddressToAddress $
+--       Csl.scriptHashEnterpriseAddress networkId sh
 
 --------------------------------------------------------------------------------
 -- CSL Address -> Plutus Address
@@ -125,79 +105,80 @@ toPlutusAddress =
 -- | CIP-0019: https://cips.cardano.org/cips/cip19/
 toPlutusAddressWithNetworkTag
   :: Csl.Address -> Maybe Plutus.AddressWithNetworkTag
-toPlutusAddressWithNetworkTag addressCsl = do
-  let networkId = Csl.addressNetworkId addressCsl
-  Plutus.AddressWithNetworkTag <<< { address: _, networkId } <$>
-    ( toPlutusBaseAddress addressCsl
-        <|> toPlutusPointerAddress addressCsl
-        <|> toPlutusEnterpriseAddress addressCsl
-    )
-  where
-  toPlutusBaseAddress
-    :: Csl.Address -> Maybe Plutus.Address
-  toPlutusBaseAddress addr = do
-    baseAddress <- Csl.baseAddressFromAddress addr
-    let
-      paymentCred :: Csl.StakeCredential
-      paymentCred = Csl.baseAddressPaymentCred baseAddress
+toPlutusAddressWithNetworkTag addressCsl = notImplemented
+-- do
+--   let networkId = Csl.addressNetworkId addressCsl
+--   Plutus.AddressWithNetworkTag <<< { address: _, networkId } <$>
+--     ( toPlutusBaseAddress addressCsl
+--         <|> toPlutusPointerAddress addressCsl
+--         <|> toPlutusEnterpriseAddress addressCsl
+--     )
+--   where
+--   toPlutusBaseAddress
+--     :: Csl.Address -> Maybe Plutus.Address
+--   toPlutusBaseAddress addr = do
+--     baseAddress <- Csl.baseAddressFromAddress addr
+--     let
+--       paymentCred :: Csl.StakeCredential
+--       paymentCred = Csl.baseAddressPaymentCred baseAddress
 
-      delegationCred :: Csl.StakeCredential
-      delegationCred = Csl.baseAddressDelegationCred baseAddress
+--       delegationCred :: Csl.StakeCredential
+--       delegationCred = Csl.baseAddressDelegationCred baseAddress
 
-    flip Csl.withStakeCredential paymentCred
-      { onKeyHash: \pkh ->
-          worker (PubKeyCredential (wrap pkh)) delegationCred
-      , onScriptHash: \sh ->
-          worker (ScriptCredential (wrap sh)) delegationCred
-      }
-    where
-    worker
-      :: Credential -> Csl.StakeCredential -> Maybe Plutus.Address
-    worker addressCredential delegationCred =
-      Just $ wrap
-        { addressCredential
-        , addressStakingCredential:
-            flip Csl.withStakeCredential delegationCred
-              { onKeyHash: \skh ->
-                  Just (StakingHash (PubKeyCredential (wrap skh)))
-              , onScriptHash: \sh ->
-                  Just (StakingHash (ScriptCredential (wrap sh)))
-              }
-        }
+--     flip Csl.withStakeCredential paymentCred
+--       { onKeyHash: \pkh ->
+--           worker (PubKeyCredential (wrap pkh)) delegationCred
+--       , onScriptHash: \sh ->
+--           worker (ScriptCredential (wrap sh)) delegationCred
+--       }
+--     where
+--     worker
+--       :: Credential -> Csl.StakeCredential -> Maybe Plutus.Address
+--     worker addressCredential delegationCred =
+--       Just $ wrap
+--         { addressCredential
+--         , addressStakingCredential:
+--             flip Csl.withStakeCredential delegationCred
+--               { onKeyHash: \skh ->
+--                   Just (StakingHash (PubKeyCredential (wrap skh)))
+--               , onScriptHash: \sh ->
+--                   Just (StakingHash (ScriptCredential (wrap sh)))
+--               }
+--         }
 
-  toPlutusPointerAddress
-    :: Csl.Address -> Maybe Plutus.Address
-  toPlutusPointerAddress addr = do
-    pointerAddress <- Csl.pointerAddressFromAddress addr
-    let
-      paymentCred :: Csl.StakeCredential
-      paymentCred = Csl.pointerAddressPaymentCred pointerAddress
+--   toPlutusPointerAddress
+--     :: Csl.Address -> Maybe Plutus.Address
+--   toPlutusPointerAddress addr = do
+--     pointerAddress <- Csl.pointerAddressFromAddress addr
+--     let
+--       paymentCred :: Csl.StakeCredential
+--       paymentCred = Csl.pointerAddressPaymentCred pointerAddress
 
-      stakePointer :: Csl.Pointer
-      stakePointer = Csl.pointerAddressStakePointer pointerAddress
+--       stakePointer :: Csl.Pointer
+--       stakePointer = Csl.pointerAddressStakePointer pointerAddress
 
-    Just $ wrap
-      { addressCredential: mkAddressCredential paymentCred
-      , addressStakingCredential: Just (StakingPtr stakePointer)
-      }
+--     Just $ wrap
+--       { addressCredential: mkAddressCredential paymentCred
+--       , addressStakingCredential: Just (StakingPtr stakePointer)
+--       }
 
-  toPlutusEnterpriseAddress
-    :: Csl.Address -> Maybe Plutus.Address
-  toPlutusEnterpriseAddress addr = do
-    enterpriseAddress <- Csl.enterpriseAddressFromAddress addr
-    let
-      paymentCred :: Csl.StakeCredential
-      paymentCred = Csl.enterpriseAddressPaymentCred enterpriseAddress
+--   toPlutusEnterpriseAddress
+--     :: Csl.Address -> Maybe Plutus.Address
+--   toPlutusEnterpriseAddress addr = do
+--     enterpriseAddress <- Csl.enterpriseAddressFromAddress addr
+--     let
+--       paymentCred :: Csl.StakeCredential
+--       paymentCred = Csl.enterpriseAddressPaymentCred enterpriseAddress
 
-    Just $ wrap
-      { addressCredential: mkAddressCredential paymentCred
-      , addressStakingCredential: Nothing
-      }
+--     Just $ wrap
+--       { addressCredential: mkAddressCredential paymentCred
+--       , addressStakingCredential: Nothing
+--       }
 
-  mkAddressCredential
-    :: Csl.StakeCredential -> Credential
-  mkAddressCredential =
-    Csl.withStakeCredential
-      { onKeyHash: PubKeyCredential <<< wrap
-      , onScriptHash: ScriptCredential <<< wrap
-      }
+--   mkAddressCredential
+--     :: Csl.StakeCredential -> Credential
+--   mkAddressCredential =
+--     Csl.withStakeCredential
+--       { onKeyHash: PubKeyCredential <<< wrap
+--       , onScriptHash: ScriptCredential <<< wrap
+--       }

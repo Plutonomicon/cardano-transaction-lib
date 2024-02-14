@@ -22,13 +22,13 @@ import Prelude
 import Contract.Prelude (foldl)
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
-import Ctl.Internal.Types.ByteArray
+import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
+import Data.ByteArray
   ( ByteArray
   , byteArrayToIntArray
   , byteLength
   , subarray
   )
-import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Data.Either (Either)
 import Data.Newtype (class Newtype)
 import Data.UInt (UInt, shl, zshr, (.&.), (.|.))

@@ -5,6 +5,7 @@ module Ctl.Internal.FfiHelpers
   , containerHelper
   , ErrorFfiHelper
   , errorHelper
+  , partialToMaybe
   ) where
 
 import Ctl.Internal.Error (E)
@@ -13,6 +14,8 @@ import Data.Function ((<<<), (>>>))
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Data.Variant (Variant)
+import Partial.Unsafe (unsafePartial)
+import Prelude (Unit)
 
 type MaybeFfiHelper =
   { nothing :: forall (x :: Type). Maybe x
@@ -46,3 +49,13 @@ containerHelper = _containerHelper { untuple, tuple: Tuple }
 
 untuple :: forall a. Tuple a a -> Array a
 untuple (Tuple a b) = [ a, b ]
+
+partialToMaybe :: forall a. (Unit -> Partial => a) -> Maybe a
+partialToMaybe f = _partialToMaybe (\x -> unsafePartial (f x)) Nothing Just
+
+foreign import _partialToMaybe
+  :: forall a
+   . (Unit -> a)
+  -> (forall x. Maybe x)
+  -> (forall x. x -> Maybe x)
+  -> Maybe a

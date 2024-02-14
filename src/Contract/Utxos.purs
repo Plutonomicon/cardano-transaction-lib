@@ -9,6 +9,7 @@ module Contract.Utxos
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Log (logWarn')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Contract.Prelude (for)
@@ -23,7 +24,6 @@ import Ctl.Internal.Plutus.Conversion
 import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Maybe (Maybe)
 import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)

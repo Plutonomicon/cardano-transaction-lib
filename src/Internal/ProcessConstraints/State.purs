@@ -19,6 +19,7 @@ module Ctl.Internal.ProcessConstraints.State
 
 import Prelude hiding (join)
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Control.Monad.State.Trans (StateT)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Cardano.Types.Transaction
@@ -31,7 +32,6 @@ import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Lens.Record (prop)

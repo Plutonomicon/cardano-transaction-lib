@@ -22,6 +22,7 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
@@ -74,7 +75,6 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Types.Transaction (TransactionHash)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
@@ -83,7 +83,7 @@ import Data.Either (Either(Left, Right), isRight)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Time.Duration (Milliseconds, Seconds)
@@ -272,7 +272,7 @@ buildBackend logger = case _ of
   where
   buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
   buildCtlBackend { ogmiosConfig, kupoConfig } = do
-    let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig <<< wrap
+    let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig
     ogmiosWs <- mkOgmiosWebSocketAff isTxConfirmed logger ogmiosConfig
     pure
       { ogmios:

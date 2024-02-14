@@ -6,7 +6,7 @@ module Ctl.Internal.Types.Chain
 
 import Prelude
 
-import Ctl.Internal.Serialization.Address (Slot)
+import Cardano.Types.Slot (Slot)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)

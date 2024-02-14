@@ -20,12 +20,12 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
 import Ctl.Internal.FromData (class FromData)
 import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.BigNum as BigNum
 import Ctl.Internal.Types.Natural (Natural)
 import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Ratio (Ratio)

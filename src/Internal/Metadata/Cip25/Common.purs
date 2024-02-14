@@ -3,7 +3,7 @@
 -- | https://cips.cardano.org/cips/cip25/
 module Ctl.Internal.Metadata.Cip25.Common
   ( nftMetadataLabel
-  , Cip25TokenName(Cip25TokenName)
+  , Cip25AssetName(Cip25AssetName)
   , Cip25MetadataFile(Cip25MetadataFile)
   ) where
 
@@ -18,6 +18,7 @@ import Aeson
   , encodeAeson
   , (.:)
   )
+import Cardano.Types.AssetName (AssetName, mkAssetName, unAssetName)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Metadata.Cip25.Cip25String
   ( Cip25String
@@ -35,7 +36,6 @@ import Ctl.Internal.Metadata.Helpers
 import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap as AssocMap
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.TokenName (TokenName, getTokenName, mkTokenName)
 import Data.Either (note)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -47,26 +47,26 @@ import JS.BigInt as BigInt
 nftMetadataLabel :: BigInt
 nftMetadataLabel = BigInt.fromInt 721
 
--- | A newtype over `TokenName` that uses correct Json encoding (without `0x` prefix)
-newtype Cip25TokenName = Cip25TokenName TokenName
+-- | A newtype over `AssetName` that uses correct Json encoding (without `0x` prefix)
+newtype Cip25AssetName = Cip25AssetName AssetName
 
-derive newtype instance Eq Cip25TokenName
-derive newtype instance Ord Cip25TokenName
-derive newtype instance ToData Cip25TokenName
-derive newtype instance FromData Cip25TokenName
-derive newtype instance ToMetadata Cip25TokenName
-derive newtype instance FromMetadata Cip25TokenName
-derive instance Newtype Cip25TokenName _
+derive newtype instance Eq Cip25AssetName
+derive newtype instance Ord Cip25AssetName
+derive newtype instance ToData Cip25AssetName
+derive newtype instance FromData Cip25AssetName
+derive newtype instance ToMetadata Cip25AssetName
+derive newtype instance FromMetadata Cip25AssetName
+derive instance Newtype Cip25AssetName _
 
-instance Show Cip25TokenName where
-  show (Cip25TokenName tn) = "(Cip25TokenName " <> show tn <> ")"
+instance Show Cip25AssetName where
+  show (Cip25AssetName tn) = "(Cip25AssetName " <> show tn <> ")"
 
-instance DecodeAeson Cip25TokenName where
-  decodeAeson = (note (TypeMismatch "TokenName") <<< map wrap <<< mkTokenName)
+instance DecodeAeson Cip25AssetName where
+  decodeAeson = (note (TypeMismatch "AssetName") <<< map wrap <<< mkAssetName)
     <=< decodeAeson
 
-instance EncodeAeson Cip25TokenName where
-  encodeAeson = encodeAeson <<< getTokenName <<< unwrap
+instance EncodeAeson Cip25AssetName where
+  encodeAeson = encodeAeson <<< unAssetName <<< unwrap
 
 -- | `files_details` in CDDL
 -- |

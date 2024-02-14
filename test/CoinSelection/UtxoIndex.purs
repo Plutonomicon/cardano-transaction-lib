@@ -2,6 +2,7 @@ module Test.Ctl.CoinSelection.UtxoIndex (suite) where
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.CoinSelection.UtxoIndex
   ( SelectionFilter
   , UtxoIndex
@@ -18,7 +19,6 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexPartition
   ) as UtxoIndex
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)

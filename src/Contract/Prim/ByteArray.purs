@@ -5,29 +5,8 @@ module Contract.Prim.ByteArray
   , module RawBytes
   ) where
 
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray(ByteArray)
-  , byteArrayFromAscii
-  , byteArrayFromIntArray
-  , byteArrayFromIntArrayUnsafe
-  , byteArrayToHex
-  , byteArrayToIntArray
-  , byteLength
-  , hexToByteArray
-  , hexToByteArrayUnsafe
-  ) as ByteArray
 import Ctl.Internal.Types.CborBytes
   ( CborBytes(CborBytes)
-  , cborBytesFromAscii
-  , cborBytesFromByteArray
-  , cborBytesFromIntArray
-  , cborBytesFromIntArrayUnsafe
-  , cborBytesToByteArray
-  , cborBytesToHex
-  , cborBytesToIntArray
-  , hexToCborBytes
-  , hexToCborBytesUnsafe
-  , rawBytesAsCborBytes
   ) as CborBytes
 import Ctl.Internal.Types.RawBytes
   ( RawBytes(RawBytes)
@@ -41,3 +20,14 @@ import Ctl.Internal.Types.RawBytes
   , rawBytesToHex
   , rawBytesToIntArray
   ) as RawBytes
+import Data.ByteArray
+  ( ByteArray(ByteArray)
+  , byteArrayFromAscii
+  , byteArrayFromIntArray
+  , byteArrayFromIntArrayUnsafe
+  , byteArrayToHex
+  , byteArrayToIntArray
+  , byteLength
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  ) as ByteArray

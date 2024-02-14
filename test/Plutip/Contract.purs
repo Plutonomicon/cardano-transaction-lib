@@ -4,6 +4,7 @@ module Test.Ctl.Plutip.Contract
 
 import Prelude
 
+import Cardano.Serialization.Lib (fromBytes)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , PubKeyHash(PubKeyHash)
@@ -22,6 +23,7 @@ import Contract.BalanceTxConstraints
   )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
+import Contract.Keys (privateKeyFromBytes)
 import Contract.Log (logInfo')
 import Contract.Metadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
@@ -99,7 +101,6 @@ import Contract.Wallet
   , isWalletAvailable
   , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
-  , privateKeyFromBytes
   , withKeyWallet
   )
 import Control.Monad.Error.Class (try)
@@ -1235,8 +1236,9 @@ suite = do
 
         let
           transactionId :: TransactionHash
-          transactionId = TransactionHash $ hexToByteArrayUnsafe
-            "a6b656487601c390a3bb61958c62369cb5d5a7597a68a9dccedb3dd68a60bfdd"
+          transactionId = TransactionHash $ unsafePartial $ fromJust $ fromBytes
+            $ hexToByteArrayUnsafe
+                "a6b656487601c390a3bb61958c62369cb5d5a7597a68a9dccedb3dd68a60bfdd"
 
           mkUtxo
             :: UInt

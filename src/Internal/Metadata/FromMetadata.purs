@@ -2,12 +2,12 @@ module Ctl.Internal.Metadata.FromMetadata where
 
 import Prelude
 
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int (Int, toBigInt) as Int
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataList, Int, Bytes, Text)
   )
 import Data.Array (toUnfoldable, uncons) as Array
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.NonEmpty (NonEmpty, (:|))
 import Data.Traversable (traverse)

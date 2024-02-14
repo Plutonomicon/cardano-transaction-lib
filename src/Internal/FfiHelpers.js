@@ -44,3 +44,11 @@ export function _containerHelper(r) {
     }
   };
 }
+
+export const _partialToMaybe = f => nothing => just => {
+  try {
+    return just(f());
+  } catch (_) {
+    return nothing;
+  }
+};

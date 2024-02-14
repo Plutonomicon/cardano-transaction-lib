@@ -2,6 +2,7 @@ module Ctl.Internal.Contract.MinFee (calculateMinFee) where
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Transaction
   , UtxoMap
@@ -22,7 +23,6 @@ import Ctl.Internal.Serialization.Address
   )
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
 import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
 import Data.Either (hush)

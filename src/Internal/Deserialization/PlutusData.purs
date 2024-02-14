@@ -5,12 +5,13 @@ module Ctl.Internal.Deserialization.PlutusData
 
 import Prelude
 
+import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.PlutusData
+  ( PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as T
 import Ctl.Internal.Deserialization.BigInt (convertBigInt)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.FfiHelpers
-  ( ContainerHelper
-  , containerHelper
-  )
+import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
 import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Serialization.Types
   ( BigInt
@@ -19,13 +20,10 @@ import Ctl.Internal.Serialization.Types
   , PlutusList
   , PlutusMap
   )
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.CborBytes (CborBytes)
-import Ctl.Internal.Types.PlutusData
-  ( PlutusData(Constr, Map, List, Integer, Bytes)
-  ) as T
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe, fromJust)
+import Data.Newtype (unwrap)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
@@ -76,7 +74,7 @@ convertPlutusBytes :: ByteArray -> T.PlutusData
 convertPlutusBytes = T.Bytes
 
 deserializeData :: forall (a :: Type). FromData a => CborBytes -> Maybe a
-deserializeData = fromData <<< convertPlutusData <=< fromBytes
+deserializeData = fromData <<< convertPlutusData <=< fromBytes <<< unwrap
 
 foreign import _convertPlutusData
   :: ConvertPlutusData -> PlutusData -> T.PlutusData

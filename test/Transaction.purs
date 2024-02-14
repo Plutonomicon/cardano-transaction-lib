@@ -2,6 +2,8 @@ module Test.Ctl.Transaction (suite) where
 
 import Prelude
 
+import Cardano.Types.PlutusData (PlutusData(Integer))
+import Contract.Keys (publicKeyFromBech32)
 import Ctl.Internal.Cardano.Types.Transaction
   ( Redeemer(Redeemer)
   , ScriptDataHash(ScriptDataHash)
@@ -11,7 +13,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
-  , mkPublicKey
   )
 import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Serialization.WitnessSet as Serialization.WitnessSet
@@ -22,14 +23,13 @@ import Ctl.Internal.Transaction
   , attachRedeemer
   , setScriptDataHash
   )
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.Datum (Datum(Datum))
-import Ctl.Internal.Types.PlutusData (PlutusData(Integer))
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1, PlutusV2)
   , PlutusScript(PlutusScript)
   )
+import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (over, unwrap)
 import Data.Tuple.Nested ((/\))
@@ -154,7 +154,7 @@ testPreserveWitness = liftEffect $ do
   vk :: Vkeywitness
   vk = Vkeywitness
     ( Vkey
-        ( unsafePartial $ fromJust <<< mkPublicKey $
+        ( unsafePartial $ fromJust <<< publicKeyFromBech32 $
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
         )
         /\

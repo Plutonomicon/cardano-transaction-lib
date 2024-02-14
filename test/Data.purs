@@ -4,9 +4,11 @@ module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData as PDD
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers (showWithParens)
@@ -19,7 +21,6 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Ctl.Internal.Serialization (toBytes)
 import Ctl.Internal.Serialization.PlutusData as PDS
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
@@ -30,14 +31,11 @@ import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
   , ConsI
   , NilI
   )
-import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (hexToByteArrayUnsafe)
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
-import Data.Newtype (wrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
@@ -564,7 +562,7 @@ instance (FromData a) => FromData (Tree a) where
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
 fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes
-  (wrap $ hexToByteArrayUnsafe binary)
+  (hexToByteArrayUnsafe binary)
 
 testBinaryFixture
   :: forall a
@@ -580,7 +578,7 @@ testBinaryFixture value binaryFixture = do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
     toBytes (PDS.convertPlutusData $ toData value)
-      `shouldEqual` wrap (hexToByteArrayUnsafe binaryFixture)
+      `shouldEqual` hexToByteArrayUnsafe binaryFixture
 
 -- | Poor man's type level tests
 tests :: Array String

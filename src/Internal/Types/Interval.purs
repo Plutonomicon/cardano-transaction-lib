@@ -77,17 +77,18 @@ import Aeson
   , isNull
   , (.:)
   )
+import Cardano.Types.BigNum (add, fromBigInt, maxValue, one, toBigInt, zero) as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr))
+import Cardano.Types.Slot (Slot(..))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers
-  ( contentsProp
-  , encodeTagged'
+  ( encodeTagged'
   , liftEither
   , liftM
   , mkErrorRecord
   , showWithParens
-  , tagProp
   )
 import Ctl.Internal.Plutus.Types.DataSchema
   ( class HasPlutusSchema
@@ -97,22 +98,12 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , PNil
   )
 import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
-import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
-import Ctl.Internal.Types.BigNum
-  ( add
-  , fromBigInt
-  , maxValue
-  , one
-  , toBigInt
-  , zero
-  ) as BigNum
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   )
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
@@ -1174,12 +1165,12 @@ instance (EncodeAeson a) => EncodeAeson (Extended a) where
 instance (DecodeAeson a) => DecodeAeson (Extended a) where
   decodeAeson a = lmap (Named "Extended") do
     obj <- decodeAeson a
-    tag <- obj .: tagProp
+    tag <- obj .: "tag"
     case tag of
       "NegInf" -> pure NegInf
       "PosInf" -> pure PosInf
-      "Finite" -> Finite <$> obj .: contentsProp
-      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
+      "Finite" -> Finite <$> obj .: "contents"
+      _ -> Left $ AtKey "tag" $ UnexpectedValue $ encodeString tag
 
 toOnChainPosixTimeRangeErrorStr :: String
 toOnChainPosixTimeRangeErrorStr = "ToOnChainPosixTimeRangeError"

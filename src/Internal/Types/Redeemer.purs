@@ -7,13 +7,14 @@ module Ctl.Internal.Types.Redeemer
 
 import Prelude
 
+import Cardano.Serialization.Lib (toBytes)
+import Cardano.Types.DataHash (DataHash(..))
+import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.PlutusData as PlutusData
 import Ctl.Internal.FromData (class FromData)
-import Ctl.Internal.Hashing (hashPlutusData)
-import Ctl.Internal.Serialization (toBytes)
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
+import Ctl.Internal.Hashing (plutusDataHash)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (ByteArray(ByteArray))
-import Ctl.Internal.Types.PlutusData (PlutusData)
+import Data.ByteArray (ByteArray(ByteArray))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -33,8 +34,7 @@ instance Show Redeemer where
 unitRedeemer :: Redeemer
 unitRedeemer = Redeemer (toData unit)
 
--- We could also use `type RedeemerHash = DataHash`?
-newtype RedeemerHash = RedeemerHash ByteArray
+newtype RedeemerHash = RedeemerHash DataHash
 
 derive instance Generic RedeemerHash _
 derive instance Newtype RedeemerHash _
@@ -50,5 +50,4 @@ instance Show RedeemerHash where
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> RedeemerHash
 redeemerHash =
-  wrap <<< unwrap <<< toBytes <<< hashPlutusData <<< convertPlutusData <<<
-    unwrap
+  RedeemerHash <<< plutusDataHash <<< unwrap

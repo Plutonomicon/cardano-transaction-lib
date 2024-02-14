@@ -2,6 +2,8 @@ module Test.Ctl.CoinSelection (suite) where
 
 import Prelude
 
+import Cardano.Types.AssetName (TokenName, mkTokenName)
+import Cardano.Types.TransactionInput (TransactionInput)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
@@ -25,10 +27,8 @@ import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Ctl.Internal.Hashing (blake2b224Hash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Data.ByteArray (byteArrayFromAscii)
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.Map (fromFoldable, values) as Map

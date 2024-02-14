@@ -82,6 +82,10 @@ module Test.Ctl.Fixtures
 import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
+import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types.AssetName (TokenName, mkTokenName)
+import Cardano.Types.PlutusData as PD
+import Contract.Keys (publicKeyFromBech32)
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromBigInt, fromInt, one, zero) as BigNum
 import Contract.Transaction
@@ -136,7 +140,6 @@ import Ctl.Internal.Cardano.Types.Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
   , mkEd25519Signature
-  , mkPublicKey
   )
 import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -149,7 +152,6 @@ import Ctl.Internal.Cardano.Types.Value
   , mkNonAdaAsset
   , mkSingletonNonAdaAsset
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
 import Ctl.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
 import Ctl.Internal.Metadata.Cip25.V2
@@ -175,20 +177,8 @@ import Ctl.Internal.Serialization.Hash
   , scriptHashFromBytes
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArrayUnsafe
-  , hexToByteArray
-  , hexToByteArrayUnsafe
-  )
-import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
-import Ctl.Internal.Types.PlutusData as PD
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  )
 import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
 import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress))
 import Ctl.Internal.Types.Scripts
@@ -198,7 +188,6 @@ import Ctl.Internal.Types.Scripts
   , plutusV1Script
   , plutusV2Script
   )
-import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -209,6 +198,12 @@ import Ctl.Internal.Types.TransactionMetadata
   , TransactionMetadatumLabel(TransactionMetadatumLabel)
   )
 import Data.Array as Array
+import Data.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  )
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -885,7 +880,7 @@ utxoFixture1 = hexToByteArrayUnsafe
 input :: TransactionInput
 input = TransactionInput
   { index: UInt.fromInt 0
-  , transactionId: TransactionHash
+  , transactionId: TransactionHash $ unsafePartial $ fromJust $ fromBytes
       ( byteArrayFromIntArrayUnsafe
           [ 198
           , 181
@@ -1102,7 +1097,7 @@ witnessSetFixture2Value =
     , vkeys: Just
         [ Vkeywitness
             ( Vkey
-                ( unsafePartial $ fromJust $ mkPublicKey
+                ( unsafePartial $ fromJust $ publicKeyFromBech32
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
@@ -1171,7 +1166,7 @@ witnessSetFixture3Value =
     , vkeys: Just
         [ Vkeywitness
             ( Vkey
-                ( unsafePartial $ fromJust $ mkPublicKey
+                ( unsafePartial $ fromJust $ publicKeyFromBech32
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
                 /\
@@ -1198,7 +1193,7 @@ addressString1 =
 mkTxInput :: { txId :: String, ix :: Int } -> TransactionInput
 mkTxInput { txId, ix } =
   TransactionInput
-    { transactionId: TransactionHash $
+    { transactionId: wrap $ unsafePartial $ fromJust $ fromBytes $
         hexToByteArrayUnsafe txId
     , index: UInt.fromInt ix
     }
@@ -1500,10 +1495,9 @@ fullyAppliedScriptFixture =
     \20014c01021820004c010544746573740001"
 
 nullPaymentPubKeyHash :: PaymentPubKeyHash
-nullPaymentPubKeyHash = PaymentPubKeyHash $ PubKeyHash
+nullPaymentPubKeyHash = PaymentPubKeyHash $ PubKeyHash $ wrap
   $ unsafePartial
   $ fromJust
   $ fromBytes
-  $ CborBytes
   $ hexToByteArrayUnsafe
       "f9dca21a6c826ec8acb4cf395cbc24351937bfe6560b2683ab8b415f"

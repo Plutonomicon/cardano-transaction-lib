@@ -24,21 +24,16 @@ module Ctl.Internal.BalanceTx.Constraints
 
 import Prelude
 
+import Cardano.Types.Address (Address)
+import Cardano.Types.NetworkId (NetworkId)
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyOptimal)
   )
-import Ctl.Internal.Plutus.Conversion
-  ( fromPlutusAddress
-  , fromPlutusAddressWithNetworkTag
-  )
-import Ctl.Internal.Plutus.Types.Address
-  ( Address
-  , AddressWithNetworkTag(AddressWithNetworkTag)
-  ) as Plutus
+-- import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, fromPlutusAddressWithNetworkTag)
+-- import Ctl.Internal.Plutus.Types.Address (Address, AddressWithNetworkTag(AddressWithNetworkTag)) as Plutus
 import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Serialization.Address (Address, NetworkId)
 import Ctl.Internal.Types.OutputDatum (OutputDatum)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (singleton) as Array
 import Data.Function (applyFlipped)
 import Data.Lens (Lens')
@@ -124,9 +119,9 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustSendChangeToAddress
-  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
+  :: Address -> BalanceTxConstraintsBuilder
 mustSendChangeToAddress =
-  wrap <<< setJust _changeAddress <<< fromPlutusAddressWithNetworkTag
+  wrap <<< setJust _changeAddress
 
 -- | Tells the balancer to include the datum in each change UTxO. Useful when
 -- | balancing a transactions for script owned UTxOs.
@@ -141,9 +136,9 @@ mustSendChangeWithDatum =
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddresses
-  :: NetworkId -> Array Plutus.Address -> BalanceTxConstraintsBuilder
-mustUseUtxosAtAddresses networkId =
-  wrap <<< setJust _srcAddresses <<< map (fromPlutusAddress networkId)
+  :: Array Address -> BalanceTxConstraintsBuilder
+mustUseUtxosAtAddresses =
+  wrap <<< setJust _srcAddresses
 
 -- | Tells the balancer to use UTxO's at a given address.
 -- | If this constraint is not set, then the default addresses owned by the
@@ -152,9 +147,9 @@ mustUseUtxosAtAddresses networkId =
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddress
-  :: Plutus.AddressWithNetworkTag -> BalanceTxConstraintsBuilder
-mustUseUtxosAtAddress (Plutus.AddressWithNetworkTag { address, networkId }) =
-  mustUseUtxosAtAddresses networkId (Array.singleton address)
+  :: Address -> BalanceTxConstraintsBuilder
+mustUseUtxosAtAddress address =
+  mustUseUtxosAtAddresses (Array.singleton address)
 
 -- | Tells the balancer to split change outputs and equipartition change `Value`
 -- | between them if the total change `Value` contains token quantities

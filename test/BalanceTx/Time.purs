@@ -2,6 +2,8 @@ module Test.Ctl.BalanceTx.Time (suite) where
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromInt, toInt) as BigNum
 import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
 import Contract.ScriptLookups
@@ -26,8 +28,6 @@ import Contract.TxConstraints (mustValidateIn)
 import Contract.UnbalancedTx (mkUnbalancedTxE)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromInt, toInt) as BigNum
 import Ctl.Internal.Types.Interval (Interval)
 import Effect.Aff (Aff)
 import Effect.Exception (error)

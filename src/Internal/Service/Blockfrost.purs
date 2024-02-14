@@ -81,6 +81,9 @@ import Affjax.RequestBody (RequestBody, arrayView, string) as Affjax
 import Affjax.RequestHeader (RequestHeader(ContentType, RequestHeader)) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode)) as Affjax
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum as BigNum
 import Contract.RewardAddress
   ( rewardAddressToBech32
   , stakePubKeyHashRewardAddress
@@ -121,7 +124,7 @@ import Ctl.Internal.Cardano.Types.Transaction
 import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
 import Ctl.Internal.Cardano.Types.Value
   ( lovelaceValueOf
-  , mkSingletonNonAdaAsset
+  , mkSingletonMultiAsset
   , mkValue
   ) as Value
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
@@ -132,7 +135,6 @@ import Ctl.Internal.Contract.QueryHandle.Error
       , GetTxMetadataMetadataEmptyOrMissingError
       )
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Deserialization.PlutusData (deserializeData)
 import Ctl.Internal.Deserialization.Transaction
   ( convertGeneralTransactionMetadata
@@ -181,10 +183,7 @@ import Ctl.Internal.Service.Helpers
   , decodeAssetClass
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex)
-import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
+import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
 import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
 import Ctl.Internal.Types.Epoch (Epoch(Epoch))
@@ -204,7 +203,6 @@ import Ctl.Internal.Types.ProtocolParameters
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel
   )
-import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Types.Scripts
@@ -225,6 +223,7 @@ import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
 import Data.BigNumber (BigNumber, toFraction)
 import Data.BigNumber as BigNumber
+import Data.ByteArray (ByteArray, byteArrayToHex)
 import Data.DateTime.Instant (instant, toDateTime)
 import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (fold)
@@ -395,14 +394,14 @@ realizeEndpoint endpoint =
     SubmitTransaction ->
       "/tx/submit"
     Transaction txHash ->
-      "/txs/" <> byteArrayToHex (unwrap txHash)
+      "/txs/" <> byteArrayToHex (toBytes $ unwrap txHash)
     TransactionMetadata txHash ->
-      "/txs/" <> byteArrayToHex (unwrap txHash) <> "/metadata/cbor"
+      "/txs/" <> byteArrayToHex (toBytes $ unwrap txHash) <> "/metadata/cbor"
     UtxosAtAddress address page count ->
       "/addresses/" <> addressBech32 address <> "/utxos?page=" <> show page
         <> ("&count=" <> show count)
     UtxosOfTransaction txHash ->
-      "/txs/" <> byteArrayToHex (unwrap txHash) <> "/utxos"
+      "/txs/" <> byteArrayToHex (toBytes $ unwrap txHash) <> "/utxos"
     PoolIds page count ->
       "/pools?page=" <> show page <> "&count=" <> show count <> "&order=asc"
     PoolParameters poolPubKeyHash ->
@@ -645,14 +644,14 @@ submitTx
   -> BlockfrostServiceM (Either ClientError TransactionHash)
 submitTx tx = do
   cslTx <- liftEffect $ Serialization.convertTransaction tx
-  handleBlockfrostResponse <$> request (Serialization.toBytes cslTx)
+  handleBlockfrostResponse <$> request (toBytes cslTx)
   where
   request
-    :: CborBytes
+    :: ByteArray
     -> BlockfrostServiceM (Either Affjax.Error (Affjax.Response String))
   request cbor =
     blockfrostPostRequest SubmitTransaction (MediaType "application/cbor")
-      (Just $ Affjax.arrayView $ unwrap $ unwrap cbor)
+      (Just $ Affjax.arrayView $ unwrap cbor)
 
 evaluateTx
   :: Transaction -> AdditionalUtxoSet -> BlockfrostServiceM TxEvaluationR
@@ -672,7 +671,7 @@ evaluateTx tx additionalUtxos = do
     blockfrostPostRequest EvaluateTransaction MediaType.applicationJSON
       ( Just $ Affjax.string $ stringifyAeson $
           encodeAeson
-            { cbor: cborBytesToHex $ Serialization.toBytes cslTx
+            { cbor: byteArrayToHex $ toBytes cslTx
             , additionalUtxoSet: additionalUtxos
             }
       )
@@ -1182,7 +1181,7 @@ instance DecodeAeson BlockfrostTransactionOutput where
           assetString -> do
             let { before: csStr, after: tnStr } = String.splitAt 56 assetString
             decodeAssetClass assetString csStr tnStr <#> \(cs /\ tn) ->
-              Value.mkValue mempty $ Value.mkSingletonNonAdaAsset cs tn quantity
+              Value.mkValue mempty $ Value.mkSingletonMultiAsset cs tn quantity
 
     decodeOutputDatum :: Object Aeson -> Either JsonDecodeError OutputDatum
     decodeOutputDatum obj =
@@ -1360,7 +1359,7 @@ instance DecodeAeson BlockfrostMetadata where
     \(metadatas :: Array { metadata :: CborBytes }) -> do
       metadatas' <- for metadatas \{ metadata } -> do
         map (unwrap <<< convertGeneralTransactionMetadata) <$> flip note
-          (fromBytes metadata) $
+          (fromBytes $ unwrap metadata) $
           TypeMismatch "Hexadecimal encoded Metadata"
 
       pure $ BlockfrostMetadata $ GeneralTransactionMetadata $ Map.unions

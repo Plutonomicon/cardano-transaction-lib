@@ -5,7 +5,7 @@ module Ctl.Internal.Plutus.Types.Address
   , getAddress
   , pubKeyHashAddress
   , scriptHashAddress
-  , toPubKeyHash
+  -- , toPubKeyHash
   , toValidatorHash
   , toStakingCredential
   ) where
@@ -20,6 +20,9 @@ import Aeson
   , encodeAeson
   , (.:)
   )
+import Cardano.Plutus.Types.PubKeyHash (PubKeyHash(..))
+import Cardano.Types.NetworkId (NetworkId)
+import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash(..))
 import Ctl.Internal.FromData (class FromData, genericFromData)
 import Ctl.Internal.Plutus.Types.Credential
   ( Credential(PubKeyCredential, ScriptCredential)
@@ -33,13 +36,8 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , I
   , PNil
   )
-import Ctl.Internal.Serialization.Address (NetworkId)
 import Ctl.Internal.ToData (class ToData, genericToData)
 import Ctl.Internal.TypeLevel.Nat (Z)
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash
-  )
 import Ctl.Internal.Types.Scripts (ValidatorHash)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
@@ -125,7 +123,7 @@ instance EncodeAeson Address where
 -- | by the public key with the given hash.
 pubKeyHashAddress :: PaymentPubKeyHash -> Maybe Credential -> Address
 pubKeyHashAddress (PaymentPubKeyHash pkh) mbStakeCredential = wrap
-  { addressCredential: PubKeyCredential pkh
+  { addressCredential: PubKeyCredential $ wrap pkh
   , addressStakingCredential:
       map StakingHash mbStakeCredential
   }
@@ -138,12 +136,12 @@ scriptHashAddress vh mbStakeCredential = wrap
   , addressStakingCredential: map StakingHash mbStakeCredential
   }
 
--- | The PubKeyHash of the address (if any).
-toPubKeyHash :: Address -> Maybe PubKeyHash
-toPubKeyHash addr =
-  case (unwrap addr).addressCredential of
-    PubKeyCredential k -> Just k
-    _ -> Nothing
+-- -- | The PubKeyHash of the address (if any).
+-- toPubKeyHash :: Address -> Maybe PubKeyHash
+-- toPubKeyHash addr =
+--   case (unwrap addr).addressCredential of
+--     PubKeyCredential k -> Just k
+--     _ -> Nothing
 
 -- | The validator hash of the address (if any).
 toValidatorHash :: Address -> Maybe ValidatorHash

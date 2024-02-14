@@ -10,16 +10,18 @@ module Ctl.Internal.Deserialization.WitnessSet
 
 import Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (toBigInt) as BigNum
+import Cardano.Types.PlutusData (PlutusData) as T
+import Cardano.Types.PlutusScript as S
+import Cardano.Types.Vkey as T
 import Ctl.Internal.Cardano.Types.NativeScript (NativeScript) as T
 import Ctl.Internal.Cardano.Types.Transaction
   ( BootstrapWitness
   , ExUnits
   , Redeemer(Redeemer)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  , mkFromCslEd25519Signature
-  , mkFromCslPubKey
   ) as T
 import Ctl.Internal.Deserialization.Language (convertLanguage)
 import Ctl.Internal.Deserialization.NativeScript (convertNativeScript)
@@ -46,13 +48,10 @@ import Ctl.Internal.Serialization.Types
   , Vkeywitness
   , Vkeywitnesses
   )
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (toBigInt) as BigNum
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.PlutusData (PlutusData) as T
 import Ctl.Internal.Types.RedeemerTag as Tag
-import Ctl.Internal.Types.Scripts (PlutusScript(PlutusScript)) as S
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
+import Data.Newtype (wrap)
 import Data.Tuple (curry)
 import Data.Tuple.Nested ((/\))
 import Effect.Exception (throw)
@@ -85,12 +84,12 @@ convertVkeyWitness witness =
   let
     vkey = getVkey witness
     publicKey = convertVkey vkey
-    signature = T.mkFromCslEd25519Signature $ getSignature witness
+    signature = wrap $ getSignature witness
   in
     T.Vkeywitness $ publicKey /\ signature
 
 convertVkey :: Vkey -> T.Vkey
-convertVkey = T.Vkey <<< T.mkFromCslPubKey <<< vkeyPublicKey
+convertVkey = T.Vkey <<< wrap <<< vkeyPublicKey
 
 convertNativeScripts :: NativeScripts -> Array T.NativeScript
 convertNativeScripts nativeScripts =
@@ -99,7 +98,7 @@ convertNativeScripts nativeScripts =
 convertBootstraps :: BootstrapWitnesses -> Array T.BootstrapWitness
 convertBootstraps = extractBootstraps >>> map \bootstrap ->
   { vkey: convertVkey $ getBootstrapVkey bootstrap
-  , signature: T.mkFromCslEd25519Signature $ getBootstrapSignature bootstrap
+  , signature: wrap $ getBootstrapSignature bootstrap
   , chainCode: getBootstrapChainCode bootstrap
   , attributes: getBootstrapAttributes bootstrap
   }

@@ -39,7 +39,7 @@ runKeyWalletContract_ contract =
       let
         cfg = testnetConfig
           { walletSpec = Just $ UseKeys
-              (PrivatePaymentKeyValue $ wrap privateKey)
+              (PrivatePaymentKeyValue $ wrap $ wrap privateKey)
               Nothing
           , customLogger = Just printLog
           }

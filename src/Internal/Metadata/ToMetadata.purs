@@ -5,11 +5,11 @@ module Ctl.Internal.Metadata.ToMetadata
 
 import Prelude
 
-import Ctl.Internal.Types.ByteArray (ByteArray)
 import Ctl.Internal.Types.Int (Int, fromBigInt) as Int
 import Ctl.Internal.Types.TransactionMetadata
   ( TransactionMetadatum(MetadataMap, MetadataList, Int, Bytes, Text)
   )
+import Data.ByteArray (ByteArray)
 import Data.Map (Map)
 import Data.Map (fromFoldable, toUnfoldable) as Map
 import Data.Maybe (fromJust)

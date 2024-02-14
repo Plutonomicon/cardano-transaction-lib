@@ -243,6 +243,25 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
         , version = "d72e51fbc0255eb3246c9132d295de7f65e16a99"
         }
+      , bytearrays =
+        { dependencies =
+          [ "aeson"
+          , "aff"
+          , "arraybuffer-types"
+          , "effect"
+          , "either"
+          , "foldable-traversable"
+          , "maybe"
+          , "newtype"
+          , "prelude"
+          , "quickcheck"
+          , "quickcheck-laws"
+          , "spec"
+          , "strings"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-bytearrays"
+        , version = "e3991d562a04d8825472551d91a06407ad9c9112"
+        }
       }
 
 in  upstream // additions

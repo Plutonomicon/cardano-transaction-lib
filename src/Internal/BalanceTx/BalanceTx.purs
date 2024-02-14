@@ -4,6 +4,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Log (logWarn')
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
@@ -99,11 +100,11 @@ import Ctl.Internal.Cardano.Types.Value
   , Value(Value)
   , coinToValue
   , equipartitionValueWithTokenQuantityUpperBound
-  , getNonAdaAsset
+  , getMultiAsset
   , lovelaceValueOf
   , minus
   , mkValue
-  , posNonAdaAsset
+  , posMultiAsset
   , pprintValue
   , valueToCoin'
   )
@@ -128,7 +129,6 @@ import Ctl.Internal.Types.Scripts
   ( Language(PlutusV1)
   , PlutusScript(PlutusScript)
   )
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty
@@ -535,7 +535,7 @@ addLovelacesToTransactionOutput txOutput = do
     newCoin = Coin $ max (valueToCoin' txOutputValue) txOutputMinAda
 
   pure $ wrap txOutputRec
-    { amount = mkValue newCoin (getNonAdaAsset txOutputValue) }
+    { amount = mkValue newCoin (getMultiAsset txOutputValue) }
 
 setTxChangeOutputs
   :: Array TransactionOutput -> UnindexedTx -> UnindexedTx
@@ -650,7 +650,7 @@ makeChange
 
   posValue :: Value -> Value
   posValue (Value (Coin coin) nonAdaAsset) =
-    mkValue (Coin $ max coin zero) (posNonAdaAsset nonAdaAsset)
+    mkValue (Coin $ max coin zero) (posMultiAsset nonAdaAsset)
 
 -- | Constructs change outputs for an asset.
 -- |

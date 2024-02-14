@@ -49,7 +49,6 @@ import Ctl.Internal.Contract.Wallet
   , ownStakePubKeyHashes
   )
 import Ctl.Internal.Contract.Wallet as Contract
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as X
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Plutus.Conversion
   ( toPlutusAddress

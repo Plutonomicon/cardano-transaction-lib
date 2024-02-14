@@ -6,6 +6,8 @@ module Ctl.Internal.NativeScripts
 
 import Prelude
 
+import Cardano.Serialization.Lib (nativeScript_hash)
+import Cardano.Types.NativeScript as NativeScript
 import Ctl.Internal.Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -18,7 +20,6 @@ import Ctl.Internal.Cardano.Types.NativeScript
   )
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
 import Ctl.Internal.Serialization.Hash as Hashing
-import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
 import Data.Array as Array
 import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)
@@ -39,7 +40,7 @@ instance Show NativeScriptHash where
   show (NativeScriptHash sh) = "(NativeScriptHash " <> show sh <> ")"
 
 nativeScriptHash :: NativeScript -> NativeScriptHash
-nativeScriptHash = wrap <<< Hashing.nativeScriptHash <<< convertNativeScript
+nativeScriptHash = wrap <<< wrap <<< nativeScript_hash <<< NativeScript.toCsl
 
 -- | `SetChoice` is an internal type representing internal state of
 -- | `getMaximumSigners` algorithm.

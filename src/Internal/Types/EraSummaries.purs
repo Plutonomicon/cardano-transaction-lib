@@ -18,8 +18,8 @@ import Aeson
   , finiteNumber
   , getField
   )
+import Cardano.Types.Slot (Slot)
 import Ctl.Internal.Helpers (showWithParens)
-import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Ctl.Internal.Types.Epoch (Epoch)
 import Data.Generic.Rep (class Generic)

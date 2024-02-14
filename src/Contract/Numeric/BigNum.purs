@@ -1,6 +1,6 @@
 module Contract.Numeric.BigNum (module X) where
 
-import Ctl.Internal.Types.BigNum
+import Cardano.Types.BigNum
   ( BigNum
   , add
   , fromBigInt

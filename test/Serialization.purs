@@ -2,29 +2,25 @@ module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PublicKey
-  , Transaction
-  , convertPubKey
-  , mkFromCslPubKey
-  , mkPublicKey
-  )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
+import Cardano.Serialization.Lib (fromBytes, publicKey_fromBytes, toBytes)
+import Cardano.Types.BigNum (fromString, one) as BN
+import Cardano.Types.PlutusData as PD
+import Contract.Keys (publicKeyFromBech32)
+import Ctl.Internal.Cardano.Types.Transaction (PublicKey, Transaction)
 import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, serializeData, toBytes)
+import Ctl.Internal.Serialization (convertTxOutput, serializeData)
 import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
 import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
 import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromString, one) as BN
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Ctl.Internal.Types.CborBytes (cborBytesToHex)
-import Ctl.Internal.Types.PlutusData as PD
+import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
+import Data.Nullable (toMaybe)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -47,7 +43,7 @@ import Test.Ctl.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.Ctl.Utils (errMaybe)
+import Test.Ctl.Utils (errMaybe, fromBytesEffect)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -58,23 +54,25 @@ suite = do
         let
           pkStr =
             "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-          mPk = mkPublicKey pkStr
+          mPk = publicKeyFromBech32 pkStr
 
         pk <- liftM
           (error $ "Failed to create PubKey from bech32string: " <> pkStr)
           mPk
 
         let
-          pkBytes = bytesFromPublicKey $ convertPubKey pk
-          (pk'' :: Maybe PublicKey) = mkFromCslPubKey <$> fromBytes
-            (wrap $ unwrap pkBytes)
+          pkBytes = bytesFromPublicKey $ unwrap pk
+          (pk'' :: Maybe PublicKey) = wrap <$> toMaybe
+            ( publicKey_fromBytes
+                $ unwrap pkBytes
+            )
 
         pk'' `shouldSatisfy` isJust
       test "newTransactionHash" do
         let
           txString =
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
-          txBytes = wrap $ hexToByteArrayUnsafe txString
+          txBytes = hexToByteArrayUnsafe txString
         _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
         pure unit
       test "PlutusData #1 - Constr" $ do
@@ -118,7 +116,7 @@ suite = do
       test "TransactionOutput serialization" $ liftEffect do
         txo <- convertTxOutput txOutputFixture1
         let bytes = toBytes txo
-        byteArrayToHex (unwrap bytes) `shouldEqual` txOutputBinaryFixture1
+        byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $
         serializeTX txFixture1 txBinaryFixture1
       test "Transaction serialization #2 - tokens" $
@@ -160,7 +158,7 @@ serializeTX tx fixture =
   liftEffect $ do
     cslTX <- TS.convertTransaction $ tx
     let bytes = toBytes cslTX
-    byteArrayToHex (unwrap bytes) `shouldEqual` fixture
+    byteArrayToHex bytes `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
