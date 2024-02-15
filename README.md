@@ -11,7 +11,7 @@
 [docs badge]: https://img.shields.io/badge/docs-PureScript%20code%20documentation-%2377F
 [docs link]: https://plutonomicon.github.io/cardano-transaction-lib/
 
-**cardano-transaction-lib** (CTL) is a Purescript library for building smart contract transactions on Cardano. It aims to port the functionality and interface of Plutus off-chain code to the browser environment and NodeJS.
+**cardano-transaction-lib** (CTL) is a Purescript framework for building smart contract transactions on Cardano. It belongs to the the same category of tools as Lucid, Mesh.js, Atlas, Plutus Application Backend (PAB).
 
 **Table of Contents**
 
