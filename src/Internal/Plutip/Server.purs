@@ -1,12 +1,13 @@
 module Ctl.Internal.Plutip.Server
-  ( runPlutipContract
-  , withPlutipContractEnv
+  ( checkPlutipServer
+  , runPlutipContract
+  , runPlutipTestPlan
   , startPlutipCluster
-  , stopPlutipCluster
   , startPlutipServer
-  , checkPlutipServer
   , stopChildProcessWithPort
+  , stopPlutipCluster
   , testPlutipContracts
+  , withPlutipContractEnv
   ) where
 
 import Prelude
@@ -157,8 +158,18 @@ testPlutipContracts
   -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
+  plutipTestPlan <- lift $ execDistribution tp
+  runPlutipTestPlan plutipCfg plutipTestPlan
+
+-- | Run a `ContractTestPlan` in a (single) Plutip environment.
+-- | Supports wallet reuse - see docs on sharing wallet state between
+-- | wallets in `doc/plutip-testing.md`.
+runPlutipTestPlan
+  :: PlutipConfig
+  -> ContractTestPlan
+  -> TestPlanM (Aff Unit) Unit
+runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
   -- Modify tests to pluck out parts of a single combined distribution
-  ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
   runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     -- Sets a single Mote bracket at the top level, it will be run for all
