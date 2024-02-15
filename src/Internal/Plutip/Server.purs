@@ -162,6 +162,8 @@ testPlutipContracts plutipCfg tp = do
   runPlutipTestPlan plutipCfg plutipTestPlan
 
 -- | Run a `ContractTestPlan` in a (single) Plutip environment.
+-- | Supports wallet reuse - see docs on sharing wallet state between
+-- | wallets in `doc/plutip-testing.md`.
 runPlutipTestPlan
   :: PlutipConfig
   -> ContractTestPlan

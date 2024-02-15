@@ -5,21 +5,21 @@ module Contract.Test.Plutip
   , PlutipTestPlan
   , defaultPlutipConfig
   , module X
-  , runPlutipTestPlan
-  , testPlutipContracts
   ) where
-
-import Prelude
 
 import Contract.Monad (runContractInEnv) as X
 import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
-import Ctl.Internal.Plutip.Server (runPlutipContract, withPlutipContractEnv) as X
-import Ctl.Internal.Plutip.Server (runPlutipTestPlan, testPlutipContracts) as Server
+import Ctl.Internal.Plutip.Server
+  ( runPlutipContract
+  , withPlutipContractEnv
+  , runPlutipTestPlan
+  , testPlutipContracts
+  ) as X
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.Types (PlutipConfig) as X
 import Ctl.Internal.Test.ContractTest (ContractTest)
-import Ctl.Internal.Test.ContractTest (ContractTest, ContractTestPlan) as Server
+import Ctl.Internal.Test.ContractTest (ContractTestPlan) as Server
 import Ctl.Internal.Test.ContractTest
   ( noWallet
   , sameWallets
@@ -37,22 +37,6 @@ import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing))
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt as UInt
-import Effect.Aff (Aff)
-import Mote (MoteT)
-
--- | Run `Contract`s in tests in a single Plutip instance.
-testPlutipContracts
-  :: PlutipConfig
-  -> MoteT Aff Server.ContractTest Aff Unit
-  -> MoteT Aff (Aff Unit) Aff Unit
-testPlutipContracts = Server.testPlutipContracts
-
--- | Run `ContractTestPlan` tests in a single Plutip instance.
-runPlutipTestPlan
-  :: PlutipConfig
-  -> Server.ContractTestPlan
-  -> MoteT Aff (Aff Unit) Aff Unit
-runPlutipTestPlan = Server.runPlutipTestPlan
 
 -- | Type synonym for backwards compatibility.
 type PlutipTest = ContractTest
