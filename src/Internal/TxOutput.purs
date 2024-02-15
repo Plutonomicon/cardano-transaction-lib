@@ -11,7 +11,7 @@ import Prelude
 
 import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Cardano.Types.Address as Address
-import Cardano.Types.AsCbor (decodeCbor, encodeCbor)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.OutputDatum
   ( OutputDatum(..)
   , outputDatumDataHash

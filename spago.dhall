@@ -18,6 +18,7 @@ You can edit this file as you like.
   , "bifunctors"
   , "bignumber"
   , "bytearrays"
+  , "cardano-types"
   , "checked-exceptions"
   , "cip30"
   , "cip30-typesafe"

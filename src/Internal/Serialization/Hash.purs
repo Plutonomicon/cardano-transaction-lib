@@ -16,7 +16,7 @@ import Aeson
 import Cardano.Serialization.Lib (fromBytes, nativeScript_hash, toBytes)
 import Cardano.Serialization.Lib as CSL
 import Cardano.Serialization.Lib as Csl
-import Cardano.Types.AsCbor (decodeCbor, encodeCbor)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.Ed25519KeyHash as X
 import Cardano.Types.PlutusData (PlutusData(Bytes))
 import Cardano.Types.ScriptHash as X

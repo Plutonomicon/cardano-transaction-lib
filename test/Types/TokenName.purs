@@ -2,7 +2,7 @@ module Test.Ctl.Types.TokenName (suite) where
 
 import Prelude
 
-import Cardano.Types.AssetName (mkTokenName)
+import Cardano.Types.AssetName (mkAssetName)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (isJust)
@@ -25,10 +25,10 @@ suite = do
               mayTkName `shouldSatisfy` isJust
             toFromAesonTest "Should roundtrip successfully" mayTkName
       toFromAesonTest "\\NUL\\NUL\\NUL Should roundtrip successfully"
-        (mkTokenNameFromHex "\x0\x0\x0")
+        (mkAssetNameFromHex "\x0\x0\x0")
   where
-  mkTokenNameFromHex = mkTokenName <<< hexToByteArrayUnsafe
-  tkNamesWithInvalidUtf8 = mkTokenNameFromHex <$>
+  mkAssetNameFromHex = mkAssetName <<< hexToByteArrayUnsafe
+  tkNamesWithInvalidUtf8 = mkAssetNameFromHex <$>
     [ "388178ead6628e2ff3faae2148ec906eb686b3661549c8581cd427433ffd9cf3"
     -- NOTE: Adopted from https://www.php.net/manual/en/reference.pcre.pattern.modifiers.php#54805
     , "c328"

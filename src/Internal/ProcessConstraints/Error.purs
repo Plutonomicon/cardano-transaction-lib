@@ -5,7 +5,7 @@ import Prelude
 import Cardano.Serialization.Lib (toBytes)
 import Cardano.Types.Address (Address)
 import Cardano.Types.Address as Address
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.AssetName (AssetName, fromAssetName)
 import Cardano.Types.PlutusScript (PlutusScript(..))
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash(..))

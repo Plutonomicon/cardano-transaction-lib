@@ -27,7 +27,7 @@ import Aeson
   , (.:?)
   )
 import Aeson as Aeson
-import Cardano.Types.AsCbor (decodeCbor, encodeCbor)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.AssetName (mkAssetName, unAssetName)
 import Cardano.Types.PlutusData (PlutusData(Map, Integer))
 import Control.Alt ((<|>))

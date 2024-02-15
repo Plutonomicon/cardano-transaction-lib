@@ -3,7 +3,7 @@ module Ctl.Internal.Wallet.Cip30.SignData (signData) where
 import Prelude
 
 import Cardano.Types.Address (Address)
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Ctl.Internal.Serialization.Keys
   ( bytesFromPublicKey
   , publicKeyFromPrivateKey

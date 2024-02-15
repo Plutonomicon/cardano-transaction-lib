@@ -95,7 +95,7 @@ import Aeson
   , (.:?)
   )
 import Cardano.Serialization.Lib (fromBytes)
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.AssetName (unAssetName)
 import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum (fromBigInt, fromString) as BigNum

@@ -12,7 +12,7 @@ module Ctl.Internal.Plutus.Types.Transaction
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData (PlutusData(Constr))
 import Cardano.Types.TransactionInput (TransactionInput)

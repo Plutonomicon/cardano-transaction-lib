@@ -8,7 +8,7 @@ import Prelude
 
 import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Cardano.Types.Address (Address)
-import Cardano.Types.AsCbor (decodeCbor, encodeCbor)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOuput
 import Cardano.Types.TransactionUnspentOutput as UnspentOutput

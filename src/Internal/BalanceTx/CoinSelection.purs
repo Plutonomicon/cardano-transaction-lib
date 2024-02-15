@@ -21,7 +21,7 @@ module Ctl.Internal.BalanceTx.CoinSelection
 
 import Prelude
 
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.Asset (Asset(..))
 import Cardano.Types.AssetName (unAssetName) as AssetName
 import Cardano.Types.BigNum (BigNum(..))

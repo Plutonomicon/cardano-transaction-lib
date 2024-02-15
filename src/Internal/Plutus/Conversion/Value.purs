@@ -5,7 +5,7 @@ module Ctl.Internal.Plutus.Conversion.Value
 
 import Prelude
 
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.AssetName (unAssetName)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset (MultiAsset(MultiAsset))

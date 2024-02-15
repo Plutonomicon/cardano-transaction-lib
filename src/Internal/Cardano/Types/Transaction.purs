@@ -99,7 +99,7 @@ import Cardano.Serialization.Lib
   )
 import Cardano.Serialization.Lib as Csl
 import Cardano.Types.Address as Address
-import Cardano.Types.AsCbor (encodeCbor)
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.Coin (Coin)
 import Cardano.Types.Ed25519Signature (Ed25519Signature(..))

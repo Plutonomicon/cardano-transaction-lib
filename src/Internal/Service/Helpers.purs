@@ -14,7 +14,7 @@ import Aeson
   , caseAesonObject
   , caseAesonString
   )
-import Cardano.Types.AsCbor (decodeCbor)
+import Cardano.AsCbor (decodeCbor)
 import Cardano.Types.AssetName (AssetName, mkAssetName)
 import Cardano.Types.ScriptHash (ScriptHash)
 import Control.Apply (lift2)
