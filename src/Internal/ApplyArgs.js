@@ -1,12 +1,11 @@
 /* global BROWSER_RUNTIME */
 
-let lib;
+import * as lib from "@mlabs-haskell/cardano-serialization-lib-gc";
+
 let apply_args;
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-browser");
   apply_args = await import("apply-args-browser");
 } else {
-  lib = await import("@mlabs-haskell/cardano-serialization-lib-gc-nodejs");
   apply_args = await import("apply-args-nodejs");
 }
 
