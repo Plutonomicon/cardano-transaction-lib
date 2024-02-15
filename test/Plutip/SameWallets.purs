@@ -24,8 +24,11 @@ suite :: PlutipTestPlan
 suite =
   let
     distribution :: InitialUTxOs /\ InitialUTxOs
-    distribution = [ BigInt.fromInt 1_000_000_000 ] /\
-      [ BigInt.fromInt 1_000_000_000 ]
+    distribution =
+      -- Alice
+      [ BigInt.fromInt 1_000_000_000 ] /\
+        -- Bob
+        [ BigInt.fromInt 1_000_000_000 ]
 
     tokenNameAscii :: String
     tokenNameAscii = "CTLNFT"
