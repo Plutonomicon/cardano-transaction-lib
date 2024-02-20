@@ -1,17 +1,8 @@
-/* global BROWSER_RUNTIME */
-
-// `TextDecoder` is not available in `node`, use polyfill in that case
-let OurTextDecoder;
-if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
-  const util = await import("util");
-  OurTextDecoder = util.TextDecoder;
-} else {
-  OurTextDecoder = TextDecoder;
-}
+import { TextDecoder } from "web-encoding";
 
 export function _decodeUtf8(buffer) {
   return left => right => {
-    let decoder = new OurTextDecoder("utf-8", { fatal: true }); // Without fatal=true it never fails
+    let decoder = new TextDecoder("utf-8", { fatal: true }); // Without fatal=true it never fails
 
     try {
       return right(decoder.decode(buffer));
