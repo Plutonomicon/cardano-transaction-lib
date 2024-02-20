@@ -1,5 +1,3 @@
-/* global BROWSER_RUNTIME */
-
 import ReconnectingWebSocket from "reconnecting-websocket";
 import WebSocket from "isomorphic-ws";
 

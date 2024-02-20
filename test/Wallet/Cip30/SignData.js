@@ -1,13 +1,5 @@
-/* global BROWSER_RUNTIME */
-
 import * as csl from "@mlabs-haskell/cardano-serialization-lib-gc";
-
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@emurgo/cardano-message-signing-browser");
-} else {
-  lib = await import("@emurgo/cardano-message-signing-nodejs");
-}
+import * as lib from "@mlabs-haskell/cardano-message-signing";
 
 function opt_chain(maybe, obj) {
   const isNothing = x => x === null || x === undefined;
