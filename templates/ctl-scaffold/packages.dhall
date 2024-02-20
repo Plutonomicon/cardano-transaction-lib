@@ -298,7 +298,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "c4dd41c0e6fe1392ee9a88fa26b4f94db99eadb0"
+        , version = "20535070047381bea129a4130aaee23db2439fa6"
         }
       , js-bigints =
         { dependencies = [ "integers", "maybe", "prelude" ]
