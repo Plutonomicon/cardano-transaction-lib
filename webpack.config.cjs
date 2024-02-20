@@ -58,9 +58,6 @@ module.exports = env => {
     },
 
     plugins: [
-      new webpack.DefinePlugin({
-        BROWSER_RUNTIME: isBrowser
-      }),
       new webpack.LoaderOptionsPlugin({
         debug: true
       }),

@@ -7,9 +7,6 @@ export const buildOptions = ({ entryPoint, outfile }) => {
   const config = {
     entryPoints: [entryPoint],
     outfile: outfile,
-    define: {
-      BROWSER_RUNTIME: isBrowser ? "true" : '""'
-    },
     plugins: [
       wasmLoader({
         mode: "deferred"
