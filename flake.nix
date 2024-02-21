@@ -35,7 +35,11 @@
     cardano-node.url = "github:input-output-hk/cardano-node/8.7.3";
     # Repository with network parameters
     # NOTE: It must follow cardano-node releases
-    cardano-world.url = "github:IntersectMBO/cardano-world";
+    cardano-world = {
+      url = "github:IntersectMBO/cardano-world";
+      # We only need source files, so we can skip the flake
+      flake = false;
+    };
 
     ogmios-nixos.url = "github:Fourierlabs/ogmios-nixos";
 
