@@ -29311,14 +29311,19 @@
         ],
         "cardano-world": "cardano-world_3",
         "iogx": "iogx_4",
+        "nixpkgs": [
+          "ogmios-nixos",
+          "iogx",
+          "nixpkgs"
+        ],
         "ogmios": "ogmios_4"
       },
       "locked": {
-        "lastModified": 1708543315,
-        "narHash": "sha256-vgMQBxqllCiQFjvxd8EuVbXPs0Qvmnkkq/Q0J7SNbzE=",
+        "lastModified": 1708555447,
+        "narHash": "sha256-urLJbZS5OLB80luEShUgTm79/RFYOFhqjWyAEP4oZ7E=",
         "owner": "Fourierlabs",
         "repo": "ogmios-nixos",
-        "rev": "9475b6c7d517c9411cbc2121a044231d2edb94b1",
+        "rev": "bc1dda31ee78493806e19d018291acef70f63d9c",
         "type": "github"
       },
       "original": {
