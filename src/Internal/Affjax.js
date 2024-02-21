@@ -2,15 +2,6 @@ export const driver = nodeDriver;
 
 // we rely on the bundler to inject polyfills for the browser
 
-// const browserDriver = {
-//   newXHR: function () {
-//     return new XMLHttpRequest();
-//   },
-//   fixupUrl: function (url) {
-//     return url || "/";
-//   }
-// };
-
 async function nodeDriver() {
   const { default: XHR } = await import("xhr2");
   const { default: urllib } = await import("url");

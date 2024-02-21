@@ -13,7 +13,8 @@ js-sources := $(shell fd --no-ignore-parent -ejs -ecjs)
 ps-entrypoint := Scaffold.Test.E2E.Serve
 # The entry point function in the main PureScript module
 ps-entrypoint-function := main
-# Whether to bundle for the browser
+# Whether to bundle for the browser ("1") or the node ("")
+# NOTE: bundling for the node is not necessary, see https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/using-from-js.md
 browser-runtime := 1 # Use "1" for true and "" for false
 
 preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r '.[0].Mountpoint')

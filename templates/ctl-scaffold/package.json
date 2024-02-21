@@ -3,7 +3,7 @@
   "name": "ctl-scaffold",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "./output/Scaffold.Main/index.js",
   "directories": {
     "test": "test"
   },

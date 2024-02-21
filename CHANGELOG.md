@@ -80,6 +80,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Removed
 
+- **[IMPORTANT]** Removed use of conditional code rewriting based on `BROWSER_RUNTIME` env variable during bundling ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1598))
+
+This change simplifies the bundling process, but it requires a number of updates for all CTL-dependent projects:
+
+  - WebPack users should make this change to the webpack config:
+
+```diff
+    plugins: [
+-      new webpack.DefinePlugin({
+-        BROWSER_RUNTIME: isBrowser
+-      }),
+```
+  - Esbuild users should make this change:
+
+```diff
+  const config = {
+  ...
+-    define: {
+-      BROWSER_RUNTIME: isBrowser ? "true" : '""'
+-    },
+```
+
+  - All users should update the runtime dependencies:
+
+```diff
+-    "@emurgo/cardano-message-signing-browser": "1.0.1",
+-    "@emurgo/cardano-message-signing-nodejs": "1.0.1",
++    "@mlabs-haskell/cardano-message-signing": "1.0.1",
+-    "apply-args-browser": "0.0.1",
+-    "apply-args-nodejs": "0.0.1",
++    "@mlabs-haskell/uplc-apply-args": "1.0.0",
++    "isomorphic-ws": "^5.0.0",
+-    "ws": "8.4.0",
++    "ws": "^8.16.0",
++    "web-encoding": "^1.1.5",
+```
+
 - `ModifyTx` error: made conversion functions total and removed the need to handle it
 
 ## [v7.0.0]
