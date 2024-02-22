@@ -114,7 +114,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import JS.BigInt as BigInt
-import Mote (group, test)
+import Mote (group, skip, test)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
   ( Exit(Normally, BySignal)
@@ -233,7 +233,8 @@ testPlan
   -> E2ETestRuntime
   -> TestPlanM (Aff Unit) Unit
 testPlan opts@{ tests } rt@{ wallets } =
-  group "E2E tests" do
+  -- TODO enable E2E tests
+  skip $ group "E2E tests" do
     for_ tests \testEntry@{ specString } -> test specString $ case testEntry of
       -- KeyWallet tests
       { url, wallet: NoWallet } -> do

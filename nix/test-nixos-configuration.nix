@@ -28,8 +28,8 @@
   services.cardano-node = {
     enable = true;
     systemdSocketActivation = true;
-    nodeConfigFile = "${cardano-world}/docs/environments/mainnet/config.json";
-    topology = "${cardano-world}/docs/environments/mainnet/topology.json";
+    nodeConfigFile = "${cardano-world}/docs/environments/sanchonet/config.json";
+    topology = "${cardano-world}/docs/environments/sanchonet/topology.json";
   };
 
   services.ogmios = {
@@ -43,7 +43,7 @@
     host = "0.0.0.0";
     user = "kupo";
     group = "kupo";
-    nodeConfig = "${cardano-world}/docs/environments/mainnet/config.json";
+    nodeConfig = "${cardano-world}/docs/environments/sanchonet/config.json";
     nodeSocket = "/var/run/cardano-node/node.socket";
   };
 }
