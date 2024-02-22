@@ -111,7 +111,6 @@ import Ctl.Internal.Types.BigNum
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
-  , Seconds(..)
   , fromSeconds
   )
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
@@ -131,13 +130,12 @@ import Data.Lattice
   )
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
 import JS.BigInt (BigInt)
-import JS.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
+import JS.BigInt (fromInt, fromString, toNumber) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
@@ -1004,9 +1002,6 @@ relSlotFromRelTime eraSummary (RelTime relTime) =
     modTime = relTime `mod` slotLength
   in
     (wrap $ relSlot) /\ (wrap $ modTime)
-  where
-  toBigIntUnsafe :: Number -> BigInt
-  toBigIntUnsafe x = unsafePartial $ fromJust $ BigInt.fromNumber x
 
 slotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
