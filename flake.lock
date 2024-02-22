@@ -18354,11 +18354,11 @@
         "kupo": "kupo"
       },
       "locked": {
-        "lastModified": 1706114932,
-        "narHash": "sha256-wdjWIN47dOUI3CsWxXbcW7u8aVAdHefAElZlbcfIJJM=",
+        "lastModified": 1708617921,
+        "narHash": "sha256-iX3F9MHRpCHTu9X80k7ieVytRgCDqXG0KHhV+NxyEuA=",
         "owner": "Fourierlabs",
         "repo": "kupo-nixos",
-        "rev": "3487d48fdac0f32079d3e53b0c9b923a262145ac",
+        "rev": "eef4cfa8954c363593c82f7ab891210654b8226d",
         "type": "github"
       },
       "original": {
