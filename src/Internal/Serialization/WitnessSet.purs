@@ -132,6 +132,8 @@ convertRedeemerTag = _newRedeemerTag <<< case _ of
   Tag.Mint -> "mint"
   Tag.Cert -> "cert"
   Tag.Reward -> "reward"
+  Tag.Vote -> "vote"
+  Tag.Propose -> "propose"
 
 convertExUnits :: T.ExUnits -> Effect ExUnits
 convertExUnits { mem, steps } =

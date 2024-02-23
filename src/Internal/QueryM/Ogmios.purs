@@ -809,12 +809,12 @@ instance DecodeAeson TxEvaluationResult where
 redeemerPtrTypeMismatch :: JsonDecodeError
 redeemerPtrTypeMismatch = TypeMismatch
   "Expected redeemer pointer to be encoded as: \
-  \^(spend|mint|publish|withdraw):[0-9]+$"
+  \^(spend|mint|publish|withdraw|vote|propose):[0-9]+$"
 
 redeemerPtrTypeMismatch_ :: JsonDecodeError
 redeemerPtrTypeMismatch_ = TypeMismatch
   "Expected redeemer pointer to be encoded as: \
-  \^(spend|mint|publish|withdraw)$"
+  \^(spend|mint|publish|withdraw|vote|propose)$"
 
 decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
 decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
