@@ -33,13 +33,6 @@
     };
 
     cardano-node.url = "github:input-output-hk/cardano-node/8.7.3";
-    # Repository with network parameters
-    # NOTE: It must follow cardano-node releases
-    cardano-world = {
-      url = "github:IntersectMBO/cardano-world";
-      # We only need source files, so we can skip the flake
-      flake = false;
-    };
 
     ogmios-nixos.url = "github:Fourierlabs/ogmios-nixos";
 
@@ -48,6 +41,13 @@
     kupo-nixos.url = "github:Fourierlabs/kupo-nixos/add-conway";
     kupo.follows = "kupo-nixos/kupo";
 
+    # Repository with network parameters
+    # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
+    cardano-configurations = {
+      # Override with "path:/path/to/cardano-configurations";
+      url = "github:input-output-hk/cardano-configurations?rev=21249e0d5c68b4e8f3661b250aa8272a8785d678";
+      flake = false;
+    };
     easy-purescript-nix = {
       url = "github:justinwoo/easy-purescript-nix";
       flake = false;
@@ -75,7 +75,7 @@
   outputs =
     { self
     , nixpkgs
-    , cardano-world
+    , cardano-configurations
     , ...
     }@inputs:
     let
@@ -304,7 +304,7 @@
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
-                inherit cardano-world;
+                inherit cardano-configurations;
               }
           );
       };
@@ -500,7 +500,7 @@
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
-          inherit (inputs) cardano-world;
+          inherit (inputs) cardano-configurations;
         };
       };
 

@@ -3664,6 +3664,23 @@
         "type": "github"
       }
     },
+    "cardano-configurations": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1702085095,
+        "narHash": "sha256-IJChESftdO2tj2pRB+82xMaLP/RqyKHzttE7QMLqvBQ=",
+        "owner": "input-output-hk",
+        "repo": "cardano-configurations",
+        "rev": "21249e0d5c68b4e8f3661b250aa8272a8785d678",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "cardano-configurations",
+        "rev": "21249e0d5c68b4e8f3661b250aa8272a8785d678",
+        "type": "github"
+      }
+    },
     "cardano-db-sync": {
       "inputs": {
         "customConfig": "customConfig_4",
@@ -4768,22 +4785,6 @@
       }
     },
     "cardano-world": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1705019584,
-        "narHash": "sha256-/7bnHfHl+QBX8SrlToFPFa/nVsEkq5PGWJ1dV+hdtbY=",
-        "owner": "IntersectMBO",
-        "repo": "cardano-world",
-        "rev": "f3a0856c7cb55fd509dc233dd9ef8fc7d4dc5a66",
-        "type": "github"
-      },
-      "original": {
-        "owner": "IntersectMBO",
-        "repo": "cardano-world",
-        "type": "github"
-      }
-    },
-    "cardano-world_2": {
       "inputs": {
         "bitte": "bitte",
         "bitte-cells": "bitte-cells",
@@ -4828,7 +4829,7 @@
         "type": "github"
       }
     },
-    "cardano-world_3": {
+    "cardano-world_2": {
       "inputs": {
         "CHaP": "CHaP_7",
         "bitte": "bitte_4",
@@ -5445,7 +5446,7 @@
     },
     "db-sync": {
       "inputs": {
-        "cardano-world": "cardano-world_2",
+        "cardano-world": "cardano-world",
         "customConfig": "customConfig_3",
         "flake-compat": "flake-compat_11",
         "haskellNix": "haskellNix_3",
@@ -29316,7 +29317,7 @@
           "cardano-world",
           "cardano-node"
         ],
-        "cardano-world": "cardano-world_3",
+        "cardano-world": "cardano-world_2",
         "hackage": "hackage_23",
         "iogx": "iogx_4",
         "nixpkgs": [
@@ -30999,8 +31000,8 @@
       "inputs": {
         "CHaP": "CHaP",
         "blockfrost": "blockfrost",
+        "cardano-configurations": "cardano-configurations",
         "cardano-node": "cardano-node",
-        "cardano-world": "cardano-world",
         "db-sync": "db-sync",
         "easy-purescript-nix": "easy-purescript-nix",
         "flake-compat": "flake-compat_12",

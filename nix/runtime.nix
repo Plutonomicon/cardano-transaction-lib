@@ -1,7 +1,7 @@
 { inputs, ... }:
 rec {
   defaultConfig = final: with final; {
-    inherit (inputs) cardano-world;
+    inherit (inputs) cardano-configurations;
     # { name = "preprod"; magic = 1; }
     # { name = "mainnet"; magic = null; }
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
@@ -106,7 +106,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort node.port) ];
             volumes = [
-              "${config.cardano-world}/docs/environments/${config.network.name}:/config"
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
               "${nodeDbVol}:/data"
               "${nodeIpcVol}:/ipc"
             ];
@@ -115,10 +115,10 @@ rec {
               "-c"
               ''
                 ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
-                  --config /config/config.json \
+                  --config /config/cardano-node/config.json \
                   --database-path /data/db \
                   --socket-path "${nodeSocketPath}" \
-                  --topology /config/topology.json
+                  --topology /config/cardano-node/topology.json
               ''
             ];
           };
@@ -128,7 +128,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort kupo.port) ];
             volumes = [
-              "${config.cardano-world}/docs/environments/${config.network.name}:/config"
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
               "${nodeIpcVol}:/ipc"
               "${kupoDbVol}:/kupo-db"
             ];
@@ -137,7 +137,7 @@ rec {
               "-c"
               ''
                 ${inputs.kupo-nixos.packages.${pkgs.system}.kupo}/bin/kupo \
-                  --node-config /config/config.json \
+                  --node-config /config/cardano-node/config.json \
                   --node-socket "${nodeSocketPath}" \
                   --since "${kupo.since}" \
                   --match "${kupo.match}" \
@@ -152,7 +152,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort ogmios.port) ];
             volumes = [
-              "${config.cardano-world}/docs/environments/${config.network.name}:/config"
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
               "${nodeIpcVol}:/ipc"
             ];
             command = [
@@ -163,7 +163,7 @@ rec {
                   --host ogmios \
                   --port ${toString ogmios.port} \
                   --node-socket /ipc/node.socket \
-                  --node-config /config/config.json
+                  --node-config /config/cardano-node/config.json
                   --include-transaction-cbor
               ''
             ];
@@ -191,7 +191,7 @@ rec {
           depends_on = [ "postgres-${network.name}" ];
           volumes = [
             "${dbSyncStateVol}:/state"
-            "${config.cardano-world}/docs/environments/${config.network.name}:/config"
+            "${config.cardano-configurations}/network/${config.network.name}:/config"
             "${nodeIpcVol}:/ipc"
             "${dbSyncTmpVol}:/tmp"
           ];

@@ -51,12 +51,12 @@ For launching services for developing CTL itself, see our documentation on [deve
 
 CTL supports using networks other than the public preview testnet to provide different development environments.
 
-To choose a different network, you must specify an alternative way of getting the network configuration. The [cardano-world](https://github.com/IntersectMBO/cardano-world) repo provides configs for `mainnet`, `preprod` and a few other networks. The `network.name` parameter of `buildCtlRuntime` determines which of the network config directories is chosen.
+To choose a different network, you must specify an alternative way of getting the network configuration. The [cardano-configurations](https://github.com/input-output-hk/cardano-configurations) repo provides configs for `mainnet`, `preprod` and a few other networks. The `network.name` parameter of `buildCtlRuntime` determines which of the network config directories is chosen.
 
-You can also specify your own fork of `cardano-world` like this:
+You can also specify your own fork of `cardano-configurations` like this:
 
 ```
-inputs.cardano-transaction-lib.inputs.cardano-world.follows = "...";
+inputs.cardano-transaction-lib.inputs.cardano-configurations.follows = "...";
 ```
 
 When changing networks, make sure that `network.magic` is correctly synchronized with value in config (see `protocolConsts.protocolMagic` in `byron.json`).

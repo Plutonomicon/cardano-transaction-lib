@@ -65,7 +65,7 @@ If you are using a testnet, replace `--mainnet` flag in the shell command with
 `--testnet-magic YOUR_NETWORK_MAGIC`, where `YOUR_NETWORK_MAGIC` is a genesis
 parameter of the network.
 
-For public testnets, get it from [cardano-world repo](https://github.com/IntersectMBO/cardano-world). The location is `docs/environments/YOUR_NETWORK_NAME/shelley-genesis.json`, look for `networkMagic` key.
+For public testnets, get it from [cardano-configurations repo](https://github.com/input-output-hk/cardano-configurations). The location is `network/YOUR_NETWORK_NAME/genesis/shelley.json`, look for `networkMagic` key.
 
 The common values are 1 for `preprod` and 2 for `preview`.
 
