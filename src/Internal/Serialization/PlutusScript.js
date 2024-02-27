@@ -15,6 +15,10 @@ export function newPlutusV2Script(bytes) {
   return lib.PlutusScript.new_v2(bytes);
 }
 
+export function newPlutusV3Script(bytes) {
+  return lib.PlutusScript.new_v3(bytes);
+}
+
 export function plutusScriptBytes(script) {
   return script.bytes();
 }

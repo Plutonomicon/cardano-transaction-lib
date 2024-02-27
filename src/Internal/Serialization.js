@@ -155,6 +155,10 @@ export function newPlutusV2() {
   return lib.Language.new_plutus_v2();
 }
 
+export function newPlutusV3() {
+  return lib.Language.new_plutus_v3();
+}
+
 export function _hashScriptData(rs) {
   return cms => ds => () => {
     const list = lib.PlutusList.new();

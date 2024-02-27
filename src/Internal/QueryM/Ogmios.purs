@@ -175,7 +175,7 @@ import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
+  ( Language(PlutusV1, PlutusV2, PlutusV3)
   , PlutusScript(PlutusScript)
   )
 import Ctl.Internal.Types.SystemStart
@@ -1037,6 +1037,7 @@ type ProtocolParametersRaw =
   , "plutusCostModels" ::
       { "plutus:v1" :: Array Csl.Int
       , "plutus:v2" :: Maybe (Array Csl.Int)
+      , "plutus:v3" :: Maybe (Array Csl.Int)
       }
   , "scriptExecutionPrices" ::
       { "memory" :: PParamRational
@@ -1093,6 +1094,8 @@ instance DecodeAeson OgmiosProtocolParameters where
               )
           , (PlutusV2 /\ _) <<< CostModel <$>
               ps.plutusCostModels."plutus:v2"
+          , (PlutusV3 /\ _) <<< CostModel <$>
+              ps.plutusCostModels."plutus:v3"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
@@ -1238,6 +1241,8 @@ instance EncodeAeson AdditionalUtxoSet where
       encodeAeson { "language": "plutus:v1", "cbor": byteArrayToHex s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
       encodeAeson { "language": "plutus:v2", "cbor": byteArrayToHex s }
+    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV3))) =
+      encodeAeson { "language": "plutus:v3", "cbor": byteArrayToHex s }
 
     encodeValue :: Value -> Aeson
     encodeValue value = encodeMap $ map encodeMap $ Map.union adaPart nonAdaPart

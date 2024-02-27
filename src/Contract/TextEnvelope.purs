@@ -7,6 +7,7 @@ import Ctl.Internal.Cardano.TextEnvelope
   , TextEnvelopeType
       ( PlutusScriptV1
       , PlutusScriptV2
+      , PlutusScriptV3
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       , Other
@@ -14,4 +15,5 @@ import Ctl.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   , plutusScriptV2FromEnvelope
+  , plutusScriptV3FromEnvelope
   ) as X

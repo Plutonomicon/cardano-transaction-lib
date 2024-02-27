@@ -212,9 +212,10 @@ import Ctl.Internal.Types.RewardAddress
   ) as X
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
+  ( Language(PlutusV1, PlutusV2, PlutusV3)
   , plutusV1Script
   , plutusV2Script
+  , plutusV3Script
   ) as Scripts
 import Ctl.Internal.Types.Transaction
   ( DataHash(DataHash)

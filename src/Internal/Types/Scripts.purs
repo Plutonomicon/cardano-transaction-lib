@@ -7,9 +7,10 @@ module Ctl.Internal.Types.Scripts
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
-  , Language(PlutusV1, PlutusV2)
+  , Language(PlutusV1, PlutusV2, PlutusV3)
   , plutusV1Script
   , plutusV2Script
+  , plutusV3Script
   , stakeValidatorHashToBech32
   ) where
 
@@ -46,6 +47,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 data Language
   = PlutusV1
   | PlutusV2
+  | PlutusV3
 
 derive instance Eq Language
 derive instance Ord Language
@@ -57,6 +59,7 @@ instance DecodeAeson Language where
     case _ of
       "PlutusV1" -> pure PlutusV1
       "PlutusV2" -> pure PlutusV2
+      "PlutusV3" -> pure PlutusV3
       other -> Left $ UnexpectedValue $ toStringifiedNumbersJson $ fromString
         other
 
@@ -64,6 +67,7 @@ instance EncodeAeson Language where
   encodeAeson = encodeAeson <<< case _ of
     PlutusV1 -> "PlutusV1"
     PlutusV2 -> "PlutusV2"
+    PlutusV3 -> "PlutusV3"
 
 instance Show Language where
   show = genericShow
@@ -89,6 +93,9 @@ plutusV1Script ba = PlutusScript (ba /\ PlutusV1)
 
 plutusV2Script :: ByteArray -> PlutusScript
 plutusV2Script ba = PlutusScript (ba /\ PlutusV2)
+
+plutusV3Script :: ByteArray -> PlutusScript
+plutusV3Script ba = PlutusScript (ba /\ PlutusV3)
 
 decodeAesonHelper
   :: ∀ (a :: Type) (b :: Type)

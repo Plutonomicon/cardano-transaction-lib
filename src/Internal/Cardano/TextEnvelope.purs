@@ -3,6 +3,7 @@ module Ctl.Internal.Cardano.TextEnvelope
   , TextEnvelopeType
       ( PlutusScriptV1
       , PlutusScriptV2
+      , PlutusScriptV3
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
       , Other
@@ -10,6 +11,7 @@ module Ctl.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   , plutusScriptV1FromEnvelope
   , plutusScriptV2FromEnvelope
+  , plutusScriptV3FromEnvelope
   ) where
 
 import Prelude
@@ -25,6 +27,7 @@ import Ctl.Internal.Types.Scripts
   ( PlutusScript
   , plutusV1Script
   , plutusV2Script
+  , plutusV3Script
   )
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
@@ -33,6 +36,7 @@ import Data.Newtype (class Newtype, wrap)
 data TextEnvelopeType
   = PlutusScriptV1
   | PlutusScriptV2
+  | PlutusScriptV3
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
   | Other String -- TextEnvelope we can parse from String, but cannot use now
@@ -43,6 +47,7 @@ instance Show TextEnvelopeType where
   show = case _ of
     PlutusScriptV1 -> "PlutusScriptV1"
     PlutusScriptV2 -> "PlutusScriptV2"
+    PlutusScriptV3 -> "PlutusScriptV3"
     PaymentSigningKeyShelleyed25519 -> "PaymentSigningKeyShelley_ed25519"
     StakeSigningKeyShelleyed25519 -> "StakeSigningKeyShelley_ed25519"
     Other other -> other
@@ -52,6 +57,7 @@ instance DecodeAeson TextEnvelopeType where
     decodeAeson aeson >>= case _ of
       "PlutusScriptV1" -> pure PlutusScriptV1
       "PlutusScriptV2" -> pure PlutusScriptV2
+      "PlutusScriptV3" -> pure PlutusScriptV3
       "PaymentSigningKeyShelley_ed25519" -> pure
         PaymentSigningKeyShelleyed25519
       "StakeSigningKeyShelley_ed25519" -> pure
@@ -107,3 +113,8 @@ plutusScriptV2FromEnvelope
   :: TextEnvelope -> Maybe PlutusScript
 plutusScriptV2FromEnvelope envelope =
   plutusScriptFromEnvelope PlutusScriptV2 plutusV2Script envelope
+
+plutusScriptV3FromEnvelope
+  :: TextEnvelope -> Maybe PlutusScript
+plutusScriptV3FromEnvelope envelope =
+  plutusScriptFromEnvelope PlutusScriptV3 plutusV3Script envelope
