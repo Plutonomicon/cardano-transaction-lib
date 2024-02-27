@@ -32,7 +32,11 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.7.3";
+    cardano-node = {
+      url = "github:input-output-hk/cardano-node/8.8.0-pre";
+      inputs.hackageNix.follows = "hackage-nix";
+      inputs.CHaP.follows = "CHaP";
+    };
 
     ogmios-nixos.url = "github:Fourierlabs/ogmios-nixos";
 
@@ -45,7 +49,7 @@
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=21249e0d5c68b4e8f3661b250aa8272a8785d678";
+      url = "github:input-output-hk/cardano-configurations?rev=0b98af1c65c10cf4c83d418d6a246d82e4684076";
       flake = false;
     };
     easy-purescript-nix = {
