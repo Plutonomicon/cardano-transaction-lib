@@ -32,39 +32,24 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
-
-    ogmios-nixos = {
-      url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        cardano-node.follows = "cardano-node";
-        ogmios-src.follows = "ogmios";
-      };
+    cardano-node = {
+      url = "github:input-output-hk/cardano-node/8.8.0-pre";
+      inputs.hackageNix.follows = "hackage-nix";
+      inputs.CHaP.follows = "CHaP";
     };
 
-    ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.0.0";
-      flake = false;
-    };
+    ogmios-nixos.url = "github:Fourierlabs/ogmios-nixos";
 
-    kupo-nixos = {
-      url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
-      inputs.kupo.follows = "kupo";
-    };
+    ogmios.follows = "ogmios-nixos/ogmios";
 
-    kupo = {
-      url = "github:CardanoSolutions/kupo/v2.2.0";
-      flake = false;
-    };
+    kupo-nixos.url = "github:Fourierlabs/kupo-nixos/add-conway";
+    kupo.follows = "kupo-nixos/kupo";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=d952529afdfdf6d53ce190b1bf8af990a7ae9590";
+      url = "github:input-output-hk/cardano-configurations?rev=0b98af1c65c10cf4c83d418d6a246d82e4684076";
       flake = false;
     };
     easy-purescript-nix = {
@@ -148,7 +133,9 @@
               echo "$path"
               json=$(cat "$path")
               md5=($(md5sum <<< "$json"))
-              printf "%s" "$json" > "ogmios/$command-$md5.json"
+              target="ogmios/$command-$md5.json"
+              echo "to $target"
+              printf "%s" "$json" > "$target"
             fi
           }
           export -f on_file
@@ -313,9 +300,9 @@
                 inherit (prev) system;
               in
               {
+                inherit (ogmios-nixos.packages.${system}) ogmios;
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios = ogmios-nixos.packages.${system}."ogmios:exe:ogmios";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;

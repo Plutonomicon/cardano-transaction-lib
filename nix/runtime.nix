@@ -7,8 +7,8 @@ rec {
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
     # for info on how to switch networks.
     network = {
-      name = "preview";
-      magic = 2; # use `null` for mainnet
+      name = "sanchonet";
+      magic = 4; # use `null` for mainnet
     };
     # *All* of these values are optional, and shown with their default
     # values. If you need even more customization, you can use `overideAttrs`
@@ -27,7 +27,7 @@ rec {
       port = 1442;
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
-      tag = "v2.2.0";
+      tag = "v2.7.2";
       deferDbIndexes = true; # whether to pass --defer-db-indexes
       pruneUtxo = true; # whether to pass --prune-utxo
       # TODO: Do we want to support connection through ogmios?
@@ -106,8 +106,7 @@ rec {
             useHostStore = true;
             ports = [ (bindPort node.port) ];
             volumes = [
-              "${config.cardano-configurations}/network/${config.network.name}/cardano-node:/config"
-              "${config.cardano-configurations}/network/${config.network.name}/genesis:/genesis"
+              "${config.cardano-configurations}/network/${config.network.name}:/config"
               "${nodeDbVol}:/data"
               "${nodeIpcVol}:/ipc"
             ];
@@ -116,10 +115,10 @@ rec {
               "-c"
               ''
                 ${inputs.cardano-node.packages."${pkgs.system}".cardano-node}/bin/cardano-node run \
-                  --config /config/config.json \
+                  --config /config/cardano-node/config.json \
                   --database-path /data/db \
                   --socket-path "${nodeSocketPath}" \
-                  --topology /config/topology.json
+                  --topology /config/cardano-node/topology.json
               ''
             ];
           };

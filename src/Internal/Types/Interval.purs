@@ -96,7 +96,7 @@ import Ctl.Internal.Plutus.Types.DataSchema
   , type (@@)
   , PNil
   )
-import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
+import Ctl.Internal.QueryM.Ogmios (aesonObject)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.ToData (class ToData, genericToData, toData)
 import Ctl.Internal.TypeLevel.Nat (S, Z)
@@ -111,6 +111,7 @@ import Ctl.Internal.Types.BigNum
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
+  , fromSeconds
   )
 import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
@@ -129,13 +130,12 @@ import Data.Lattice
   )
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
 import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
 import JS.BigInt (BigInt)
-import JS.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
+import JS.BigInt (fromInt, fromString, toNumber) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
@@ -714,7 +714,8 @@ slotToPosixTime eraSummaries sysStart slot = runExcept do
   -- Convert absolute slot (relative to System start) to relative slot of era
   relSlot <- liftEither $ relSlotFromSlot currentEra slot
   -- Convert relative slot to relative time for that era
-  relTime <- liftM CannotGetBigIntFromNumber $ relTimeFromRelSlot currentEra
+  relTime <- liftM CannotGetBigIntFromNumber $ Just $ relTimeFromRelSlot
+    currentEra
     relSlot
   absTime <- liftEither $ absTimeFromRelTime currentEra relTime
   -- Get POSIX time for system start
@@ -817,12 +818,12 @@ relSlotFromSlot (EraSummary { start }) s@(Slot slot) = do
   unless (startSlot <= biSlot) (throwError $ StartingSlotGreaterThanSlot s)
   pure $ wrap $ biSlot - startSlot
 
-relTimeFromRelSlot :: EraSummary -> RelSlot -> Maybe RelTime
+relTimeFromRelSlot :: EraSummary -> RelSlot -> RelTime
 relTimeFromRelSlot eraSummary (RelSlot relSlot) =
   let
     slotLength = getSlotLength eraSummary
   in
-    (<$>) wrap <<< BigInt.fromNumber $ (BigInt.toNumber relSlot) * slotLength
+    wrap $ relSlot * slotLength
 
 -- As justified in https://github.com/input-output-hk/ouroboros-network/blob/bd9e5653647c3489567e02789b0ec5b75c726db2/ouroboros-consensus/src/Ouroboros/Consensus/HardFork/History/Qry.hs#L461-L481
 -- Treat the upperbound as inclusive.
@@ -831,8 +832,8 @@ absTimeFromRelTime
   :: EraSummary -> RelTime -> Either SlotToPosixTimeError AbsTime
 absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
   let
-    startTime = unwrap (unwrap start).time * slotLengthFactor
-    absTime = startTime + BigInt.toNumber relTime -- relative to System Start, not UNIX Epoch.
+    startTime = unwrap $ fromSeconds (unwrap start).time
+    absTime = startTime + relTime -- relative to System Start, not UNIX Epoch.
     -- If `EraSummary` doesn't have an end, the condition is automatically
     -- satisfied. We use `<=` as justified by the source code.
     -- Note the hack that we don't have `end` for the current era, if we did not
@@ -840,13 +841,13 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     -- required to be in the distant future. Onchain, this uses POSIXTime which
     -- is stable, unlike Slots.
     endTime = maybe (absTime + one)
-      ((*) slotLengthFactor <<< unwrap <<< _.time <<< unwrap)
+      (unwrap <<< fromSeconds <<< _.time <<< unwrap)
       end
   unless
     (absTime <= endTime)
-    (throwError $ EndTimeLessThanTime absTime)
+    (throwError $ EndTimeLessThanTime $ BigInt.toNumber absTime)
 
-  wrap <$> (liftM CannotGetBigIntFromNumber $ BigInt.fromNumber absTime)
+  wrap <$> (liftM CannotGetBigIntFromNumber $ Just absTime)
 
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
@@ -971,30 +972,22 @@ findTimeEraSummary (EraSummaries eraSummaries) absTime@(AbsTime at) =
   where
   pred :: EraSummary -> Boolean
   pred (EraSummary { start, end }) =
-    let
-      numberAt = BigInt.toNumber at
-    in
-      unwrap (unwrap start).time * slotLengthFactor <= numberAt
-        && maybe true
-          ( (<) numberAt <<< (*) slotLengthFactor <<< unwrap <<< _.time <<<
-              unwrap
-          )
-          end
+    unwrap (fromSeconds (unwrap start).time) <= at
+      && maybe true
+        ( (<) at <<< unwrap <<< fromSeconds <<< _.time <<<
+            unwrap
+        )
+        end
 
 relTimeFromAbsTime
   :: EraSummary -> AbsTime -> Either PosixTimeToSlotError RelTime
 relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
-  let startTime = unwrap (unwrap start).time * slotLengthFactor
-  unless (startTime <= BigInt.toNumber absTime)
+  let startTime = fromSeconds (unwrap start).time
+  unless (unwrap startTime <= absTime)
     (throwError $ StartTimeGreaterThanTime at)
   let
-    relTime = BigInt.toNumber absTime - startTime -- relative to era start, not UNIX Epoch.
-  -- This conversion cannot fail: since 'relTime' is an offset from the start of
-  -- an era, we can't overflow the 64-bit limit.
-  let
-    relTimeBi = unsafePartial $ fromJust $ BigInt.fromNumber $ Math.trunc
-      relTime
-  pure $ wrap relTimeBi
+    relTime = absTime - unwrap startTime -- relative to era start, not UNIX Epoch.
+  pure $ wrap relTime
 
 -- | Converts relative time to a relative slot (using Euclidean division) and
 -- | modulus for any leftover.
@@ -1005,18 +998,10 @@ relSlotFromRelTime
 relSlotFromRelTime eraSummary (RelTime relTime) =
   let
     slotLength = getSlotLength eraSummary
-    relTimeBn = BigInt.toNumber relTime
-    relSlot = relTimeBn / slotLength
-    modTime = relTimeBn Math.% slotLength
-  -- Both of these are safe: the conversion from Number to BigInt must be
-  -- partial to account for NaN and infinities, but we can't have either of
-  -- those here.
+    relSlot = relTime / slotLength
+    modTime = relTime `mod` slotLength
   in
-    (wrap $ toBigIntUnsafe $ Math.trunc $ relSlot) /\
-      (wrap $ toBigIntUnsafe modTime)
-  where
-  toBigIntUnsafe :: Number -> BigInt
-  toBigIntUnsafe x = unsafePartial $ fromJust $ BigInt.fromNumber x
+    (wrap $ relSlot) /\ (wrap $ modTime)
 
 slotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
@@ -1045,7 +1030,7 @@ slotFromRelSlot
   pure $ wrap bnSlot
 
 -- | Get SlotLength in Milliseconds
-getSlotLength :: EraSummary -> Number
+getSlotLength :: EraSummary -> BigInt
 getSlotLength (EraSummary { parameters }) =
   unwrap (unwrap parameters).slotLength
 

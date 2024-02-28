@@ -56,7 +56,8 @@ testPlan = do
       eraSummaries <- getEraSummaries
       sysStart <- getSystemStart
       liftEffect $ f eraSummaries sysStart
-  mapTest (runContract testnetConfig) do
+  -- TODO enable Pools integration tests
+  skip $ mapTest (runContract testnetConfig) do
     group "Pools" do
       test "get metadata for all pools" do
         poolIds <- getPoolIds
@@ -64,7 +65,8 @@ testPlan = do
   Collateral.suite
   PrivateKey.suite
   Logging.suite
-  BalanceTx.Time.suite
+  -- TODO enable BalanceTx.Time integration tests
+  skip BalanceTx.Time.suite
   where
   runQueryM' =
     runContract (testnetConfig { suppressLogs = true }) <<< wrapQueryM

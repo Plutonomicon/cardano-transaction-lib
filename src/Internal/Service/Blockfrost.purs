@@ -254,7 +254,7 @@ import Effect.Exception (error)
 import Foreign.Object (Object)
 import Foreign.Object as ForeignObject
 import JS.BigInt (BigInt)
-import JS.BigInt (fromString, toNumber) as BigInt
+import JS.BigInt (fromInt, fromString, toNumber) as BigInt
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -872,8 +872,8 @@ instance DecodeAeson BlockfrostEraSummaries where
       where
       -- Blockfrost returns `slotLength` in seconds, and we use milliseconds,
       -- so we need to convert between them.
-      slotLengthFactor :: Number
-      slotLengthFactor = 1000.0
+      slotLengthFactor :: BigInt
+      slotLengthFactor = BigInt.fromInt 1000
 
 --------------------------------------------------------------------------------
 -- BlockfrostEvaluateTx

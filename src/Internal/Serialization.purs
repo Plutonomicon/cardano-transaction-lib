@@ -156,7 +156,7 @@ import Ctl.Internal.Types.OutputDatum
   )
 import Ctl.Internal.Types.PlutusData as PlutusData
 import Ctl.Internal.Types.RewardAddress (RewardAddress, unRewardAddress) as T
-import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2)) as S
+import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2, PlutusV3)) as S
 import Ctl.Internal.Types.TokenName (getTokenName) as TokenName
 import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as T
 import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash), unVRFKeyHash) as T
@@ -257,6 +257,7 @@ foreign import newCostModel :: Effect CostModel
 foreign import costModelSetCost :: CostModel -> Int -> Csl.Int -> Effect Unit
 foreign import newPlutusV1 :: Effect Language
 foreign import newPlutusV2 :: Effect Language
+foreign import newPlutusV3 :: Effect Language
 
 foreign import _hashScriptData
   :: Redeemers -> Costmdls -> Array PlutusData -> Effect ScriptDataHash
@@ -861,6 +862,7 @@ convertCostmdls (T.Costmdls cs) = do
     language' <- case language of
       S.PlutusV1 -> newPlutusV1
       S.PlutusV2 -> newPlutusV2
+      S.PlutusV3 -> newPlutusV3
     costModel' <- convertCostModel costModel
     costmdlsSetCostModel costmdls language' costModel'
   pure costmdls

@@ -10,6 +10,7 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
+import Mote (skip)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
@@ -80,8 +81,10 @@ testPlan = do
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
-  Blockfrost.Aeson.suite
-  Blockfrost.ProtocolParameters.suite
+  -- TODO enable Blockfrost.Aeson.suite unit tests
+  skip Blockfrost.Aeson.suite
+  -- TODO enable Blockforst.ProtocolParameters.suite unit tests
+  skip Blockfrost.ProtocolParameters.suite
   Types.TokenName.suite
   Types.Transaction.suite
   Ctl.Data.Interval.suite

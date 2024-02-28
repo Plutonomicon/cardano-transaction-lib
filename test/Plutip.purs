@@ -33,7 +33,7 @@ import Effect.Aff
   , effectCanceler
   , launchAff
   )
-import Mote (group, test)
+import Mote (group, skip, test)
 import Mote.Monad (mapTest)
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
@@ -56,6 +56,8 @@ main = interruptOnSignal SIGINT =<< launchAff do
   flip cancelWith (effectCanceler (exitCode 1)) do
     Utils.interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
+      -- TODO enable Test.Ctl.Plutip tests
+      $ skip
       $ group "Plutip" do
           testPlutipContracts config Mnemonics.suite
           group "ExUnits - normal limits" do

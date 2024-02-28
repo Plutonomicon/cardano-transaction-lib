@@ -1,5 +1,5 @@
 module Ctl.Internal.Types.RedeemerTag
-  ( RedeemerTag(Spend, Mint, Cert, Reward)
+  ( RedeemerTag(Spend, Mint, Cert, Reward, Vote, Propose)
   , fromString
   ) where
 
@@ -12,14 +12,16 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 
 -- lives in it's own module due to a name conflict with the `Mint` Type
-data RedeemerTag = Spend | Mint | Cert | Reward
+data RedeemerTag = Spend | Mint | Cert | Reward | Vote | Propose
 
 fromString :: String -> Maybe RedeemerTag
 fromString = case _ of
   "spend" -> Just Spend
   "mint" -> Just Mint
-  "certificate" -> Just Cert
-  "withdrawal" -> Just Reward
+  "publish" -> Just Cert
+  "withdraw" -> Just Reward
+  "vote" -> Just Vote
+  "propose" -> Just Propose
   _ -> Nothing
 
 derive instance Generic RedeemerTag _
@@ -35,3 +37,5 @@ instance EncodeAeson RedeemerTag where
     Mint -> encodeTagged' "Mint" {}
     Cert -> encodeTagged' "Cert" {}
     Reward -> encodeTagged' "Reward" {}
+    Vote -> encodeTagged' "Vote" {}
+    Propose -> encodeTagged' "Propose" {}

@@ -40,9 +40,8 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
-  , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
-  , SlotLength(SlotLength)
+  , SlotLength
   ) as ExportEraSummaries
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries
@@ -158,9 +157,9 @@ normalizeTimeInterval
 normalizeTimeInterval = case _ of
   desired@(Interval.FiniteInterval start end) -> do
     era <- getCurrentEra
-    let params = unwrap (unwrap era).parameters
-    slotLength <- liftContractM "Could not get slot length" $ BigInt.fromNumber
-      $ unwrap params.slotLength
+    let
+      params = unwrap (unwrap era).parameters
+      slotLength = unwrap params.slotLength
     let offset = unwrap params.safeZone + slotLength
     let endTime = start + Interval.POSIXTime offset
     let oneSecond = Interval.POSIXTime $ BigInt.fromInt 1_000

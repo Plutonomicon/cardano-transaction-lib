@@ -78,7 +78,7 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
-import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
+import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script, plutusV3Script)
 import Ctl.Internal.Types.TokenName (mkTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
@@ -391,7 +391,7 @@ instance DecodeAeson KupoDatum where
 -- `getScriptByHash` response parsing
 --------------------------------------------------------------------------------
 
-data KupoScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
+data KupoScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script | PlutusV3Script
 
 derive instance Generic KupoScriptLanguage _
 
@@ -403,9 +403,10 @@ instance DecodeAeson KupoScriptLanguage where
     "native" -> pure NativeScript
     "plutus:v1" -> pure PlutusV1Script
     "plutus:v2" -> pure PlutusV2Script
+    "plutus:v3" -> pure PlutusV3Script
     invalid ->
       Left $ TypeMismatch $
-        "language: expected 'native' or 'plutus:v{1|2}', got: " <> invalid
+        "language: expected 'native' or 'plutus:v{1|2|3}', got: " <> invalid
 
 newtype KupoScriptRef = KupoScriptRef (Maybe ScriptRef)
 
@@ -429,6 +430,8 @@ instance DecodeAeson KupoScriptRef where
                 pure $ PlutusScriptRef $ plutusV1Script scriptBytes
               PlutusV2Script ->
                 pure $ PlutusScriptRef $ plutusV2Script scriptBytes
+              PlutusV3Script ->
+                pure $ PlutusScriptRef $ plutusV3Script scriptBytes
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing

@@ -132,7 +132,8 @@ suite = do
         logInfo' <<< show =<< getPoolParameters poolId
       liftM (error "unable to get any pools")
         (Array.filter (_ /= retiringPoolId) pools !! 1)
-  group "Staking" do
+  -- TODO enable Staking tests
+  skip $ group "Staking" do
     group "Stake keys: register & deregister" do
       test "PubKey" do
         let

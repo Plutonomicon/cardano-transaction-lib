@@ -66,12 +66,12 @@ module Ctl.Internal.QueryM.Ogmios
   , releaseMempoolCall
   , submitTxCall
   , submitSuccessPartialResp
-  , slotLengthFactor
   , parseIpv6String
   , rationalToSubcoin
   , showRedeemerPointer
   , decodeRedeemerPointer
   , redeemerPtrTypeMismatch
+  , redeemerPtrTypeMismatch_
   ) where
 
 import Prelude
@@ -175,7 +175,7 @@ import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
 import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
 import Ctl.Internal.Types.RewardAddress (RewardAddress)
 import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
+  ( Language(PlutusV1, PlutusV2, PlutusV3)
   , PlutusScript(PlutusScript)
   )
 import Ctl.Internal.Types.SystemStart
@@ -533,7 +533,8 @@ instance DecodeAeson OgmiosEraSummaries where
     where
     decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
     decodeEraSummary = aesonObject \o -> do
-      start <- getField o "start"
+      start' <- getField o "start"
+      start <- decodeAeson start'
       -- The field "end" is required by Ogmios API, but it can optionally return
       -- Null, so we want to fail if the field is absent but make Null value
       -- acceptable in presence of the field (hence why "end" is wrapped in
@@ -547,10 +548,8 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- wrap <$>
-        ( (*) slotLengthFactor <$>
-            (flip getField "seconds" =<< getField o "slotLength")
-        )
+      slotLength' <- getField o "slotLength"
+      slotLength <- decodeAeson slotLength'
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -561,8 +560,8 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummary :: EraSummary -> Aeson
     encodeEraSummary (EraSummary { start, end, parameters }) =
       encodeAeson
-        { "start": start
-        , "end": end
+        { "start": encodeAeson start
+        , "end": encodeAeson end
         , "parameters": encodeEraSummaryParameters parameters
         }
 
@@ -570,14 +569,9 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummaryParameters (EraSummaryParameters params) =
       encodeAeson
         { "epochLength": params.epochLength
-        , "slotLength": { "seconds": params.slotLength }
+        , "slotLength": encodeAeson params.slotLength
         , "safeZone": params.safeZone
         }
-
--- Ogmios returns `slotLength` in seconds, and we use milliseconds,
--- so we need to convert between them.
-slotLengthFactor :: Number
-slotLengthFactor = 1000.0
 
 instance DecodeOgmios OgmiosEraSummaries where
   decodeOgmios = decodeResult decodeAeson
@@ -806,16 +800,21 @@ instance DecodeAeson TxEvaluationResult where
       :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem elem = do
       res
-        :: { validator :: String
+        :: { validator :: { index :: Natural, purpose :: String }
            , budget :: { memory :: Natural, cpu :: Natural }
            } <- decodeAeson elem
-      redeemerPtr <- decodeRedeemerPointer res.validator
+      redeemerPtr <- decodeRedeemerPointer_ res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
 
 redeemerPtrTypeMismatch :: JsonDecodeError
 redeemerPtrTypeMismatch = TypeMismatch
   "Expected redeemer pointer to be encoded as: \
-  \^(spend|mint|certificate|withdrawal):[0-9]+$"
+  \^(spend|mint|publish|withdraw|vote|propose):[0-9]+$"
+
+redeemerPtrTypeMismatch_ :: JsonDecodeError
+redeemerPtrTypeMismatch_ = TypeMismatch
+  "Expected redeemer pointer to be encoded as: \
+  \^(spend|mint|publish|withdraw|vote|propose)$"
 
 decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
 decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
@@ -825,6 +824,13 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <$> RedeemerTag.fromString tagRaw
         <*> Natural.fromString indexRaw
     _ -> Nothing
+
+decodeRedeemerPointer_
+  :: { index :: Natural, purpose :: String }
+  -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer_ { index, purpose } = note redeemerPtrTypeMismatch_
+  $ (\redeemerTag -> { redeemerTag, redeemerIndex: index }) <$>
+      RedeemerTag.fromString purpose
 
 type OgmiosDatum = String
 type OgmiosScript = String
@@ -878,8 +884,10 @@ instance DecodeAeson ScriptFailure where
     errorData <- maybe (Left (AtKey "data" MissingValue)) pure error.data
     case error.code of
       3011 -> do
-        res :: { missingScripts :: Array String } <- decodeAeson errorData
-        missing <- traverse decodeRedeemerPointer res.missingScripts
+        res
+          :: { missingScripts :: Array { index :: Natural, purpose :: String } } <-
+          decodeAeson errorData
+        missing <- traverse decodeRedeemerPointer_ res.missingScripts
         pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
         res :: { validationError :: String, traces :: Array String } <-
@@ -896,8 +904,11 @@ instance DecodeAeson ScriptFailure where
           , txId: res.unsuitableOutputReference.transaction.id
           }
       3110 -> do
-        res :: { extraneousRedeemers :: Array String } <- decodeAeson errorData
-        ExtraRedeemers <$> traverse decodeRedeemerPointer
+        res
+          :: { extraneousRedeemers ::
+                 Array { index :: Natural, purpose :: String }
+             } <- decodeAeson errorData
+        ExtraRedeemers <$> traverse decodeRedeemerPointer_
           res.extraneousRedeemers
       3111 -> do
         res :: { missingDatums :: Array String } <- decodeAeson errorData
@@ -947,8 +958,11 @@ instance DecodeAeson TxEvaluationFailure where
 
     where
     parseElem elem = do
-      res :: { validator :: String, error :: ScriptFailure } <- decodeAeson elem
-      (_ /\ res.error) <$> decodeRedeemerPointer res.validator
+      res
+        :: { validator :: { index :: Natural, purpose :: String }
+           , error :: ScriptFailure
+           } <- decodeAeson elem
+      (_ /\ res.error) <$> decodeRedeemerPointer_ res.validator
 
     collectIntoMap :: forall k v. Ord k => Array (k /\ v) -> Map k (List v)
     collectIntoMap = foldl
@@ -995,7 +1009,7 @@ rationalToSubcoin (PParamRational rat) = do
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
   , "minFeeConstant" ::
-      { "lovelace" :: UInt }
+      { "ada" :: { "lovelace" :: UInt } }
   , "minUtxoDepositCoefficient" :: BigInt
   , "maxBlockBodySize" ::
       { "bytes" :: UInt }
@@ -1006,9 +1020,9 @@ type ProtocolParametersRaw =
   , "maxValueSize" ::
       { "bytes" :: UInt }
   , "stakeCredentialDeposit" ::
-      { "lovelace" :: BigInt }
+      { "ada" :: { "lovelace" :: BigInt } }
   , "stakePoolDeposit" ::
-      { "lovelace" :: BigInt }
+      { "ada" :: { "lovelace" :: BigInt } }
   , "stakePoolRetirementEpochBound" :: BigInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
@@ -1019,10 +1033,11 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minStakePoolCost" ::
-      { "lovelace" :: BigInt }
+      { "ada" :: { "lovelace" :: BigInt } }
   , "plutusCostModels" ::
       { "plutus:v1" :: Array Csl.Int
       , "plutus:v2" :: Maybe (Array Csl.Int)
+      , "plutus:v3" :: Maybe (Array Csl.Int)
       }
   , "scriptExecutionPrices" ::
       { "memory" :: PParamRational
@@ -1061,11 +1076,11 @@ instance DecodeAeson OgmiosProtocolParameters where
       , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
       , maxBlockBodySize: ps.maxBlockBodySize.bytes
       , maxTxSize: ps.maxTransactionSize.bytes
-      , txFeeFixed: ps.minFeeConstant.lovelace
+      , txFeeFixed: ps.minFeeConstant.ada.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.lovelace
-      , stakePoolDeposit: Coin ps.stakePoolDeposit.lovelace
-      , minPoolCost: Coin ps.minStakePoolCost.lovelace
+      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.ada.lovelace
+      , stakePoolDeposit: Coin ps.stakePoolDeposit.ada.lovelace
+      , minPoolCost: Coin ps.minStakePoolCost.ada.lovelace
       , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
       , stakePoolTargetNum: ps.desiredNumberOfStakePools
       , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
@@ -1079,6 +1094,8 @@ instance DecodeAeson OgmiosProtocolParameters where
               )
           , (PlutusV2 /\ _) <<< CostModel <$>
               ps.plutusCostModels."plutus:v2"
+          , (PlutusV3 /\ _) <<< CostModel <$>
+              ps.plutusCostModels."plutus:v3"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
@@ -1224,6 +1241,8 @@ instance EncodeAeson AdditionalUtxoSet where
       encodeAeson { "language": "plutus:v1", "cbor": byteArrayToHex s }
     encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
       encodeAeson { "language": "plutus:v2", "cbor": byteArrayToHex s }
+    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV3))) =
+      encodeAeson { "language": "plutus:v3", "cbor": byteArrayToHex s }
 
     encodeValue :: Value -> Aeson
     encodeValue value = encodeMap $ map encodeMap $ Map.union adaPart nonAdaPart
