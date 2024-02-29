@@ -6,43 +6,39 @@ module Ctl.Internal.BalanceTx.Collateral.Select
 
 import Prelude
 
-import Cardano.Types.BigNum (BigNum(..))
+import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.Coin (Coin(..))
+import Cardano.Types.Coin (Coin)
 import Cardano.Types.Coin as Coin
-import Cardano.Types.MultiAsset (MultiAsset(..))
+import Cardano.Types.MultiAsset (MultiAsset)
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.TransactionInput (TransactionInput)
-import Cardano.Types.TransactionOutput (TransactionOutput(..))
-import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput(..))
+import Cardano.Types.TransactionOutput (TransactionOutput)
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value as Value
-import Control.Bind (bindFlipped)
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithMultiAssets)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import Ctl.Internal.Helpers (notImplemented)
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Data.Array (foldr)
+import Ctl.Internal.Helpers (bugTrackerLink)
 import Data.Array as Array
-import Data.Foldable (foldMap, foldl)
+import Data.Foldable (foldl)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
-import Data.Traversable (traverse)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
-import JS.BigInt (BigInt)
-import JS.BigInt (fromInt) as BigInt
-import Safe.Coerce (coerce)
+import Effect.Exception (throw)
+import Effect.Unsafe (unsafePerformEffect)
 
-minRequiredCollateral :: BigNum
-minRequiredCollateral = BigNum.fromInt 5_000_000
+minRequiredCollateral :: Coin
+minRequiredCollateral = wrap $ BigNum.fromInt 5_000_000
 
 -- | A constant that limits the number of candidate utxos for collateral
 -- | selection, thus maintaining acceptable time complexity.
@@ -54,9 +50,9 @@ maxCandidateUtxos = 10
 --------------------------------------------------------------------------------
 
 collateralReturnMinAdaValue
-  :: CoinsPerUtxoUnit -> List TransactionUnspentOutput -> Maybe BigNum
-collateralReturnMinAdaValue coinsPerUtxoUnit =
-  utxoMinAdaValue coinsPerUtxoUnit <<< fakeOutputWithMultiAssets <=<
+  :: Coin -> List TransactionUnspentOutput -> Maybe BigNum
+collateralReturnMinAdaValue coinsPerUtxoByte =
+  utxoMinAdaValue coinsPerUtxoByte <<< fakeOutputWithMultiAssets <=<
     MultiAsset.sum <<< Array.fromFoldable <<< map nonAdaAsset
 
 type ReturnOutMinAdaValue = BigNum
@@ -90,8 +86,8 @@ instance Ord CollateralCandidate where
     byNumOfInputs :: CollateralCandidate -> Int
     byNumOfInputs = List.length <<< Tuple.fst <<< unwrap
 
-    byAdaValue :: CollateralCandidate -> BigInt
-    byAdaValue = foldl consumeUtxoAdaValue zero <<< Tuple.fst <<< unwrap
+    byAdaValue :: CollateralCandidate -> Coin
+    byAdaValue = foldl consumeUtxoAdaValue Coin.zero <<< Tuple.fst <<< unwrap
 
 mkCollateralCandidate
   :: List TransactionUnspentOutput /\ Maybe ReturnOutMinAdaValue
@@ -116,39 +112,33 @@ mkCollateralCandidate (unspentOutputs /\ returnOutMinAdaValue) =
 -- |   utxo min ada value, we prefer the one with fewer inputs.
 -- |
 selectCollateral
-  :: CoinsPerUtxoUnit
+  :: Coin
   -> Int
   -> UtxoMap
-  -> Effect (Maybe (List TransactionUnspentOutput))
+  -> Maybe (List TransactionUnspentOutput)
 selectCollateral coinsPerUtxoUnit maxCollateralInputs =
-  notImplemented
-    -- -- Sort candidate utxo combinations in ascending order by utxo min ada value
-    -- -- of return output, then select the first utxo combination:
-    -- map (map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort)
-    --   -- For each candidate utxo combination calculate
-    --   -- the min Ada value of the corresponding collateral return output:
-    --   <<< map (List.mapMaybe mkCollateralCandidate)
-    --   <<< map
-    --     (\x -> Tuple x $ collateralReturnMinAdaValue coinsPerUtxoUnit x)
-    --   -- Filter out all utxo combinations
-    --   -- with total Ada value < `minRequiredCollateral`:
-    --   <<< List.filter
-    --     (\x -> foldl (map (fromMaybe zero) <<< consumeUtxoAdaValue) zero x >= coerce minRequiredCollateral)
-    --   -- Get all possible non-empty utxo combinations
-    --   -- with the number of utxos <= `maxCollateralInputs`:
-    --   <<< combinations maxCollateralInputs
-    --   -- Limit the number of candidate utxos for collateral selection to
-    --   -- maintain acceptable time complexity:
-    --   <<< List.take maxCandidateUtxos
-    --   <<< map unwrap
+  -- Sort candidate utxo combinations in ascending order by utxo min ada value
+  -- of return output, then select the first utxo combination:
+  map (Tuple.fst <<< unwrap) <<< List.head <<< List.sort
+    -- For each candidate utxo combination calculate
+    -- the min Ada value of the corresponding collateral return output:
+    <<< List.mapMaybe mkCollateralCandidate
+    <<< map (\x -> Tuple x $ collateralReturnMinAdaValue coinsPerUtxoUnit x)
+    -- Filter out all utxo combinations
+    -- with total Ada value < `minRequiredCollateral`:
+    <<< List.filter
+      (\x -> foldl consumeUtxoAdaValue (Coin.zero) x >= minRequiredCollateral)
+    -- Get all possible non-empty utxo combinations
+    -- with the number of utxos <= `maxCollateralInputs`:
+    <<< combinations maxCollateralInputs
+    -- Limit the number of candidate utxos for collateral selection to
+    -- maintain acceptable time complexity:
+    <<< List.take maxCandidateUtxos
+    <<< map unwrap
     -- Sort utxos by ada value in decreasing order:
-    <<< sortByDecreasingAda
-  where
-  sortByDecreasingAda :: UtxoMap -> List AdaOut
-  sortByDecreasingAda =
-    List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
-      <<< map (AdaOut <<< asTxUnspentOutput)
-      <<< Map.toUnfoldable
+    <<< List.sortBy (\lhs -> Ordering.invert <<< compare lhs)
+    <<< map (AdaOut <<< asTxUnspentOutput)
+    <<< Map.toUnfoldable
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -173,8 +163,19 @@ adaValue :: TransactionUnspentOutput -> Coin
 adaValue =
   Value.getCoin <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
-consumeUtxoAdaValue :: Coin -> TransactionUnspentOutput -> Maybe Coin
-consumeUtxoAdaValue acc = Coin.add acc <<< adaValue
+consumeUtxoAdaValue :: Coin -> TransactionUnspentOutput -> Coin
+consumeUtxoAdaValue acc = unsafeFromMaybe "consumeUtxoAdaValue" <<< Coin.add acc
+  <<< adaValue
+
+unsafeFromMaybe :: forall a. String -> Maybe a -> a
+unsafeFromMaybe e a = case a of
+  Nothing ->
+    unsafePerformEffect $ throw $ "unsafeFromMaybe: impossible happened: "
+      <> e
+      <> " (please report as bug at "
+      <> bugTrackerLink
+      <> " )"
+  Just v -> v
 
 nonAdaAsset :: TransactionUnspentOutput -> MultiAsset
 nonAdaAsset =
