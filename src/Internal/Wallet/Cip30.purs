@@ -6,40 +6,33 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
+import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Serialization.Lib (fromBytes, toBytes)
 import Cardano.Types.Address (Address)
-import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.Coin (Coin(Coin))
+import Cardano.Types.RawBytes (RawBytes)
+import Cardano.Types.Transaction (Transaction(Transaction))
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOuput
 import Cardano.Types.TransactionUnspentOutput as UnspentOutput
+import Cardano.Types.TransactionWitnessSet (TransactionWitnessSet)
+import Cardano.Types.Value (Value)
 import Cardano.Types.Value as Value
 import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30.TypeSafe (APIError)
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
-import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
-  , TransactionWitnessSet
-  )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
-import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.Helpers (liftM, notImplemented)
-import Ctl.Internal.Types.CborBytes (CborBytes(..))
-import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
+import Ctl.Internal.Helpers (liftM)
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
-import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Variant (Variant, match)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import JS.BigInt (fromInt) as BigInt
 
 type DataSignature =
   { key :: CborBytes
@@ -183,24 +176,23 @@ getUtxos conn = do
 
 signTx :: Api -> Transaction -> Aff Transaction
 signTx conn tx = do
-  txHex <- liftEffect $ txToHex tx
+  let txHex = txToHex tx
   result <- Cip30.signTx conn txHex true
   liftEffect $ result `flip match`
     { success:
         \hexString -> do
-          bytes <- liftM (mkInvalidHexError hexString) $ hexToRawBytes
-            hexString
+          bytes <- liftM (mkInvalidHexError hexString) $
+            hexToByteArray hexString
           ws <- liftM (error "signTx: unable to decode WitnessSet cbor")
-            $ fromBytes (unwrap bytes)
-          pure $ combineWitnessSet tx $
-            Deserialization.WitnessSet.convertWitnessSet ws
+            $ decodeCbor (wrap bytes)
+          pure $ combineWitnessSet tx ws
     , apiError: show >>> throw
     , txSignError: show >>> throw
     }
   where
 
-  txToHex :: Transaction -> Effect String
-  txToHex = notImplemented
+  txToHex :: Transaction -> String
+  txToHex = encodeCbor >>> unwrap >>> byteArrayToHex
 
   -- We have to combine the newly returned witness set with the existing one
   -- Otherwise, any datums, etc... won't be retained
@@ -218,7 +210,7 @@ signData conn address dat = do
   -- TODO: forbid byron addresses
   let byteAddress = encodeCbor address
   result <- Cip30.signData conn (byteArrayToHex $ unwrap byteAddress)
-    (rawBytesToHex dat)
+    (byteArrayToHex $ unwrap dat)
   liftEffect $ result `flip match`
     { dataSignError: show >>> throw
     , apiError: show >>> throw
@@ -243,7 +235,3 @@ getCip30Collateral conn (Coin requiredValue) = do
   (Cip30.getCollateral conn requiredValueStr >>= handleApiError) `catchError`
     \err -> throwError $ error $
       "Failed to call `getCollateral`: " <> show err
-  where
-  convertError =
-    "Unable to convert CIP-30 getCollateral required value: " <>
-      show requiredValue
