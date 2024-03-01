@@ -51,8 +51,9 @@ import Type.Proxy (Proxy(..))
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
 attachRedeemers redeemers =
-  _Newtype <<< prop (Proxy :: Proxy "witnessSet") <<<
-  _Newtype <<< prop (Proxy :: Proxy "redeemers") .~ redeemers
+  _Newtype <<< prop (Proxy :: Proxy "witnessSet")
+    <<< _Newtype
+    <<< prop (Proxy :: Proxy "redeemers") .~ redeemers
 
 attachIndexedRedeemers :: Array IndexedRedeemer -> Transaction -> Transaction
 attachIndexedRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer

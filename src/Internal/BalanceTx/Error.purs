@@ -24,19 +24,15 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
+import Cardano.Types (Coin, Redeemer(Redeemer), Transaction)
+import Cardano.Types.BigNum as BigNum
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionOutput (TransactionOutput)
 import Cardano.Types.UtxoMap (UtxoMap, pprintUtxoMap)
-import Cardano.Types.Value (Value)
+import Cardano.Types.Value (Value, pprintValue)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
-  , Transaction
-  , _redeemers
-  , _witnessSet
-  )
-import Ctl.Internal.Cardano.Types.Value (pprintValue)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
+import Ctl.Internal.Lens (_redeemers, _witnessSet)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
   , ScriptFailure
@@ -52,8 +48,6 @@ import Ctl.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
-import Ctl.Internal.Types.Natural (toBigInt) as Natural
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
 import Data.Either (Either(Left, Right), either, isLeft)
@@ -62,7 +56,7 @@ import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Function (applyN)
 import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
-import Data.Lens (non, (^.))
+import Data.Lens ((^.))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
@@ -70,7 +64,8 @@ import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
 import Data.String.Common (joinWith, split) as String
 import Data.String.Utils (padEnd)
-import JS.BigInt (toString) as BigInt
+import Data.UInt as UInt
+import JS.BigInt as BigInt
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
@@ -80,7 +75,7 @@ data BalanceTxError
   | InsufficientCollateralUtxos UtxoMap
   | CouldNotGetUtxos
   | CollateralReturnError
-  | CollateralReturnMinAdaValueCalcError CoinsPerUtxoUnit TransactionOutput
+  | CollateralReturnMinAdaValueCalcError Coin TransactionOutput
   | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
   | InsufficientUtxoBalanceToCoverAsset String
   | ReindexRedeemersError UnindexedRedeemer
@@ -188,10 +183,10 @@ number ary = freeze (foldl go [] ary)
   biggestPrefix :: String
   biggestPrefix = toStringAs decimal (length (Array.filter isLeft ary)) <> ". "
 
-  width :: Int
+  width :: Prim.Int
   width = ceil (toNumber (String.length biggestPrefix) / 2.0) * 2
 
-  numberLine :: Int -> String -> String
+  numberLine :: Prim.Int -> String -> String
   numberLine i l = padEnd width (toStringAs decimal (i + 1) <> ". ") <> l
 
   indentLine :: String -> String
@@ -216,15 +211,15 @@ printTxEvaluationFailure transaction e =
   lookupRedeemerPointer
     :: Ogmios.RedeemerPointer -> Maybe Redeemer
   lookupRedeemerPointer ptr =
-    flip find (transaction ^. _witnessSet <<< _redeemers <<< non [])
+    flip find (transaction ^. _witnessSet <<< _redeemers)
       $ \(Redeemer { index, tag }) -> tag == ptr.redeemerTag && index ==
-          Natural.toBigInt ptr.redeemerIndex
+          (BigNum.fromInt $ UInt.toInt ptr.redeemerIndex)
 
   printRedeemerPointer :: Ogmios.RedeemerPointer -> PrettyString
   printRedeemerPointer ptr =
     line
       ( show ptr.redeemerTag <> ":" <> BigInt.toString
-          (Natural.toBigInt ptr.redeemerIndex)
+          (BigInt.fromInt $ UInt.toInt ptr.redeemerIndex)
       )
 
   -- TODO Investigate if more details can be printed, for example minting
@@ -277,8 +272,8 @@ printTxEvaluationFailure transaction e =
     Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
       line "Ill formed execution budget:"
         <> bullet
-          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
-              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
+          ( line ("Memory: " <> BigNum.toString memory)
+              <> line ("Steps: " <> BigNum.toString steps)
           )
     Ogmios.NoCostModelForLanguage languages ->
       line "No cost model for languages:"
