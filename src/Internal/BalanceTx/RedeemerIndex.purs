@@ -22,34 +22,37 @@ module Ctl.Internal.BalanceTx.RedeemerIndex
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson)
-import Cardano.Types.PlutusData (PlutusData)
-import Cardano.Types.TransactionInput (TransactionInput)
-import Ctl.Internal.Cardano.Types.Transaction
+import Cardano.Types
   ( Certificate
+  , ExUnits(ExUnits)
   , Redeemer(Redeemer)
+  , RewardAddress
   , Transaction(Transaction)
-  , TxBody(TxBody)
-  , _redeemers
-  , _witnessSet
+  , TransactionBody(TransactionBody)
   )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
-import Ctl.Internal.Types.RewardAddress (RewardAddress)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Data.Array (findIndex)
 import Data.Either (Either, note)
-import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((.~))
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record (prop)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromMaybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
-import JS.BigInt as BigInt
+import Type.Proxy (Proxy(..))
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
-attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
+attachRedeemers redeemers =
+  _Newtype <<< prop (Proxy :: Proxy "witnessSet") <<<
+  _Newtype <<< prop (Proxy :: Proxy "redeemers") .~ redeemers
 
 attachIndexedRedeemers :: Array IndexedRedeemer -> Transaction -> Transaction
 attachIndexedRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
@@ -82,15 +85,15 @@ unindexedRedeemerToRedeemer (UnindexedRedeemer { datum, purpose }) =
   Redeemer
     { tag: redeemerPurposeToRedeemerTag purpose
     , "data": datum
-    , index: zero
-    , exUnits: zero
+    , index: BigNum.zero
+    , exUnits: ExUnits { mem: BigNum.zero, steps: BigNum.zero }
     }
 
 -- | A redeemer with an index, but without `ExUnits`
 newtype IndexedRedeemer = IndexedRedeemer
   { tag :: RedeemerTag
   , datum :: PlutusData
-  , index :: Int
+  , index :: Prim.Int
   }
 
 derive instance Generic IndexedRedeemer _
@@ -106,9 +109,9 @@ indexedRedeemerToRedeemer :: IndexedRedeemer -> Redeemer
 indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
   Redeemer
     { tag
-    , index: BigInt.fromInt index
+    , index: BigNum.fromInt index
     , data: datum
-    , exUnits: { mem: zero, steps: zero }
+    , exUnits: ExUnits { mem: BigNum.zero, steps: BigNum.zero }
     }
 
 -- | Contains a value redeemer corresponds to, different for each possible
@@ -144,15 +147,15 @@ type RedeemersContext =
 
 mkRedeemersContext :: Transaction -> RedeemersContext
 mkRedeemersContext
-  (Transaction { body: TxBody { inputs, mint, withdrawals, certs } }) =
-  { inputs: Set.toUnfoldable inputs
-  , mintingPolicyHashes: Set.toUnfoldable (Map.keys mintedAssets) <#> wrap
-  , rewardAddresses: Set.toUnfoldable $ Map.keys $ fromMaybe Map.empty
-      withdrawals
-  , certs: fold certs
+  (Transaction { body: TransactionBody { inputs, mint, withdrawals, certs } }) =
+  { inputs: inputs
+  , mintingPolicyHashes:
+      map wrap $ Set.toUnfoldable $ Map.keys $ unwrap $ fromMaybe
+        (wrap Map.empty)
+        mint
+  , rewardAddresses: Set.toUnfoldable $ Map.keys $ withdrawals
+  , certs
   }
-  where
-  mintedAssets = fromMaybe Map.empty $ map (unwrap <<< unwrap) mint
 
 indexRedeemers
   :: RedeemersContext

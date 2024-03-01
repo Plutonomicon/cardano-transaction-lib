@@ -279,13 +279,43 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib"
-        , version = "bdf3133ca08290c9c7e6c9e65c46096354c74898"
+        , version = "596a54711c3841a5851371056e1376a9f7bf70b4"
         }
       , cardano-plutus-data-schema =
         { dependencies = [ "prelude" ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-plutus-data-schema"
         , version = "351003d931990949ce3d73f399a179e4a0fa40f1"
+        }
+      , plutus-types =
+        { dependencies =
+          [ "aeson"
+          , "argonaut-codecs"
+          , "arrays"
+          , "bifunctors"
+          , "bytearrays"
+          , "cardano-plutus-data-schema"
+          , "cardano-types"
+          , "console"
+          , "effect"
+          , "either"
+          , "foldable-traversable"
+          , "gen"
+          , "js-bigints"
+          , "lattice"
+          , "maybe"
+          , "monad-logger"
+          , "newtype"
+          , "ordered-collections"
+          , "partial"
+          , "prelude"
+          , "profunctor-lenses"
+          , "quickcheck"
+          , "these"
+          , "tuples"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-plutus-types"
+        , version = "143902b37e218d843b9da473553ecf50686934cb"
         }
       , cardano-types =
         { dependencies =
@@ -331,7 +361,33 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "db0ca1ee2cf6a2cbbe282d49a3bf9daa696ebdee"
+        , version = "7694c87969562c131ec0db2c251fa651dc42d66e"
+        }
+      , cardano-message-signing =
+        { dependencies =
+          [ "bytearrays"
+          , "cardano-types"
+          , "console"
+          , "effect"
+          , "newtype"
+          , "prelude"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-cardano-message-signing"
+        , version = "8078bd9ce339262f29155a80572e8c44334aa801"
+        }
+      , cardano-hd-wallet =
+        { dependencies =
+          [ "cardano-serialization-lib"
+          , "cardano-types"
+          , "console"
+          , "effect"
+          , "either"
+          , "prelude"
+          , "uint"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cardano-hd-wallet"
+        , version = "640b10e00d6eeb4a1c13e730295072ae34e56ac9"
         }
       }
 

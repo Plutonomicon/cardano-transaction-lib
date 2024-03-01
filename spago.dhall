@@ -18,6 +18,8 @@ You can edit this file as you like.
   , "bifunctors"
   , "bignumber"
   , "bytearrays"
+  , "cardano-hd-wallet"
+  , "cardano-message-signing"
   , "cardano-types"
   , "checked-exceptions"
   , "cip30"
@@ -69,6 +71,7 @@ You can edit this file as you like.
   , "orders"
   , "parallel"
   , "partial"
+  , "plutus-types"
   , "posix-types"
   , "prelude"
   , "profunctor"
@@ -100,12 +103,5 @@ You can edit this file as you like.
   , "web-storage"
   ]
 , packages = ./packages.dhall
-, sources =
-  [ "src/**/*.purs"
-  , "test/**/*.purs"
-  , "examples/**/*.purs"
-  , "templates/ctl-scaffold/src/**/*.purs"
-  , "templates/ctl-scaffold/test/**/*.purs"
-  , "templates/ctl-scaffold/exe/**/*.purs"
-  ]
+, sources = [ "src/**/*.purs" ]
 }
