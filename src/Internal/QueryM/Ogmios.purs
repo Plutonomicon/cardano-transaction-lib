@@ -94,20 +94,28 @@ import Aeson
   , (.:)
   , (.:?)
   )
-import Cardano.Serialization.Lib (fromBytes)
-import Cardano.AsCbor (encodeCbor)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Serialization.Lib (fromBytes, ipv4_new)
+import Cardano.Types
+  ( Bech32String
+  , BigNum(..)
+  , Language(..)
+  , RedeemerTag
+  , VRFKeyHash(..)
+  )
 import Cardano.Types.AssetName (unAssetName)
 import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum (fromBigInt, fromString) as BigNum
+import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.Coin (Coin(..))
+import Cardano.Types.CostModel (CostModel(..))
 import Cardano.Types.Ed25519KeyHash (Ed25519KeyHash)
-import Cardano.Types.PlutusScript (PlutusScript(..))
-import Cardano.Types.RewardAddress (RewardAddress)
-import Cardano.Types.ScriptHash (ScriptHash)
-import Cardano.Types.Slot (Slot(..))
-import Cardano.Types.TransactionHash (TransactionHash)
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
-import Ctl.Internal.Cardano.Types.NativeScript
+import Cardano.Types.ExUnitPrices (ExUnitPrices(..))
+import Cardano.Types.ExUnits (ExUnits(..))
+import Cardano.Types.Int as Cardano
+import Cardano.Types.Ipv4 (Ipv4(Ipv4))
+import Cardano.Types.Ipv6 (Ipv6)
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -117,30 +125,20 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , ExUnitPrices
-  , ExUnits
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , PoolPubKeyHash
-  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
-  , SubCoin
-  , URL(URL)
-  , UnitInterval
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , Value
-  , getMultiAsset
-  , valueToCoin
-  )
+import Cardano.Types.PlutusScript (PlutusScript(..))
+import Cardano.Types.PoolMetadata (PoolMetadata(..))
+import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
+import Cardano.Types.Relay (Relay(..))
+import Cardano.Types.RewardAddress (RewardAddress)
+import Cardano.Types.ScriptHash (ScriptHash)
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
+import Cardano.Types.Slot (Slot(..))
+import Cardano.Types.TransactionHash (TransactionHash)
+import Cardano.Types.URL (URL(..))
+import Cardano.Types.UnitInterval (UnitInterval(..))
+import Cardano.Types.Value (Value, getMultiAsset, valueToCoin)
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonRpc2
   ( class DecodeOgmios
@@ -151,32 +149,20 @@ import Ctl.Internal.QueryM.JsonRpc2
   , decodeResult
   , mkCallType
   )
-import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.CborBytes (CborBytes(..))
-import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   )
-import Ctl.Internal.Types.Int as Csl
-import Ctl.Internal.Types.Natural (Natural)
-import Ctl.Internal.Types.Natural (fromString) as Natural
-import Ctl.Internal.Types.ProtocolParameters
-  ( CoinsPerUtxoUnit(CoinsPerUtxoByte)
-  , ProtocolParameters(ProtocolParameters)
-  )
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters(..))
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
-import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
-import Ctl.Internal.Types.Scripts (Language(PlutusV1, PlutusV2))
+import Ctl.Internal.Types.RedeemerTag as RedeemerTag
 import Ctl.Internal.Types.SystemStart
   ( SystemStart
   , sysStartFromOgmiosTimestamp
   , sysStartToOgmiosTimestamp
   )
-import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, length, replicate) as Array
@@ -204,7 +190,6 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -359,9 +344,9 @@ instance DecodeOgmios MempoolSnapshotAcquired where
 -- | The acquired snapshot’s size (in bytes), number of transactions, and capacity
 -- | (in bytes).
 newtype MempoolSizeAndCapacity = MempoolSizeAndCapacity
-  { capacity :: Int
-  , currentSize :: Int
-  , numberOfTxs :: Int
+  { capacity :: Prim.Int
+  , currentSize :: Prim.Int
+  , numberOfTxs :: Prim.Int
   }
 
 derive instance Generic MempoolSizeAndCapacity _
@@ -492,7 +477,7 @@ instance DecodeOgmios OgmiosSystemStart where
   decodeOgmios = decodeResult decodeAeson
 
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
-newtype CurrentEpoch = CurrentEpoch BigInt
+newtype CurrentEpoch = CurrentEpoch BigNum
 
 derive instance Generic CurrentEpoch _
 derive instance Newtype CurrentEpoch _
@@ -685,7 +670,7 @@ decodeUnitInterval aeson = do
     [ num, den ] -> do
       numerator <- note (TypeMismatch "BigNum") $ BigNum.fromString num
       denominator <- note (TypeMismatch "BigNum") $ BigNum.fromString den
-      pure
+      pure $ UnitInterval
         { numerator
         , denominator
         }
@@ -698,7 +683,8 @@ decodeIpv4 aeson = do
     bs@[ _, _, _, _ ] -> do
       ints <- for bs $
         note (TypeMismatch "Ipv4") <<< Int.fromString
-      Ipv4 <$> note (TypeMismatch "Ipv4") (byteArrayFromIntArray ints)
+      Ipv4 <<< ipv4_new <$> note (TypeMismatch "Ipv4")
+        (byteArrayFromIntArray ints)
     _ -> Left $ TypeMismatch "Ipv4"
 
 decodeIpv6 :: Aeson -> Either JsonDecodeError Ipv6
@@ -726,7 +712,7 @@ parseIpv6String str = do
     padded = String.replaceAll (Pattern " ") (Replacement "0") $ fold $
       partsFixed
         <#> StringUtils.padStart 4
-  Ipv6 <$> hexToByteArray padded
+  decodeCbor <<< wrap =<< hexToByteArray padded
 
 decodeRelay :: Aeson -> Either JsonDecodeError Relay
 decodeRelay aeson = do
@@ -749,20 +735,20 @@ decodeRelay aeson = do
 decodePoolMetadata :: Aeson -> Either JsonDecodeError PoolMetadata
 decodePoolMetadata aeson = do
   obj <- decodeAeson aeson
-  hash <- obj .: "hash" >>= note (TypeMismatch "PoolMetadataHash")
-    <<< map PoolMetadataHash
-    <<< hexToByteArray
+  hash <- obj .: "hash" >>=
+    (hexToByteArray >>> map wrap >=> decodeCbor) >>>
+      note (TypeMismatch "PoolMetadataHash")
   url <- obj .: "url" <#> URL
   pure $ PoolMetadata { hash, url }
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
+type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: UInt }
 
 showRedeemerPointer :: RedeemerPointer -> String
 showRedeemerPointer ptr = show ptr.redeemerTag <> ":" <> show ptr.redeemerIndex
 
-type ExecutionUnits = { memory :: Natural, steps :: Natural }
+type ExecutionUnits = { memory :: BigNum, steps :: BigNum }
 
 newtype TxEvaluationR = TxEvaluationR
   (Either TxEvaluationFailure TxEvaluationResult)
@@ -798,7 +784,7 @@ instance DecodeAeson TxEvaluationResult where
     decodeRdmrPtrExUnitsItem elem = do
       res
         :: { validator :: String
-           , budget :: { memory :: Natural, cpu :: Natural }
+           , budget :: { memory :: BigNum, cpu :: BigNum }
            } <- decodeAeson elem
       redeemerPtr <- decodeRedeemerPointer res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
@@ -814,13 +800,13 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
     [ tagRaw, indexRaw ] ->
       { redeemerTag: _, redeemerIndex: _ }
         <$> RedeemerTag.fromString tagRaw
-        <*> Natural.fromString indexRaw
+        <*> UInt.fromString indexRaw
     _ -> Nothing
 
 type OgmiosDatum = String
 type OgmiosScript = String
 type OgmiosTxId = String
-type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
+type OgmiosTxIn = { txId :: OgmiosTxId, index :: Prim.Int }
 
 -- | Reason a script failed.
 --
@@ -880,7 +866,7 @@ instance DecodeAeson ScriptFailure where
       3013 -> do
         res
           :: { unsuitableOutputReference ::
-                 { transaction :: { id :: String }, index :: Int }
+                 { transaction :: { id :: String }, index :: Prim.Int }
              } <- decodeAeson errorData
         pure $ NonScriptInputReferencedByRedeemer
           { index: res.unsuitableOutputReference.index
@@ -897,7 +883,7 @@ instance DecodeAeson ScriptFailure where
       3117 -> do
         res
           :: { unknownOutputReferences ::
-                 Array { transaction :: { id :: String }, index :: Int }
+                 Array { transaction :: { id :: String }, index :: Prim.Int }
              } <- decodeAeson errorData
         pure $ UnknownInputReferencedByRedeemer $
           map (\x -> { index: x.index, txId: x.transaction.id })
@@ -976,11 +962,11 @@ instance DecodeAeson PParamRational where
     err :: JsonDecodeError
     err = TypeMismatch "PParamRaional"
 
-rationalToSubcoin :: PParamRational -> Maybe SubCoin
+rationalToSubcoin :: PParamRational -> Maybe UnitInterval
 rationalToSubcoin (PParamRational rat) = do
   numerator <- BigNum.fromBigInt $ Rational.numerator rat
   denominator <- BigNum.fromBigInt $ Rational.denominator rat
-  pure { numerator, denominator }
+  pure $ UnitInterval { numerator, denominator }
 
 -- | A type that corresponds to Ogmios response.
 type ProtocolParametersRaw =
@@ -1000,7 +986,7 @@ type ProtocolParametersRaw =
       { "lovelace" :: BigNum }
   , "stakePoolDeposit" ::
       { "lovelace" :: BigNum }
-  , "stakePoolRetirementEpochBound" :: BigInt
+  , "stakePoolRetirementEpochBound" :: UInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
@@ -1012,20 +998,20 @@ type ProtocolParametersRaw =
   , "minStakePoolCost" ::
       { "lovelace" :: BigNum }
   , "plutusCostModels" ::
-      { "plutus:v1" :: Array Csl.Int
-      , "plutus:v2" :: Maybe (Array Csl.Int)
+      { "plutus:v1" :: Array Cardano.Int
+      , "plutus:v2" :: Maybe (Array Cardano.Int)
       }
   , "scriptExecutionPrices" ::
       { "memory" :: PParamRational
       , "cpu" :: PParamRational
       }
   , "maxExecutionUnitsPerTransaction" ::
-      { "memory" :: BigInt
-      , "cpu" :: BigInt
+      { "memory" :: BigNum
+      , "cpu" :: BigNum
       }
   , "maxExecutionUnitsPerBlock" ::
-      { "memory" :: BigInt
-      , "cpu" :: BigInt
+      { "memory" :: BigNum
+      , "cpu" :: BigNum
       }
   , "collateralPercentage" :: UInt
   , "maxCollateralInputs" :: UInt
@@ -1048,28 +1034,26 @@ instance DecodeAeson OgmiosProtocolParameters where
       { protocolVersion: ps.version.major /\ ps.version.minor
       -- The following two parameters were removed from Babbage
       , decentralization: zero
-      , extraPraosEntropy: Nothing
       , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
       , maxBlockBodySize: ps.maxBlockBodySize.bytes
       , maxTxSize: ps.maxTransactionSize.bytes
       , txFeeFixed: ps.minFeeConstant.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.lovelace
-      , stakePoolDeposit: Coin ps.stakePoolDeposit.lovelace
-      , minPoolCost: Coin ps.minStakePoolCost.lovelace
-      , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
+      , stakeAddressDeposit: wrap ps.stakeCredentialDeposit.lovelace
+      , stakePoolDeposit: wrap ps.stakePoolDeposit.lovelace
+      , minPoolCost: wrap ps.minStakePoolCost.lovelace
+      , poolRetireMaxEpoch: wrap ps.stakePoolRetirementEpochBound
       , stakePoolTargetNum: ps.desiredNumberOfStakePools
       , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoUnit: CoinsPerUtxoByte (Coin ps.minUtxoDepositCoefficient)
-      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
+      , coinsPerUtxoByte: wrap ps.minUtxoDepositCoefficient
+      , costModels: Map.fromFoldable $ catMaybes
           [ pure
               ( PlutusV1 /\ CostModel
                   ps.plutusCostModels."plutus:v1"
               )
-          , (PlutusV2 /\ _) <<< CostModel <$>
-              ps.plutusCostModels."plutus:v2"
+          , (PlutusV2 /\ _) <<< CostModel <$> ps.plutusCostModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
@@ -1080,12 +1064,12 @@ instance DecodeAeson OgmiosProtocolParameters where
       }
     where
     decodeExUnits
-      :: { memory :: BigInt, cpu :: BigInt } -> ExUnits
-    decodeExUnits { memory, cpu } = { mem: memory, steps: cpu }
+      :: { memory :: BigNum, cpu :: BigNum } -> ExUnits
+    decodeExUnits { memory, cpu } = ExUnits { mem: memory, steps: cpu }
 
     decodePrices
       :: ProtocolParametersRaw -> Either JsonDecodeError ExUnitPrices
-    decodePrices ps = note (TypeMismatch "ExUnitPrices") do
+    decodePrices ps = note (TypeMismatch "ExUnitPrices") $ ExUnitPrices <$> do
       memPrice <- rationalToSubcoin ps.scriptExecutionPrices.memory
       stepPrice <- rationalToSubcoin ps.scriptExecutionPrices.cpu
       pure { memPrice, stepPrice } -- ExUnits
