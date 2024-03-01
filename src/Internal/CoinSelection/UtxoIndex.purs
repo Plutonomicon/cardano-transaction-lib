@@ -27,8 +27,8 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionOutput (TransactionOutput(..))
 import Cardano.Types.UtxoMap (UtxoMap)
-import Ctl.Internal.Cardano.Types.Value (AssetClass, Value)
-import Ctl.Internal.Cardano.Types.Value
+import Cardano.Types (AssetClass, Value)
+import Cardano.Types.Value
   ( valueAssetClasses
   , valueAssets
   , valueOf
