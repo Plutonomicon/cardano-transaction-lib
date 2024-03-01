@@ -1,8 +1,12 @@
-module Ctl.Internal.Contract.Hooks (Hooks, emptyHooks) where
+module Ctl.Internal.Contract.Hooks
+  ( Hooks
+  , emptyHooks
+  )
+where
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
+import Cardano.Types.Transaction (Transaction)
 import Data.Maybe (Maybe(Nothing))
 import Effect (Effect)
 import Effect.Exception (Error)

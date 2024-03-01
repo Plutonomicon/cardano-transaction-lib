@@ -6,8 +6,6 @@ module Ctl.Internal.Types.Scripts
   , StakeValidatorHash(StakeValidatorHash)
   , Validator(Validator)
   , ValidatorHash(ValidatorHash)
-  , stakeValidatorHashToBech32
-  , module X
   ) where
 
 import Prelude
@@ -22,21 +20,18 @@ import Aeson
   , encodeAeson
   , getField
   )
-import Cardano.Types.Language (Language(..), fromCsl, toCsl) as X
+import Cardano.FromData (class FromData)
+import Cardano.FromMetadata (class FromMetadata)
+import Cardano.ToData (class ToData)
+import Cardano.ToMetadata (class ToMetadata)
 import Cardano.Types.NativeScript (NativeScript)
 import Cardano.Types.PlutusScript (PlutusScript(..))
 import Control.Alt ((<|>))
-import Ctl.Internal.FromData (class FromData)
-import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
-import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBech32Unsafe)
-import Ctl.Internal.ToData (class ToData)
-import Ctl.Internal.Types.Aliases (Bech32String)
+import Cardano.Types.ScriptHash (ScriptHash)
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
-import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
 -- `PlutusScript` newtypes and `TypedValidator`
@@ -180,7 +175,3 @@ instance EncodeAeson StakeValidatorHash where
 
 instance Show StakeValidatorHash where
   show = genericShow
-
-stakeValidatorHashToBech32 :: StakeValidatorHash -> Bech32String
-stakeValidatorHashToBech32 = unsafePartial $ unwrap >>> scriptHashToBech32Unsafe
-  "script"
