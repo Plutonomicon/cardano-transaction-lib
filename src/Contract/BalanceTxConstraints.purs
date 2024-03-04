@@ -4,8 +4,10 @@ module Contract.BalanceTxConstraints (module BalanceTxConstraints) where
 
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraintsBuilder
+  , UtxoPredicate
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
+  , mustNotSpendUtxosWhere
   , mustNotSpendUtxosWithOutRefs
   , mustSendChangeToAddress
   , mustSendChangeWithDatum
