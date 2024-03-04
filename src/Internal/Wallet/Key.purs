@@ -17,47 +17,31 @@ import Aeson
   , decodeAeson
   , encodeAeson
   )
+import Cardano.MessageSigning (DataSignature)
+import Cardano.MessageSigning (signData) as MessageSigning
+import Cardano.Types.Address (Address(BaseAddress, EnterpriseAddress))
+import Cardano.Types.Coin (Coin)
+import Cardano.Types.Credential (Credential(PubKeyHashCredential))
+import Cardano.Types.NetworkId (NetworkId)
+import Cardano.Types.PaymentCredential (PaymentCredential(PaymentCredential))
+import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.PublicKey as PublicKey
+import Cardano.Types.RawBytes (RawBytes)
+import Cardano.Types.StakeCredential (StakeCredential(StakeCredential))
+import Cardano.Types.Transaction (Transaction, hashTransaction)
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.TransactionWitnessSet (TransactionWitnessSet)
+import Cardano.Types.UtxoMap (UtxoMap)
 import Contract.Prelude (class Newtype)
-import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral) as Collateral
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PrivateKey(PrivateKey)
-  , Transaction(Transaction)
-  , TransactionWitnessSet
-  , UtxoMap
-  , _vkeys
-  )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Deserialization.Keys
-  ( privateKeyFromBech32
-  , privateKeyToBech32
-  )
-import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
-import Ctl.Internal.Serialization (publicKeyHash)
-import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId
-  , baseAddress
-  , baseAddressToAddress
-  , enterpriseAddress
-  , enterpriseAddressToAddress
-  , keyHashCredential
-  )
-import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.RawBytes (RawBytes)
-import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Ctl.Internal.Wallet.Cip30.SignData (signData) as Cip30SignData
+import Ctl.Internal.BalanceTx.Collateral.Select as Collateral
+import Ctl.Internal.Lens (_vkeys)
 import Data.Array (fromFoldable)
 import Data.Either (note)
 import Data.Foldable (fold)
 import Data.Lens (set)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (for)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 
@@ -67,10 +51,10 @@ import Effect.Class (liftEffect)
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Address
   , selectCollateral ::
-      CoinsPerUtxoUnit
+      Coin
       -> Int
       -> UtxoMap
-      -> Effect (Maybe (Array TransactionUnspentOutput))
+      -> Maybe (Array TransactionUnspentOutput)
   , signTx :: Transaction -> Aff TransactionWitnessSet
   , signData :: NetworkId -> RawBytes -> Aff DataSignature
   , paymentKey :: PrivatePaymentKey
@@ -88,14 +72,14 @@ instance Show PrivatePaymentKey where
 
 instance EncodeAeson PrivatePaymentKey where
   encodeAeson (PrivatePaymentKey pk) = encodeAeson
-    (privateKeyToBech32 $ unwrap pk)
+    (PrivateKey.toBech32 pk)
 
 instance DecodeAeson PrivatePaymentKey where
   decodeAeson aeson =
     decodeAeson aeson >>=
       note (TypeMismatch "PrivateKey")
-        <<< map (PrivatePaymentKey <<< wrap)
-        <<< privateKeyFromBech32
+        <<< map PrivatePaymentKey
+        <<< PrivateKey.fromBech32
 
 newtype PrivateStakeKey = PrivateStakeKey PrivateKey
 
@@ -106,14 +90,14 @@ instance Show PrivateStakeKey where
 
 instance EncodeAeson PrivateStakeKey where
   encodeAeson (PrivateStakeKey pk) = encodeAeson
-    (privateKeyToBech32 $ unwrap pk)
+    (PrivateKey.toBech32 pk)
 
 instance DecodeAeson PrivateStakeKey where
   decodeAeson aeson =
     decodeAeson aeson >>=
       note (TypeMismatch "PrivateKey")
-        <<< map (PrivateStakeKey <<< wrap)
-        <<< privateKeyFromBech32
+        <<< map PrivateStakeKey
+        <<< PrivateKey.fromBech32
 
 keyWalletPrivatePaymentKey :: KeyWallet -> PrivatePaymentKey
 keyWalletPrivatePaymentKey = unwrap >>> _.paymentKey
@@ -123,25 +107,30 @@ keyWalletPrivateStakeKey = unwrap >>> _.stakeKey
 
 privateKeysToAddress
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> NetworkId -> Address
-privateKeysToAddress payKey mbStakeKey network = do
-  let pubPayKey = publicKeyFromPrivateKey (unwrap $ unwrap payKey)
+privateKeysToAddress payKey mbStakeKey networkId = do
+  let pubPayKey = PrivateKey.toPublicKey (unwrap payKey)
   case mbStakeKey of
     Just stakeKey ->
       let
-        pubStakeKey = publicKeyFromPrivateKey (unwrap $ unwrap stakeKey)
+        pubStakeKey = PrivateKey.toPublicKey (unwrap stakeKey)
       in
-        baseAddressToAddress $
-          baseAddress
-            { network
-            , paymentCred: keyHashCredential $ publicKeyHash $ pubPayKey
-            , delegationCred: keyHashCredential $ publicKeyHash $ pubStakeKey
-            }
+        BaseAddress
+          { networkId
+          , paymentCredential:
+              ( PaymentCredential $ PubKeyHashCredential $ PublicKey.hash $
+                  pubPayKey
+              )
+          , stakeCredential:
+              ( StakeCredential $ PubKeyHashCredential $ PublicKey.hash $
+                  pubStakeKey
+              )
+          }
 
-    Nothing -> pubPayKey # publicKeyHash
-      >>> keyHashCredential
-      >>> { network, paymentCred: _ }
-      >>> enterpriseAddress
-      >>> enterpriseAddressToAddress
+    Nothing -> pubPayKey # PublicKey.hash
+      >>> PubKeyHashCredential
+      >>> wrap
+      >>> { networkId, paymentCredential: _ }
+      >>> EnterpriseAddress
 
 privateKeysToKeyWallet
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
@@ -159,30 +148,29 @@ privateKeysToKeyWallet payKey mbStakeKey =
   address = privateKeysToAddress payKey mbStakeKey
 
   selectCollateral
-    :: CoinsPerUtxoUnit
+    :: Coin
     -> Int
     -> UtxoMap
-    -> Effect (Maybe (Array TransactionUnspentOutput))
-  selectCollateral coinsPerUtxoByte maxCollateralInputs utxos = map fromFoldable
+    -> Maybe (Array TransactionUnspentOutput)
+  selectCollateral coinsPerUtxoByte maxCollateralInputs utxos = fromFoldable
     <$> Collateral.selectCollateral coinsPerUtxoByte maxCollateralInputs utxos
 
   signTx :: Transaction -> Aff TransactionWitnessSet
-  signTx (Transaction tx) = liftEffect do
-    txBody <- Serialization.convertTxBody tx.body
-    hash <- Serialization.hashTransaction txBody
-    payWitness <- Deserialization.WitnessSet.convertVkeyWitness <$>
-      Serialization.makeVkeywitness hash (unwrap $ unwrap payKey)
-    mbStakeWitness <- for mbStakeKey \stakeKey -> do
-      Deserialization.WitnessSet.convertVkeyWitness <$>
-        Serialization.makeVkeywitness hash (unwrap $ unwrap stakeKey)
+  signTx tx = liftEffect do
+    let
+      hash = hashTransaction tx
+      payWitness = PrivateKey.makeVkeyWitness hash (unwrap payKey)
+      mbStakeWitness =
+        mbStakeKey <#> \stakeKey ->
+          PrivateKey.makeVkeyWitness hash (unwrap stakeKey)
     let
       witnessSet' = set _vkeys
-        (pure $ [ payWitness ] <> fold (pure <$> mbStakeWitness))
+        ([ payWitness ] <> fold (pure <$> mbStakeWitness))
         mempty
     pure witnessSet'
 
   signData :: NetworkId -> RawBytes -> Aff DataSignature
   signData networkId payload = do
-    liftEffect $ Cip30SignData.signData (unwrap $ unwrap payKey)
+    liftEffect $ MessageSigning.signData (unwrap payKey)
       (address networkId)
       payload

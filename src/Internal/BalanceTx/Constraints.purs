@@ -24,16 +24,11 @@ module Ctl.Internal.BalanceTx.Constraints
 
 import Prelude
 
-import Cardano.Types.Address (Address)
-import Cardano.Types.NetworkId (NetworkId)
-import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types (UtxoMap, Address, TransactionInput)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyOptimal)
   )
--- import Ctl.Internal.Plutus.Conversion (fromPlutusAddress, fromPlutusAddressWithNetworkTag)
--- import Ctl.Internal.Plutus.Types.Address (Address, AddressWithNetworkTag(AddressWithNetworkTag)) as Plutus
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Types.OutputDatum (OutputDatum)
+import Cardano.Types.OutputDatum (OutputDatum)
 import Data.Array (singleton) as Array
 import Data.Function (applyFlipped)
 import Data.Lens (Lens')

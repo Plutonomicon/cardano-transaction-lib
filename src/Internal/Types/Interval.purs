@@ -77,12 +77,22 @@ import Aeson
   , isNull
   , (.:)
   )
+import Cardano.FromData (class FromData, fromData, genericFromData)
+import Cardano.Plutus.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , PNil
+  , S
+  , Z
+  )
+import Cardano.ToData (class ToData, genericToData, toData)
 import Cardano.Types.BigNum (add, fromBigInt, maxValue, one, toBigInt, zero) as BigNum
 import Cardano.Types.PlutusData (PlutusData(Constr))
 import Cardano.Types.Slot (Slot(..))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
-import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
 import Ctl.Internal.Helpers
   ( encodeTagged'
   , liftEither
@@ -90,16 +100,7 @@ import Ctl.Internal.Helpers
   , mkErrorRecord
   , showWithParens
   )
-import Ctl.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , PNil
-  )
 import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
-import Ctl.Internal.ToData (class ToData, genericToData, toData)
-import Ctl.Internal.TypeLevel.Nat (S, Z)
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)

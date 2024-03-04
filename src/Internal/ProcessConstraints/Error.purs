@@ -2,38 +2,22 @@ module Ctl.Internal.ProcessConstraints.Error where
 
 import Prelude
 
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Serialization.Lib (toBytes)
+import Cardano.Types (DataHash)
 import Cardano.Types.Address (Address)
 import Cardano.Types.Address as Address
-import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.AssetName (AssetName, fromAssetName)
-import Cardano.Types.PlutusScript (PlutusScript(..))
-import Cardano.Types.StakePubKeyHash (StakePubKeyHash(..))
-import Cardano.Types.TransactionOutput
-  ( TransactionOutput
-  , pprintTransactionOutput
-  )
-import Ctl.Internal.Cardano.Types.NativeScript (pprintNativeScript)
+import Cardano.Types.NativeScript (pprintNativeScript)
+import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
+import Cardano.Types.ScriptHash (ScriptHash)
+import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
+import Cardano.Types.TransactionInput (TransactionInput(..))
+import Cardano.Types.TransactionOutput (TransactionOutput, pprintTransactionOutput)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
-import Ctl.Internal.Serialization.Hash
-  ( ScriptHash
-  , ed25519KeyHashToBytes
-  , scriptHashToBytes
-  )
-import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
-import Ctl.Internal.Types.Interval
-  ( POSIXTimeRange
-  , PosixTimeToSlotError
-  , explainPosixTimeToSlotError
-  )
-import Ctl.Internal.Types.RawBytes (rawBytesToHex)
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicyHash
-  , NativeScriptStakeValidator
-  , PlutusScriptStakeValidator
-  , ValidatorHash
-  )
-import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput))
+import Ctl.Internal.Types.Interval (POSIXTimeRange, PosixTimeToSlotError, explainPosixTimeToSlotError)
+import Ctl.Internal.Types.Scripts (MintingPolicyHash, NativeScriptStakeValidator, PlutusScriptStakeValidator, ValidatorHash)
 import Data.ByteArray (byteArrayToHex)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (tagSetTag)
@@ -56,7 +40,7 @@ data MkUnbalancedTxError
   | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
   | CannotWithdrawRewardsNativeScript NativeScriptStakeValidator
   | DatumNotFound DataHash
-  | DatumWrongHash DataHash Datum
+  | DatumWrongHash DataHash PlutusData
   | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
   | MintingPolicyNotFound MintingPolicyHash
   | OwnPubKeyAndStakeKeyMissing

@@ -8,7 +8,7 @@ import Prelude
 
 import Cardano.Serialization.Lib (nativeScript_hash)
 import Cardano.Types.NativeScript as NativeScript
-import Ctl.Internal.Cardano.Types.NativeScript
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -18,8 +18,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import Ctl.Internal.Serialization.Hash as Hashing
+import Cardano.Types (Ed25519KeyHash, ScriptHash)
 import Data.Array as Array
 import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)

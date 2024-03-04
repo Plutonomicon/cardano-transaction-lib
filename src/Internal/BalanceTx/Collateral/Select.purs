@@ -52,7 +52,7 @@ maxCandidateUtxos = 10
 collateralReturnMinAdaValue
   :: Coin -> List TransactionUnspentOutput -> Maybe BigNum
 collateralReturnMinAdaValue coinsPerUtxoByte =
-  utxoMinAdaValue coinsPerUtxoByte <<< fakeOutputWithMultiAssets <=<
+  pure <<< utxoMinAdaValue coinsPerUtxoByte <<< fakeOutputWithMultiAssets <=<
     MultiAsset.sum <<< Array.fromFoldable <<< map nonAdaAsset
 
 type ReturnOutMinAdaValue = BigNum

@@ -7,16 +7,12 @@ module Ctl.Internal.Types.Redeemer
 
 import Prelude
 
-import Cardano.Serialization.Lib (toBytes)
-import Cardano.Types.DataHash (DataHash(..))
+import Cardano.FromData (class FromData)
+import Cardano.ToData (class ToData, toData)
+import Cardano.Types.DataHash (DataHash(..), hashPlutusData)
 import Cardano.Types.PlutusData (PlutusData)
-import Cardano.Types.PlutusData as PlutusData
-import Ctl.Internal.FromData (class FromData)
-import Ctl.Internal.Hashing (plutusDataHash)
-import Ctl.Internal.ToData (class ToData, toData)
-import Data.ByteArray (ByteArray(ByteArray))
 import Data.Generic.Rep (class Generic)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 
 newtype Redeemer = Redeemer PlutusData
@@ -50,4 +46,4 @@ instance Show RedeemerHash where
 -- | This is a duplicate of `datumHash`.
 redeemerHash :: Redeemer -> RedeemerHash
 redeemerHash =
-  RedeemerHash <<< plutusDataHash <<< unwrap
+  RedeemerHash <<< hashPlutusData <<< unwrap
