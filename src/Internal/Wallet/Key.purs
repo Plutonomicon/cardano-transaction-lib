@@ -48,6 +48,8 @@ import Effect.Class (liftEffect)
 -------------------------------------------------------------------------------
 -- Key backend
 -------------------------------------------------------------------------------
+
+-- | A wrapper over `PrivateKey` that provides an interface for CTL
 newtype KeyWallet = KeyWallet
   { address :: NetworkId -> Address
   , selectCollateral ::

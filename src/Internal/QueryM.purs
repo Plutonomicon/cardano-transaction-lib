@@ -63,6 +63,8 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
+import Cardano.Types (PlutusScript)
+import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
@@ -149,9 +151,7 @@ import Ctl.Internal.Service.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
   , ServiceError(ServiceOtherError)
   )
-import Ctl.Internal.Types.CborBytes (CborBytes)
 import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.Types.Scripts (PlutusScript)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
