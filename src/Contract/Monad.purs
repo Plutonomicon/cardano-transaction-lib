@@ -124,4 +124,3 @@ liftedM str = (=<<) (liftContractM str)
 -- | and lifting into the `Contract` monad.
 throwContractError :: forall (e :: Type) (a :: Type). Show e => e -> Contract a
 throwContractError = liftEffect <<< throw <<< show
-

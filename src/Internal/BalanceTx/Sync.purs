@@ -13,16 +13,19 @@ module Ctl.Internal.BalanceTx.Sync
 import Prelude
 
 import Cardano.Serialization.Lib (toBytes)
+import Cardano.Types
+  ( TransactionHash
+  , TransactionInput
+  , TransactionOutput
+  , TransactionUnspentOutput
+  , UtxoMap
+  )
+import Cardano.Types.Address (Address)
 import Contract.Log (logError', logTrace', logWarn')
 import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader (local)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf, parTraverse, parallel, sequential)
-import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
-import Ctl.Internal.Cardano.Types.Transaction as Cardano
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
 import Ctl.Internal.Contract.Monad
   ( ContractSynchronizationParams
   , getQueryHandle
@@ -35,8 +38,6 @@ import Ctl.Internal.Contract.Wallet
   , getWalletUtxos
   )
 import Ctl.Internal.Helpers (liftEither, liftedM)
-import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Data.Array as Array
 import Data.Bifunctor (bimap)
@@ -246,7 +247,7 @@ disabledSynchronizationParams =
   }
 
 -- | A version without plutus conversion for internal use.
-getUtxo' :: TransactionInput -> Contract (Maybe Cardano.TransactionOutput)
+getUtxo' :: TransactionInput -> Contract (Maybe TransactionOutput)
 getUtxo' oref = do
   queryHandle <- getQueryHandle
   liftedE $ liftAff $ queryHandle.getUtxoByOref oref

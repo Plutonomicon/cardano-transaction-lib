@@ -4,10 +4,8 @@ module Contract.Wallet.Key
   , publicKeyFromPrivateKey
   ) where
 
-import Prelude
-
-import Cardano.Serialization.Lib (privateKey_toPublic)
-import Ctl.Internal.Cardano.Types.Transaction (PrivateKey, PublicKey)
+import Cardano.Types (PrivateKey, PublicKey)
+import Cardano.Types.PrivateKey as PrivateKey
 import Ctl.Internal.Wallet.Key
   ( KeyWallet(KeyWallet)
   , keyWalletPrivatePaymentKey
@@ -19,7 +17,10 @@ import Ctl.Internal.Wallet.Spec
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , mkKeyWalletFromMnemonic
   ) as X
-import Data.Newtype (unwrap, wrap)
+import Prim.TypeError (class Warn, Text)
 
-publicKeyFromPrivateKey :: PrivateKey -> PublicKey
-publicKeyFromPrivateKey = wrap <<< privateKey_toPublic <<< unwrap
+publicKeyFromPrivateKey
+  :: Warn (Text "Deprecated: use Cardano.Types.PrivateKey.toPublicKey")
+  => PrivateKey
+  -> PublicKey
+publicKeyFromPrivateKey = PrivateKey.toPublicKey

@@ -279,7 +279,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib"
-        , version = "596a54711c3841a5851371056e1376a9f7bf70b4"
+        , version = "c15a6e2f63e50812d15c195ce035a06027c57001"
         }
       , cardano-plutus-data-schema =
         { dependencies = [ "prelude" ]
@@ -361,7 +361,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "7694c87969562c131ec0db2c251fa651dc42d66e"
+        , version = "288cd06dc89d477b59e158b30803de8f6e535092"
         }
       , cardano-message-signing =
         { dependencies =

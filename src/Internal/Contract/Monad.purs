@@ -22,7 +22,7 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
-import Cardano.Types.TransactionHash (TransactionHash)
+import Cardano.Types (NetworkId(TestnetId, MainnetId), TransactionHash, UtxoMap)
 import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
@@ -37,7 +37,6 @@ import Control.Monad.Reader.Trans (ReaderT, runReaderT, withReaderT)
 import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
-import Ctl.Internal.Cardano.Types.Transaction (UtxoMap)
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend
@@ -66,7 +65,6 @@ import Ctl.Internal.QueryM
   , underlyingWebSocket
   )
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
-import Ctl.Internal.Serialization.Address (NetworkId(TestnetId, MainnetId))
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM

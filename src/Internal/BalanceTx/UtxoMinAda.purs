@@ -5,7 +5,6 @@ module Ctl.Internal.BalanceTx.UtxoMinAda
 
 import Prelude
 
-import Cardano.Serialization.Lib (DataCost)
 import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum (maxValue) as BigNum
 import Cardano.Types.Coin (Coin)
@@ -13,8 +12,6 @@ import Cardano.Types.TransactionOutput (TransactionOutput, minAdaForOutput)
 import Cardano.Types.Value (lovelaceValueOf)
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import Data.Newtype (unwrap)
-
-foreign import newCoinsPerByte :: BigNum -> DataCost
 
 utxoMinAdaValue
   :: Coin -> TransactionOutput -> BigNum

@@ -5,14 +5,15 @@ module Ctl.Internal.Deserialization.PlutusData
 
 import Prelude
 
+import Cardano.FromData (class FromData, fromData)
 import Cardano.Serialization.Lib (fromBytes)
 import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.PlutusData
   ( PlutusData(Constr, Map, List, Integer, Bytes)
   ) as T
 import Ctl.Internal.Deserialization.BigInt (convertBigInt)
 import Ctl.Internal.FfiHelpers (ContainerHelper, containerHelper)
-import Ctl.Internal.FromData (class FromData, fromData)
 import Ctl.Internal.Serialization.Types
   ( BigInt
   , ConstrPlutusData
@@ -20,7 +21,6 @@ import Ctl.Internal.Serialization.Types
   , PlutusList
   , PlutusMap
   )
-import Ctl.Internal.Types.CborBytes (CborBytes)
 import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (unwrap)

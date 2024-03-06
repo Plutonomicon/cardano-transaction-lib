@@ -10,36 +10,23 @@ module Ctl.Internal.Wallet.Cip30Mock
       )
   ) where
 
+import Cardano.Types.NetworkId
 import Prelude
 
 import Cardano.Serialization.Lib (toBytes)
+import Cardano.Types.Address
+  ( Address
+  )
+import Cardano.Types.TransactionUnspentOutput
+  ( TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Serialization
-  ( convertTransactionUnspentOutput
-  , convertValue
-  , publicKeyHash
-  )
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId(MainnetId, TestnetId)
-  )
-import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
-import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
-import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
-import Ctl.Internal.Types.RewardAddress
-  ( rewardAddressToBytes
-  , stakePubKeyHashRewardAddress
-  )
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension

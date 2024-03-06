@@ -6,12 +6,11 @@ module Ctl.Internal.ApplyArgs
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
+import Cardano.Serialization.Lib as CSL
 import Cardano.Types.PlutusData (PlutusData(List))
+import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
-import Ctl.Internal.Deserialization.WitnessSet as D
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData) as S
-import Ctl.Internal.Serialization.Types as CSL
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
@@ -42,7 +41,7 @@ instance Show ApplyArgsError where
 applyArgs
   :: PlutusScript -> Array PlutusData -> Either ApplyArgsError PlutusScript
 applyArgs script paramsList = left ApplyArgsError do
-  let params = S.convertPlutusData (List paramsList)
+  let params = PlutusData.toCsl (List paramsList)
   appliedScript <- apply_params_to_script_either params
     (PlutusScript.toCsl script)
-  Right $ D.convertPlutusScript appliedScript
+  Right $ PlutusScript.fromCsl appliedScript

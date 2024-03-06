@@ -3,36 +3,34 @@ module Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
-import Cardano.Types.BigNum (BigNum)
-import Cardano.Types.BigNum as BigNum
-import Contract.Keys (publicKeyFromBech32)
-import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAll))
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
+import Cardano.Serialization.Lib (linearFee_new, minFee, minScriptFee)
+import Cardano.Types
+  ( Coin
+  , Ed25519KeyHash
+  , Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  , mkEd25519Signature
-  ) as T
-import Ctl.Internal.Cardano.Types.Transaction (_vkeys, _witnessSet)
-import Ctl.Internal.Cardano.Types.Value (Coin)
-import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Ed25519Signature as Ed25519Signature
+import Cardano.Types.ExUnitPrices as ExUnitPrices
+import Cardano.Types.NativeScript (NativeScript(ScriptAll))
+import Cardano.Types.PublicKey as PublicKey
+import Cardano.Types.Transaction as Transaction
+import Control.Monad.Error.Class (class MonadThrow)
+import Ctl.Internal.Lens (_vkeys, _witnessSet)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
-import Ctl.Internal.Serialization as Serialization
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
-import Ctl.Internal.Serialization.Types (ExUnitPrices, Transaction)
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )
 import Data.Array as Array
 import Data.Lens ((.~))
-import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
+import Data.Maybe (fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Tuple.Nested ((/\))
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error)
+import Effect.Class (class MonadEffect)
+import Effect.Exception (Error)
 import Partial.Unsafe (unsafePartial)
 
 calculateMinFeeCsl
@@ -41,70 +39,66 @@ calculateMinFeeCsl
   => MonadThrow Error m
   => ProtocolParameters
   -> Set Ed25519KeyHash
-  -> T.Transaction
+  -> Transaction
   -> m Coin
 calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
   let tx = addFakeSignatures selfSigners txNoSigs
-  cslTx <- liftEffect $ Serialization.convertTransaction tx
-  minFee <- liftMaybe (error "Unable to calculate min_fee") $
-    BigNum.toBigInt <$> _minFee maybeFfiHelper cslTx
-      (BigNum.fromUInt pparams.txFeeFixed)
-      (BigNum.fromUInt pparams.txFeePerByte)
+  let cslTx = Transaction.toCsl tx
+  let
+    cslLinearFee = linearFee_new
+      (unwrap $ BigNum.fromUInt pparams.txFeeFixed)
+      (unwrap $ BigNum.fromUInt pparams.txFeePerByte)
+
+  let fee = minFee cslTx cslLinearFee
   let exUnitPrices = pparams.prices
-  exUnitPricesCsl <- liftEffect $ Serialization.convertExUnitPrices exUnitPrices
-  let minScriptFee = BigNum.toBigInt (_minScriptFee exUnitPricesCsl cslTx)
-  pure $ wrap $ minFee + minScriptFee
+  let exUnitPricesCsl = ExUnitPrices.toCsl exUnitPrices
+  let scriptFee = minScriptFee cslTx exUnitPricesCsl
+  -- Ignore the overflow here: fees are much lower
+  pure $ wrap $ unsafePartial $ fromJust $ BigNum.add (wrap fee)
+    (wrap scriptFee)
 
 -- | Adds fake signatures for each expected signature of a transaction.
-addFakeSignatures :: Set Ed25519KeyHash -> T.Transaction -> T.Transaction
+addFakeSignatures :: Set Ed25519KeyHash -> Transaction -> Transaction
 addFakeSignatures selfSigners tx =
   let
     -- requiredSigners field of a transaction
     requiredSigners :: Set Ed25519KeyHash
     requiredSigners =
       tx # unwrap >>> _.body >>> unwrap >>> _.requiredSigners
-        >>> fromMaybe mempty
-        >>> map unwrap
         >>> Set.fromFoldable
 
     -- All possible signers from NativeScript.
     nsPossibleSigners :: Int
     nsPossibleSigners = getMaximumSigners requiredSigners $ ScriptAll
-      ( tx # unwrap >>> _.witnessSet >>> unwrap >>> _.nativeScripts >>>
-          fromMaybe mempty
+      ( tx # unwrap >>> _.witnessSet >>> unwrap >>> _.nativeScripts
       )
 
     -- We want to add space for required signatures (at least one, if
     -- none specified).
     nRequiredSigners = tx # unwrap >>> _.body >>> unwrap >>> _.requiredSigners
-      >>> map (map unwrap >>> Array.length)
-      >>> fromMaybe 0
+      >>> Array.length
 
     nSelfSigners = let n = Set.size selfSigners in if n == 0 then 1 else n
 
   in
-    tx # _witnessSet <<< _vkeys .~ Just
+    tx # _witnessSet <<< _vkeys .~
       ( Array.replicate (nRequiredSigners + nsPossibleSigners + nSelfSigners)
           fakeVkeywitness
       )
 
-fakeVkeywitness :: T.Vkeywitness
-fakeVkeywitness = T.Vkeywitness
-  ( ( T.Vkey
-        ( unsafePartial $ fromJust $ publicKeyFromBech32
-            -- This should not fail assuming the hardcoded bech32 key is valid.
-            "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-        )
-    )
-      /\
-        ( unsafePartial $ fromJust $ mkEd25519Signature
-            "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
-            \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
-            \kzs9m6t6x"
-        )
-  )
-
-foreign import _minFee
-  :: MaybeFfiHelper -> Transaction -> BigNum -> BigNum -> Maybe BigNum
-
-foreign import _minScriptFee :: ExUnitPrices -> Transaction -> BigNum
+fakeVkeywitness :: Vkeywitness
+fakeVkeywitness = Vkeywitness
+  { vkey:
+      ( Vkey
+          ( unsafePartial $ fromJust $ PublicKey.fromBech32
+              -- This should not fail assuming the hardcoded bech32 key is valid.
+              "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
+          )
+      )
+  , signature:
+      ( unsafePartial $ fromJust $ Ed25519Signature.fromBech32
+          "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
+          \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
+          \kzs9m6t6x"
+      )
+  }

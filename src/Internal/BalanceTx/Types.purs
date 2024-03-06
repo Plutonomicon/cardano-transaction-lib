@@ -13,6 +13,8 @@ module Ctl.Internal.BalanceTx.Types
 
 import Prelude
 
+import Cardano.Types (Coin, CostModel, Language, NetworkId, Transaction)
+import Cardano.Types.Address as Csl
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
@@ -20,22 +22,18 @@ import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraints
   , BalanceTxConstraintsBuilder
+  , buildBalanceTxConstraints
   )
-import Ctl.Internal.BalanceTx.Constraints (buildBalanceTxConstraints) as Constraints
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
-import Ctl.Internal.Cardano.Types.Transaction (Costmdls(Costmdls), Transaction)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses)
-import Ctl.Internal.Serialization.Address (NetworkId)
-import Ctl.Internal.Serialization.Address as Csl
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.Scripts (Language)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view)
+import Data.Map (Map)
 import Data.Map (filterKeys) as Map
-import Data.Newtype (class Newtype, over, unwrap)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable, member) as Set
 import Data.Show.Generic (genericShow)
@@ -60,10 +58,10 @@ asksConstraints l = asks (view l <<< _.constraints)
 asksContractEnv :: forall (a :: Type). (ContractEnv -> a) -> BalanceTxM a
 asksContractEnv = lift <<< lift <<< asks
 
-askCoinsPerUtxoUnit :: BalanceTxM CoinsPerUtxoUnit
+askCoinsPerUtxoUnit :: BalanceTxM Coin
 askCoinsPerUtxoUnit =
   asksContractEnv
-    (_.coinsPerUtxoUnit <<< unwrap <<< _.pparams <<< _.ledgerConstants)
+    (_.coinsPerUtxoByte <<< unwrap <<< _.pparams <<< _.ledgerConstants)
 
 askNetworkId :: BalanceTxM NetworkId
 askNetworkId = asksContractEnv _.networkId
@@ -80,12 +78,12 @@ withBalanceTxConstraints constraintsBuilder m = do
   flip runReaderT { constraints, ownAddresses } m
   where
   constraints :: BalanceTxConstraints
-  constraints = Constraints.buildBalanceTxConstraints constraintsBuilder
+  constraints = buildBalanceTxConstraints constraintsBuilder
 
-askCostModelsForLanguages :: Set Language -> BalanceTxM Costmdls
+askCostModelsForLanguages :: Set Language -> BalanceTxM (Map Language CostModel)
 askCostModelsForLanguages languages =
   asksContractEnv (_.costModels <<< unwrap <<< _.pparams <<< _.ledgerConstants)
-    <#> over Costmdls (Map.filterKeys (flip Set.member languages))
+    <#> Map.filterKeys (flip Set.member languages)
 
 newtype FinalizedTransaction = FinalizedTransaction Transaction
 
