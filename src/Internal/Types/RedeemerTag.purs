@@ -1,18 +1,9 @@
 module Ctl.Internal.Types.RedeemerTag
-  ( RedeemerTag(Spend, Mint, Cert, Reward)
-  , fromString
+  ( fromString
   ) where
 
-import Prelude
-
-import Aeson (class EncodeAeson)
-import Ctl.Internal.Helpers (encodeTagged')
-import Data.Generic.Rep (class Generic)
+import Cardano.Types.RedeemerTag (RedeemerTag(..))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Show.Generic (genericShow)
-
--- lives in it's own module due to a name conflict with the `Mint` Type
-data RedeemerTag = Spend | Mint | Cert | Reward
 
 fromString :: String -> Maybe RedeemerTag
 fromString = case _ of
@@ -21,17 +12,3 @@ fromString = case _ of
   "certificate" -> Just Cert
   "withdrawal" -> Just Reward
   _ -> Nothing
-
-derive instance Generic RedeemerTag _
-derive instance Eq RedeemerTag
-derive instance Ord RedeemerTag
-
-instance Show RedeemerTag where
-  show = genericShow
-
-instance EncodeAeson RedeemerTag where
-  encodeAeson = case _ of
-    Spend -> encodeTagged' "Spend" {}
-    Mint -> encodeTagged' "Mint" {}
-    Cert -> encodeTagged' "Cert" {}
-    Reward -> encodeTagged' "Reward" {}

@@ -5,7 +5,7 @@ module Contract.Address
 
 import Prelude
 
-import Cardano.Types (Address, NetworkId, Bech32String)
+import Cardano.Types (Address, Bech32String, NetworkId)
 import Cardano.Types.Address as Address
 import Contract.Monad (Contract, liftContractM)
 import Control.Monad.Error.Class (throwError)

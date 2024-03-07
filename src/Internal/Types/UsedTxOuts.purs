@@ -18,6 +18,7 @@ module Ctl.Internal.Types.UsedTxOuts
   , withLockedTransactionInputs
   ) where
 
+import Cardano.Types.Transaction (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Alt ((<$>))
 import Control.Alternative (guard, pure)
@@ -27,7 +28,6 @@ import Control.Category ((<<<), (>>>))
 import Control.Monad.Error.Class (class MonadError, catchError, throwError)
 import Control.Monad.RWS (ask)
 import Control.Monad.Reader (class MonadAsk)
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Data.Array (concatMap)
 import Data.Foldable (class Foldable, all, foldr)
 import Data.Function (($))
@@ -226,4 +226,4 @@ isTxOutRefUsed ref = do
 
 txOutRefs
   :: Transaction -> Set { transactionId :: TransactionHash, index :: UInt }
-txOutRefs tx = Set.map unwrap (unwrap (unwrap tx).body).inputs
+txOutRefs tx = Set.fromFoldable $ map unwrap (unwrap (unwrap tx).body).inputs

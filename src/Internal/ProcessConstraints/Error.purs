@@ -13,11 +13,23 @@ import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
 import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
-import Cardano.Types.TransactionInput (TransactionInput(..))
-import Cardano.Types.TransactionOutput (TransactionOutput, pprintTransactionOutput)
+import Cardano.Types.TransactionInput (TransactionInput(TransactionInput))
+import Cardano.Types.TransactionOutput
+  ( TransactionOutput
+  , pprintTransactionOutput
+  )
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
-import Ctl.Internal.Types.Interval (POSIXTimeRange, PosixTimeToSlotError, explainPosixTimeToSlotError)
-import Ctl.Internal.Types.Scripts (MintingPolicyHash, NativeScriptStakeValidator, PlutusScriptStakeValidator, ValidatorHash)
+import Ctl.Internal.Types.Interval
+  ( POSIXTimeRange
+  , PosixTimeToSlotError
+  , explainPosixTimeToSlotError
+  )
+import Ctl.Internal.Types.Scripts
+  ( MintingPolicyHash
+  , NativeScriptStakeValidator
+  , PlutusScriptStakeValidator
+  , ValidatorHash
+  )
 import Data.ByteArray (byteArrayToHex)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (tagSetTag)

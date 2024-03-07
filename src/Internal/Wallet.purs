@@ -20,7 +20,6 @@ import Prelude
 
 import Cardano.Wallet.Cip30 as Cip30
 import Control.Monad.Error.Class (catchError, throwError)
-import Ctl.Internal.Types.Natural (fromInt', minus)
 import Ctl.Internal.Wallet.Cip30 (Cip30Wallet, mkCip30WalletAff)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
@@ -73,7 +72,7 @@ mkWalletAff walletExtension =
 -- number of times, for Lode to become available.
 _mkLodeWalletAff :: Aff Wallet
 _mkLodeWalletAff = do
-  retryNWithIntervalUntil (fromInt' 10) (toNumber 100)
+  retryNWithIntervalUntil 10 (toNumber 100)
     $ liftEffect (isWalletAvailable LodeWallet)
   (GenericCip30 <$> (mkCip30WalletAff =<< Cip30.enable "LodeWallet" []))
     `catchError`
@@ -85,7 +84,7 @@ _mkLodeWalletAff = do
     if n == zero then pure unit
     else mBool >>=
       if _ then pure unit
-      else delay (wrap ms) *> retryNWithIntervalUntil (n `minus` one) ms mBool
+      else delay (wrap ms) *> retryNWithIntervalUntil (n - 1) ms mBool
 
 isWalletAvailable :: WalletExtension -> Effect Boolean
 isWalletAvailable = _isWalletAvailable <<< walletExtensionToName

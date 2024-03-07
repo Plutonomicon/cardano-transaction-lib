@@ -36,7 +36,6 @@ module Ctl.Internal.Types.TxConstraints
       , MustWithdrawStakePubKey
       )
   , TxConstraints(TxConstraints)
-  , isSatisfiable
   , mustBeSignedBy
   , mustDelegateStakeNativeScript
   , mustDelegateStakePlutusScript
@@ -69,7 +68,6 @@ module Ctl.Internal.Types.TxConstraints
   , mustPayToScriptAddressWithScriptRef
   , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
-  , mustProduceAtLeastTotal
   , mustReferenceOutput
   , mustRegisterPool
   , mustRegisterStakePubKey
@@ -77,7 +75,6 @@ module Ctl.Internal.Types.TxConstraints
   , mustRetirePool
   , mustSatisfyAnyOf
   , mustSpendAtLeast
-  , mustSpendAtLeastTotal
   , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
@@ -86,63 +83,49 @@ module Ctl.Internal.Types.TxConstraints
   , mustWithdrawStakeNativeScript
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
-  , pubKeyPayments
-  , requiredDatums
-  , requiredMonetaryPolicies
-  , requiredSignatories
   , singleton
   , utxoWithScriptRef
   ) where
 
 import Prelude hiding (join)
 
-import Cardano.Types.AssetName (AssetName)
-import Cardano.Types.BigNum (BigNum(..))
-import Cardano.Types.MultiAsset as MultiAsset
-import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash(..))
-import Cardano.Types.PlutusData (PlutusData)
-import Cardano.Types.ScriptHash (ScriptHash(..))
-import Cardano.Types.StakePubKeyHash (StakePubKeyHash(..))
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript)
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Epoch
+import Cardano.Types
+  ( AssetName
+  , BigNum
+  , Credential
+  , DataHash
+  , Epoch
+  , MultiAsset
+  , NativeScript
+  , PaymentPubKeyHash
+  , PlutusData
   , PoolPubKeyHash
-  , PoolRegistrationParams
+  , ScriptHash
+  , ScriptRef
+  , StakePubKeyHash
+  , TransactionInput
+  , TransactionOutput
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  , Value
   )
-import Ctl.Internal.Helpers (notImplemented)
+import Cardano.Types.MultiAsset as MultiAsset
 import Ctl.Internal.NativeScripts (NativeScriptHash)
-import Ctl.Internal.Plutus.Types.Credential (Credential)
-import Ctl.Internal.Plutus.Types.CurrencySymbol
-  ( CurrencySymbol
-  , currencyMPSHash
+import Ctl.Internal.Types.Interval (POSIXTimeRange)
+import Ctl.Internal.Types.MintingPolicyHash (MintingPolicyHash)
+import Ctl.Internal.Types.NativeScriptStakeValidator
+  ( NativeScriptStakeValidator
   )
-import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript)
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
+import Ctl.Internal.Types.PlutusScriptStakeValidator
+  ( PlutusScriptStakeValidator
   )
-import Ctl.Internal.Plutus.Types.Value (Value, flattenMultiAssets)
-import Ctl.Internal.Types.Datum (Datum)
-import Ctl.Internal.Types.Interval
-  ( POSIXTimeRange
-  , always
-  , intersection
-  , isEmpty
-  )
+import Ctl.Internal.Types.PoolRegistrationParams (PoolRegistrationParams)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicyHash
-  , NativeScriptStakeValidator
-  , PlutusScriptStakeValidator
-  , StakeValidatorHash
-  , ValidatorHash
-  )
-import Ctl.Internal.Types.Transaction (DataHash, TransactionInput)
+import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
+import Ctl.Internal.Types.ValidatorHash (ValidatorHash)
 import Data.Array as Array
-import Data.Foldable (class Foldable, foldMap, foldl, foldr)
+import Data.Foldable (class Foldable)
 import Data.Generic.Rep (class Generic)
-import Data.Lattice (join)
-import Data.Map (Map, fromFoldableWith, toUnfoldable)
+import Data.Map (Map)
 import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
@@ -160,7 +143,7 @@ import Prim.TypeError (class Warn, Text)
 
 -- | Constraints on transactions that want to spend script outputs
 data TxConstraint
-  = MustIncludeDatum Datum
+  = MustIncludeDatum PlutusData
   | MustValidateIn POSIXTimeRange
   | MustBeSignedBy PaymentPubKeyHash
   | MustSpendAtLeast Value
@@ -173,14 +156,14 @@ data TxConstraint
       (Maybe InputWithScriptRef)
   | MustMintValueUsingNativeScript NativeScript AssetName BigNum
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
-      (Maybe (Datum /\ DatumPresence))
+      (Maybe (PlutusData /\ DatumPresence))
       (Maybe ScriptRef)
       Value
   | MustPayToNativeScript NativeScriptHash (Maybe Credential) Value
-  | MustPayToScript ValidatorHash (Maybe Credential) Datum DatumPresence
+  | MustPayToScript ValidatorHash (Maybe Credential) PlutusData DatumPresence
       (Maybe ScriptRef)
       Value
-  | MustHashDatum DataHash Datum
+  | MustHashDatum DataHash PlutusData
   | MustRegisterStakePubKey StakePubKeyHash
   | MustDeregisterStakePubKey StakePubKeyHash
   | MustRegisterStakeScript StakeValidatorHash
@@ -222,7 +205,7 @@ instance Show InputWithScriptRef where
   show = genericShow
 
 utxoWithScriptRef
-  :: InputWithScriptRef -> Map TransactionInput TransactionOutputWithRefScript
+  :: InputWithScriptRef -> Map TransactionInput TransactionOutput
 utxoWithScriptRef inputWithRefScript = Map.singleton input output
   where
   TransactionUnspentOutput { input, output } =
@@ -305,7 +288,7 @@ mustBeSignedBy
 mustBeSignedBy = singleton <<< MustBeSignedBy
 
 -- | Require the transaction to include a datum.
-mustIncludeDatum :: Datum -> TxConstraints
+mustIncludeDatum :: PlutusData -> TxConstraints
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
 -- | Require the transaction to reference (not spend!) the given unspent
@@ -327,7 +310,7 @@ mustPayToPubKeyAddress pkh skh =
 mustPayToPubKeyAddressWithDatum
   :: PaymentPubKeyHash
   -> StakePubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> Value
   -> TxConstraints
@@ -349,7 +332,7 @@ mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef =
 mustPayToPubKeyAddressWithDatumAndScriptRef
   :: PaymentPubKeyHash
   -> StakePubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> ScriptRef
   -> Value
@@ -373,7 +356,7 @@ mustPayToPubKey pkh =
 -- | Lock the value and datum with a payment public key hash.
 mustPayToPubKeyWithDatum
   :: PaymentPubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> Value
   -> TxConstraints
@@ -392,7 +375,7 @@ mustPayToPubKeyWithScriptRef pkh scriptRef =
 -- | Lock the value, datum and reference script with a payment public key hash.
 mustPayToPubKeyWithDatumAndScriptRef
   :: PaymentPubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> ScriptRef
   -> Value
@@ -408,7 +391,7 @@ mustPayToPubKeyWithDatumAndScriptRef pkh datum dtp scriptRef =
 -- | the transaction.
 mustPayToScript
   :: ValidatorHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> Value
   -> TxConstraints
@@ -419,7 +402,7 @@ mustPayToScript vh dt dtp vl =
 mustPayToScriptAddress
   :: ValidatorHash
   -> Credential
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> Value
   -> TxConstraints
@@ -432,7 +415,7 @@ mustPayToScriptAddress vh credential dt dtp vl =
 -- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptWithScriptRef
   :: ValidatorHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> ScriptRef
   -> Value
@@ -448,7 +431,7 @@ mustPayToScriptAddressWithScriptRef
   :: forall (i :: Type) (o :: Type)
    . ValidatorHash
   -> Credential
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> ScriptRef
   -> Value
@@ -476,7 +459,7 @@ mustPayToNativeScriptAddress nsHash credential vl =
 
 -- | Mint the given `Value`
 -- | The amount to mint must not be zero.
-mustMintValue :: Value -> TxConstraints
+mustMintValue :: MultiAsset -> TxConstraints
 mustMintValue = mustMintValueWithRedeemer unitRedeemer
 
 -- | Mint the given `Value` by accessing non-Ada assets.
@@ -484,16 +467,15 @@ mustMintValue = mustMintValueWithRedeemer unitRedeemer
 mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
    . Redeemer
-  -> Value
+  -> MultiAsset
   -> TxConstraints
-mustMintValueWithRedeemer redeemer = notImplemented -- TODO: replace with MultiAsset
-
--- Array.fold <<< map tokenConstraint <<< MultiAsset.flatten
--- where
--- tokenConstraint
---   :: ScriptHash /\ AssetName /\ BigNum -> TxConstraints
--- tokenConstraint (cs /\ tn /\ amount) =
---   mustMintCurrencyWithRedeemer (wrap cs) redeemer tn amount
+mustMintValueWithRedeemer redeemer =
+  Array.fold <<< map tokenConstraint <<< MultiAsset.flatten
+  where
+  tokenConstraint
+    :: ScriptHash /\ AssetName /\ BigNum -> TxConstraints
+  tokenConstraint (cs /\ tn /\ amount) =
+    mustMintCurrencyWithRedeemer (wrap cs) redeemer tn amount
 
 -- | Create the given amount of the currency.
 -- | The amount to mint must not be zero.
@@ -594,7 +576,7 @@ mustSpendNativeScriptOutput txOutRef = singleton <<< MustSpendNativeScriptOutput
   txOutRef
 
 mustHashDatum
-  :: DataHash -> Datum -> TxConstraints
+  :: DataHash -> PlutusData -> TxConstraints
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
 mustRegisterStakePubKey
@@ -698,75 +680,3 @@ mustSatisfyAnyOf =
 -- | chain and collateral will be lost.
 mustNotBeValid :: TxConstraints
 mustNotBeValid = singleton $ MustNotBeValid
-
--- | Are the constraints satisfiable given the time intervals?
-isSatisfiable :: TxConstraints -> Boolean
-isSatisfiable (TxConstraints { constraints }) =
-  let
-    intervals =
-      Array.mapMaybe
-        ( case _ of
-            MustValidateIn i -> Just i
-            _ -> Nothing
-        )
-        constraints
-    itvl = foldl intersection always intervals
-  in
-    not (isEmpty itvl)
-
-pubKeyPayments
-  :: TxConstraints
-  -> Array (PaymentPubKeyHash /\ Value)
-pubKeyPayments (TxConstraints { constraints }) =
-  toUnfoldable
-    $ fromFoldableWith (<>)
-    $ constraints >>=
-        case _ of
-          MustPayToPubKeyAddress pkh _ _ _ vl -> Array.singleton (pkh /\ vl)
-          _ -> []
-
--- | The minimum `Value` that satisfies all `MustSpendAtLeast` constraints
-mustSpendAtLeastTotal
-  :: TxConstraints -> Value
-mustSpendAtLeastTotal =
-  foldr (join <<< f) mempty <<< _.constraints <<< unwrap
-  where
-  f :: TxConstraint -> Value
-  f (MustSpendAtLeast v) = v
-  f _ = mempty
-
--- | The minimum `Value` that satisfies all `MustProduceAtLeast` constraints
-mustProduceAtLeastTotal
-  :: TxConstraints -> Value
-mustProduceAtLeastTotal =
-  foldr (join <<< f) mempty <<< _.constraints <<< unwrap
-  where
-  f :: TxConstraint -> Value
-  f (MustProduceAtLeast v) = v
-  f _ = mempty
-
-requiredSignatories
-  :: TxConstraints
-  -> Array PaymentPubKeyHash
-requiredSignatories = foldMap f <<< _.constraints <<< unwrap
-  where
-  f :: TxConstraint -> Array PaymentPubKeyHash
-  f (MustBeSignedBy pkh) = Array.singleton pkh
-  f _ = []
-
-requiredMonetaryPolicies
-  :: TxConstraints
-  -> Array MintingPolicyHash
-requiredMonetaryPolicies = foldMap f <<< _.constraints <<< unwrap
-  where
-  f :: TxConstraint -> Array MintingPolicyHash
-  f (MustMintValue mph _ _ _ _) = Array.singleton mph
-  f _ = []
-
-requiredDatums
-  :: TxConstraints -> Array Datum
-requiredDatums = foldMap f <<< _.constraints <<< unwrap
-  where
-  f :: TxConstraint -> Array Datum
-  f (MustIncludeDatum dt) = Array.singleton dt
-  f _ = []

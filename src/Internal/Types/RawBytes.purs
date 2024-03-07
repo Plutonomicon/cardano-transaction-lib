@@ -17,8 +17,8 @@ module Ctl.Internal.Types.RawBytes
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson)
-import Ctl.Internal.Metadata.FromMetadata (class FromMetadata)
-import Ctl.Internal.Metadata.ToMetadata (class ToMetadata)
+import Cardano.FromMetadata (class FromMetadata)
+import Cardano.ToMetadata (class ToMetadata)
 import Data.ByteArray (ByteArray)
 import Data.ByteArray as BytesArray
 import Data.Maybe (Maybe)

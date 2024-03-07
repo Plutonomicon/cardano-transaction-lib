@@ -19,17 +19,12 @@ module Ctl.Internal.ProcessConstraints.State
 
 import Prelude hiding (join)
 
-import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types (CostModel, Language, Transaction, UtxoMap)
+import Cardano.Types.Value (Value)
+import Cardano.Types.Value as Value
 import Control.Monad.State.Trans (StateT)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Costmdls
-  , Transaction
-  , TransactionOutput
-  )
-import Ctl.Internal.Cardano.Types.Value (Value, negation, split)
 import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
 import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Data.Generic.Rep (class Generic)
@@ -37,8 +32,8 @@ import Data.Lattice (join)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
+import Data.Maybe (Maybe)
 import Data.Show.Generic (genericShow)
-import Data.Tuple.Nested ((/\))
 import Type.Proxy (Proxy(Proxy))
 
 -- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
@@ -54,7 +49,7 @@ type ConstraintsM (a :: Type) =
 type ConstraintProcessingState =
   { transaction :: Transaction
   -- ^ The unbalanced transaction that we're building
-  , usedUtxos :: Map TransactionInput TransactionOutput
+  , usedUtxos :: UtxoMap
   -- ^ All UTxOs that are used in the Tx
   , valueSpentBalancesInputs :: ValueSpentBalances
   -- ^ Balance of the values given and required for the transaction's inputs
@@ -69,9 +64,8 @@ type ConstraintProcessingState =
   -- ^ ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
   -- TODO: remove: https://github.com/Plutonomicon/cardano-transaction-lib/issues/843
-  , refScriptsUtxoMap ::
-      Map TransactionInput Plutus.TransactionOutputWithRefScript
-  , costModels :: Costmdls
+  , refScriptsUtxoMap :: UtxoMap
+  , costModels :: Map Language CostModel
   }
 
 _cpsTransaction
@@ -79,8 +73,7 @@ _cpsTransaction
 _cpsTransaction = prop (Proxy :: Proxy "transaction")
 
 _cpsUsedUtxos
-  :: Lens' ConstraintProcessingState
-       (Map TransactionInput TransactionOutput)
+  :: Lens' ConstraintProcessingState UtxoMap
 _cpsUsedUtxos = prop (Proxy :: Proxy "usedUtxos")
 
 _valueSpentBalancesInputs
@@ -96,7 +89,7 @@ _datums
 _datums = prop (Proxy :: Proxy "datums")
 
 _costModels
-  :: Lens' ConstraintProcessingState Costmdls
+  :: Lens' ConstraintProcessingState (Map Language CostModel)
 _costModels = prop (Proxy :: Proxy "costModels")
 
 _redeemers
@@ -108,8 +101,7 @@ _lookups
 _lookups = prop (Proxy :: Proxy "lookups")
 
 _refScriptsUtxoMap
-  :: Lens' ConstraintProcessingState
-       (Map TransactionInput Plutus.TransactionOutputWithRefScript)
+  :: Lens' ConstraintProcessingState UtxoMap
 _refScriptsUtxoMap = prop (Proxy :: Proxy "refScriptsUtxoMap")
 
 -- | The balances we track for computing the missing 'Value' (if any)
@@ -133,21 +125,17 @@ instance Semigroup ValueSpentBalances where
     , provided: l.provided `join` r.provided
     }
 
-missingValueSpent :: ValueSpentBalances -> Value
+missingValueSpent :: ValueSpentBalances -> Maybe Value
 missingValueSpent (ValueSpentBalances { required, provided }) =
-  let
-    difference = required <> negation provided
-    _ /\ missing = split difference
-  in
-    missing
+  Value.minus required provided
 
-totalMissingValue :: ConstraintProcessingState -> Value
+totalMissingValue :: ConstraintProcessingState -> Maybe Value
 totalMissingValue { valueSpentBalancesInputs, valueSpentBalancesOutputs } =
-  missingValueSpent valueSpentBalancesInputs `join`
+  join <$> missingValueSpent valueSpentBalancesInputs <*>
     missingValueSpent valueSpentBalancesOutputs
 
 provideValue :: Value -> ValueSpentBalances
-provideValue provided = ValueSpentBalances { provided, required: mempty }
+provideValue provided = ValueSpentBalances { provided, required: Value.zero }
 
 requireValue :: Value -> ValueSpentBalances
-requireValue required = ValueSpentBalances { required, provided: mempty }
+requireValue required = ValueSpentBalances { required, provided: Value.zero }

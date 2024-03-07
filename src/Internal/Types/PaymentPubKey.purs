@@ -6,7 +6,7 @@ module Ctl.Internal.Types.PaymentPubKey
 
 import Prelude
 
-import Ctl.Internal.Serialization (publicKeyHash)
+import Cardano.Types.PublicKey as PublicKey
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
@@ -27,4 +27,4 @@ paymentPubKeyToVkey (PaymentPubKey pk) = Vkey pk
 
 paymentPubKeyToRequiredSigner :: PaymentPubKey -> RequiredSigner
 paymentPubKeyToRequiredSigner (PaymentPubKey pk) =
-  RequiredSigner <<< publicKeyHash $ unwrap pk
+  RequiredSigner <<< PublicKey.hash $ unwrap pk

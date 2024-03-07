@@ -71,4 +71,3 @@ ogmiosDateTimeFormatStringMsec = ogmiosDateTimeFormatStringSec <> ".SSS"
 
 ogmiosDateTimeFormatStringMsecUTC :: String
 ogmiosDateTimeFormatStringMsecUTC = ogmiosDateTimeFormatStringMsec <> "Z"
-
