@@ -15,17 +15,17 @@ module Ctl.Internal.ProcessConstraints.State
   , totalMissingValue
   , provideValue
   , requireValue
+  , sumValueSpentBalances
   ) where
 
 import Prelude hiding (join)
 
-import Cardano.Types (CostModel, Language, Transaction, UtxoMap)
+import Cardano.Types (CostModel, Language, PlutusData, Transaction, UtxoMap)
 import Cardano.Types.Value (Value)
 import Cardano.Types.Value as Value
 import Control.Monad.State.Trans (StateT)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Contract.Monad (Contract)
-import Ctl.Internal.Types.Datum (Datum)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
@@ -55,7 +55,7 @@ type ConstraintProcessingState =
   -- ^ Balance of the values given and required for the transaction's inputs
   , valueSpentBalancesOutputs :: ValueSpentBalances
   -- ^ Balance of the values produced and required for the transaction's outputs
-  , datums :: Array Datum
+  , datums :: Array PlutusData
   -- ^ Ordered accumulation of datums we can use to `setScriptDataHash`
   , redeemers :: Array UnindexedRedeemer
   -- ^ Unindexed redeemers that will be attached to the Tx later, on balancing
@@ -85,7 +85,7 @@ _valueSpentBalancesOutputs
 _valueSpentBalancesOutputs = prop (Proxy :: Proxy "valueSpentBalancesOutputs")
 
 _datums
-  :: Lens' ConstraintProcessingState (Array Datum)
+  :: Lens' ConstraintProcessingState (Array PlutusData)
 _datums = prop (Proxy :: Proxy "datums")
 
 _costModels
@@ -124,6 +124,13 @@ instance Semigroup ValueSpentBalances where
     { required: l.required `join` r.required -- least upper bound on Value
     , provided: l.provided `join` r.provided
     }
+
+sumValueSpentBalances
+  :: ValueSpentBalances -> ValueSpentBalances -> Maybe ValueSpentBalances
+sumValueSpentBalances (ValueSpentBalances a) (ValueSpentBalances b) = do
+  required <- Value.add a.required b.required
+  provided <- Value.add a.provided b.provided
+  pure $ ValueSpentBalances { required, provided }
 
 missingValueSpent :: ValueSpentBalances -> Maybe Value
 missingValueSpent (ValueSpentBalances { required, provided }) =

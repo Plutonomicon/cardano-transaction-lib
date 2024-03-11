@@ -1,33 +1,88 @@
 module Ctl.Internal.Lens
-  ( _witnessSet
-  , _redeemers
-  , _vkeys
+  ( _auxiliaryData
+  , _auxiliaryDataHash
   , _body
+  , _certs
   , _collateral
   , _collateralReturn
+  , _fee
+  , _inputs
+  , _isValid
+  , _mint
+  , _networkId
+  , _outputs
+  , _plutusData
+  , _redeemers
+  , _referenceInputs
+  , _requiredSigners
+  , _scriptDataHash
   , _totalCollateral
+  , _vkeys
+  , _withdrawals
+  , _witnessSet
   ) where
 
 import Prelude
 
 import Cardano.Types
-  ( Coin(..)
+  ( AuxiliaryData
+  , AuxiliaryDataHash
+  , Certificate
+  , Coin
+  , Ed25519KeyHash
+  , Mint
+  , NetworkId
+  , PlutusData
   , Redeemer
+  , ScriptDataHash
   , Transaction
   , TransactionBody
-  , TransactionInput(..)
-  , TransactionOutput(..)
+  , TransactionInput
+  , TransactionOutput
   , TransactionWitnessSet
   , Vkeywitness
   )
+import Cardano.Types.RewardAddress (RewardAddress)
 import Data.Lens (Lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
+import Data.Map (Map)
 import Data.Maybe (Maybe)
-import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(Proxy))
+
+-- Transaction
 
 _body :: Lens' Transaction TransactionBody
 _body = _Newtype <<< prop (Proxy :: Proxy "body")
+
+_isValid :: Lens' Transaction Boolean
+_isValid = _Newtype <<< prop (Proxy :: Proxy "isValid")
+
+_witnessSet :: Lens' Transaction TransactionWitnessSet
+_witnessSet = _Newtype <<< prop (Proxy :: Proxy "witnessSet")
+
+_auxiliaryData :: Lens' Transaction AuxiliaryData
+_auxiliaryData = _Newtype <<< prop (Proxy :: Proxy "auxiliaryData")
+
+-- TransactionBody
+
+_inputs :: Lens' TransactionBody (Array TransactionInput)
+_inputs = _Newtype <<< prop (Proxy :: Proxy "inputs")
+
+_fee :: Lens' TransactionBody Coin
+_fee = _Newtype <<< prop (Proxy :: Proxy "fee")
+
+_outputs :: Lens' TransactionBody (Array TransactionOutput)
+_outputs = _Newtype <<< prop (Proxy :: Proxy "outputs")
+
+_certs :: Lens' TransactionBody (Array Certificate)
+_certs = _Newtype <<< prop (Proxy :: Proxy "certs")
+
+_networkId :: Lens' TransactionBody (Maybe NetworkId)
+_networkId = _Newtype <<< prop (Proxy :: Proxy "networkId")
+
+_scriptDataHash :: Lens' TransactionBody (Maybe ScriptDataHash)
+_scriptDataHash = _Newtype <<< prop (Proxy :: Proxy "scriptDataHash")
 
 _collateral :: Lens' TransactionBody (Array TransactionInput)
 _collateral = _Newtype <<< prop (Proxy :: Proxy "collateral")
@@ -38,11 +93,28 @@ _collateralReturn = _Newtype <<< prop (Proxy :: Proxy "collateralReturn")
 _totalCollateral :: Lens' TransactionBody (Maybe Coin)
 _totalCollateral = _Newtype <<< prop (Proxy :: Proxy "totalCollateral")
 
-_witnessSet :: Lens' Transaction TransactionWitnessSet
-_witnessSet = _Newtype <<< prop (Proxy :: Proxy "witnessSet")
+_referenceInputs :: Lens' TransactionBody (Array TransactionInput)
+_referenceInputs = _Newtype <<< prop (Proxy :: Proxy "referenceInputs")
+
+_requiredSigners :: Lens' TransactionBody (Array Ed25519KeyHash)
+_requiredSigners = _Newtype <<< prop (Proxy :: Proxy "requiredSigners")
+
+_withdrawals :: Lens' TransactionBody (Map RewardAddress Coin)
+_withdrawals = _Newtype <<< prop (Proxy :: Proxy "withdrawals")
+
+_mint :: Lens' TransactionBody (Maybe Mint)
+_mint = _Newtype <<< prop (Proxy :: Proxy "mint")
+
+_auxiliaryDataHash :: Lens' TransactionBody (Maybe AuxiliaryDataHash)
+_auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
+
+-- TransactionWitnessSet
 
 _redeemers :: Lens' TransactionWitnessSet (Array Redeemer)
 _redeemers = _Newtype <<< prop (Proxy :: Proxy "redeemers")
+
+_plutusData :: Lens' TransactionWitnessSet (Array PlutusData)
+_plutusData = _Newtype <<< prop (Proxy :: Proxy "plutusData")
 
 _vkeys :: Lens' TransactionWitnessSet (Array Vkeywitness)
 _vkeys = _Newtype <<< prop (Proxy :: Proxy "vkeys")

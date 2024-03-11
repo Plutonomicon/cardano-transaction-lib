@@ -4,10 +4,11 @@ import Prelude
 
 import Cardano.AsCbor (encodeCbor)
 import Cardano.Serialization.Lib (toBytes)
-import Cardano.Types (DataHash)
+import Cardano.Types (DataHash, NativeScript)
 import Cardano.Types.Address (Address)
 import Cardano.Types.Address as Address
 import Cardano.Types.AssetName (AssetName, fromAssetName)
+import Cardano.Types.Int as Int
 import Cardano.Types.NativeScript (pprintNativeScript)
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
@@ -24,12 +25,6 @@ import Ctl.Internal.Types.Interval
   , PosixTimeToSlotError
   , explainPosixTimeToSlotError
   )
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicyHash
-  , NativeScriptStakeValidator
-  , PlutusScriptStakeValidator
-  , ValidatorHash
-  )
 import Data.ByteArray (byteArrayToHex)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Tag (tagSetTag)
@@ -38,7 +33,6 @@ import Data.Newtype (unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
-import JS.BigInt (BigInt)
 
 data MkUnbalancedTxError
   = CannotFindDatum
@@ -47,22 +41,23 @@ data MkUnbalancedTxError
   | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
   | CannotGetValidatorHashFromAddress Address -- Get `ValidatorHash` from internal `Address`
-  | CannotMakeValue ScriptHash AssetName BigInt
+  | CannotMakeValue ScriptHash AssetName Int.Int
   | CannotWithdrawRewardsPubKey StakePubKeyHash
-  | CannotWithdrawRewardsPlutusScript PlutusScriptStakeValidator
-  | CannotWithdrawRewardsNativeScript NativeScriptStakeValidator
+  | CannotWithdrawRewardsPlutusScript PlutusScript
+  | CannotWithdrawRewardsNativeScript NativeScript
   | DatumNotFound DataHash
   | DatumWrongHash DataHash PlutusData
-  | MintingPolicyHashNotCurrencySymbol MintingPolicyHash
-  | MintingPolicyNotFound MintingPolicyHash
+  | MintingPolicyHashNotCurrencySymbol ScriptHash
+  | MintingPolicyNotFound ScriptHash
   | OwnPubKeyAndStakeKeyMissing
   | TxOutRefNotFound TransactionInput
   | TxOutRefWrongType TransactionInput
-  | ValidatorHashNotFound ValidatorHash
+  | ValidatorHashNotFound ScriptHash
   | WrongRefScriptHash (Maybe ScriptHash) TransactionOutput
   | CannotSatisfyAny
-  | ExpectedPlutusScriptGotNativeScript MintingPolicyHash
+  | ExpectedPlutusScriptGotNativeScript ScriptHash
   | CannotMintZero ScriptHash AssetName
+  | NumericOverflow
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -105,10 +100,10 @@ explainMkUnbalancedTxError = case _ of
       <> " is not registered"
   CannotWithdrawRewardsPlutusScript pssv ->
     "Cannot withdraw rewards from Plutus staking script " <>
-      prettyPlutusScript (unwrap pssv)
+      prettyPlutusScript pssv
   CannotWithdrawRewardsNativeScript nssv ->
     pprintTagSet "Cannot withdraw rewards from native staking script "
-      ("NativeScript" `tagSetTag` pprintNativeScript (unwrap nssv))
+      ("NativeScript" `tagSetTag` pprintNativeScript nssv)
   DatumNotFound hash -> "Datum with hash "
     <> byteArrayToHex (unwrap $ encodeCbor hash)
     <>
@@ -119,11 +114,11 @@ explainMkUnbalancedTxError = case _ of
     <> byteArrayToHex (unwrap $ encodeCbor dh)
   MintingPolicyHashNotCurrencySymbol mph ->
     "Minting policy hash "
-      <> byteArrayToHex (unwrap $ encodeCbor $ unwrap mph)
+      <> byteArrayToHex (unwrap $ encodeCbor mph)
       <>
         " is not a CurrencySymbol. Please check the validity of the byte representation."
   MintingPolicyNotFound mp -> "Minting policy with hash "
-    <> byteArrayToHex (unwrap $ encodeCbor $ unwrap mp)
+    <> byteArrayToHex (unwrap $ encodeCbor mp)
     <> " not found in a set of minting policies"
   OwnPubKeyAndStakeKeyMissing ->
     "Could not build own address: both payment pubkey and stake pubkey are missing"
@@ -136,7 +131,7 @@ explainMkUnbalancedTxError = case _ of
       <> prettyTxIn ti
       <> "\nContext: we were trying to spend a script output."
   ValidatorHashNotFound vh -> "Cannot find validator hash: " <>
-    byteArrayToHex (unwrap $ encodeCbor $ unwrap vh)
+    byteArrayToHex (unwrap $ encodeCbor vh)
   WrongRefScriptHash msh tout -> case msh of
     Nothing -> pprintTagSet "Output is missing a reference script hash"
       ("TransactionOutput" `tagSetTag` pprintTransactionOutput tout)
@@ -151,13 +146,14 @@ explainMkUnbalancedTxError = case _ of
     <> "2. All alternatives of a 'mustSatisfyAnyOf' have failed."
   ExpectedPlutusScriptGotNativeScript mph ->
     "Expected a Plutus script, but "
-      <> byteArrayToHex (unwrap $ encodeCbor $ unwrap mph)
+      <> byteArrayToHex (unwrap $ encodeCbor mph)
       <> " is a hash of a native script."
   CannotMintZero cs tn ->
     "Cannot mint zero of token "
       <> prettyAssetName tn
       <> " of currency "
       <> byteArrayToHex (unwrap $ encodeCbor cs)
+  NumericOverflow -> "Numeric overflow"
   where
 
   prettyAssetName :: AssetName -> String

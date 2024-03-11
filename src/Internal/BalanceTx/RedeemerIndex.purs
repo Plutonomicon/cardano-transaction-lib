@@ -27,6 +27,7 @@ import Cardano.Types
   , ExUnits(ExUnits)
   , Redeemer(Redeemer)
   , RewardAddress
+  , ScriptHash
   , Transaction(Transaction)
   , TransactionBody(TransactionBody)
   )
@@ -34,7 +35,6 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
 import Cardano.Types.TransactionInput (TransactionInput)
-import Ctl.Internal.Types.Scripts (MintingPolicyHash)
 import Data.Array (findIndex)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
@@ -121,7 +121,7 @@ indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
 -- | is valid for the transaction.
 data RedeemerPurpose
   = ForSpend TransactionInput
-  | ForMint MintingPolicyHash
+  | ForMint ScriptHash
   | ForReward RewardAddress
   | ForCert Certificate
 
@@ -141,7 +141,7 @@ instance Show RedeemerPurpose where
 -- | Contains parts of a transaction that are important when indexing redeemers
 type RedeemersContext =
   { inputs :: Array TransactionInput
-  , mintingPolicyHashes :: Array MintingPolicyHash
+  , mintingPolicyHashes :: Array ScriptHash
   , rewardAddresses :: Array RewardAddress
   , certs :: Array Certificate
   }
@@ -151,7 +151,7 @@ mkRedeemersContext
   (Transaction { body: TransactionBody { inputs, mint, withdrawals, certs } }) =
   { inputs: inputs
   , mintingPolicyHashes:
-      map wrap $ Set.toUnfoldable $ Map.keys $ unwrap $ fromMaybe
+      Set.toUnfoldable $ Map.keys $ unwrap $ fromMaybe
         (wrap Map.empty)
         mint
   , rewardAddresses: Set.toUnfoldable $ Map.keys $ withdrawals

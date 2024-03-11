@@ -10,7 +10,7 @@ module Ctl.Internal.QueryM.Pools
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
-import Cardano.Types (PoolPubKeyHash, StakePubKeyHash)
+import Cardano.Types (PoolParams(PoolParams), PoolPubKeyHash, StakePubKeyHash)
 import Cardano.Types.Ed25519KeyHash (toBech32Unsafe) as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
 import Ctl.Internal.Helpers (liftM)
@@ -22,8 +22,7 @@ import Ctl.Internal.QueryM.Ogmios
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
-import Ctl.Internal.Types.PoolRegistrationParams (PoolRegistrationParams)
-import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Data.ByteArray (byteArrayToHex)
 import Data.Map (Map)
 import Data.Map as Map
@@ -47,7 +46,7 @@ getPoolIds :: QueryM (Array PoolPubKeyHash)
 getPoolIds = (Map.toUnfoldableUnordered >>> map fst) <$>
   getStakePools Nothing
 
-getPoolParameters :: PoolPubKeyHash -> QueryM PoolRegistrationParams
+getPoolParameters :: PoolPubKeyHash -> QueryM PoolParams
 getPoolParameters poolPubKeyHash = do
   params <- getPoolsParameters [ poolPubKeyHash ]
   res <- liftM (error "Unable to find pool ID in the response") $ Map.lookup
@@ -56,7 +55,7 @@ getPoolParameters poolPubKeyHash = do
   pure res
 
 getPoolsParameters
-  :: Array PoolPubKeyHash -> QueryM (Map PoolPubKeyHash PoolRegistrationParams)
+  :: Array PoolPubKeyHash -> QueryM (Map PoolPubKeyHash PoolParams)
 getPoolsParameters poolPubKeyHashes = do
   response <- getStakePools (Just poolPubKeyHashes)
   pure $ Map.mapMaybeWithKey
