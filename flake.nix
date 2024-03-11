@@ -56,6 +56,10 @@
       url = "github:justinwoo/easy-purescript-nix";
       flake = false;
     };
+    npmlock2nix = {
+      url = "github:nix-community/npmlock2nix";
+      flake = false;
+    };
 
     blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
@@ -163,13 +167,11 @@
           };
           ogmiosFixtures = buildOgmiosFixtures pkgs;
           project = pkgs.purescriptProject {
+            inherit (inputs) npmlock2nix;
             inherit src pkgs projectName;
-            packageJson = ./package.json;
-            packageLock = ./package-lock.json;
             shell = {
               withRuntime = true;
               shellHook = exportOgmiosFixtures;
-              packageLockOnly = true;
               packages = with pkgs; [
                 arion
                 fd
