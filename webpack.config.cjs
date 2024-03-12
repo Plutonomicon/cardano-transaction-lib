@@ -52,8 +52,6 @@ module.exports = env => {
     },
 
     resolve: {
-      // We use node_modules provided by Nix shell via an environment variable
-      modules: [process.env.NODE_PATH],
       extensions: [".js"]
     },
 

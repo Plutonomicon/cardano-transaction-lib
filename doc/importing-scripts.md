@@ -56,7 +56,6 @@ const path = require("path");
 module.exports = {
   // ...
   resolve: {
-    modules: [process.env.NODE_PATH],
     extensions: [".js"],
     fallback: {
       // ...

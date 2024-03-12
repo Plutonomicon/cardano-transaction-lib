@@ -267,7 +267,6 @@ let
         {
           inherit src;
           nativeBuildInputs = [ builtProject nodeModules ] ++ buildInputs;
-          NODE_PATH = nodeModules;
         } // env
       )
       ''
@@ -404,7 +403,6 @@ let
           gnutar # used unpack settings archive within E2E test code
           curl # used to query for the web server to start (see below)
         ] ++ (args.buildInputs or [ ]);
-        NODE_PATH = nodeModules;
       } // env)
       ''
         chmod -R +rw .
@@ -440,7 +438,7 @@ let
           sleep 0.1;
         done;
 
-        ln -sfn $NODE_PATH node_modules
+        ln -sfn ${nodeModules} node_modules
 
         cp -r ${builtRunnerProject}/output .
         cp -r $src/* .
@@ -488,8 +486,7 @@ let
       }
       ''
         export HOME="$TMP"
-        export NODE_PATH="${nodeModules}"
-        ln -sfn $NODE_PATH node_modules
+        ln -sfn ${nodeModules} node_modules
         export PATH="${nodeModules}/.bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
         cp -r ${builtProject}/* .
@@ -538,7 +535,6 @@ let
       }
       ''
         export HOME="$TMP"
-        export NODE_PATH="${nodeModules}"
         export PATH="${nodeModules}/.bin:$PATH"
         ${pkgs.lib.optionalString browserRuntime "export BROWSER_RUNTIME=1"}
         cp -r ${builtProject}/* .
