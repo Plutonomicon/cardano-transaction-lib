@@ -30,12 +30,16 @@ let
 
   npm = import npmlock2nix { inherit pkgs; };
 
-  projectNodeModules = npm.v2.node_modules
-    {
+  projectNodeModulesSettings = {
       inherit nodejs src;
       # enables node-gyp on all packages
       sourceOverrides.buildRequirePatchShebangs = true;
-    } + /node_modules;
+      githubSourceHashMap = {
+        Fourierlabs.cardano-serialization-lib-gc."5f720dc7412f60c0327ef02a41b90639c0e67b59" = "sha256-Y7jqGFerjWfSfKhvysxXL5IyMMOGO/rjDrSi57rnFZs=";
+      };
+  };
+
+  projectNodeModules = npm.v2.node_modules projectNodeModulesSettings + /node_modules;
 
   # Constructs a development environment containing various tools to work on
   # Purescript projects. The resulting derivation can be used as a `devShell` in
@@ -74,8 +78,7 @@ let
       with pkgs.lib;
       npm.v2.shell {
         inherit src nodejs;
-        node_modules_attrs = {
-          sourceOverrides.buildRequirePatchShebangs = true;
+        node_modules_attrs = projectNodeModulesSettings // {
           inherit packages inputsFrom;
           buildInputs = builtins.concatLists
             [
