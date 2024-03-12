@@ -1,3 +1,0 @@
-[submodule "cslgc12"]
-	path = cslgc12
-	url = git@github.com:Fourierlabs/cardano-serialization-lib-gc.git
