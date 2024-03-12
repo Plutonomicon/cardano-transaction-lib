@@ -77,8 +77,8 @@ export const _txBodyValidityStartInterval = maybeGetter(
   "validity_start_interval_bignum"
 );
 
-// multiassets(): Mint | void;
-export const _txBodyMultiAssets = maybeGetter("multiassets");
+// mint(): Mint | void;
+export const _txBodyMint = maybeGetter("mint");
 
 export function _txBodyReferenceInputs(maybe) {
   return containerhelper => body =>

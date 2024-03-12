@@ -14,7 +14,7 @@ module Ctl.Internal.Deserialization.Transaction
   , _txBodyCollateral
   , _txBodyFee
   , _txBodyInputs
-  , _txBodyMultiAssets
+  , _txBodyMint
   , _txBodyNetworkId
   , _txBodyOutputs
   , _txBodyRequiredSigners
@@ -297,7 +297,7 @@ convertTxBody txBody = do
           _txBodyAuxiliaryDataHash maybeFfiHelper txBody
     , validityStartInterval:
         Slot <$> _txBodyValidityStartInterval maybeFfiHelper txBody
-    , mint: map convertMint $ _txBodyMultiAssets maybeFfiHelper txBody
+    , mint: map convertMint $ _txBodyMint maybeFfiHelper txBody
     , referenceInputs
     , scriptDataHash: convertScriptDataHash <$> _txBodyScriptDataHash
         maybeFfiHelper
@@ -778,8 +778,8 @@ foreign import _txBodyAuxiliaryDataHash
 foreign import _txBodyValidityStartInterval
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.BigNum
 
--- multiassets(): Mint | void
-foreign import _txBodyMultiAssets
+-- mint(): Mint | void
+foreign import _txBodyMint
   :: MaybeFfiHelper -> Csl.TransactionBody -> Maybe Csl.Mint
 
 -- reference_inputs(): TransactionInputs | void;
