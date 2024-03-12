@@ -31,12 +31,12 @@ let
   npm = import npmlock2nix { inherit pkgs; };
 
   projectNodeModulesSettings = {
-      inherit nodejs src;
-      # enables node-gyp on all packages
-      sourceOverrides.buildRequirePatchShebangs = true;
-      githubSourceHashMap = {
-        Fourierlabs.cardano-serialization-lib-gc."5f720dc7412f60c0327ef02a41b90639c0e67b59" = "sha256-Y7jqGFerjWfSfKhvysxXL5IyMMOGO/rjDrSi57rnFZs=";
-      };
+    inherit nodejs src;
+    # enables node-gyp on all packages
+    sourceOverrides.buildRequirePatchShebangs = true;
+    githubSourceHashMap = {
+      Fourierlabs.cardano-serialization-lib-gc."5f720dc7412f60c0327ef02a41b90639c0e67b59" = "sha256-Y7jqGFerjWfSfKhvysxXL5IyMMOGO/rjDrSi57rnFZs=";
+    };
   };
 
   projectNodeModules = npm.v2.node_modules projectNodeModulesSettings + /node_modules;
@@ -78,46 +78,45 @@ let
       with pkgs.lib;
       npm.v2.shell {
         inherit src nodejs;
-        node_modules_attrs = projectNodeModulesSettings // {
-          inherit packages inputsFrom;
-          buildInputs = builtins.concatLists
+        inherit packages inputsFrom;
+        buildInputs = builtins.concatLists
+          [
             [
-              [
-                purs
-                nodejs
-                pkgs.easy-ps.spago
-                pkgs.easy-ps.${formatter}
-                pkgs.easy-ps.pscid
-                pkgs.easy-ps.psa
-                pkgs.easy-ps.spago2nix
-                pkgs.unzip
-                # Required to fix initdb locale issue in shell
-                # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
-                # Well, not really, as we set initdb locale to C for all cases now
-                # Anyway, seems like it's good to have whole set of locales in the shell
-                pkgs.glibcLocales
-              ]
+              purs
+              nodejs
+              pkgs.easy-ps.spago
+              pkgs.easy-ps.${formatter}
+              pkgs.easy-ps.pscid
+              pkgs.easy-ps.psa
+              pkgs.easy-ps.spago2nix
+              pkgs.unzip
+              # Required to fix initdb locale issue in shell
+              # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
+              # Well, not really, as we set initdb locale to C for all cases now
+              # Anyway, seems like it's good to have whole set of locales in the shell
+              pkgs.glibcLocales
+            ]
 
-              (lists.optional pursls pkgs.easy-ps.purescript-language-server)
+            (lists.optional pursls pkgs.easy-ps.purescript-language-server)
 
-              (lists.optional withChromium pkgs.chromium)
+            (lists.optional withChromium pkgs.chromium)
 
-              (
-                lists.optional withRuntime (
-                  [
-                    pkgs.ogmios
-                    pkgs.plutip-server
-                    pkgs.kupo
-                  ]
-                )
+            (
+              lists.optional withRuntime (
+                [
+                  pkgs.ogmios
+                  pkgs.plutip-server
+                  pkgs.kupo
+                ]
               )
-            ];
-          shellHook = ''
-            ${linkExtraSources}
-            ${linkData}
-          ''
-          + shellHook;
-        };
+            )
+          ];
+        shellHook = ''
+          ${linkExtraSources}
+          ${linkData}
+        ''
+        + shellHook;
+        node_modules_attrs = projectNodeModulesSettings;
       };
 
   # Extra sources
