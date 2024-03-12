@@ -32,14 +32,14 @@ const callStakeCred = callMethodParameterless("stake_cred");
 
 export function withStakeCredential(cbObj) {
   return stakeCred => {
-    return stakeCred.kind() == lib.StakeCredKind.Key
+    return stakeCred.kind() == lib.CredKind.Key
       ? cbObj.onKeyHash(stakeCred.to_keyhash())
       : cbObj.onScriptHash(stakeCred.to_scripthash());
   };
 }
 
-export const keyHashCredential = lib.StakeCredential.from_keyhash;
-export const scriptHashCredential = lib.StakeCredential.from_scripthash;
+export const keyHashCredential = lib.Credential.from_keyhash;
+export const scriptHashCredential = lib.Credential.from_scripthash;
 export { callToBytes as addressBytes };
 export { callToBytes as byronAddressBytes };
 export { callToBytes as stakeCredentialToBytes };
@@ -60,7 +60,7 @@ export function _byronAddressNetworkId(toAdt) {
 export const _addressFromBytes = callClassStaticMaybe("Address", "from_bytes");
 
 export const _stakeCredentialFromBytes = callClassStaticMaybe(
-  "StakeCredential",
+  "Credential",
   "from_bytes"
 );
 
