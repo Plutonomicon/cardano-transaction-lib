@@ -57,9 +57,6 @@ let
       # Generated `node_modules` in the Nix store. Can be passed to have better
       # control over individual project components
     , nodeModules ? projectNodeModules
-      # If `true`, `npm i` will only write to your `package-lock.json` instead
-      # of installing to a local `node_modules`
-    , packageLockOnly ? false
       # If `true`, all of CTL's runtime dependencies will be added to the
       # shell's `packages`. These packages are *required* if you plan on running
       # Plutip tests in your local shell environment (that is, not using Nix
@@ -75,51 +72,49 @@ let
     }:
       assert pkgs.lib.assertOneOf "formatter" formatter [ "purs-tidy" "purty" ];
       with pkgs.lib;
-      pkgs.mkShell {
-        inherit packages inputsFrom;
-        buildInputs = builtins.concatLists
-          [
+      npm.v2.shell {
+        inherit src nodejs;
+        node_modules_attrs = {
+          sourceOverrides.buildRequirePatchShebangs = true;
+          inherit packages inputsFrom;
+          buildInputs = builtins.concatLists
             [
-              nodeModules
-              purs
-              nodejs
-              pkgs.easy-ps.spago
-              pkgs.easy-ps.${formatter}
-              pkgs.easy-ps.pscid
-              pkgs.easy-ps.psa
-              pkgs.easy-ps.spago2nix
-              pkgs.nodePackages.node2nix
-              pkgs.unzip
-              # Required to fix initdb locale issue in shell
-              # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
-              # Well, not really, as we set initdb locale to C for all cases now
-              # Anyway, seems like it's good to have whole set of locales in the shell
-              pkgs.glibcLocales
-            ]
+              [
+                purs
+                nodejs
+                pkgs.easy-ps.spago
+                pkgs.easy-ps.${formatter}
+                pkgs.easy-ps.pscid
+                pkgs.easy-ps.psa
+                pkgs.easy-ps.spago2nix
+                pkgs.unzip
+                # Required to fix initdb locale issue in shell
+                # https://github.com/Plutonomicon/cardano-transaction-lib/issues/828
+                # Well, not really, as we set initdb locale to C for all cases now
+                # Anyway, seems like it's good to have whole set of locales in the shell
+                pkgs.glibcLocales
+              ]
 
-            (lists.optional pursls pkgs.easy-ps.purescript-language-server)
+              (lists.optional pursls pkgs.easy-ps.purescript-language-server)
 
-            (lists.optional withChromium pkgs.chromium)
+              (lists.optional withChromium pkgs.chromium)
 
-            (
-              lists.optional withRuntime (
-                [
-                  pkgs.ogmios
-                  pkgs.plutip-server
-                  pkgs.kupo
-                ]
+              (
+                lists.optional withRuntime (
+                  [
+                    pkgs.ogmios
+                    pkgs.plutip-server
+                    pkgs.kupo
+                  ]
+                )
               )
-            )
-          ];
-        shellHook = ''
-          export NODE_PATH="${nodeModules}"
-          ln -sfn $NODE_PATH node_modules
-          export PATH="${nodeModules}/.bin:$PATH"
-          ${pkgs.lib.optionalString packageLockOnly "export NPM_CONFIG_PACKAGE_LOCK_ONLY=true"}
-          ${linkExtraSources}
-          ${linkData}
-        ''
-        + shellHook;
+            ];
+          shellHook = ''
+            ${linkExtraSources}
+            ${linkData}
+          ''
+          + shellHook;
+        };
       };
 
   # Extra sources
@@ -190,9 +185,6 @@ let
     {
       # Can be used to override the name given to the resulting derivation
       name ? projectName
-      # Generated `node_modules` in the Nix store. Can be passed to have better
-      # control over individual project components
-    , nodeModules ? projectNodeModules
       # If warnings generated from project source files will trigger a build error.
       # Controls `--strict` purescript-psa flag
     , strictComp ? true
@@ -206,9 +198,6 @@ let
     }:
     pkgs.stdenv.mkDerivation {
       inherit name src;
-      buildInputs = [
-        nodeModules
-      ];
       nativeBuildInputs = [
         spagoPkgs.installSpagoStyle
         pkgs.easy-ps.psa
@@ -217,9 +206,6 @@ let
       ];
       unpackPhase = ''
         export HOME="$TMP"
-        export NODE_PATH="${nodeModules}"
-        ln -sfn $NODE_PATH node_modules
-        export PATH="${nodeModules}/.bin:$PATH"
         ${linkExtraSources}
         ${linkData}
 
@@ -279,7 +265,7 @@ let
         {
           inherit src;
           nativeBuildInputs = [ builtProject nodeModules ] ++ buildInputs;
-          NODE_PATH = "${nodeModules}/lib/node_modules";
+          NODE_PATH = nodeModules;
         } // env
       )
       ''
@@ -416,7 +402,7 @@ let
           gnutar # used unpack settings archive within E2E test code
           curl # used to query for the web server to start (see below)
         ] ++ (args.buildInputs or [ ]);
-        NODE_PATH = "${nodeModules}";
+        NODE_PATH = nodeModules;
       } // env)
       ''
         chmod -R +rw .
