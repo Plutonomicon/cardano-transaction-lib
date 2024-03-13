@@ -4,11 +4,24 @@ module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
+  , module X
   ) where
 
 import Prelude
 
-import Cardano.Types (DataHash, PlutusData)
+import Cardano.FromData (class FromData) as X
+import Cardano.ToData (class ToData) as X
+import Cardano.Types (DataHash)
+import Cardano.Types
+  ( PlutusData
+      ( Constr
+      , Map
+      , List
+      , Integer
+      , Bytes
+      )
+  ) as X
+import Cardano.Types.PlutusData (PlutusData)
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.Monad (getQueryHandle)

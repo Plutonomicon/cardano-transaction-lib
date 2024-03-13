@@ -10,13 +10,13 @@ import Prelude
 import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.PrivateKey as PrivateKey
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftedM, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
@@ -73,7 +73,6 @@ import Ctl.Internal.Test.E2E.Wallets
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
   , keyWalletPrivatePaymentKey
@@ -81,6 +80,7 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
+import Data.ByteArray (hexToByteArray)
 import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
@@ -223,9 +223,11 @@ buildPlutipConfig options =
 -- | Plutip does not generate private stake keys for us, so we make one and
 -- | fund it manually to get a usable base address.
 privateStakeKey :: PrivateStakeKey
-privateStakeKey = wrap $ wrap $ unsafePartial $ fromJust
-  $ privateKeyFromBytes =<< hexToRawBytes
-      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+privateStakeKey = wrap $ unsafePartial $ fromJust
+  $ PrivateKey.fromRawBytes =<< map wrap
+      ( hexToByteArray
+          "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+      )
 
 -- | Constructs a test plan given an array of tests.
 testPlan

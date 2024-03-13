@@ -20,6 +20,8 @@ You can edit this file as you like.
   , "bytearrays"
   , "cardano-hd-wallet"
   , "cardano-message-signing"
+  , "cardano-plutus-data-schema"
+  , "cardano-serialization-lib"
   , "cardano-types"
   , "checked-exceptions"
   , "cip30"

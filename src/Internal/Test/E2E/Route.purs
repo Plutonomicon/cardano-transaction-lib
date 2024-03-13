@@ -9,8 +9,10 @@ module Ctl.Internal.Test.E2E.Route
 
 import Prelude
 
-import Cardano.Types.Address (NetworkId(MainnetId))
+import Cardano.Types (NetworkId(MainnetId))
 import Cardano.Types.PrivateKey (PrivateKey(..))
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.RawBytes (RawBytes(RawBytes))
 import Contract.Config (ContractParams)
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Monad (Contract, runContract)
@@ -27,7 +29,6 @@ import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback.Browser (getClusterSetupRepeatedly)
 import Ctl.Internal.Test.E2E.Feedback.Hooks (addE2EFeedbackHooks)
-import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
 import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToEternl))
 import Data.Array (last)
 import Data.Array as Array
@@ -88,7 +89,8 @@ parseRoute queryString =
     _ -> Left "Unable to decode URL"
   where
   mkPrivateKey' :: String -> Maybe PrivateKey
-  mkPrivateKey' str = hexToByteArray str >>= RawBytes >>> privateKeyFromBytes
+  mkPrivateKey' str = hexToByteArray str >>= RawBytes >>>
+    PrivateKey.fromRawBytes
 
   mkPrivateKey :: String -> Maybe PrivateKey
   mkPrivateKey str =

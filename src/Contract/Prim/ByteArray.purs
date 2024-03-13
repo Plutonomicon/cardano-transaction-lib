@@ -8,17 +8,8 @@ module Contract.Prim.ByteArray
 import Cardano.Types.CborBytes
   ( CborBytes(CborBytes)
   ) as CborBytes
-import Ctl.Internal.Types.RawBytes
+import Cardano.Types.RawBytes
   ( RawBytes(RawBytes)
-  , hexToRawBytes
-  , hexToRawBytesUnsafe
-  , rawBytesFromAscii
-  , rawBytesFromByteArray
-  , rawBytesFromIntArray
-  , rawBytesFromIntArrayUnsafe
-  , rawBytesToByteArray
-  , rawBytesToHex
-  , rawBytesToIntArray
   ) as RawBytes
 import Data.ByteArray
   ( ByteArray(ByteArray)

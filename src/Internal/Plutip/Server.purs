@@ -16,8 +16,9 @@ import Affjax (defaultRequest) as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types (NetworkId(MainnetId))
+import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
-import Contract.Address (NetworkId(MainnetId))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
@@ -364,7 +365,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
             "Impossible happened: could not decode wallets. Please report as bug"
             $ decodeWallets distr (coerce response.privateKeys)
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
-        void $ waitNSlots one
+        void $ waitNSlots BigNum.one
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
 

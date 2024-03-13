@@ -14,6 +14,7 @@ module Contract.Backend.Ogmios.Mempool
 
 import Contract.Prelude
 
+import Cardano.AsCbor (decodeCbor)
 import Cardano.Types.Transaction (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
@@ -60,8 +61,7 @@ mempoolSnapshotNextTx mempoolAcquired = do
     byteArray <- liftMaybe (error "Failed to decode transaction")
       $ hexToByteArray raw
     liftMaybe (error "Failed to decode tx")
-      $ hush
-      $ deserializeTransaction
+      $ decodeCbor
       $ wrap byteArray
 
 -- | The acquired snapshot’s size (in bytes), number of transactions, and

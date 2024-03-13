@@ -7,13 +7,13 @@ module Ctl.Internal.Serialization.Keys
   , publicKeyFromPrivateKey
   ) where
 
+import Cardano.Types.RawBytes (RawBytes)
 import Ctl.Internal.Serialization.Types
   ( Ed25519Signature
   , PrivateKey
   , PublicKey
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.RawBytes (RawBytes)
 
 foreign import publicKeyFromPrivateKey
   :: PrivateKey -> PublicKey

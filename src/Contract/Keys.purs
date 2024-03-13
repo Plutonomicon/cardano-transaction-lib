@@ -6,22 +6,12 @@ module Contract.Keys
   , publicKeyFromBytes
   ) where
 
-import Prelude
-
-import Cardano.AsCbor (decodeCbor)
-import Cardano.Serialization.Lib
-  ( privateKey_fromBech32
-  , privateKey_fromNormalBytes
-  , publicKey_fromBytes
-  ) as Csl
-import Cardano.Types (Bech32String, RawBytes(..))
-import Cardano.Types.PrivateKey (PrivateKey(..))
+import Cardano.Types (Bech32String, RawBytes)
+import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey
-import Cardano.Types.PublicKey (PublicKey(..))
+import Cardano.Types.PublicKey (PublicKey)
+import Cardano.Types.PublicKey as PublicKey
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap, wrap)
-import Data.Nullable (toMaybe)
-import Safe.Coerce (coerce)
 
 privateKeyFromBytes :: RawBytes -> Maybe PrivateKey
 privateKeyFromBytes = PrivateKey.fromRawBytes
@@ -31,7 +21,7 @@ privateKeyFromBech32 = PrivateKey.fromBech32
 
 publicKeyFromBytes :: RawBytes -> Maybe PublicKey
 publicKeyFromBytes =
-  decodeCbor <<< wrap <<< unwrap
+  PublicKey.fromRawBytes
 
 publicKeyFromBech32 :: Bech32String -> Maybe PublicKey
 publicKeyFromBech32 = PublicKey.fromBech32

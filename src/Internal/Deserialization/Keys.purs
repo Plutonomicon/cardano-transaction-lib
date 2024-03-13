@@ -7,6 +7,7 @@ module Ctl.Internal.Deserialization.Keys
   , freshPrivateKey
   ) where
 
+import Cardano.Types.RawBytes (RawBytes)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Types
   ( Ed25519Signature
@@ -14,7 +15,6 @@ import Ctl.Internal.Serialization.Types
   , PublicKey
   )
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.RawBytes (RawBytes)
 import Data.Maybe (Maybe)
 import Effect (Effect)
 
