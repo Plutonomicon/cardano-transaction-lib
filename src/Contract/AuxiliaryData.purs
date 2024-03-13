@@ -7,13 +7,14 @@ module Contract.AuxiliaryData
 
 import Prelude
 
-import Contract.Monad (Contract)
-import Ctl.Internal.Cardano.Types.Transaction
+import Cardano.Types
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
+  , GeneralTransactionMetadata
   , Transaction
   )
-import Ctl.Internal.Cardano.Types.Transaction
+import Contract.Monad (Contract)
+import Ctl.Internal.Lens
   ( _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -23,8 +24,6 @@ import Ctl.Internal.Metadata.MetadataType
   , toGeneralTxMetadata
   )
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
-import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
-import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Lens (lens', (?~))
 import Data.Lens.Getter (view)
 import Data.Lens.Iso.Newtype (_Newtype)

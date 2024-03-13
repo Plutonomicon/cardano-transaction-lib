@@ -7,16 +7,16 @@ module Contract.Staking
 
 import Prelude
 
+import Cardano.Types (PoolPubKeyHash, StakePubKeyHash)
 import Contract.Monad (Contract)
 import Control.Monad.Reader (asks)
-import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
--- import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
-import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Data.Either (either)
 import Data.Maybe (Maybe)
+import Data.Newtype (unwrap)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -46,5 +46,5 @@ getValidatorHashDelegationsAndRewards stakeValidatorHash = do
   networkId <- asks _.networkId
   liftAff do
     queryHandle.getValidatorHashDelegationsAndRewards networkId
-      stakeValidatorHash
+      (unwrap stakeValidatorHash)
       >>= either (liftEffect <<< throw <<< show) pure

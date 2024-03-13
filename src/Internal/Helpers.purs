@@ -36,6 +36,7 @@ module Ctl.Internal.Helpers
   , showFromCbor
   , compareViaCslBytes
   , decodeMap
+  , decodeTaggedNewtype
   ) where
 
 import Prelude
@@ -45,9 +46,11 @@ import Aeson
   , class DecodeTupleAux
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError
+  , JsonDecodeError(..)
+  , caseAesonObject
   , decodeAeson
   , encodeAeson
+  , getField
   , toString
   )
 import Cardano.Serialization.Lib (class IsBytes, toBytes)
@@ -59,7 +62,7 @@ import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (ltraverse)
 import Data.ByteArray (byteArrayToHex)
-import Data.Either (Either(Right), either)
+import Data.Either (Either(..), either)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
@@ -301,6 +304,17 @@ decodeMap aeson = do
         pure $ k /\ v
   decodeAsArray = do
     Map.fromFoldable <$> (decodeAeson aeson :: Either _ (Array (k /\ v)))
+
+decodeTaggedNewtype
+  :: ∀ (a :: Type) (b :: Type)
+   . DecodeAeson a
+  => String
+  -> (a -> b)
+  -> Aeson
+  -> Either JsonDecodeError b
+decodeTaggedNewtype constrName constr = caseAesonObject
+  (Left $ TypeMismatch "Expected object")
+  (flip getField constrName >=> decodeAeson >>> map constr)
 
 -- | Args: tag value encoder
 -- | Encodes `value` using `encoder` as `{ "tag": *encoded tag*, "contents": *encoded value* }`

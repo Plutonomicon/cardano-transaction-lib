@@ -3,16 +3,18 @@ module Ctl.Internal.Partition
   , class Partition
   , equipartition
   , partition
+  , equipartitionValueWithTokenQuantityUpperBound
   ) where
 
 import Prelude
 
-import Cardano.Types.AssetName (AssetName(..))
-import Cardano.Types.BigNum (BigNum(..))
+import Cardano.Types.AssetName (AssetName)
+import Cardano.Types.BigInt (divCeil)
+import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.MultiAsset (MultiAsset(..))
+import Cardano.Types.MultiAsset (MultiAsset)
 import Cardano.Types.MultiAsset as MultiAsset
-import Cardano.Types.ScriptHash (ScriptHash(..))
+import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.Value (Value(..))
 import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -28,15 +30,15 @@ import Data.Array.NonEmpty
   ) as NEArray
 import Data.Foldable (any, foldl, length, sum)
 import Data.Function (on)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt (BigInt)
 import JS.BigInt (fromInt, toInt) as BigInt
 import Partial.Unsafe (unsafePartial)
+import Prelude as Prelude
 
 class Partition (a :: Type) where
   partition :: a -> NonEmptyArray a -> Maybe (NonEmptyArray a)
@@ -133,7 +135,7 @@ instance Equipartition MultiAsset where
     foldl accumulate (NEArray.replicate numParts MultiAsset.empty)
       (MultiAsset.flatten nonAdaAssets)
     where
-    append' a b = unsafePartial $ fromJust $ add a b
+    append' a b = unsafePartial $ fromJust $ MultiAsset.add a b
 
     accumulate
       :: NonEmptyArray MultiAsset
@@ -179,7 +181,7 @@ equipartitionValueWithTokenQuantityUpperBound maxTokenQuantity value =
       equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets
         maxTokenQuantity
   in
-    NEArray.zipWith Value (equipartition coin numParts) ms
+    NEArray.zipWith Value (map wrap $ equipartition (unwrap coin) numParts) ms
 
 -- | Partitions a `MultiAsset` into smaller `MultiAsset`s, where the
 -- | quantity of each token is equipartitioned across the resultant

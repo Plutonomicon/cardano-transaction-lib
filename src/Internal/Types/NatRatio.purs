@@ -3,23 +3,17 @@
 module Ctl.Internal.Types.NatRatio
   ( NatRatio
   , denominator
-  , denominatorAsNat
   , fromBigInts
-  , fromNaturals
   , fromRational
   , numerator
-  , numeratorAsNat
   , toRational
   ) where
 
 import Prelude
 
-import Ctl.Internal.Types.Natural (Natural)
-import Ctl.Internal.Types.Natural (fromBigInt', toBigInt) as Nat
 import Ctl.Internal.Types.Rational (Rational)
 import Ctl.Internal.Types.Rational
   ( denominator
-  , denominatorAsNat
   , numerator
   , (%)
   ) as Rational
@@ -48,11 +42,6 @@ fromRational r = fromBigInts (Rational.numerator r) (Rational.denominator r)
 toRational :: NatRatio -> Rational
 toRational (NatRatio r) = r
 
--- | Given two `Natural`s, attempts to convert to a `NatRatio`. Fails if the
--- | denominator is `zero`.
-fromNaturals :: Natural -> Natural -> Maybe NatRatio
-fromNaturals n d = NatRatio <$> Nat.toBigInt n Rational.% Nat.toBigInt d
-
 -- | Given two `BigInt`s, attempts to convert to a `NatRatio`. Fails if the
 -- | denominator is `zero` or the overall sign is negative.
 fromBigInts :: BigInt -> BigInt -> Maybe NatRatio
@@ -64,16 +53,6 @@ fromBigInts n d
 numerator :: NatRatio -> BigInt
 numerator (NatRatio r) = Rational.numerator r
 
--- This is safe because the numerator is guaranteed to be non-negative.
--- | Get the numerator of a `NatRatio` as `Natural`.
-numeratorAsNat :: NatRatio -> Natural
-numeratorAsNat (NatRatio r) = Nat.fromBigInt' $ Rational.numerator r
-
 -- | Get the denominator of a `NatRatio` as `BigInt`.
 denominator :: NatRatio -> BigInt
 denominator (NatRatio r) = Rational.denominator r
-
--- This is safe because the denominator is guaranteed to be positive.
--- | Get the denominator of a `NatRatio` as `Natural`.
-denominatorAsNat :: NatRatio -> Natural
-denominatorAsNat (NatRatio r) = Rational.denominatorAsNat r

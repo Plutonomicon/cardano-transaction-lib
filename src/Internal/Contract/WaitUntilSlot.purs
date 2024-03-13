@@ -7,6 +7,7 @@ module Ctl.Internal.Contract.WaitUntilSlot
 
 import Prelude
 
+import Cardano.Types (BigNum, Slot(Slot))
 import Cardano.Types.BigNum as BigNum
 import Contract.Log (logTrace')
 import Control.Monad.Error.Class (liftEither, liftMaybe)
@@ -14,7 +15,6 @@ import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries))
 import Ctl.Internal.Types.Interval
@@ -24,8 +24,6 @@ import Ctl.Internal.Types.Interval
   , getSlotLength
   , slotToPosixTime
   )
-import Ctl.Internal.Types.Natural (Natural)
-import Ctl.Internal.Types.Natural as Natural
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Array (length, mapMaybe)
 import Data.Bifunctor (lmap)
@@ -166,15 +164,13 @@ posixTimeToSeconds (POSIXTime futureTimeBigInt) = do
     $ futureTimeBigInt / BigInt.fromInt 1000
 
 -- | Wait at least `offset` number of slots.
-waitNSlots :: Natural -> Contract Chain.Tip
+waitNSlots :: BigNum -> Contract Chain.Tip
 waitNSlots offset = do
-  offsetBigNum <- liftM (error "Unable to convert BigInt to BigNum")
-    $ (BigNum.fromBigInt <<< Natural.toBigInt) offset
-  if offsetBigNum == BigNum.fromInt 0 then getChainTip
+  if offset == BigNum.fromInt 0 then getChainTip
   else do
     slot <- currentSlot
-    newSlot <- liftM (error "Unable to advance slot")
-      $ wrap <$> BigNum.add (unwrap slot) offsetBigNum
+    newSlot <- liftM (error "waitNSlots: Unable to advance slot")
+      $ wrap <$> BigNum.add (unwrap slot) offset
     waitUntilSlot newSlot
 
 currentSlot :: Contract Slot

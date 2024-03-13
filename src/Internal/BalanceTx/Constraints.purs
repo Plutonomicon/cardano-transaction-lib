@@ -24,11 +24,11 @@ module Ctl.Internal.BalanceTx.Constraints
 
 import Prelude
 
-import Cardano.Types (UtxoMap, Address, TransactionInput)
+import Cardano.Types (Address, TransactionInput, UtxoMap)
+import Cardano.Types.OutputDatum (OutputDatum)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyOptimal)
   )
-import Cardano.Types.OutputDatum (OutputDatum)
 import Data.Array (singleton) as Array
 import Data.Function (applyFlipped)
 import Data.Lens (Lens')

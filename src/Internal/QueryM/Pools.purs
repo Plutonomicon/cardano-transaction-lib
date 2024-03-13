@@ -10,7 +10,7 @@ module Ctl.Internal.QueryM.Pools
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
-import Cardano.Types (PoolParams(PoolParams), PoolPubKeyHash, StakePubKeyHash)
+import Cardano.Types (PoolParams, PoolPubKeyHash, StakePubKeyHash)
 import Cardano.Types.Ed25519KeyHash (toBech32Unsafe) as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
 import Ctl.Internal.Helpers (liftM)
@@ -35,7 +35,7 @@ import Record.Builder (build, merge)
 
 -- | Get pool parameters of all pools or of the provided pools.
 getStakePools
-  :: (Maybe (Array PoolPubKeyHash))
+  :: Maybe (Array PoolPubKeyHash)
   -> QueryM (Map PoolPubKeyHash PoolParameters)
 getStakePools selected = unwrap <$>
   mkOgmiosRequest Ogmios.queryStakePoolsCall
@@ -59,10 +59,10 @@ getPoolsParameters
 getPoolsParameters poolPubKeyHashes = do
   response <- getStakePools (Just poolPubKeyHashes)
   pure $ Map.mapMaybeWithKey
-    ( \poolPkh params -> Just $ build
+    ( \poolPkh params -> Just $ wrap $ build
         ( merge
             { operator: poolPkh
-            , poolOwners: params.poolOwners <#> wrap
+            , poolOwners: params.poolOwners
             }
         )
         params

@@ -11,7 +11,6 @@ module Ctl.Internal.Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
-  , transactionHash
   , mintingPolicyHash
   ) where
 
@@ -30,13 +29,12 @@ import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptHash (ScriptHash)
-import Ctl.Internal.Cardano.Types.ScriptRef
+import Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
-import Ctl.Internal.Helpers (notImplemented)
-import Ctl.Internal.Serialization.Types (Transaction) as Serialization
-import Ctl.Internal.Types.Scripts (MintingPolicy(..))
-import Ctl.Internal.Types.Transaction (TransactionHash)
+import Ctl.Internal.Types.MintingPolicy
+  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
+  )
 import Data.ByteArray (ByteArray)
 import Data.Newtype (wrap)
 import Effect (Effect)
@@ -75,12 +73,6 @@ mintingPolicyHash :: MintingPolicy -> ScriptHash
 mintingPolicyHash = case _ of
   PlutusMintingPolicy script -> plutusScriptHash script
   NativeMintingPolicy nscript -> nativeScriptHash nscript
-
--- | Calculates the hash of the transaction by applying `blake2b256Hash` to
--- | the cbor-encoded transaction body.
-transactionHash :: Serialization.Transaction -> TransactionHash
-transactionHash tx =
-  notImplemented
 
 -- -- can't fail, because the length is correct
 -- wrap $ unsafePartial $ fromJust $ fromBytes $ blake2b256Hash $ toBytes

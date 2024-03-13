@@ -30,7 +30,7 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
-import Ctl.Internal.Cardano.Types.Transaction (PrivateKey(PrivateKey))
+import Cardano.Types.Transaction (PrivateKey(PrivateKey))
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.ServerConfig (ServerConfig)

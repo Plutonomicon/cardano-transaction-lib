@@ -18,10 +18,10 @@ import Aeson
   , finiteNumber
   , getField
   )
+import Cardano.Types.Epoch (Epoch)
 import Cardano.Types.Slot (Slot)
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Service.Helpers (aesonObject)
-import Ctl.Internal.Types.Epoch (Epoch)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe, fromJust)
 import Data.Newtype (class Newtype, wrap)

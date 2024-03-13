@@ -16,6 +16,7 @@ import Affjax (defaultRequest) as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
 import Contract.Address (NetworkId(MainnetId))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
@@ -25,7 +26,6 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Affjax (request) as Affjax
-import Ctl.Internal.Cardano.Types.Transaction (PrivateKey(PrivateKey))
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend

@@ -1,8 +1,7 @@
 module Ctl.Internal.Contract.Hooks
   ( Hooks
   , emptyHooks
-  )
-where
+  ) where
 
 import Prelude
 

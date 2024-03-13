@@ -1,16 +1,11 @@
 module Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups(ScriptLookups)
   , mintingPolicy
-  , mintingPolicyM
   , datum
   , validator
-  , validatorM
   , ownPaymentPubKeyHash
-  , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
-  , ownStakePubKeyHashM
   , unspentOutputs
-  , unspentOutputsM
   ) where
 
 import Prelude hiding (join)
@@ -19,16 +14,16 @@ import Cardano.Types
   ( DataHash
   , PaymentPubKeyHash
   , PlutusData
+  , PlutusScript
   , PublicKey
   , StakePubKeyHash
+  , TransactionInput
   , TransactionOutput
   , UtxoMap
   )
 import Cardano.Types.DataHash (hashPlutusData)
-import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Helpers ((<\>))
 import Ctl.Internal.Types.MintingPolicy (MintingPolicy)
-import Ctl.Internal.Types.Validator (Validator)
 import Data.Array (singleton, union) as Array
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map, empty, singleton, union)
@@ -55,7 +50,7 @@ newtype ScriptLookups = ScriptLookups
   { mintingPolicies ::
       Array MintingPolicy -- Minting policies that the script interacts with
   , txOutputs :: UtxoMap
-  , scripts :: Array Validator -- Script validators
+  , scripts :: Array PlutusScript -- Script validators
   , datums :: Map DataHash PlutusData --  Datums that we might need
   -- FIXME there's currently no way to set this field
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
@@ -112,33 +107,15 @@ unspentOutputs
   -> ScriptLookups
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
--- | Same as `unspentOutputs` but in `Maybe` context for convenience.
--- | This should not fail.
-unspentOutputsM
-  :: forall (a :: Type)
-   . Map TransactionInput TransactionOutput
-  -> Maybe ScriptLookups
-unspentOutputsM = pure <<< unspentOutputs
-
 -- | A script lookups value with a minting policy script.
 mintingPolicy :: MintingPolicy -> ScriptLookups
 mintingPolicy pl = over ScriptLookups _ { mintingPolicies = Array.singleton pl }
   mempty
 
--- | Same as `mintingPolicy` but in `Maybe` context for convenience. This
--- | should not fail.
-mintingPolicyM :: forall (a :: Type). MintingPolicy -> Maybe ScriptLookups
-mintingPolicyM = pure <<< mintingPolicy
-
 -- | A script lookups value with a validator script.
-validator :: forall (a :: Type). Validator -> ScriptLookups
+validator :: forall (a :: Type). PlutusScript -> ScriptLookups
 validator vl =
   over ScriptLookups _ { scripts = Array.singleton vl } mempty
-
--- | Same as `validator` but in `Maybe` context for convenience. This
--- | should not fail.
-validatorM :: forall (a :: Type). Validator -> Maybe ScriptLookups
-validatorM = pure <<< validator
 
 -- | A script lookups value with a datum.
 datum :: PlutusData -> ScriptLookups
@@ -150,19 +127,7 @@ ownPaymentPubKeyHash :: PaymentPubKeyHash -> ScriptLookups
 ownPaymentPubKeyHash pkh =
   over ScriptLookups _ { ownPaymentPubKeyHash = Just pkh } mempty
 
--- | Same as `ownPaymentPubKeyHash` but in `Maybe` context for convenience. This
--- | should not fail.
-ownPaymentPubKeyHashM
-  :: PaymentPubKeyHash -> Maybe ScriptLookups
-ownPaymentPubKeyHashM = pure <<< ownPaymentPubKeyHash
-
 -- | Add your own `StakePubKeyHash` to the lookup.
 ownStakePubKeyHash :: StakePubKeyHash -> ScriptLookups
 ownStakePubKeyHash skh =
   over ScriptLookups _ { ownStakePubKeyHash = Just skh } mempty
-
--- | Same as `ownStakePubKeyHash` but in `Maybe` context for convenience. This
--- | should not fail.
-ownStakePubKeyHashM
-  :: StakePubKeyHash -> Maybe ScriptLookups
-ownStakePubKeyHashM = pure <<< ownStakePubKeyHash

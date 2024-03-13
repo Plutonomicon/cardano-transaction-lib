@@ -16,6 +16,7 @@ module Ctl.Internal.BalanceTx.Error
       , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
+      , NumericOverflowError
       )
   , Expected(Expected)
   , printTxEvaluationFailure
@@ -81,6 +82,7 @@ data BalanceTxError
   | ReindexRedeemersError UnindexedRedeemer
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
+  | NumericOverflowError
 
 derive instance Generic BalanceTxError _
 
@@ -131,6 +133,8 @@ explainBalanceTxError = case _ of
       <> bugTrackerLink
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
+  NumericOverflowError ->
+    "Could not compute output value due to numeric overflow. Decrease the quantity of assets"
   where
   prettyValue :: String -> Value -> String
   prettyValue str = pprintValue >>> pprintTagSet str

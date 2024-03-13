@@ -7,13 +7,8 @@ import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups(ScriptLookups)
   , datum
   , mintingPolicy
-  , mintingPolicyM
   , ownPaymentPubKeyHash
-  , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
-  , ownStakePubKeyHashM
   , unspentOutputs
-  , unspentOutputsM
   , validator
-  , validatorM
   ) as X

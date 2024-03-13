@@ -195,7 +195,7 @@ import Ctl.Internal.Types.ProtocolParameters
   , convertPlutusV2CostModel
   )
 import Ctl.Internal.Types.Rational (Rational, reduce)
-import Ctl.Internal.Types.Scripts (StakeValidatorHash)
+import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart))
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)

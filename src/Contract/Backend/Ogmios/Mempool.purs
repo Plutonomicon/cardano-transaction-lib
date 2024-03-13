@@ -14,12 +14,11 @@ module Contract.Backend.Ogmios.Mempool
 
 import Contract.Prelude
 
+import Cardano.Types.Transaction (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.QueryM
   ( acquireMempoolSnapshot
   , mempoolSnapshotHasTx

@@ -14,17 +14,23 @@ module Ctl.Internal.Test.UtxoDistribution
 
 import Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
+import Cardano.Types
+  ( Credential(PubKeyHashCredential)
+  , PaymentCredential(PaymentCredential)
+  , PaymentPubKeyHash
   , StakePubKeyHash
-  , getNetworkId
-  , payPubKeyHashEnterpriseAddress
+  , TransactionOutput(TransactionOutput)
   )
-import Contract.Monad (Contract, liftContractM, liftedM)
+import Cardano.Types.Address (Address(EnterpriseAddress))
+import Cardano.Types.PrivateKey (PrivateKey)
+import Cardano.Types.UtxoMap (UtxoMap)
+import Contract.Address (getNetworkId)
+import Contract.Monad (Contract, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
+  ( BalancedSignedTransaction(BalancedSignedTransaction)
+  , FinalizedTransaction(FinalizedTransaction)
   , awaitTxConfirmed
   , balanceTx
   , signTransaction
@@ -43,8 +49,6 @@ import Contract.Wallet
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
-import Ctl.Internal.Cardano.Types.Transaction (PrivateKey)
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
@@ -237,9 +241,8 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     Constraints.mustBeSignedBy payPkh
       <> Constraints.mustBeSignedBy (wrap $ unwrap stakePkh)
       <> foldMapWithIndex
-        ( \input (TransactionOutputWithRefScript { output }) ->
-            Constraints.mustPayToPubKeyAddress payPkh stakePkh
-              (unwrap output).amount
+        ( \input (TransactionOutput { amount }) ->
+            Constraints.mustPayToPubKeyAddress payPkh stakePkh amount
               <> Constraints.mustSpendPubKeyOutput input
         )
         utxos
@@ -255,9 +258,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
         payPkh <- liftedM "Could not get payment pubkeyhash" $
           head <$> ownPaymentPubKeyHashes
         networkId <- getNetworkId
-        addr <- liftContractM "Could not get wallet address" $
-          payPubKeyHashEnterpriseAddress networkId payPkh
-        utxos' <- utxosAt addr
+        utxos' <- utxosAt $ EnterpriseAddress
+          { networkId
+          , paymentCredential: PaymentCredential $ PubKeyHashCredential $ unwrap
+              payPkh
+          }
         pure $ { utxos: utxos', payPkh, stakePkh, wallet } : walletsInfo
 
 withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey

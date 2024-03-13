@@ -4,9 +4,9 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
+import Cardano.Types.PrivateKey (PrivateKey(..))
 import Contract.Address (addressToBech32)
 import Contract.Config (ContractParams)
-import Contract.Hashing (publicKeyHash)
 import Contract.Log (logError', logTrace')
 import Contract.Monad
   ( Contract
@@ -25,7 +25,6 @@ import Contract.Transaction
   , submitTxFromConstraints
   )
 import Contract.Utxos (utxosAt)
-import Contract.Value (valueToCoin')
 import Contract.Wallet
   ( getWalletAddresses
   , getWalletBalance
@@ -48,13 +47,9 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
-import Ctl.Internal.Cardano.Types.Transaction (PrivateKey(PrivateKey))
 import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
 import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
-import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
-import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
@@ -178,8 +173,7 @@ runContractTestsWithKeyDir params backup = do
               <> "\nFund it to continue."
 
         -- generate wallets
-        privateKeys <- liftEffect $ for distrArray \_ -> PrivateKey <$>
-          freshPrivateKey
+        privateKeys <- liftEffect $ for distrArray \_ -> PrivateKey.generate
         wallets <-
           liftMaybe
             ( error

@@ -9,7 +9,7 @@ import Prelude
 
 import Cardano.FromData (class FromData)
 import Cardano.ToData (class ToData, toData)
-import Cardano.Types.DataHash (DataHash(..), hashPlutusData)
+import Cardano.Types.DataHash (DataHash(DataHash), hashPlutusData)
 import Cardano.Types.PlutusData (PlutusData)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap)

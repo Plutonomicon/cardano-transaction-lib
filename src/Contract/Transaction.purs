@@ -8,19 +8,10 @@ module Contract.Transaction
   , balanceTxWithConstraintsE
   , balanceTxs
   , balanceTxsWithConstraints
-  , calculateMinFee
   , createAdditionalUtxos
-  , getTxFinalFee
   , getTxMetadata
   , module BalanceTxError
   , module FinalizedTransaction
-  , module NativeScript
-  , module OutputDatum
-  , module PTransaction
-  , module PTransactionUnspentOutput
-  , module ScriptRef
-  , module Scripts
-  , module Transaction
   , module X
   , signTransaction
   , submit
@@ -36,19 +27,22 @@ module Contract.Transaction
 import Prelude
 
 import Aeson (class EncodeAeson)
-import Contract.ClientError (ClientError)
-import Contract.Metadata (GeneralTransactionMetadata)
-import Contract.Monad
-  ( Contract
-  , liftContractM
-  , runContractInEnv
+import Cardano.Types
+  ( Coin
+  , GeneralTransactionMetadata
+  , Transaction(Transaction)
+  , TransactionHash
+  , TransactionInput(TransactionInput)
+  , TransactionOutput
+  , UtxoMap
   )
-import Contract.TxConstraints (TxConstraints)
+import Cardano.Types.Transaction as Hashing
+import Contract.Monad (Contract, runContractInEnv)
 import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (balanceTxWithConstraints) as BalanceTx
+import Ctl.Internal.BalanceTx as B
 import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder)
 import Ctl.Internal.BalanceTx.Error
   ( Actual(Actual)
@@ -70,101 +64,17 @@ import Ctl.Internal.BalanceTx.Error
   , explainBalanceTxError
   ) as BalanceTxError
 import Ctl.Internal.BalanceTx.Types (FinalizedTransaction)
-import Ctl.Internal.BalanceTx.Types (FinalizedTransaction(FinalizedTransaction)) as FinalizedTransaction
+import Ctl.Internal.BalanceTx.Types
+  ( FinalizedTransaction(FinalizedTransaction)
+  ) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
-import Ctl.Internal.Cardano.Types.NativeScript
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
-      , TimelockStart
-      , TimelockExpiry
-      )
-  ) as NativeScript
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  , scriptRefFromMintingPolicy
-  ) as ScriptRef
-import Ctl.Internal.Cardano.Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash(AuxiliaryDataHash)
-  , BootstrapWitness
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
-  , CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , Ed25519Signature
-  , Epoch(Epoch)
-  , ExUnitPrices
-  , ExUnits
-  , GenesisHash(GenesisHash)
-  , Mint(Mint)
-  , Nonce(IdentityNonce, HashNonce)
-  , PoolPubKeyHash(PoolPubKeyHash)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate
-  , ProtocolVersion
-  , PublicKey
-  , Redeemer
-  , RequiredSigner(RequiredSigner)
-  , ScriptDataHash(ScriptDataHash)
-  , SubCoin
-  , Transaction(Transaction)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , URL(URL)
-  , UnitInterval
-  , Update
-  , Vkey(Vkey)
-  , Vkeywitness(Vkeywitness)
-  , _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  , _bootstraps
-  , _certs
-  , _collateral
-  , _fee
-  , _inputs
-  , _isValid
-  , _mint
-  , _nativeScripts
-  , _networkId
-  , _outputs
-  , _plutusData
-  , _plutusScripts
-  , _referenceInputs
-  , _requiredSigners
-  , _scriptDataHash
-  , _ttl
-  , _update
-  , _validityStartInterval
-  , _vkeys
-  , _withdrawals
-  , _witnessSet
-  , mkPoolPubKeyHash
-  , poolPubKeyHashToBech32
-  ) as Transaction
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
-  , TransactionOutput
-  , _body
-  , _outputs
-  )
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , isTxConfirmed
   ) as X
-import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract
+import Ctl.Internal.Contract.MinFee (calculateMinFee) as X
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.Contract.QueryHandle.Error
@@ -175,64 +85,16 @@ import Ctl.Internal.Contract.QueryHandle.Error
       )
   ) as X
 import Ctl.Internal.Contract.Sign (signTransaction) as Contract
-import Ctl.Internal.Hashing (transactionHash) as Hashing
-import Ctl.Internal.Plutus.Conversion
-  ( fromPlutusUtxoMap
-  , toPlutusCoin
-  , toPlutusTxOutputWithRefScript
-  )
-import Ctl.Internal.Plutus.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  ) as PTransaction
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  , _input
-  , _output
-  , lookupTxHash
-  , mkTxUnspentOut
-  ) as PTransactionUnspentOutput
-import Ctl.Internal.Plutus.Types.Value (Coin)
+import Ctl.Internal.Lens (_body, _fee, _outputs)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
-import Ctl.Internal.Serialization (convertTransaction)
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  , outputDatumDataHash
-  , outputDatumDatum
-  ) as OutputDatum
-import Ctl.Internal.Types.RewardAddress
-  ( RewardAddress
-  , rewardAddressFromBech32
-  , rewardAddressFromBytes
-  , rewardAddressToBech32
-  , rewardAddressToBytes
-  ) as X
+import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , plutusV1Script
-  , plutusV2Script
-  ) as Scripts
-import Ctl.Internal.Types.Transaction
-  ( DataHash(DataHash)
-  , TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  ) as Transaction
-import Ctl.Internal.Types.Transaction
-  ( TransactionHash
-  , TransactionInput(TransactionInput)
-  )
+import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
-import Ctl.Internal.Types.VRFKeyHash
-  ( VRFKeyHash
-  , vrfKeyHashFromBytes
-  , vrfKeyHashToBytes
-  ) as X
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right))
@@ -251,18 +113,19 @@ import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (try)
-import JS.BigInt (BigInt)
+import Prim.Coerce (class Coercible)
+import Safe.Coerce (coerce)
 
 -- | Signs a transaction with potential failure.
 signTransaction
   :: forall (tx :: Type)
-   . Newtype tx Transaction
+   . Coercible tx Transaction
   => tx
   -> Contract BalancedSignedTransaction
 signTransaction =
   map BalancedSignedTransaction
     <<< Contract.signTransaction
-    <<< unwrap
+    <<< coerce
 
 -- | Submits a `BalancedSignedTransaction`, which is the output of
 -- | `signTransaction`.
@@ -286,16 +149,6 @@ submitE tx = do
   void $ asks (_.hooks >>> _.onSubmit) >>=
     traverse \hook -> liftEffect $ void $ try $ hook $ unwrap tx
   pure eiTxHash
-
--- | Calculate the minimum transaction fee.
-calculateMinFee
-  :: Transaction
-  -> UtxoMap
-  -> Contract Coin
-calculateMinFee tx additionalUtxos = do
-  networkId <- asks _.networkId
-  let additionalUtxos' = fromPlutusUtxoMap networkId additionalUtxos
-  toPlutusCoin <$> Contract.calculateMinFee tx additionalUtxos'
 
 -- | Helper to adapt to UsedTxOuts.
 withUsedTxOuts
@@ -413,7 +266,7 @@ balanceTxWithConstraintsE tx =
   let
     tx' /\ ix = unUnbalancedTx tx
   in
-    BalanceTx.balanceTxWithConstraints tx' ix
+    B.balanceTxWithConstraints tx' ix
 
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.
@@ -500,9 +353,9 @@ derive newtype instance EncodeAeson BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
-getTxFinalFee :: BalancedSignedTransaction -> BigInt
+getTxFinalFee :: BalancedSignedTransaction -> Coin
 getTxFinalFee =
-  unwrap <<< view (Transaction._body <<< Transaction._fee) <<< unwrap
+  view (_body <<< _fee) <<< unwrap
 
 -- | Fetch transaction metadata.
 -- | Returns `Right` when the transaction exists and metadata was non-empty
@@ -518,33 +371,27 @@ getTxMetadata th = do
 -- | transaction hash and indexing the outputs in the order they appear in the
 -- | transaction. This function should be used for transaction chaining
 -- | in conjunction with `mustUseAdditionalUtxos` balancer constraint.
--- | Throws an exception if conversion to Plutus outputs fails.
 createAdditionalUtxos
   :: forall (tx :: Type)
-   . Newtype tx Transaction
+   . Coercible tx Transaction
   => tx
   -> Contract UtxoMap
 createAdditionalUtxos tx = do
-  transactionId <-
-    liftEffect $ Hashing.transactionHash <$> convertTransaction (unwrap tx)
+  let transactionId = Hashing.hashTransaction $ coerce tx
   let
     txOutputs :: Array TransactionOutput
-    txOutputs = view (_body <<< _outputs) (unwrap tx)
+    txOutputs = view (_body <<< _outputs) $ coerce tx
 
     txIn :: UInt -> TransactionInput
     txIn index = TransactionInput { transactionId, index }
 
-  plutusOutputs <-
-    liftContractM "createAdditionalUtxos: Failed to convert to Plutus outputs"
-      (traverse toPlutusTxOutputWithRefScript txOutputs)
-
-  pure $ plutusOutputs #
+  pure $ txOutputs #
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
 
 submitTxFromConstraintsReturningFee
   :: ScriptLookups
   -> TxConstraints
-  -> Contract { txHash :: TransactionHash, txFinalFee :: BigInt }
+  -> Contract { txHash :: TransactionHash, txFinalFee :: Coin }
 submitTxFromConstraintsReturningFee lookups constraints = do
   unbalancedTx <- mkUnbalancedTx lookups constraints
   balancedTx <- balanceTx unbalancedTx

@@ -1,3 +1,4 @@
+-- TODO: consider moving these utils closer to where they are used
 module Ctl.Internal.Transaction
   ( attachDatum
   , attachPlutusScript

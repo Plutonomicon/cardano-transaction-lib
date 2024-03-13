@@ -1,6 +1,6 @@
 -- | A module with CBOR-related functionality.
 module Contract.CborBytes (module CborBytes) where
 
-import Ctl.Internal.Types.CborBytes
+import Cardano.Types.CborBytes
   ( CborBytes(CborBytes)
   ) as CborBytes

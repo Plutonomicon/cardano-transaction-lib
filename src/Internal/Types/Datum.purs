@@ -1,16 +1,14 @@
 module Ctl.Internal.Types.Datum
   ( Datum(Datum)
   , unitDatum
-  , module X
   ) where
 
 import Prelude
 
 import Aeson (class DecodeAeson, class EncodeAeson, decodeAeson, encodeAeson)
+import Cardano.FromData (class FromData)
+import Cardano.ToData (class ToData, toData)
 import Cardano.Types.PlutusData (PlutusData)
-import Ctl.Internal.FromData (class FromData)
-import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.Transaction (DataHash(DataHash)) as X
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)

@@ -25,7 +25,7 @@ import Data.Traversable (for)
 import Effect.Aff (error)
 import Effect.Aff.Class (liftAff)
 
--- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
+-- | Calculate the minimum transaction fee.
 calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos

@@ -5,7 +5,7 @@ module Contract.Prim.ByteArray
   , module RawBytes
   ) where
 
-import Ctl.Internal.Types.CborBytes
+import Cardano.Types.CborBytes
   ( CborBytes(CborBytes)
   ) as CborBytes
 import Ctl.Internal.Types.RawBytes

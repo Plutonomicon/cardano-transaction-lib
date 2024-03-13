@@ -7,7 +7,7 @@ module Ctl.Internal.NativeScripts
 import Prelude
 
 import Cardano.Serialization.Lib (nativeScript_hash)
-import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types (Ed25519KeyHash, ScriptHash)
 import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
@@ -18,7 +18,7 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Cardano.Types (Ed25519KeyHash, ScriptHash)
+import Cardano.Types.NativeScript as NativeScript
 import Data.Array as Array
 import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)

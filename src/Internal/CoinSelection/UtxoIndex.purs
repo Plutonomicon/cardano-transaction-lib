@@ -21,13 +21,13 @@ module Ctl.Internal.CoinSelection.UtxoIndex
 
 import Prelude
 
+import Cardano.Types (AssetClass, Value)
 import Cardano.Types.Asset (Asset(AdaAsset))
 import Cardano.Types.Asset as Asset
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionOutput (TransactionOutput(..))
 import Cardano.Types.UtxoMap (UtxoMap)
-import Cardano.Types (AssetClass, Value)
 import Cardano.Types.Value
   ( valueAssetClasses
   , valueAssets

@@ -1,5 +1,6 @@
 module Ctl.Internal.Lens
-  ( _auxiliaryData
+  ( _amount
+  , _auxiliaryData
   , _auxiliaryDataHash
   , _body
   , _certs
@@ -12,6 +13,7 @@ module Ctl.Internal.Lens
   , _networkId
   , _outputs
   , _plutusData
+  , _plutusScripts
   , _redeemers
   , _referenceInputs
   , _requiredSigners
@@ -20,6 +22,8 @@ module Ctl.Internal.Lens
   , _vkeys
   , _withdrawals
   , _witnessSet
+  , _datum
+  , _scriptRef
   ) where
 
 import Prelude
@@ -32,14 +36,18 @@ import Cardano.Types
   , Ed25519KeyHash
   , Mint
   , NetworkId
+  , OutputDatum
   , PlutusData
+  , PlutusScript
   , Redeemer
   , ScriptDataHash
+  , ScriptRef
   , Transaction
   , TransactionBody
   , TransactionInput
   , TransactionOutput
   , TransactionWitnessSet
+  , Value
   , Vkeywitness
   )
 import Cardano.Types.RewardAddress (RewardAddress)
@@ -108,6 +116,17 @@ _mint = _Newtype <<< prop (Proxy :: Proxy "mint")
 _auxiliaryDataHash :: Lens' TransactionBody (Maybe AuxiliaryDataHash)
 _auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
 
+-- TransactionOutput
+
+_amount :: Lens' TransactionOutput Value
+_amount = _Newtype <<< prop (Proxy :: Proxy "amount")
+
+_scriptRef :: Lens' TransactionOutput (Maybe ScriptRef)
+_scriptRef = _Newtype <<< prop (Proxy :: Proxy "scriptRef")
+
+_datum :: Lens' TransactionOutput (Maybe OutputDatum)
+_datum = _Newtype <<< prop (Proxy :: Proxy "datum")
+
 -- TransactionWitnessSet
 
 _redeemers :: Lens' TransactionWitnessSet (Array Redeemer)
@@ -115,6 +134,9 @@ _redeemers = _Newtype <<< prop (Proxy :: Proxy "redeemers")
 
 _plutusData :: Lens' TransactionWitnessSet (Array PlutusData)
 _plutusData = _Newtype <<< prop (Proxy :: Proxy "plutusData")
+
+_plutusScripts :: Lens' TransactionWitnessSet (Array PlutusScript)
+_plutusScripts = _Newtype <<< prop (Proxy :: Proxy "plutusScripts")
 
 _vkeys :: Lens' TransactionWitnessSet (Array Vkeywitness)
 _vkeys = _Newtype <<< prop (Proxy :: Proxy "vkeys")

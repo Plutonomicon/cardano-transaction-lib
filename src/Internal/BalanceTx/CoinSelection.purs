@@ -36,7 +36,6 @@ import Cardano.Types.Value
   , leq
   , valueAssets
   , valueToCoin
-  , zero
   ) as Value
 import Control.Monad.Error.Class
   ( class MonadError
@@ -224,7 +223,7 @@ selectUtxo utxo@(oref /\ out) =
 balance :: UtxoMap -> Maybe Value
 balance = Array.fromFoldable >>> map (unwrap >>> _.amount) >>> foldr
   (\bn mbn -> mbn >>= Value.add bn)
-  (Just Value.zero)
+  (Just mempty)
 
 -- | Returns the balance of selected utxos.
 -- |
@@ -249,8 +248,8 @@ selectedCoinQuantity :: SelectionState -> Maybe BigNum
 selectedCoinQuantity = map (unwrap <<< Value.getCoin) <<< selectedBalance
 
 -- | Returns the output references of the selected utxos.
-selectedInputs :: SelectionState -> Set TransactionInput
-selectedInputs = Set.fromFoldable <<< Map.keys <<< view _selectedUtxos
+selectedInputs :: SelectionState -> Array TransactionInput
+selectedInputs = Array.fromFoldable <<< Map.keys <<< view _selectedUtxos
 
 -- | A `SelectionLens` gives `runSelectionStep` the information on the current
 -- | selection state along with the functions required to transition to the next
