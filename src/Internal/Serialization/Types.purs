@@ -31,6 +31,7 @@ module Ctl.Internal.Serialization.Types
   , MetadataMap
   , Mint
   , MintAssets
+  , MintsAssets
   , MoveInstantaneousReward
   , MultiAsset
   , MultiHostName
@@ -117,6 +118,7 @@ foreign import data MetadataList :: Type
 foreign import data MetadataMap :: Type
 foreign import data Mint :: Type
 foreign import data MintAssets :: Type
+foreign import data MintsAssets :: Type
 foreign import data MoveInstantaneousReward :: Type
 foreign import data MultiAsset :: Type
 foreign import data MultiHostName :: Type

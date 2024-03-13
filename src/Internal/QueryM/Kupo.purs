@@ -78,7 +78,11 @@ import Ctl.Internal.Types.OutputDatum
   ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
   )
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
-import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script, plutusV3Script)
+import Ctl.Internal.Types.Scripts
+  ( plutusV1Script
+  , plutusV2Script
+  , plutusV3Script
+  )
 import Ctl.Internal.Types.TokenName (mkTokenName)
 import Ctl.Internal.Types.Transaction
   ( TransactionHash(TransactionHash)
@@ -391,7 +395,11 @@ instance DecodeAeson KupoDatum where
 -- `getScriptByHash` response parsing
 --------------------------------------------------------------------------------
 
-data KupoScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script | PlutusV3Script
+data KupoScriptLanguage
+  = NativeScript
+  | PlutusV1Script
+  | PlutusV2Script
+  | PlutusV3Script
 
 derive instance Generic KupoScriptLanguage _
 

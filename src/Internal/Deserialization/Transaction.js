@@ -139,6 +139,10 @@ export function _unpackMintAssets(containerhelper) {
   return containerhelper.unpackKeyIndexed;
 }
 
+export function _unpackMintsAssets(containerhelper) {
+  return containerhelper.unpack;
+}
+
 export function _convertCert(certConvHelper) {
   return cert => {
     switch (cert.kind()) {

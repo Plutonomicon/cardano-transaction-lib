@@ -10,7 +10,10 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Scripts (validatorHash)
 import Contract.Transaction (awaitTxConfirmed)
-import Ctl.Examples.AlwaysSucceeds (payToAlwaysSucceeds, spendFromAlwaysSucceeds)
+import Ctl.Examples.AlwaysSucceeds
+  ( payToAlwaysSucceeds
+  , spendFromAlwaysSucceeds
+  )
 import Ctl.Examples.PlutusV3.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV3)
 
 main :: Effect Unit
