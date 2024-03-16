@@ -7,30 +7,14 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Cardano.Types (Slot(..))
 import Cardano.Types.BigNum (fromInt) as BigNum
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
-import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
-import Ctl.Internal.Types.Interval
-  ( Interval
-  , POSIXTime(POSIXTime)
-  , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
-  , always
-  , contains
-  , from
-  , hull
-  , intersection
-  , isEmpty
-  , member
-  , mkFiniteInterval
-  , never
-  , posixTimeToSlot
-  , slotToPosixTime
-  , to
-  )
+import Ctl.Internal.Types.Interval (Interval, POSIXTime(POSIXTime), PosixTimeToSlotError(PosixTimeBeforeSystemStart), always, contains, from, hull, intersection, isEmpty, member, mkFiniteInterval, never, posixTimeToSlot, slotToPosixTime, to)
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)

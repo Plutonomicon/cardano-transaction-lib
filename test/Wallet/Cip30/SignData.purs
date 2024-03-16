@@ -7,29 +7,27 @@ module Test.Ctl.Wallet.Cip30.SignData
 
 import Prelude
 
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.AsCbor (encodeCbor)
+import Cardano.MessageSigning (signData)
 import Cardano.Serialization.Lib as Csl
-import Contract.Keys (publicKeyFromBytes)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( PrivateKey(PrivateKey)
-  , PublicKey
-  )
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.Serialization.Address
+import Cardano.Types
   ( Address
-  , NetworkId(MainnetId)
-  , intToNetworkId
+  , CborBytes
+  , PrivateKey(PrivateKey)
+  , PublicKey
+  , RawBytes
   )
+import Cardano.Types.NetworkId (NetworkId(MainnetId))
+import Cardano.Types.NetworkId as NetworkId
+import Cardano.Types.PrivateKey as PrivateKey
+import Contract.Keys (publicKeyFromBytes)
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Serialization.Keys
   ( bytesFromPublicKey
   , publicKeyFromPrivateKey
   )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.CborBytes (CborBytes)
-import Ctl.Internal.Types.RawBytes (RawBytes)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Ctl.Internal.Wallet.Cip30.SignData (signData)
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey
   , PrivateStakeKey
@@ -77,7 +75,8 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
       (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
-  dataSignature <- liftEffect $ signData privatePaymentKey address payload
+  dataSignature <- liftEffect $ signData (wrap privatePaymentKey) address
+    payload
   { coseKey } <- checkCip30SignDataResponse address dataSignature
 
   assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
@@ -108,7 +107,7 @@ checkCip30SignDataResponse address { key, signature } = do
 
     assertTrue "COSE_Sign1's \"address\" header must be set to address bytes"
       ( getCoseSign1ProtectedHeaderAddress coseSign1
-          == Just (wrap $ toBytes $ unwrap address)
+          == Just (encodeCbor address)
       )
 
   checkCoseKeyHeaders :: COSEKey -> Aff Unit
@@ -165,8 +164,8 @@ derive instance Newtype ArbitraryPrivateKey _
 
 instance Arbitrary ArbitraryPrivateKey where
   arbitrary =
-    wrap <<< wrap <<< unsafePartial fromJust <<< privateKeyFromBytes <$>
-      privateKeyBytes
+    wrap <<< unsafePartial fromJust <$>
+      (PrivateKey.fromRawBytes <$> privateKeyBytes)
     where
     privateKeyBytes :: Gen RawBytes
     privateKeyBytes =
@@ -178,7 +177,7 @@ derive instance Newtype ArbitraryNetworkId _
 
 instance Arbitrary ArbitraryNetworkId where
   arbitrary =
-    wrap <<< fromMaybe MainnetId <<< intToNetworkId <$> chooseInt 0 1
+    wrap <<< fromMaybe MainnetId <<< NetworkId.fromInt <$> chooseInt 0 1
 
 --------------------------------------------------------------------------------
 -- FFI

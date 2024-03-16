@@ -105,5 +105,5 @@ You can edit this file as you like.
   , "web-storage"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs" ]
+, sources = [ "src/**/*.purs", "examples/**/*.purs", "test/**/*.purs" ]
 }

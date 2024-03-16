@@ -140,7 +140,7 @@ runContractTestsWithKeyDir params backup = do
               ( error
                   "Impossible happened: unable to get own address"
               ) =<< (getWalletAddresses <#> Array.head)
-          balance <- getWalletBalance <#> fold
+          balance <- unsafePartial $ getWalletBalance <#> fold
           pure $ Address.toBech32 address /\ balance
         let
           distrArray :: Array (Array UtxoAmount)

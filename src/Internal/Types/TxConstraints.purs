@@ -113,6 +113,7 @@ import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Ctl.Internal.Types.Interval (POSIXTimeRange)
 import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
+import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
 import Data.Array as Array
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep (class Generic)
@@ -141,7 +142,8 @@ data TxConstraint
   | MustProduceAtLeast Value
   | MustSpendPubKeyOutput TransactionInput
   | MustSpendNativeScriptOutput TransactionInput NativeScript
-  | MustSpendScriptOutput TransactionInput Redeemer (Maybe InputWithScriptRef)
+  | MustSpendScriptOutput TransactionInput RedeemerDatum
+      (Maybe InputWithScriptRef)
   | MustReferenceOutput TransactionInput
   | MustMintValue ScriptHash Redeemer AssetName Int.Int
       (Maybe InputWithScriptRef)
@@ -537,7 +539,7 @@ mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 -- | Spend the given unspent transaction script output.
 mustSpendScriptOutput
   :: TransactionInput
-  -> Redeemer
+  -> RedeemerDatum
   -> TxConstraints
 mustSpendScriptOutput txOutRef red =
   singleton (MustSpendScriptOutput txOutRef red Nothing)
@@ -546,7 +548,7 @@ mustSpendScriptOutput txOutRef red =
 -- | to satisfy the script witnessing requirement.
 mustSpendScriptOutputUsingScriptRef
   :: TransactionInput
-  -> Redeemer
+  -> RedeemerDatum
   -> InputWithScriptRef
   -> TxConstraints
 mustSpendScriptOutputUsingScriptRef txOutRef red =

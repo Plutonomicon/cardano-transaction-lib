@@ -31,6 +31,7 @@ import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value
   ( add
+  , empty
   , getAssetQuantity
   , getCoin
   , leq
@@ -38,8 +39,7 @@ import Cardano.Types.Value
   , valueToCoin
   ) as Value
 import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
+  ( class MonadThrow
   , throwError
   )
 import Ctl.Internal.BalanceTx.Error
@@ -77,8 +77,6 @@ import Data.Lens.Setter (over)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), isNothing, maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Set (Set)
-import Data.Set (fromFoldable) as Set
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
@@ -129,7 +127,7 @@ instance Arbitrary SelectionStrategy where
 performMultiAssetSelection
   :: forall (m :: Type -> Type)
    . MonadEffect m
-  => MonadError BalanceTxError m
+  => MonadThrow BalanceTxError m
   => SelectionStrategy
   -> UtxoIndex
   -> Value
@@ -223,7 +221,7 @@ selectUtxo utxo@(oref /\ out) =
 balance :: UtxoMap -> Maybe Value
 balance = Array.fromFoldable >>> map (unwrap >>> _.amount) >>> foldr
   (\bn mbn -> mbn >>= Value.add bn)
-  (Just mempty)
+  (Just Value.empty)
 
 -- | Returns the balance of selected utxos.
 -- |

@@ -1,15 +1,30 @@
 module Contract.Address
   ( getNetworkId
   , addressFromBech32
+  , mkAddress
+  , module X
   ) where
 
 import Prelude
 
-import Cardano.Types (Address, Bech32String, NetworkId)
+import Cardano.Types
+  ( Address
+  , Bech32String
+  , NetworkId
+  , PaymentCredential
+  , StakeCredential
+  )
+import Cardano.Types
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , StakePubKeyHash(StakePubKeyHash)
+  ) as X
+import Cardano.Types.Address (Address(..)) as X
+import Cardano.Types.Address (mkPaymentAddress)
 import Cardano.Types.Address as Address
 import Contract.Monad (Contract, liftContractM)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Class (asks)
+import Data.Maybe (Maybe)
 import Effect.Exception (error)
 
 getNetworkId :: Contract NetworkId
@@ -26,3 +41,9 @@ addressFromBech32 str = do
   when (networkId /= Address.getNetworkId addr)
     (throwError $ error "addressFromBech32: address has wrong NetworkId")
   pure addr
+
+mkAddress
+  :: PaymentCredential -> Maybe StakeCredential -> Contract Address
+mkAddress pc msc = do
+  networkId <- getNetworkId
+  pure $ mkPaymentAddress networkId pc msc

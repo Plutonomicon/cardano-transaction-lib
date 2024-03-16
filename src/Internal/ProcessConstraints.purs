@@ -45,6 +45,7 @@ import Cardano.Types.OutputDatum (OutputDatum(..))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.Value (isZero)
+import Cardano.Types.Value as Value
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -131,10 +132,10 @@ import Ctl.Internal.Types.Interval
   , isEmpty
   , posixTimeRangeToTransactionValidity
   )
-import Ctl.Internal.Types.MintingPolicy
+import Contract.Types
   ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
   )
-import Ctl.Internal.Types.MintingPolicy as MintingPolicy
+import Contract.Types as MintingPolicy
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
@@ -264,9 +265,9 @@ runConstraintsM lookups txConstraints = do
       { transaction: Transaction.empty
       , usedUtxos: Map.empty
       , valueSpentBalancesInputs:
-          ValueSpentBalances { required: mempty, provided: mempty }
+          ValueSpentBalances { required: Value.empty, provided: Value.empty }
       , valueSpentBalancesOutputs:
-          ValueSpentBalances { required: mempty, provided: mempty }
+          ValueSpentBalances { required: Value.empty, provided: Value.empty }
       , datums: mempty
       , redeemers: []
       , lookups
@@ -603,7 +604,7 @@ processConstraint mpsMap osMap c = do
       _redeemers <>=
         [ UnindexedRedeemer { purpose: ForMint scriptHash, datum: unwrap red } ]
       -- Remove mint redeemers from array before reindexing.
-      _cpsTransaction <<< _body <<< _mint <<< _Just <>= mint
+      unsafePartial $ _cpsTransaction <<< _body <<< _mint <<< _Just <>= mint
 
     MustMintValueUsingNativeScript ns tn i -> runExceptT do
       let
@@ -624,7 +625,7 @@ processConstraint mpsMap osMap c = do
         let value = mkValue $ unsafePartial $ fromJust $ Int.asPositive i
         _valueSpentBalancesOutputs <>= provideValue value
 
-      _cpsTransaction <<< _body <<< _mint <>= Just mint
+      unsafePartial $ _cpsTransaction <<< _body <<< _mint <>= Just mint
 
     MustPayToPubKeyAddress pkh skh mDatum scriptRef amount -> do
       networkId <- getNetworkId

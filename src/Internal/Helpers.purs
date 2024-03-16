@@ -56,7 +56,11 @@ import Aeson
 import Cardano.Serialization.Lib (class IsBytes, toBytes)
 import Cardano.Serialization.Lib.Internal (class IsCsl)
 import Control.Alt ((<|>))
-import Control.Monad.Error.Class (class MonadError, throwError)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
 import Ctl.Internal.Helpers.Formatter (showTags)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
@@ -77,7 +81,7 @@ import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
 import Data.Traversable (for, traverse)
-import Data.Tuple (fst, snd, uncurry)
+import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
@@ -109,7 +113,7 @@ fromJustEff e = case _ of
 
 liftEither
   :: forall (a :: Type) (e :: Type) (m :: Type -> Type)
-   . MonadError e m
+   . MonadThrow e m
   => Either e a
   -> m a
 liftEither = either throwError pure
@@ -129,7 +133,7 @@ liftedM err mma = mma >>= maybe (throwError err) Right >>> liftEither
 -- | Given an error and a `Maybe` value, lift the context via `liftEither`.
 liftM
   :: forall (e :: Type) (m :: Type -> Type) (a :: Type)
-   . MonadError e m
+   . MonadThrow e m
   => e
   -> Maybe a
   -> m a

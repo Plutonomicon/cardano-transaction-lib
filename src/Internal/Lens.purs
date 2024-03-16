@@ -24,6 +24,8 @@ module Ctl.Internal.Lens
   , _witnessSet
   , _datum
   , _scriptRef
+  , _input
+  , _output
   ) where
 
 import Prelude
@@ -46,6 +48,7 @@ import Cardano.Types
   , TransactionBody
   , TransactionInput
   , TransactionOutput
+  , TransactionUnspentOutput
   , TransactionWitnessSet
   , Value
   , Vkeywitness
@@ -115,6 +118,14 @@ _mint = _Newtype <<< prop (Proxy :: Proxy "mint")
 
 _auxiliaryDataHash :: Lens' TransactionBody (Maybe AuxiliaryDataHash)
 _auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
+
+-- TransactionUnspentOutput
+
+_output :: Lens' TransactionUnspentOutput TransactionOutput
+_output = _Newtype <<< prop (Proxy :: Proxy "output")
+
+_input :: Lens' TransactionUnspentOutput TransactionInput
+_input = _Newtype <<< prop (Proxy :: Proxy "input")
 
 -- TransactionOutput
 

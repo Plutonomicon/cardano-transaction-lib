@@ -12,18 +12,25 @@ module Ctl.Examples.AlwaysSucceeds
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types
+  ( Credential(PubKeyHashCredential, ScriptHashCredential)
+  , PlutusScript
+  , ScriptHash
+  , TransactionHash
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData as Datum
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.PlutusScript as Script
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Credential (Credential(PubKeyCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (unitDatum, unitRedeemer)
+import Contract.PlutusData (unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
-  ( TransactionHash
-  , _input
+  ( _input
   , awaitTxConfirmed
   , lookupTxHash
   , submitTxFromConstraints
@@ -37,7 +44,6 @@ import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
 import Data.Lens (view)
 import Effect.Exception (error)
-import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -46,7 +52,7 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysSucceeds"
   validator <- alwaysSucceedsScript
-  let vhash = validatorHash validator
+  let vhash = Script.hash validator
   logInfo' "Attempt to lock value"
   txId <- payToAlwaysSucceeds vhash
   awaitTxConfirmed txId
@@ -57,26 +63,26 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
-payToAlwaysSucceeds :: ValidatorHash -> Contract TransactionHash
+payToAlwaysSucceeds :: ScriptHash -> Contract TransactionHash
 payToAlwaysSucceeds vhash = do
   -- Send to own stake credential. This is used to test mustPayToScriptAddress.
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   let
+    value = Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+
     constraints :: TxConstraints
     constraints =
       case mbStakeKeyHash of
         Nothing ->
-          Constraints.mustPayToScript vhash unitDatum
+          Constraints.mustPayToScript vhash PlutusData.unit
             Constraints.DatumWitness
-            $ Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
+            value
         Just stakeKeyHash ->
           Constraints.mustPayToScriptAddress vhash
-            (PubKeyCredential $ unwrap stakeKeyHash)
-            unitDatum
+            (PubKeyHashCredential $ unwrap stakeKeyHash)
+            Datum.unit
             Constraints.DatumWitness
-            $ Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
+            value
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -84,16 +90,16 @@ payToAlwaysSucceeds vhash = do
   submitTxFromConstraints lookups constraints
 
 spendFromAlwaysSucceeds
-  :: ValidatorHash
-  -> Validator
+  :: ScriptHash
+  -> PlutusScript
   -> TransactionHash
   -> Contract Unit
 spendFromAlwaysSucceeds vhash validator txId = do
   -- Use own stake credential if available
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
-  let
-    scriptAddress =
-      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
+  scriptAddress <- mkAddress
+    (wrap $ ScriptHashCredential vhash)
+    (wrap <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
   txInput <-
     liftM
@@ -117,10 +123,10 @@ spendFromAlwaysSucceeds vhash validator txId = do
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
-alwaysSucceedsScript :: Contract Validator
+alwaysSucceedsScript :: Contract PlutusScript
 alwaysSucceedsScript = do
   liftMaybe (error "Error decoding alwaysSucceeds") do
     envelope <- decodeTextEnvelope alwaysSucceeds
-    Validator <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 foreign import alwaysSucceeds :: String

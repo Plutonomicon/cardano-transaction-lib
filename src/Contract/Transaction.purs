@@ -22,6 +22,9 @@ module Contract.Transaction
   , withBalancedTxWithConstraints
   , withBalancedTxs
   , withBalancedTxsWithConstraints
+  , lookupTxHash
+  , getTxFinalFee
+  , scriptRefFromMintingPolicy
   ) where
 
 import Prelude
@@ -34,8 +37,17 @@ import Cardano.Types
   , TransactionHash
   , TransactionInput(TransactionInput)
   , TransactionOutput
+  , TransactionUnspentOutput(TransactionUnspentOutput)
   , UtxoMap
   )
+import Cardano.Types
+  ( TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  ) as X
+import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash(PoolPubKeyHash)) as X
+import Cardano.Types.ScriptRef (ScriptRef)
 import Cardano.Types.Transaction as Hashing
 import Contract.Monad (Contract, runContractInEnv)
 import Contract.UnbalancedTx (mkUnbalancedTx)
@@ -85,9 +97,40 @@ import Ctl.Internal.Contract.QueryHandle.Error
       )
   ) as X
 import Ctl.Internal.Contract.Sign (signTransaction) as Contract
+import Ctl.Internal.Lens
+  ( _amount
+  , _auxiliaryData
+  , _auxiliaryDataHash
+  , _body
+  , _certs
+  , _collateral
+  , _collateralReturn
+  , _datum
+  , _fee
+  , _input
+  , _inputs
+  , _isValid
+  , _mint
+  , _networkId
+  , _output
+  , _outputs
+  , _plutusData
+  , _plutusScripts
+  , _redeemers
+  , _referenceInputs
+  , _requiredSigners
+  , _scriptDataHash
+  , _scriptRef
+  , _totalCollateral
+  , _vkeys
+  , _withdrawals
+  , _witnessSet
+  ) as X
 import Ctl.Internal.Lens (_body, _fee, _outputs)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Service.Error (ClientError)
+import Contract.Types (MintingPolicy)
+import Contract.Types as MintingPolicy
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
@@ -95,6 +138,7 @@ import Ctl.Internal.Types.UsedTxOuts
   , lockTransactionInputs
   , unlockTransactionInputs
   )
+import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right))
@@ -102,7 +146,7 @@ import Data.Foldable (foldl, length)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
 import Data.Map (Map)
-import Data.Map (empty, insert) as Map
+import Data.Map (empty, insert, toUnfoldable) as Map
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, for_, traverse)
@@ -353,10 +397,6 @@ derive newtype instance EncodeAeson BalancedSignedTransaction
 instance Show BalancedSignedTransaction where
   show = genericShow
 
-getTxFinalFee :: BalancedSignedTransaction -> Coin
-getTxFinalFee =
-  view (_body <<< _fee) <<< unwrap
-
 -- | Fetch transaction metadata.
 -- | Returns `Right` when the transaction exists and metadata was non-empty
 getTxMetadata
@@ -405,3 +445,17 @@ submitTxFromConstraints
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints =
   _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints
+
+lookupTxHash
+  :: TransactionHash -> UtxoMap -> Array TransactionUnspentOutput
+lookupTxHash txHash utxos =
+  map (\(input /\ output) -> TransactionUnspentOutput { input, output })
+    $ Array.filter (fst >>> unwrap >>> _.transactionId >>> eq txHash)
+    $ Map.toUnfoldable utxos
+
+getTxFinalFee :: BalancedSignedTransaction -> Coin
+getTxFinalFee =
+  view (_body <<< _fee) <<< unwrap
+
+scriptRefFromMintingPolicy :: MintingPolicy -> ScriptRef
+scriptRefFromMintingPolicy = MintingPolicy.toScriptRef

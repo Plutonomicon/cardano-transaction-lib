@@ -32,7 +32,7 @@ import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   )
-import Ctl.Internal.Types.MintingPolicy
+import Contract.Types
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   )
 import Data.ByteArray (ByteArray)

@@ -451,7 +451,7 @@ runBalancer p = do
               _body
 
       worker $
-        if requiredValue == mempty then BalanceChangeAndMinFee $ state
+        if requiredValue == Value.empty then BalanceChangeAndMinFee $ state
           { changeOutputs = changeOutputs, transaction = transaction }
         else PrebalanceTx $ state { changeOutputs = changeOutputs }
 
@@ -887,7 +887,7 @@ logTransactionWithChange message utxos mChangeOutputs tx =
       [ "Output Value without change" `tagSetTag` pprintVal
           (outputValue txBody)
       , "Change Value" `tagSetTag` pprintValue
-          (foldMap (getAmount) changeOutputs)
+          (unsafePartial $ foldMap (getAmount) changeOutputs)
       ]
 
     transactionInfo :: Val -> TagSet

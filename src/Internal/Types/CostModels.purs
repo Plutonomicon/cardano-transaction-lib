@@ -8,7 +8,7 @@ module Ctl.Internal.Types.CostModels
 import Prelude
 
 import Cardano.Types.CostModel (CostModel)
-import Ctl.Internal.Types.Int as Csl
+import Cardano.Types.Int as Csl
 import Data.Array (reverse)
 import Data.List (List)
 import Data.List as List

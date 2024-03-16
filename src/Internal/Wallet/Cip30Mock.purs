@@ -62,6 +62,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
+import Partial.Unsafe (unsafePartial)
 
 data WalletMock
   = MockFlint
@@ -193,7 +194,7 @@ mkCip30Mock pKey mSKey = do
         utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
         pure $ byteArrayToHex <<< unwrap <<< encodeCbor <$> collateralUtxos
-    , getBalance: fromAff do
+    , getBalance: unsafePartial $ fromAff do
         utxos <- ownUtxos
         let value = foldMap (_.amount <<< unwrap) $ Map.values utxos
         pure $ byteArrayToHex $ unwrap $ encodeCbor value

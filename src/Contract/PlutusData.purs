@@ -4,33 +4,90 @@ module Contract.PlutusData
   ( getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
+  , unitDatum
+  , unitRedeemer
   , module X
+  , Datum
   ) where
 
 import Prelude
 
-import Cardano.FromData (class FromData) as X
-import Cardano.ToData (class ToData) as X
+import Cardano.FromData
+  ( class FromData
+  , class FromDataArgs
+  , class FromDataArgsRL
+  , class FromDataWithSchema
+  , FromDataError
+      ( ArgsWantedButGot
+      , FromDataFailed
+      , BigNumToIntFailed
+      , IndexWantedButGot
+      , WantedConstrGot
+      )
+  , fromData
+  , fromDataArgs
+  , fromDataArgsRec
+  , fromDataWithSchema
+  , genericFromData
+  ) as X
+import Cardano.Plutus.DataSchema
+  ( class AllUnique2
+  , class HasPlutusSchema
+  , class PlutusSchemaToRowListI
+  , class SchemaToRowList
+  , class ValidPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , ApPCons
+  , Field
+  , I
+  , Id
+  , IxK
+  , MkField
+  , MkField_
+  , MkIxK
+  , MkIxK_
+  , PCons
+  , PNil
+  , PSchema
+  ) as X
+import Cardano.ToData
+  ( class ToData
+  , class ToDataArgs
+  , class ToDataArgsRL
+  , class ToDataArgsRLHelper
+  , class ToDataWithSchema
+  , genericToData
+  , toData
+  , toDataArgs
+  , toDataArgsRec
+  , toDataArgsRec'
+  , toDataWithSchema
+  ) as X
 import Cardano.Types (DataHash)
 import Cardano.Types
-  ( PlutusData
-      ( Constr
-      , Map
-      , List
-      , Integer
-      , Bytes
-      )
+  ( DataHash(DataHash)
+  , PlutusData(Constr, Map, List, Integer, Bytes)
+  ) as X
+import Cardano.Types.OutputDatum
+  ( OutputDatum(OutputDatumHash, OutputDatum)
   ) as X
 import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.PlutusData as Datum
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
+import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
+import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum(RedeemerDatum)) as X
+import Ctl.Internal.Types.RedeemerDatum as Redeemer
 import Data.Either (Either(Left, Right), hush)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple (Tuple(Tuple))
 import Effect.Aff.Class (liftAff)
+import Prim.TypeError (class Warn, Text)
 
 -- | Retrieve the full resolved datum associated to a given datum hash.
 getDatumByHash :: DataHash -> Contract (Maybe PlutusData)
@@ -56,3 +113,15 @@ getDatumsByHashesWithErrors hashes = do
       Right (Just datum) -> Right datum
       Right Nothing -> Left "Datum not found"
       Left err -> Left $ show err
+
+unitDatum
+  :: Warn (Text "Deprecated: use Cardano.Types.PlutusData.unit") => PlutusData
+unitDatum = Datum.unit
+
+unitRedeemer
+  :: Warn (Text "Deprecated: use Cardano.Types.PlutusData.unit")
+  => RedeemerDatum
+unitRedeemer = Redeemer.unit
+
+-- | DEPRECATED. Use `Cardano.Types.PlutusData`
+type Datum = PlutusData

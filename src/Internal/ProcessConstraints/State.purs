@@ -20,7 +20,13 @@ module Ctl.Internal.ProcessConstraints.State
 
 import Prelude hiding (join)
 
-import Cardano.Types (CostModel, Language, PlutusData, Transaction, UtxoMap)
+import Cardano.Types
+  ( CostModel
+  , Language
+  , PlutusData
+  , Transaction
+  , UtxoMap
+  )
 import Cardano.Types.Value (Value)
 import Cardano.Types.Value as Value
 import Control.Monad.State.Trans (StateT)
@@ -142,7 +148,7 @@ totalMissingValue { valueSpentBalancesInputs, valueSpentBalancesOutputs } =
     missingValueSpent valueSpentBalancesOutputs
 
 provideValue :: Value -> ValueSpentBalances
-provideValue provided = ValueSpentBalances { provided, required: mempty }
+provideValue provided = ValueSpentBalances { provided, required: Value.empty }
 
 requireValue :: Value -> ValueSpentBalances
-requireValue required = ValueSpentBalances { required, provided: mempty }
+requireValue required = ValueSpentBalances { required, provided: Value.empty }

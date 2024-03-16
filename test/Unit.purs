@@ -34,7 +34,6 @@ import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Address as Serialization.Address
 import Test.Ctl.Serialization.Hash as Serialization.Hash
-import Test.Ctl.Transaction as Transaction
 import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
@@ -71,7 +70,6 @@ testPlan = do
   Serialization.suite
   Serialization.Address.suite
   Serialization.Hash.suite
-  Transaction.suite
   UsedTxOuts.suite
   Ogmios.Aeson.suite
   Ogmios.EvaluateTx.suite

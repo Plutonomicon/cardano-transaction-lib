@@ -1,6 +1,7 @@
-module Ctl.Internal.Types.MintingPolicy
+module Contract.Types.MintingPolicy
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , hash
+  , toScriptRef
   ) where
 
 import Prelude
@@ -11,6 +12,7 @@ import Cardano.Types.NativeScript (NativeScript)
 import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.ScriptRef (ScriptRef(..))
 import Control.Alt ((<|>))
 import Ctl.Internal.Helpers (decodeTaggedNewtype)
 import Data.Generic.Rep (class Generic)
@@ -42,3 +44,8 @@ instance Show MintingPolicy where
 hash :: MintingPolicy -> ScriptHash
 hash (PlutusMintingPolicy ps) = PlutusScript.hash ps
 hash (NativeMintingPolicy ns) = NativeScript.hash ns
+
+toScriptRef :: MintingPolicy -> ScriptRef
+toScriptRef = case _ of
+  PlutusMintingPolicy ps -> PlutusScriptRef ps
+  NativeMintingPolicy ns -> NativeScriptRef ns

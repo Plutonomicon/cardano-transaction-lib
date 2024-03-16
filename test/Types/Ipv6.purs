@@ -4,10 +4,11 @@ module Test.Ctl.Types.Ipv6
 
 import Prelude
 
-import Contract.Prim.ByteArray (hexToByteArray)
-import Ctl.Internal.Cardano.Types.Transaction (Ipv6(Ipv6))
+import Cardano.AsCbor (decodeCbor)
 import Ctl.Internal.QueryM.Ogmios (parseIpv6String)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Data.ByteArray (hexToByteArrayUnsafe)
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
@@ -26,4 +27,4 @@ suite = do
 testIpv6 :: String -> String -> TestPlanM (Aff Unit) Unit
 testIpv6 str expected =
   test str do
-    parseIpv6String str `shouldEqual` (Ipv6 <$> hexToByteArray expected)
+    parseIpv6String str `shouldEqual` (decodeCbor (wrap $ hexToByteArrayUnsafe expected))

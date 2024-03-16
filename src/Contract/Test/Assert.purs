@@ -115,6 +115,7 @@ import Effect.Exception (Error, error, message, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import JS.BigInt (BigInt)
+import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
 
 -- | Monad allowing for accumulation of assertion failures.
@@ -436,12 +437,14 @@ checkExUnitsNotExceed maxExUnits contract = do
     submitHook tx = do
       let
         (newExUnits :: ExUnits) =
-          foldr append (ExUnits { mem: BigNum.zero, steps: BigNum.zero }) $ tx
-            ^.
-              _witnessSet
-                <<< _redeemers
-                <<< to (map (unwrap >>> _.exUnits))
-      Ref.modify_ (append newExUnits) ref
+          unsafePartial
+            $ foldr append (ExUnits { mem: BigNum.zero, steps: BigNum.zero })
+            $ tx
+                ^.
+                  _witnessSet
+                    <<< _redeemers
+                    <<< to (map (unwrap >>> _.exUnits))
+      Ref.modify_ (unsafePartial $ append newExUnits) ref
 
     setSubmitHook :: ContractEnv -> ContractEnv
     setSubmitHook =
@@ -632,11 +635,11 @@ checkValueDeltaInWallet
    . (Maybe a -> Value -> Value -> ContractAssertion Unit)
   -> ContractCheck a
 checkValueDeltaInWallet check contract = do
-  valueBefore <- lift $ getWalletBalance <#> fold
+  valueBefore <- lift $ unsafePartial $ getWalletBalance <#> fold
   ref <- liftEffect $ Ref.new Nothing
   let
     finalize = do
-      valueAfter <- lift $ getWalletBalance <#> fold
+      valueAfter <- unsafePartial $ lift $ getWalletBalance <#> fold
       liftEffect (Ref.read ref) >>= \res -> check res valueBefore valueAfter
     run = do
       res <- contract
@@ -828,7 +831,7 @@ assertTxHasMetadata mdLabel txHash expectedMetadata = do
 getValueAtAddress
   :: Labeled Address
   -> ContractAssertion Value
-getValueAtAddress = map (foldMap (view (_amount))) <<< lift
+getValueAtAddress = map (unsafePartial $ foldMap (view (_amount))) <<< lift
   <<< utxosAt
   <<< unlabel
 

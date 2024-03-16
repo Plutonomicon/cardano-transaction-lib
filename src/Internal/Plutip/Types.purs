@@ -31,9 +31,9 @@ import Aeson
   , (.:)
   )
 import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
+import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.RawBytes (RawBytes(RawBytes))
 import Ctl.Internal.Contract.Hooks (Hooks)
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
 import Data.ByteArray (hexToByteArray)
@@ -111,8 +111,8 @@ instance DecodeAeson PrivateKeyResponse where
   decodeAeson json = do
     cborStr <- decodeAeson json
     cborBytes <- note err $ hexToByteArray cborStr
-    PrivateKeyResponse <<< PrivateKey <$> note err
-      (privateKeyFromBytes (RawBytes cborBytes))
+    PrivateKeyResponse <$> note err
+      (PrivateKey.fromRawBytes (RawBytes cborBytes))
     where
     err :: JsonDecodeError
     err = TypeMismatch "PrivateKey"

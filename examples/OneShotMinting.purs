@@ -13,6 +13,9 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -26,8 +29,7 @@ import Contract.Monad
 import Contract.PlutusData (PlutusData, toData)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
-  ( ApplyArgsError
-  , MintingPolicy(PlutusMintingPolicy)
+  ( MintingPolicy(PlutusMintingPolicy)
   , PlutusScript
   , applyArgs
   )
@@ -37,19 +39,19 @@ import Contract.Test.Assert
   , checkTokenGainInWallet'
   , runChecks
   )
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
   , submitTxFromConstraintsReturningFee
   )
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName)
-import Contract.Value (singleton) as Value
+import Contract.Value (AssetName, ScriptHash)
 import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
+import Ctl.Internal.ApplyArgs (ApplyArgsError)
 import Data.Array (head, singleton) as Array
 import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error, throw)
@@ -63,7 +65,7 @@ example cfg = launchAff_ do
   runContract cfg contract
 
 mkChecks
-  :: (CurrencySymbol /\ TokenName /\ BigInt)
+  :: (ScriptHash /\ AssetName /\ BigInt)
   -> Array (ContractCheck { txFinalFee :: BigInt })
 mkChecks nft =
   [ checkTokenGainInWallet' nft
@@ -90,12 +92,12 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
 
   mp /\ cs <- Helpers.mkCurrencySymbol (mkMintingPolicy oref)
-  tn <- Helpers.mkTokenName "CTLNFT"
+  tn <- Helpers.mkAssetName "CTLNFT"
 
   let
     constraints :: Constraints.TxConstraints
     constraints =
-      Constraints.mustMintValue (Value.singleton cs tn one)
+      Constraints.mustMintValue (Mint.singleton cs tn $ Int.fromInt one)
         <> Constraints.mustSpendPubKeyOutput oref
 
     lookups :: Lookups.ScriptLookups
@@ -110,7 +112,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
-    pure { txFinalFee }
+    pure { txFinalFee: BigNum.toBigInt $ unwrap txFinalFee }
 
 oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
 oneShotMintingPolicy =
@@ -120,7 +122,7 @@ oneShotMintingPolicyScript :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
-    plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
   liftContractE $ mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy

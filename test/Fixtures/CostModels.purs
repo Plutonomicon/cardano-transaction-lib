@@ -4,14 +4,18 @@ module Test.Ctl.Fixtures.CostModels
 
 import Prelude
 
-import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.Cardano.Types.Transaction (Costmdls)
-import Ctl.Internal.Deserialization.Error (toError)
-import Ctl.Internal.Deserialization.Transaction (convertCostModels)
-import Ctl.Internal.Serialization (defaultCostmdls)
-import Data.Bifunctor (lmap)
+import Cardano.Serialization.Lib (Costmdls, unpackMapContainerToMapWith)
+import Cardano.Types (CostModel, Language)
+import Cardano.Types.CostModel as CostModel
+import Cardano.Types.Language as Language
+import Data.Map (Map)
+import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 
-costModelsFixture1 :: Costmdls
+foreign import defaultCostmdls :: Effect Costmdls
+
+costModelsFixture1 :: Map Language CostModel
 costModelsFixture1 = unsafePerformEffect
-  (defaultCostmdls >>= convertCostModels >>> lmap toError >>> liftEither)
+  ( defaultCostmdls <#> unpackMapContainerToMapWith Language.fromCsl
+      CostModel.fromCsl
+  )
