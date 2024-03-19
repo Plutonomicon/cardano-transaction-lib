@@ -1,11 +1,4 @@
-/* global BROWSER_RUNTIME */
-
-let lib;
-if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-  lib = await import("@emurgo/cardano-message-signing-browser");
-} else {
-  lib = await import("@emurgo/cardano-message-signing-nodejs");
-}
+import * as lib from "@mlabs-haskell/cardano-message-signing";
 
 // -----------------------------------------------------------------------------
 // COSESign1Builder

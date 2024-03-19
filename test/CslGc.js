@@ -1,4 +1,3 @@
-/* global BROWSER_RUNTIME */
 import * as lib from "@mlabs-haskell/cardano-serialization-lib-gc";
 
 import process from "process";

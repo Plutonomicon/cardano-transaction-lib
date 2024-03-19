@@ -1,21 +1,6 @@
-/* global BROWSER_RUNTIME */
+export const driver = nodeDriver;
 
-export const driver = async () => {
-  if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-    return browserDriver;
-  } else {
-    return await nodeDriver();
-  }
-};
-
-const browserDriver = {
-  newXHR: function () {
-    return new XMLHttpRequest();
-  },
-  fixupUrl: function (url) {
-    return url || "/";
-  }
-};
+// we rely on the bundler to inject polyfills for the browser
 
 async function nodeDriver() {
   const { default: XHR } = await import("xhr2");
