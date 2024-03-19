@@ -109,7 +109,7 @@ instance FromBytes ScriptHash where
   fromBytes' = fromBytesImpl "ScriptHash"
 
 instance FromBytes StakeCredential where
-  fromBytes' = fromBytesImpl "StakeCredential"
+  fromBytes' = fromBytesImpl "Credential"
 
 instance FromBytes Transaction where
   fromBytes' = fromBytesImpl "Transaction"
