@@ -38,7 +38,7 @@ SDKs must be bundled to be usable in the browser. We support two bundlers: esbui
 
 ## Defining SDK APIs in PureScript
 
-Developers should start from reading [this PureScript guide](https://book.purescript.org/chapter10.html#calling-purescript-from-javascript) that shows how to call PureScript from JS. Our (older) PureScript version is using CommonJS modules and not ES modules, so `import` statements should be replaced with `require`.
+Developers should start from reading [this PureScript guide](https://book.purescript.org/chapter10.html#calling-purescript-from-javascript) that shows how to call PureScript from JS. 
 
 Suppose we want to wrap a single `Contract` into an interface to call it from JS with Nami wallet.
 
