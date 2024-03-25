@@ -43,6 +43,9 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
+-- NOTE: If you are looking for an example of the most common case of 
+-- using reference scripts by referencing an output and not spending it,
+-- you likely need to look at the example in `ReferenceInputsAndScripts.purs`.
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceScripts"
