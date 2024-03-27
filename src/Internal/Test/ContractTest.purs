@@ -17,7 +17,7 @@ import Contract.Monad (Contract)
 import Ctl.Internal.Plutip.Types (ClusterStartupParameters)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe)
 import Mote.Monad (mapTest)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet
@@ -71,8 +71,8 @@ sameWalletsExposeClusterParams
   => distr
   -> TestPlanM (Maybe ClusterStartupParameters -> wallets -> Contract Unit) Unit
   -> ContractTestPlan
-sameWalletsExposeClusterParams distr tests = ContractTestPlan \h -> h distr
-  tests
+sameWalletsExposeClusterParams distr tests =
+  ContractTestPlan \h -> h distr tests
 
 -- | Store a wallet `UtxoDistribution` and a `TestPlanM` that depend on those wallets
 sameWallets
@@ -83,7 +83,7 @@ sameWallets
   -> ContractTestPlan
 sameWallets distr =
   sameWalletsExposeClusterParams distr
-    <<< mapTest (\test -> (\clusterParams -> test))
+    <<< mapTest const
 
 -- | A runner for a test suite that supports funds distribution.
 type ContractTestHandler :: Type -> Type -> Type -> Type

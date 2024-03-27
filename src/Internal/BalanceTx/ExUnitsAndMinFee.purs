@@ -8,7 +8,10 @@ import Prelude
 import Contract.Numeric.Natural (fromInt') as Natural
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
-import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos, _collateralUtxos) as Constraints
+import Ctl.Internal.BalanceTx.Constraints
+  ( _additionalUtxos
+  , _collateralUtxos
+  ) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(UtxoLookupFailedFor, ExUnitsEvaluationFailed)
   )
