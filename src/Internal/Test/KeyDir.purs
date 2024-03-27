@@ -193,7 +193,7 @@ runContractTestsWithKeyDir params backup = do
 
           runTheContract :: Aff Unit
           runTheContract = runContractInEnv env { wallet = Nothing } do
-            mkTest wallets
+            mkTest Nothing wallets
 
         -- We want to distinguish between successful and non-successful runs
         hasRunRef <- liftEffect $ Ref.new false

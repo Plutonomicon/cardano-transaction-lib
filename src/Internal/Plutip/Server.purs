@@ -1,6 +1,7 @@
 module Ctl.Internal.Plutip.Server
   ( checkPlutipServer
   , runPlutipContract
+  , runPlutipContractExposeClusterParams
   , runPlutipTestPlan
   , startPlutipCluster
   , startPlutipServer
@@ -8,6 +9,7 @@ module Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   , testPlutipContracts
   , withPlutipContractEnv
+  , withPlutipContractEnvExposeClusterParams
   ) where
 
 import Prelude
@@ -117,6 +119,18 @@ import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
 import Type.Prelude (Proxy(Proxy))
 
+runPlutipContractExposeClusterParams
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> (ClusterStartupParameters -> wallets -> Contract a)
+  -> Aff a
+runPlutipContractExposeClusterParams cfg distr cont =
+  withPlutipContractEnvExposeClusterParams cfg distr
+    \clusterParams env wallets ->
+      runContractInEnv env (cont clusterParams wallets)
+
 -- | Run a single `Contract` in Plutip environment.
 runPlutipContract
   :: forall (distr :: Type) (wallets :: Type) (a :: Type)
@@ -125,9 +139,26 @@ runPlutipContract
   -> distr
   -> (wallets -> Contract a)
   -> Aff a
-runPlutipContract cfg distr cont = withPlutipContractEnv cfg distr
-  \env wallets ->
-    runContractInEnv env (cont wallets)
+runPlutipContract cfg distr =
+  runPlutipContractExposeClusterParams cfg distr
+    <<< const
+
+-- | Provide a `ContractEnv` connected to Plutip.
+-- | can be used to run multiple `Contract`s using `runContractInEnv`.
+withPlutipContractEnvExposeClusterParams
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
+   . UtxoDistribution distr wallets
+  => PlutipConfig
+  -> distr
+  -> (ClusterStartupParameters -> ContractEnv -> wallets -> Aff a)
+  -> Aff a
+withPlutipContractEnvExposeClusterParams plutipCfg distr cont = do
+  cleanupRef <- liftEffect $ Ref.new mempty
+  Aff.bracket
+    (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
+    (const $ runCleanup cleanupRef)
+    $ liftEither >=> \{ clusterParams, env, wallets, printLogs } ->
+        whenError printLogs (cont clusterParams env wallets)
 
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | can be used to run multiple `Contract`s using `runContractInEnv`.
@@ -138,13 +169,9 @@ withPlutipContractEnv
   -> distr
   -> (ContractEnv -> wallets -> Aff a)
   -> Aff a
-withPlutipContractEnv plutipCfg distr cont = do
-  cleanupRef <- liftEffect $ Ref.new mempty
-  Aff.bracket
-    (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
-    (const $ runCleanup cleanupRef)
-    $ liftEither >=> \{ env, wallets, printLogs } ->
-        whenError printLogs (cont env wallets)
+withPlutipContractEnv plutipCfg distr =
+  withPlutipContractEnvExposeClusterParams plutipCfg distr
+    <<< const
 
 -- | Run several `Contract`s in tests in a (single) Plutip environment (plutip-server and cluster, kupo, etc.).
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
@@ -176,9 +203,12 @@ runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
     -- immediate tests and groups
     bracket (startPlutipContractEnv plutipCfg distr cleanupRef)
       (runCleanup cleanupRef)
-      $ flip mapTest tests \test { env, wallets, printLogs, clearLogs } -> do
-          whenError printLogs (runContractInEnv env (test wallets))
-          clearLogs
+      $ flip mapTest tests
+          \test
+           { clusterParams, env, wallets, printLogs, clearLogs } -> do
+            whenError printLogs $
+              runContractInEnv env (test (Just clusterParams) wallets)
+            clearLogs
   where
   -- `MoteT`'s bracket doesn't support supplying the constructed resource into
   -- the main action, so we use a `Ref` to store and read the result.
@@ -254,8 +284,12 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
   addTests distr tests = do
     modify_ \(ContractTestPlan runContractTestPlan) -> runContractTestPlan
       \distr' tests' -> ContractTestPlan \h -> h (distr' /\ distr) do
-        mapTest (_ <<< fst) tests'
-        mapTest (_ <<< snd) tests
+        mapTest
+          (\test -> (\clusterParams -> test clusterParams <<< fst))
+          tests'
+        mapTest
+          (\test -> (\clusterParams -> test clusterParams <<< snd))
+          tests
 
   -- Start with an empty plan, which passes an empty distribution
   -- and an empty array of test `Description`s to the function that
@@ -277,7 +311,8 @@ startPlutipContractEnv
   -> distr
   -> Ref (Array (Aff Unit))
   -> Aff
-       { env :: ContractEnv
+       { clusterParams :: ClusterStartupParameters
+       , env :: ContractEnv
        , wallets :: wallets
        , printLogs :: Aff Unit
        , clearLogs :: Aff Unit
@@ -285,14 +320,15 @@ startPlutipContractEnv
 startPlutipContractEnv plutipCfg distr cleanupRef = do
   configCheck plutipCfg
   tryWithReport startPlutipServer' "Could not start Plutip server"
-  (ourKey /\ response) <- tryWithReport startPlutipCluster'
+  (ourKey /\ clusterParams) <- tryWithReport startPlutipCluster'
     "Could not start Plutip cluster"
-  tryWithReport (startOgmios' response) "Could not start Ogmios"
-  tryWithReport (startKupo' response) "Could not start Kupo"
+  tryWithReport (startOgmios' clusterParams) "Could not start Ogmios"
+  tryWithReport (startKupo' clusterParams) "Could not start Kupo"
   { env, printLogs, clearLogs } <- mkContractEnv'
-  wallets <- mkWallets' env ourKey response
+  wallets <- mkWallets' env ourKey clusterParams
   pure
-    { env
+    { clusterParams
+    , env
     , wallets
     , printLogs
     , clearLogs
