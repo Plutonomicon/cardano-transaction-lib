@@ -4,15 +4,21 @@ module Ctl.Internal.Test.ContractTest
   , ContractTestPlan(ContractTestPlan)
   , ContractTestPlanHandler
   , noWallet
+  , noWalletExposeClusterParams
   , sameWallets
+  , sameWalletsExposeClusterParams
   , withWallets
+  , withWalletsExposeClusterParams
   ) where
 
 import Prelude
 
 import Contract.Monad (Contract)
+import Ctl.Internal.Plutip.Types (ClusterStartupParameters)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
+import Data.Maybe (Maybe(Nothing))
+import Mote.Monad (mapTest)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet
 -- | `UtxoDistribution`.
@@ -31,6 +37,14 @@ newtype ContractTest = ContractTest
     -> r
   )
 
+withWalletsExposeClusterParams
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> (Maybe ClusterStartupParameters -> wallets -> Contract Unit)
+  -> ContractTest
+withWalletsExposeClusterParams distr tests = ContractTest \h -> h distr tests
+
 -- | Store a wallet `UtxoDistribution` and a `Contract` that depends on those wallets
 withWallets
   :: forall (distr :: Type) (wallets :: Type)
@@ -38,11 +52,27 @@ withWallets
   => distr
   -> (wallets -> Contract Unit)
   -> ContractTest
-withWallets distr tests = ContractTest \h -> h distr tests
+withWallets distr = withWalletsExposeClusterParams distr <<< const
+
+noWalletExposeClusterParams
+  :: (Maybe ClusterStartupParameters -> Contract Unit)
+  -> ContractTest
+noWalletExposeClusterParams tests =
+  withWalletsExposeClusterParams unit \clusterParams _ ->
+    tests clusterParams
 
 -- | Lift a `Contract` into `ContractTest`
 noWallet :: Contract Unit -> ContractTest
-noWallet = withWallets unit <<< const
+noWallet = noWalletExposeClusterParams <<< const
+
+sameWalletsExposeClusterParams
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> TestPlanM (Maybe ClusterStartupParameters -> wallets -> Contract Unit) Unit
+  -> ContractTestPlan
+sameWalletsExposeClusterParams distr tests = ContractTestPlan \h -> h distr
+  tests
 
 -- | Store a wallet `UtxoDistribution` and a `TestPlanM` that depend on those wallets
 sameWallets
@@ -51,12 +81,17 @@ sameWallets
   => distr
   -> TestPlanM (wallets -> Contract Unit) Unit
   -> ContractTestPlan
-sameWallets distr tests = ContractTestPlan \h -> h distr tests
+sameWallets distr =
+  sameWalletsExposeClusterParams distr
+    <<< mapTest (\test -> (\clusterParams -> test))
 
 -- | A runner for a test suite that supports funds distribution.
 type ContractTestHandler :: Type -> Type -> Type -> Type
 type ContractTestHandler distr wallets r =
-  UtxoDistribution distr wallets => distr -> (wallets -> Contract Unit) -> r
+  UtxoDistribution distr wallets
+  => distr
+  -> (Maybe ClusterStartupParameters -> wallets -> Contract Unit)
+  -> r
 
 -- | Represents `Contract`s in `TestPlanM` that depend on *some* wallet `UtxoDistribution`
 -- Internally this is similar to `ContractTest`, except that
@@ -77,5 +112,5 @@ type ContractTestPlanHandler :: Type -> Type -> Type -> Type
 type ContractTestPlanHandler distr wallets r =
   UtxoDistribution distr wallets
   => distr
-  -> TestPlanM (wallets -> Contract Unit) Unit
+  -> TestPlanM (Maybe ClusterStartupParameters -> wallets -> Contract Unit) Unit
   -> r

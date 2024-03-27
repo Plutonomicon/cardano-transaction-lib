@@ -12,9 +12,11 @@ import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Plutip.Server
   ( runPlutipContract
+  , runPlutipContractExposeClusterParams
   , runPlutipTestPlan
   , testPlutipContracts
   , withPlutipContractEnv
+  , withPlutipContractEnvExposeClusterParams
   ) as X
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.Plutip.Types (PlutipConfig) as X
@@ -22,8 +24,11 @@ import Ctl.Internal.Test.ContractTest (ContractTest)
 import Ctl.Internal.Test.ContractTest (ContractTestPlan) as Server
 import Ctl.Internal.Test.ContractTest
   ( noWallet
+  , noWalletExposeClusterParams
   , sameWallets
+  , sameWalletsExposeClusterParams
   , withWallets
+  , withWalletsExposeClusterParams
   ) as X
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
