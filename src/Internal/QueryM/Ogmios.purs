@@ -661,8 +661,8 @@ instance DecodeOgmios PoolParametersR where
 decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
 decodePoolParameters objParams = do
   vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrfVerificationKeyHash"
-  pledge <- objParams .: "pledge" >>= aesonObject (\obj -> obj .: "lovelace")
-  cost <- objParams .: "cost" >>= aesonObject (\obj -> obj .: "lovelace")
+  pledge <- objParams .: "pledge" >>= decodeAdaLovelace
+  cost <- objParams .: "cost" >>= decodeAdaLovelace
   margin <- decodeUnitInterval =<< objParams .: "margin"
   rewardAccount <- objParams .: "rewardAccount"
   poolOwners <- objParams .: "owners"
@@ -991,11 +991,43 @@ rationalToSubcoin (PParamRational rat) = do
   denominator <- BigNum.fromBigInt $ Rational.denominator rat
   pure { numerator, denominator }
 
+newtype AdaLovelace a = AdaLovelace a
+
+unAdaLovelace :: forall a. AdaLovelace a -> a
+unAdaLovelace (AdaLovelace n) = n
+
+instance DecodeAeson a => DecodeAeson (AdaLovelace a) where
+  decodeAeson x = decodeV5 <|> decodeV6
+    where
+    decodeAda :: Either _ Aeson
+    decodeAda = do
+      ({ ada } :: { ada :: Aeson }) <- decodeAeson x
+      pure ada
+
+    decodeLovelace :: Aeson -> Either _ Aeson
+    decodeLovelace y = do
+      ({ lovelace } :: { lovelace :: Aeson }) <- decodeAeson y
+      pure lovelace
+
+    decodeV6 :: Either _ (AdaLovelace a)
+    decodeV6 = do
+      ada <- decodeAda
+      lovelace <- decodeLovelace ada
+      AdaLovelace <$> decodeAeson lovelace
+
+    decodeV5 :: Either _ (AdaLovelace a)
+    decodeV5 = do
+      lovelace <- decodeLovelace x
+      AdaLovelace <$> decodeAeson lovelace
+
+decodeAdaLovelace
+  :: forall a. DecodeAeson a => Aeson -> Either JsonDecodeError a
+decodeAdaLovelace x = decodeAeson x <#> unAdaLovelace
+
 -- | A type that corresponds to Ogmios response.
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
-  , "minFeeConstant" ::
-      { "lovelace" :: UInt }
+  , "minFeeConstant" :: AdaLovelace UInt
   , "minUtxoDepositCoefficient" :: BigInt
   , "maxBlockBodySize" ::
       { "bytes" :: UInt }
@@ -1005,10 +1037,8 @@ type ProtocolParametersRaw =
       { "bytes" :: UInt }
   , "maxValueSize" ::
       { "bytes" :: UInt }
-  , "stakeCredentialDeposit" ::
-      { "lovelace" :: BigInt }
-  , "stakePoolDeposit" ::
-      { "lovelace" :: BigInt }
+  , "stakeCredentialDeposit" :: AdaLovelace BigInt
+  , "stakePoolDeposit" :: AdaLovelace BigInt
   , "stakePoolRetirementEpochBound" :: BigInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
@@ -1018,8 +1048,7 @@ type ProtocolParametersRaw =
       { "major" :: UInt
       , "minor" :: UInt
       }
-  , "minStakePoolCost" ::
-      { "lovelace" :: BigInt }
+  , "minStakePoolCost" :: AdaLovelace BigInt
   , "plutusCostModels" ::
       { "plutus:v1" :: Array Csl.Int
       , "plutus:v2" :: Maybe (Array Csl.Int)
@@ -1061,11 +1090,11 @@ instance DecodeAeson OgmiosProtocolParameters where
       , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
       , maxBlockBodySize: ps.maxBlockBodySize.bytes
       , maxTxSize: ps.maxTransactionSize.bytes
-      , txFeeFixed: ps.minFeeConstant.lovelace
+      , txFeeFixed: unAdaLovelace ps.minFeeConstant
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.lovelace
-      , stakePoolDeposit: Coin ps.stakePoolDeposit.lovelace
-      , minPoolCost: Coin ps.minStakePoolCost.lovelace
+      , stakeAddressDeposit: Coin $ unAdaLovelace ps.stakeCredentialDeposit
+      , stakePoolDeposit: Coin $ unAdaLovelace ps.stakePoolDeposit
+      , minPoolCost: Coin $ unAdaLovelace ps.minStakePoolCost
       , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
       , stakePoolTargetNum: ps.desiredNumberOfStakePools
       , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
