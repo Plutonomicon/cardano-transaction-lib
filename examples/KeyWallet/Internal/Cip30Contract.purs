@@ -4,6 +4,8 @@ module Ctl.Examples.KeyWallet.Internal.Cip30Contract
 
 import Contract.Prelude
 
+import Cardano.Types (RawBytes)
+import Cardano.Types.PrivateKey as PrivateKey
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyValue)
   , WalletSpec(UseKeys)
@@ -18,8 +20,7 @@ import Ctl.Examples.KeyWallet.Internal.Cip30HtmlForm
   , logError
   , mkForm
   ) as HtmlForm
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesFromAscii)
+import Data.ByteArray (hexToByteArray)
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
@@ -32,14 +33,15 @@ runKeyWalletContract_ contract =
   HtmlForm.mkForm \input log' unlock ->
     launchAff_ $ flip catchError (errorHandler log' unlock) $ do
       privateKey <- liftMaybe (error "Failed to parse private key")
-        $ privateKeyFromBytes
-        =<< hexToRawBytes input.privateKey
-      message <- liftMaybe (error "Failed to encode message") $
-        rawBytesFromAscii input.message
+        $ PrivateKey.fromRawBytes
+        =<< map wrap (hexToByteArray input.privateKey)
+      message <- liftMaybe (error "Failed to encode message")
+        $ map wrap
+        $ hexToByteArray input.message
       let
         cfg = testnetConfig
           { walletSpec = Just $ UseKeys
-              (PrivatePaymentKeyValue $ wrap $ wrap privateKey)
+              (PrivatePaymentKeyValue $ wrap privateKey)
               Nothing
           , customLogger = Just printLog
           }

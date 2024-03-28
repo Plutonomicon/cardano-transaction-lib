@@ -29,7 +29,7 @@ import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.RawBytes (RawBytes)
 import Cardano.Types.StakeCredential (StakeCredential(StakeCredential))
-import Cardano.Types.Transaction (Transaction, hashTransaction)
+import Cardano.Types.Transaction (Transaction, hash)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.TransactionWitnessSet (TransactionWitnessSet)
 import Cardano.Types.UtxoMap (UtxoMap)
@@ -160,11 +160,11 @@ privateKeysToKeyWallet payKey mbStakeKey =
   signTx :: Transaction -> Aff TransactionWitnessSet
   signTx tx = liftEffect do
     let
-      hash = hashTransaction tx
-      payWitness = PrivateKey.makeVkeyWitness hash (unwrap payKey)
+      txHash = hash tx
+      payWitness = PrivateKey.makeVkeyWitness txHash (unwrap payKey)
       mbStakeWitness =
         mbStakeKey <#> \stakeKey ->
-          PrivateKey.makeVkeyWitness hash (unwrap stakeKey)
+          PrivateKey.makeVkeyWitness txHash (unwrap stakeKey)
     let
       witnessSet' = set _vkeys
         ([ payWitness ] <> fold (pure <$> mbStakeWitness))

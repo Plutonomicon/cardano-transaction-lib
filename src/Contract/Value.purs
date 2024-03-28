@@ -6,6 +6,7 @@ module Contract.Value
 
 import Cardano.Types (AssetName, ScriptHash)
 import Cardano.Types.AssetName (AssetName(AssetName)) as X
+import Cardano.Types.Coin (Coin(Coin)) as X
 import Cardano.Types.ScriptHash (ScriptHash(ScriptHash)) as X
 import Cardano.Types.Value
   ( Value(Value)

@@ -109,7 +109,32 @@ let upstream =
         sha256:3e9fbc9ba03e9a1fcfd895f65e2d50ee2f5e86c4cd273f3d5c841b655a0e1bda
 
 let additions =
-      { aeson =
+      { js-fetch =
+        { dependencies =
+          [ "arraybuffer-types"
+          , "arrays"
+          , "effect"
+          , "foldable-traversable"
+          , "foreign"
+          , "foreign-object"
+          , "functions"
+          , "http-methods"
+          , "js-promise"
+          , "maybe"
+          , "newtype"
+          , "prelude"
+          , "record"
+          , "tuples"
+          , "typelevel-prelude"
+          , "unfoldable"
+          , "web-file"
+          , "web-streams"
+          ]
+        , repository =
+            "https://github.com/purescript-contrib/purescript-js-fetch.git"
+        , version = "v0.2.1"
+        }
+      , aeson =
         { dependencies =
           [ "aff"
           , "argonaut"

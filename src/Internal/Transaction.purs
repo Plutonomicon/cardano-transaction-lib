@@ -53,6 +53,7 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   --   * there are no datums
   --
   | null (unwrap witnessSet).plutusScripts
+  , null (unwrap witnessSet).plutusData
   , null rs
   , null ds = pure tx
   | otherwise = do

@@ -4,6 +4,9 @@ module Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Contract.Address (PaymentPubKeyHash)
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyValue)
@@ -20,29 +23,26 @@ import Ctl.Examples.KeyWallet.Internal.Pkh2PkhHtmlForm
   , logError
   , mkForm
   ) as HtmlForm
-import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBech32)
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
+import Data.ByteArray (hexToByteArray)
 import Data.Log.Formatter.Pretty (prettyFormatter)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)
-import JS.BigInt (BigInt)
-import JS.BigInt (fromString) as BigInt
 
 runKeyWalletContract_
-  :: (PaymentPubKeyHash -> BigInt -> Unlock -> Contract Unit) -> Effect Unit
+  :: (PaymentPubKeyHash -> BigNum -> Unlock -> Contract Unit) -> Effect Unit
 runKeyWalletContract_ contract =
   HtmlForm.mkForm \input log' unlock ->
     launchAff_ $ flip catchError (errorHandler log' unlock) $ do
       privateKey <- liftMaybe (error "Failed to parse private key")
         $ privateKeyFromBytes
-        =<< hexToRawBytes input.privateKey
+        =<< map wrap (hexToByteArray input.privateKey)
       pkh <- liftMaybe (error "Failed to parse public key hash")
-        $ map (wrap <<< wrap)
-        $ ed25519KeyHashFromBech32 input.toPkh
+        $ map wrap
+        $ Ed25519KeyHash.fromBech32 input.toPkh
       lovelace <- liftMaybe (error "Failed to parse lovelace amount") $
-        BigInt.fromString input.lovelace
+        BigNum.fromString input.lovelace
       let
         cfg = testnetConfig
           { walletSpec = Just $ UseKeys

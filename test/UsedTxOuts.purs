@@ -2,6 +2,7 @@ module Test.Ctl.UsedTxOuts (suite) where
 
 import Prelude
 
+import Cardano.Types (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Monad.Reader (runReaderT)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -16,17 +17,12 @@ import Data.Array (any, singleton, uncons)
 import Data.Foldable (all)
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap)
-import Data.Set (fromFoldable) as Set
 import Data.Traversable (traverse)
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Fixtures
-  ( mkSampleTx
-  , mkTxInput
-  , txFixture1
-  )
+import Test.Ctl.Fixtures (mkSampleTx, mkTxInput, txFixture1)
 import Test.Spec.Assertions (shouldReturn)
 
 buildSampleTransaction
@@ -88,7 +84,7 @@ buildSampleTransaction =
           }
       ]
   in
-    { tx: mkSampleTx txFixture1 (_ { inputs = Set.fromFoldable usedTxOutRefs })
+    { tx: mkSampleTx txFixture1 (_ { inputs = usedTxOutRefs })
     , usedTxOutRefs: unwrap <$> usedTxOutRefs
     , unusedTxOutRefs: unwrap <$> unusedTxOutRefs
     }

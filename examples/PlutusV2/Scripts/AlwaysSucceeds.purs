@@ -4,17 +4,17 @@ module Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds
 
 import Contract.Prelude
 
+import Cardano.Types (PlutusScript)
 import Contract.Monad (Contract)
-import Contract.Scripts (Validator(Validator))
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Control.Monad.Error.Class (liftMaybe)
 import Effect.Exception (error)
 
-alwaysSucceedsScriptV2 :: Contract Validator
+alwaysSucceedsScriptV2 :: Contract PlutusScript
 alwaysSucceedsScriptV2 = do
   liftMaybe (error "Error decoding alwaysSucceeds") do
     envelope <- decodeTextEnvelope alwaysSucceedsV2
-    Validator <$> plutusScriptV2FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 alwaysSucceedsV2 :: String
 alwaysSucceedsV2 =

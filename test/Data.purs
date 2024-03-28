@@ -4,38 +4,38 @@ module Test.Ctl.Data (suite, tests, uniqueIndicesTests) where
 import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
-import Cardano.Serialization.Lib (fromBytes, toBytes)
-import Cardano.Types.BigNum as BigNum
-import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
-import Control.Lazy (fix)
-import Control.Monad.Error.Class (class MonadThrow)
-import Ctl.Internal.Deserialization.PlutusData as PDD
-import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
-import Ctl.Internal.Helpers (showWithParens)
-import Ctl.Internal.Plutus.Types.AssocMap (Map(Map))
-import Ctl.Internal.Plutus.Types.DataSchema
+import Cardano.AsCbor (class AsCbor, decodeCbor, encodeCbor)
+import Cardano.FromData (class FromData, fromData, genericFromData)
+import Cardano.Plutus.DataSchema
   ( class HasPlutusSchema
+  , class UniqueIndices
   , type (:+)
   , type (:=)
   , type (@@)
-  , I
-  , PNil
-  )
-import Ctl.Internal.Serialization.PlutusData as PDS
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.ToData (class ToData, genericToData, toData)
-import Ctl.Internal.TypeLevel.Nat (S, Z)
-import Ctl.Internal.TypeLevel.RowList (class AllUniqueLabels)
-import Ctl.Internal.TypeLevel.RowList.Unordered.Indexed
-  ( class UniqueIndices
   , ConsI
+  , I
   , NilI
+  , PNil
+  , S
+  , Z
   )
+import Cardano.Plutus.DataSchema.RowList (class AllUniqueLabels)
+import Cardano.Plutus.Types.Map (Map(Map))
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.ToData (class ToData, genericToData, toData)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
+import Cardano.Types.PlutusData as PlutusData
+import Control.Lazy (fix)
+import Control.Monad.Error.Class (class MonadThrow)
+import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
 import Data.Generic.Rep as G
 import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Newtype (unwrap)
 import Data.NonEmpty ((:|))
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for_, traverse_)
@@ -561,7 +561,7 @@ instance (FromData a) => FromData (Tree a) where
         Node <$> fromData a <*> (Tuple <$> worker ltree <*> worker rtree)
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = fromData <<< PDD.convertPlutusData =<< fromBytes
+fromBytesFromData binary = (fromData <<< PlutusData.fromCsl) =<< fromBytes
   (hexToByteArrayUnsafe binary)
 
 testBinaryFixture
@@ -570,6 +570,7 @@ testBinaryFixture
   => Show a
   => FromData a
   => ToData a
+  => AsCbor a
   => a
   -> String
   -> TestPlanM (Aff Unit) Unit
@@ -577,7 +578,7 @@ testBinaryFixture value binaryFixture = do
   test ("Deserialization: " <> show value) do
     fromBytesFromData binaryFixture `shouldEqual` Just value
   test ("Serialization: " <> show value) do
-    toBytes (PDS.convertPlutusData $ toData value)
+    unwrap (encodeCbor value)
       `shouldEqual` hexToByteArrayUnsafe binaryFixture
 
 -- | Poor man's type level tests

@@ -2,53 +2,14 @@ module Test.Ctl.Deserialization (suite) where
 
 import Prelude
 
-import Aeson (decodeAeson, parseJsonStringToAeson)
-import Cardano.Serialization.Lib (fromBytes, toBytes)
-import Cardano.Types.BigNum (fromBigInt, toBigInt) as BigNum
-import Cardano.Types.NativeScript (toCsl) as NSS
-import Cardano.Types.TransactionInput (TransactionInput) as T
-import Contract.CborBytes (hexToCborBytesUnsafe)
-import Contract.Keys (privateKeyFromBytes)
+import Cardano.AsCbor (class AsCbor, decodeCbor, encodeCbor)
+import Cardano.Types (TransactionWitnessSet)
 import Contract.Prim.ByteArray (ByteArray)
-import Contract.TextEnvelope
-  ( TextEnvelope(TextEnvelope)
-  , TextEnvelopeType(Other)
-  , decodeTextEnvelope
-  )
-import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
-import Ctl.Internal.Cardano.Types.NativeScript (NativeScript(ScriptAny)) as T
-import Ctl.Internal.Cardano.Types.Transaction (Transaction, TransactionOutput) as T
-import Ctl.Internal.Cardano.Types.Transaction (Vkeywitness)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  ) as T
-import Ctl.Internal.Deserialization.BigInt as DB
-import Ctl.Internal.Deserialization.NativeScript as NSD
-import Ctl.Internal.Deserialization.PlutusData as DPD
-import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
-import Ctl.Internal.Deserialization.WitnessSet (convertWitnessSet)
-import Ctl.Internal.Plutip.Types (StartClusterResponse)
-import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxInput, convertTxOutput) as Serialization
-import Ctl.Internal.Serialization.BigInt as SB
-import Ctl.Internal.Serialization.PlutusData as SPD
-import Ctl.Internal.Serialization.Types (TransactionUnspentOutput)
-import Ctl.Internal.Serialization.Types (Vkeywitness) as Serialization
-import Ctl.Internal.Serialization.WitnessSet (convertVkeywitness) as Serialization
-import Ctl.Internal.Serialization.WitnessSet as SW
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Data.Array as Array
-import Data.Either (Either, hush, isRight)
-import Data.Foldable (fold)
-import Data.Maybe (isJust, isNothing)
-import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse)
-import Effect (Effect)
+import Data.Maybe (Maybe(Just))
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Exception (Error, error)
-import JS.BigInt as BigInt
-import Mote (group, skip, test)
+import Mote (group, test)
 import Test.Ctl.Fixtures
   ( nativeScriptFixture1
   , nativeScriptFixture2
@@ -65,8 +26,6 @@ import Test.Ctl.Fixtures
   , plutusDataFixture6
   , plutusDataFixture7
   , plutusDataFixture8
-  , plutusDataFixture8Bytes
-  , plutusDataFixture8Bytes'
   , txFixture1
   , txFixture2
   , txFixture3
@@ -75,232 +34,96 @@ import Test.Ctl.Fixtures
   , txFixture6
   , txInputFixture1
   , txOutputFixture1
-  , utxoFixture1
-  , utxoFixture1'
   , witnessSetFixture1
   , witnessSetFixture2
   , witnessSetFixture2Value
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
+  , mint0
+  , mint1
+  , int1
   )
-import Test.Ctl.Utils (errMaybe, fromBytesEffect)
-import Test.Spec.Assertions (expectError, shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (shouldEqual)
+import Type.Proxy (Proxy(Proxy))
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  group "deserialization" $ do
-    group "BigInt" do
-      test "Deserialization is inverse to serialization" do
-        let bigInt = BigInt.fromInt 123
-        res <- errMaybe "Failed to serialize BigInt" do
-          DB.convertBigInt $ SB.convertBigInt bigInt
-        res `shouldEqual` bigInt
-    group "BigNum" do
-      test "Deserialization is inverse to serialization" do
-        let bigInt = BigInt.fromInt 123
-        res <- errMaybe "Failed to serialize BigInt" $ BigNum.fromBigInt bigInt
-          <#> BigNum.toBigInt
-        res `shouldEqual` bigInt
-    group "CSL <-> CTL PlutusData roundtrip tests" do
-      let
-        pdRoundTripTest ctlPd = do
-          cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-            $ toBytes
-            $ SPD.convertPlutusData ctlPd
-          let ctlPd' = DPD.convertPlutusData cslPd'
-          ctlPd' `shouldEqual` ctlPd
-      test "fixture #1" $ pdRoundTripTest plutusDataFixture1
-      test "fixture #2" $ pdRoundTripTest plutusDataFixture2
-      test "fixture #3" $ pdRoundTripTest plutusDataFixture3
-      test "fixture #4" $ pdRoundTripTest plutusDataFixture4
-      test "fixture #5" $ pdRoundTripTest plutusDataFixture5
-      test "fixture #6" $ pdRoundTripTest plutusDataFixture6
-      test "fixture #7" $ pdRoundTripTest plutusDataFixture7
-      test "fixture #8" $ pdRoundTripTest plutusDataFixture8
-      test
-        "fixture #8 different Cbor bytes encodings (compact vs general Constr tag encodings)"
-        $ do
-            cslPd' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-              plutusDataFixture8Bytes
-            let ctlPd' = DPD.convertPlutusData cslPd'
-            ctlPd' `shouldEqual` plutusDataFixture8
-            cslPdWp' <- errMaybe "Failed to fromBytes PlutusData" $ fromBytes
-              plutusDataFixture8Bytes'
-            let ctlPdWp' = DPD.convertPlutusData cslPdWp'
-            ctlPdWp' `shouldEqual` plutusDataFixture8
-    group "UnspentTransactionOutput" do
-      test "deserialization is inverse to serialization" do
-        unspentOutput <- liftEffect $ createUnspentOutput txInputFixture1
-          txOutputFixture1
-        T.TransactionUnspentOutput { input, output } <-
-          errMaybe "Failed deserialization 3" do
-            convertUnspentOutput unspentOutput
-        input `shouldEqual` txInputFixture1
-        output `shouldEqual` txOutputFixture1
-      test "fixture #1" do
-        res <- errMaybe "Failed deserialization 4" do
-          fromBytes utxoFixture1 >>= convertUnspentOutput
-        res `shouldEqual` utxoFixture1'
-    group "Transaction Roundtrips" do
-      test "CSL <-> CTL Transaction roundtrip #1" $ txRoundtrip txFixture1
-      test "CSL <-> CTL Transaction roundtrip #2" $ txRoundtrip txFixture2
-      test "CSL <-> CTL Transaction roundtrip #3" $ txRoundtrip txFixture3
-      test "CSL <-> CTL Transaction roundtrip #4" $ txRoundtrip txFixture4
-      test "CSL <-> CTL Transaction roundtrip #5" $ txRoundtrip txFixture5
-      test "CSL <-> CTL Transaction roundtrip #6" $ txRoundtrip txFixture6
-    group "WitnessSet - deserialization" do
-      group "fixture #1" do
-        res <- errMaybe "Failed deserialization 5" do
-          fromBytes witnessSetFixture1 <#> convertWitnessSet
-        test "has vkeys" do
-          (unwrap res).vkeys `shouldSatisfy` isJust
-        test "has plutusData" do
-          (unwrap res).plutusData `shouldSatisfy` isJust
-        test "has plutusScripts" do
-          (unwrap res).plutusScripts `shouldSatisfy` isJust
-        test "has redeemers" do
-          (unwrap res).redeemers `shouldSatisfy` isJust
-        test "has redeemers" do
-          (unwrap res).redeemers `shouldSatisfy` isJust
-        test "does not have nativeScripts" do
-          (unwrap res).nativeScripts `shouldSatisfy` isNothing
-      test "fixture #2" do
-        res <- errMaybe "Failed deserialization 6" do
-          fromBytes witnessSetFixture2 <#> convertWitnessSet
-        res `shouldEqual` witnessSetFixture2Value
-      test "fixture #3" do
-        res <- errMaybe "Failed deserialization 7" do
-          fromBytes witnessSetFixture3 <#> convertWitnessSet
-        res `shouldEqual` witnessSetFixture3Value
-      group "fixture #4" do
-        res <- errMaybe "Failed deserialization 8" $
-          fromBytes witnessSetFixture4 <#> convertWitnessSet
-        test "has nativeScripts" do
-          (unwrap res).nativeScripts `shouldSatisfy` isJust
-    group "NativeScript - deserializaton is inverse to serialization" do
-      test "fixture #1" do
-        liftEffect $ testNativeScript nativeScriptFixture1
-      test "fixture #2" do
-        liftEffect $ testNativeScript nativeScriptFixture2
-      test "fixture #3" do
-        liftEffect $ testNativeScript nativeScriptFixture3
-      test "fixture #4" do
-        liftEffect $ testNativeScript nativeScriptFixture4
-      test "fixture #5" do
-        liftEffect $ testNativeScript nativeScriptFixture5
-      test "fixture #6" do
-        liftEffect $ testNativeScript nativeScriptFixture6
-      test "fixture #7" do
-        liftEffect $ testNativeScript nativeScriptFixture7
-      test "fixture #7" do
-        liftEffect $ testNativeScript nativeScriptFixture7
-      -- This is here just to acknowledge the problem
-      skip $ test "too much nesting leads to recursion error" do
-        expectError $ do
-          let
-            longNativeScript =
-              Array.foldr (\_ acc -> T.ScriptAny [ acc ]) nativeScriptFixture1 $
-                Array.range 0 50 -- change this to 50000
-          liftEffect $ testNativeScript longNativeScript
-    group "WitnessSet - deserialization is inverse to serialization" do
-      let
-        vkeyWitnessesRoundtrip
-          :: ∀ (m :: Type -> Type)
-           . MonadEffect m
-          => MonadThrow Error m
-          => Array Vkeywitness
-          -> m Unit
-        vkeyWitnessesRoundtrip vks = do
-          cslVks <- traverse (liftEffect <<< Serialization.convertVkeywitness)
-            vks
-          let cslVksBytes = toBytes <$> cslVks
-          (_ :: Array Serialization.Vkeywitness) <- traverse
-            (liftEffect <<< fromBytesEffect)
-            cslVksBytes
-          pure unit
+  group "deserialization and serialization roundtrip" $ do
+    group "NativeScript" do
+      roundtripTest "nativeScriptFixture1" nativeScriptFixture1
+      roundtripTest "nativeScriptFixture1" nativeScriptFixture2
+      roundtripTest "nativeScriptFixture3" nativeScriptFixture3
+      roundtripTest "nativeScriptFixture4" nativeScriptFixture4
+      roundtripTest "nativeScriptFixture5" nativeScriptFixture5
+      roundtripTest "nativeScriptFixture6" nativeScriptFixture6
+      roundtripTest "nativeScriptFixture7" nativeScriptFixture7
+    group "PlutusData" do
+      roundtripTest "plutusDataFixture1" plutusDataFixture1
+      roundtripTest "plutusDataFixture2" plutusDataFixture2
+      roundtripTest "plutusDataFixture3" plutusDataFixture3
+      roundtripTest "plutusDataFixture4" plutusDataFixture4
+      roundtripTest "plutusDataFixture5" plutusDataFixture5
+      roundtripTest "plutusDataFixture6" plutusDataFixture6
+      roundtripTest "plutusDataFixture7" plutusDataFixture7
+      roundtripTest "plutusDataFixture8" plutusDataFixture8
+    group "Transaction" do
+      roundtripTest "txFixture1" txFixture1
+      roundtripTest "txFixture2" txFixture2
+      roundtripTest "txFixture3" txFixture3
+      -- roundtripTest "txFixture4" txFixture4
+      roundtripTest "txFixture5" txFixture5
+      roundtripTest "txFixture6" txFixture6
+    group "TransactionInput" do
+      roundtripTest "txInputFixture1" txInputFixture1
+    group "Int" do
+      roundtripTest "int0" int1
+    -- group "Mint" do
+    --   roundtripTest "mint1" mint1
+      -- roundtripTest "mint0" mint0
+    group "TransactionOutput" do
+      roundtripTest "txOutputFixture1" txOutputFixture1
+    group "TransactionWitnessSet" do
+      roundtripTest "witnessSetFixture2Value" witnessSetFixture2Value
+      roundtripTest "witnessSetFixture3Value" witnessSetFixture3Value
+      roundtripTestBytes "witnessSetFixture1"
+        (Proxy :: Proxy TransactionWitnessSet)
+        witnessSetFixture1
+      roundtripTestBytes "witnessSetFixture2"
+        (Proxy :: Proxy TransactionWitnessSet)
+        witnessSetFixture2
+      roundtripTestBytes "witnessSetFixture3"
+        (Proxy :: Proxy TransactionWitnessSet)
+        witnessSetFixture3
+      roundtripTestBytes "witnessSetFixture4"
+        (Proxy :: Proxy TransactionWitnessSet)
+        witnessSetFixture4
 
-        witnessSetRoundTrip
-          :: ∀ (m :: Type -> Type)
-           . MonadEffect m
-          => MonadThrow Error m
-          => ByteArray
-          -> m Unit
-        witnessSetRoundTrip fixture = do
-          ws0 <- errMaybe "Failed deserialization" $
-            fromBytes fixture <#> convertWitnessSet
-          ws1 <- liftEffect $ SW.convertWitnessSet ws0
-          let
-            ws2 = convertWitnessSet ws1
-            vkeys = fold (unwrap ws2).vkeys
-          vkeyWitnessesRoundtrip vkeys
-          ws0 `shouldEqual` ws2 -- value representation
-          let wsBytes = toBytes ws1
-          wsBytes `shouldEqual` fixture -- byte representation
-      test "fixture #1" $ witnessSetRoundTrip witnessSetFixture1
-      test "fixture #2" $ witnessSetRoundTrip witnessSetFixture2
-      test "fixture #3" $ witnessSetRoundTrip witnessSetFixture3
-      -- TODO: enable when nativeScripts are implemented
-      test "fixture #4" $ witnessSetRoundTrip witnessSetFixture4
-    group "TextEnvelope decoding" do
-      test "Decoding TestEnvelope with some other type" do
-        let
-          otherTypeTextEnvelope =
-            """
-              {
-                "cborHex": "484701000022120011",
-                "description": "other-type-text-envelope",
-                "type": "SomeOtherType"
-              }
-              """
-        TextEnvelope envelope <- liftMaybe (error "Unexpected parsing error") $
-          decodeTextEnvelope otherTypeTextEnvelope
-        envelope.type_ `shouldEqual` (Other "SomeOtherType")
-    group "PrivateKey" do
-      test "Decoding from bytes" do
-        let
-          fixture =
-            "8db3dc3d5310bcb9287610cfc45cf1c63620e8d66f0fdb36c27567b3f5e22d42"
-          mbKey = privateKeyFromBytes $ wrap $ unwrap $ hexToCborBytesUnsafe
-            fixture
-        isJust mbKey `shouldEqual` true
-    group "Plutip HTTP types" do
-      test "StartClusterResponse" do
-        let
-          (mbParams :: Either _ StartClusterResponse) =
-            decodeAeson =<< parseJsonStringToAeson plutipSuccessResponseFixture
-        mbParams `shouldSatisfy` isRight
+roundtripTest
+  :: forall a
+   . Eq a
+  => Show a
+  => AsCbor a
+  => String
+  -> a
+  -> TestPlanM (Aff Unit) Unit
+roundtripTest label a =
+  test ("Deserialization is inverse to serialization: " <> label) do
+    decodeCbor (encodeCbor a) `shouldEqual` Just a
 
-createUnspentOutput
-  :: T.TransactionInput
-  -> T.TransactionOutput
-  -> Effect TransactionUnspentOutput
-createUnspentOutput input output = do
-  let input' = Serialization.convertTxInput input
-  output' <- Serialization.convertTxOutput output
-  pure $ mkTransactionUnspentOutput input' output'
-
-testNativeScript :: T.NativeScript -> Effect Unit
-testNativeScript input = do
-  serialized <- pure $ NSS.convertNativeScript input
-  {-            ^^^^ This is necessary here as convertNativeScript can throw
-                a maximum call stack size runtime error (see excessive nesting
-                test above). It needs to be lifted into the Effect monad for
-                purescript to handle it correctly.
-  -}
-
-  let bytes = toBytes serialized
-  res <- errMaybe "Failed deserialization" $ fromBytes bytes
-  let
-    res' = NSD.convertNativeScript res
-  res' `shouldEqual` input
-
-txRoundtrip :: T.Transaction -> Aff Unit
-txRoundtrip tx = do
-  cslTX <- liftEffect $ TS.convertTransaction tx
-  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
-    TD.convertTransaction cslTX
-  tx `shouldEqual` expected
+roundtripTestBytes
+  :: forall a
+   . Eq a
+  => Show a
+  => AsCbor a
+  => String
+  -> Proxy a
+  -> ByteArray
+  -> TestPlanM (Aff Unit) Unit
+roundtripTestBytes label _ bytes = do
+  test ("Serialization is inverse to deserialization: " <> label) do
+    (encodeCbor <$> (decodeCbor (wrap bytes) :: Maybe a)) `shouldEqual` Just
+      (wrap bytes)
 
 plutipSuccessResponseFixture :: String
 plutipSuccessResponseFixture =

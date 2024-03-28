@@ -10,11 +10,13 @@ module Contract.Time
   , module ExportOgmios
   , module ExportSystemStart
   , module Interval
+  , module X
   ) where
 
 import Prelude
 
-import Cardano.Types (BigNum(..), Epoch(..), Slot)
+import Cardano.Types (BigNum, Epoch(Epoch), Slot)
+import Cardano.Types (Slot(Slot)) as X
 import Cardano.Types.BigNum as BigNum
 import Contract.Chain (getTip) as Chain
 import Contract.Log (logInfo')

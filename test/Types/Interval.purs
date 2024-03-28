@@ -14,7 +14,23 @@ import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
-import Ctl.Internal.Types.Interval (Interval, POSIXTime(POSIXTime), PosixTimeToSlotError(PosixTimeBeforeSystemStart), always, contains, from, hull, intersection, isEmpty, member, mkFiniteInterval, never, posixTimeToSlot, slotToPosixTime, to)
+import Ctl.Internal.Types.Interval
+  ( Interval
+  , POSIXTime(POSIXTime)
+  , PosixTimeToSlotError(PosixTimeBeforeSystemStart)
+  , always
+  , contains
+  , from
+  , hull
+  , intersection
+  , isEmpty
+  , member
+  , mkFiniteInterval
+  , never
+  , posixTimeToSlot
+  , slotToPosixTime
+  , to
+  )
 import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)

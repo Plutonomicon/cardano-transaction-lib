@@ -60,7 +60,8 @@ suite = unsafePartial $ test "Serialization.Hash" do
     (isNothing $ ScriptHash.fromBech32 invalidBech32)
 
   scrh <- errMaybe "scriptHashFromBytes failed" $ decodeCbor
-    $ wrap $ hexToByteArrayUnsafe scriptHashHex
+    $ wrap
+    $ hexToByteArrayUnsafe scriptHashHex
   let
     scrhB32 = ScriptHash.toBech32Unsafe "stake_vkh" scrh
     mScrhB32 = ScriptHash.toBech32Unsafe "stake_vkh" scrh

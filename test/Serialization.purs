@@ -2,22 +2,16 @@ module Test.Ctl.Serialization (suite) where
 
 import Prelude
 
-import Cardano.Serialization.Lib (fromBytes, publicKey_fromBytes, toBytes)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Serialization.Lib (publicKey_fromBytes)
+import Cardano.Types (PublicKey, Transaction, TransactionHash)
 import Cardano.Types.BigNum (fromString, one) as BN
 import Cardano.Types.PlutusData as PD
+import Cardano.Types.PublicKey as PublicKey
 import Contract.Keys (publicKeyFromBech32)
-import Ctl.Internal.Cardano.Types.Transaction (PublicKey, Transaction)
-import Ctl.Internal.Deserialization.Transaction (convertTransaction) as TD
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Serialization (convertTransaction) as TS
-import Ctl.Internal.Serialization (convertTxOutput, serializeData)
-import Ctl.Internal.Serialization.Keys (bytesFromPublicKey)
-import Ctl.Internal.Serialization.PlutusData (convertPlutusData)
-import Ctl.Internal.Serialization.Types (TransactionHash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.CborBytes (cborBytesToHex)
 import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
-import Data.Either (hush)
 import Data.Maybe (Maybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Nullable (toMaybe)
@@ -43,7 +37,7 @@ import Test.Ctl.Fixtures
   , txOutputBinaryFixture1
   , txOutputFixture1
   )
-import Test.Ctl.Utils (errMaybe, fromBytesEffect)
+import Test.Ctl.Utils (errMaybe)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -61,7 +55,7 @@ suite = do
           mPk
 
         let
-          pkBytes = bytesFromPublicKey $ unwrap pk
+          pkBytes = PublicKey.toRawBytes pk
           (pk'' :: Maybe PublicKey) = wrap <$> toMaybe
             ( publicKey_fromBytes
                 $ unwrap pkBytes
@@ -73,7 +67,9 @@ suite = do
           txString =
             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65ad959996"
           txBytes = hexToByteArrayUnsafe txString
-        _txHash :: TransactionHash <- liftEffect $ fromBytesEffect txBytes
+        _txHash :: TransactionHash <- liftM (error $ "newTransactionHash")
+          $ decodeCbor
+          $ wrap txBytes
         pure unit
       test "PlutusData #1 - Constr" $ do
         let
@@ -81,7 +77,7 @@ suite = do
             [ PD.Integer (BigInt.fromInt 1)
             , PD.Integer (BigInt.fromInt 2)
             ]
-        let _ = convertPlutusData datum -- Checking no exception raised
+        let _ = encodeCbor datum -- Checking no exception raised
         pure unit
       test "PlutusData #2 - Map" $ do
         let
@@ -90,32 +86,31 @@ suite = do
               [ PD.Integer (BigInt.fromInt 1) /\ PD.Integer (BigInt.fromInt 2)
               , PD.Integer (BigInt.fromInt 3) /\ PD.Integer (BigInt.fromInt 4)
               ]
-        let _ = convertPlutusData datum -- Checking no exception raised
+        let _ = encodeCbor datum -- Checking no exception raised
         pure unit
       test "PlutusData #3 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        let _ = convertPlutusData datum -- Checking no exception raised
+        let _ = encodeCbor datum -- Checking no exception raised
         pure unit
       test "PlutusData #4 - List" $ do
         let
           datum = PD.List
             [ PD.Integer (BigInt.fromInt 1), PD.Integer (BigInt.fromInt 2) ]
-        let _ = convertPlutusData datum -- Checking no exception raised
+        let _ = encodeCbor datum -- Checking no exception raised
         pure unit
       test "PlutusData #5 - Bytes" $ do
         let datum = PD.Bytes $ hexToByteArrayUnsafe "00ff"
-        let _ = convertPlutusData datum -- Checking no exception raised
+        let _ = encodeCbor datum -- Checking no exception raised
         pure unit
       test
         "PlutusData #6 - Integer 0 (regression to https://github.com/Plutonomicon/cardano-transaction-lib/issues/488 ?)"
         $ do
-            let bytes = serializeData $ PD.Integer (BigInt.fromInt 0)
-            cborBytesToHex bytes `shouldEqual` "00"
+            let bytes = encodeCbor $ PD.Integer (BigInt.fromInt 0)
+            byteArrayToHex (unwrap bytes) `shouldEqual` "00"
       test "TransactionOutput serialization" $ liftEffect do
-        txo <- convertTxOutput txOutputFixture1
-        let bytes = toBytes txo
+        let bytes = unwrap $ encodeCbor txOutputFixture1
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
       test "Transaction serialization #1" $
         serializeTX txFixture1 txBinaryFixture1
@@ -156,15 +151,13 @@ suite = do
 serializeTX :: Transaction -> String -> Aff Unit
 serializeTX tx fixture =
   liftEffect $ do
-    cslTX <- TS.convertTransaction $ tx
-    let bytes = toBytes cslTX
+    let bytes = unwrap $ encodeCbor tx
     byteArrayToHex bytes `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do
-  cslTX <- liftEffect $ TS.convertTransaction tx
-  let serialized = toBytes cslTX
-  deserialized <- errMaybe "Cannot deserialize bytes" $ fromBytes serialized
-  expected <- errMaybe "Cannot convert TX from CSL to CTL" $ hush $
-    TD.convertTransaction deserialized
-  tx `shouldEqual` expected
+  let serialized = encodeCbor tx
+  (deserialized :: Transaction) <- errMaybe "Cannot deserialize bytes" $
+    decodeCbor serialized
+  let expected = encodeCbor deserialized
+  serialized `shouldEqual` expected

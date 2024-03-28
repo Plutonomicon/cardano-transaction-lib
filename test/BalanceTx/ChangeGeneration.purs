@@ -2,10 +2,10 @@ module Test.Ctl.BalanceTx.ChangeGeneration (suite) where
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 
 suite :: TestPlanM ContractTest Unit
@@ -36,8 +36,8 @@ mkChangeOutputs outputsToScript outputsToSelf expectedOutputs = do
   let
     distribution :: InitialUTxOs
     distribution =
-      [ BigInt.fromInt 1000_000_000
-      , BigInt.fromInt 2000_000_000
+      [ BigNum.fromInt 1000_000_000
+      , BigNum.fromInt 2000_000_000
       ]
   withWallets distribution \alice -> do
     withKeyWallet alice do

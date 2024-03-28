@@ -193,6 +193,7 @@ let additions =
         { dependencies =
           [ "aff"
           , "aff-promise"
+          , "bytearrays"
           , "effect"
           , "prelude"
           , "spec"
@@ -201,7 +202,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
-        , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
+        , version = "0b8b0e1b8f2394860fc0ac2d4e5e044edbf440a1"
         }
       , js-bigints =
         { dependencies = [ "integers", "maybe", "prelude" ]
@@ -279,13 +280,13 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib"
-        , version = "e3c0891b377fc07d9f11833add2e6ff872ab119c"
+        , version = "b0a0217b14ea92a9ffe53cb18f3dfa6e7aac5e0e"
         }
       , cardano-plutus-data-schema =
         { dependencies = [ "prelude" ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-plutus-data-schema"
-        , version = "351003d931990949ce3d73f399a179e4a0fa40f1"
+        , version = "eb0bb78927c50c4bee364e932c9fa8cf94546191"
         }
       , plutus-types =
         { dependencies =
@@ -361,7 +362,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "685b3693471034ad06c63bc6d803708ba40b6c22"
+        , version = "01a039b5db83373a47d05f84e762ee977cf770db"
         }
       , cardano-message-signing =
         { dependencies =

@@ -3,33 +3,56 @@ module Ctl.Internal.Types.Val where
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
-import Cardano.Types
-  ( AssetClass(..)
-  , AssetName
-  , BigInt
-  , Coin
-  , MultiAsset(MultiAsset)
-  , ScriptHash
-  , Value(Value)
-  )
+import Cardano.Types (AssetClass(AssetClass), AssetName, BigInt, Coin, MultiAsset(MultiAsset), ScriptHash, Value(Value))
 import Cardano.Types.AssetName (fromAssetName)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint (Mint(Mint))
 import Cardano.Types.MultiAsset as MultiAsset
+import Data.Array (cons)
+import Data.Bifunctor (bimap)
 import Data.ByteArray (byteArrayToHex)
+import Data.FoldableWithIndex (foldrWithIndex)
+import Data.Generic.Rep (class Generic)
+import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
 import Data.Log.Tag (TagSet, tag, tagSetTag)
 import Data.Log.Tag as TagSet
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.These (These(This, That, Both))
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt as BigInt
 
-data Val = Val BigInt (Map ScriptHash (Map AssetName BigInt))
+-- | Split a value into its positive and non-positive parts. The first element of
+-- | the tuple contains the non-positive parts of the value, the second element
+-- | contains the positive parts. The convention is non-positive parts are
+-- | negated to make them positive in the output.
+class Split (a :: Type) where
+  split :: a -> a /\ a
+
+instance Split BigInt where
+  split c =
+    if c <= zero then negate c /\ zero else zero /\ c
+
+instance Split Val where
+  split (Val c1 mp) = Val np npos /\ Val p pos
+    where
+    np /\ p = split c1
+    splitIntl
+      :: Map AssetName BigInt
+      -> These (Map AssetName BigInt) (Map AssetName BigInt)
+    splitIntl mp' = Both l r
+      where
+      l /\ r = mapThese (\i -> if i <= zero then This (negate i) else That i)
+        mp'
+
+    npos /\ pos = mapThese splitIntl mp
+
+data Val = Val BigInt ValAssets
 
 instance Eq Val where
   eq a b =
@@ -41,6 +64,19 @@ instance Semigroup Val where
 
 instance Monoid Val where
   mempty = Val zero Map.empty
+
+derive instance Generic Val _
+
+instance Show Val where
+  show = genericShow
+
+instance JoinSemilattice Val where
+  join (Val c1 m1) (Val c2 m2) = Val (c1 `max` c2) (m1 `unionWithNonAda max` m2)
+
+instance MeetSemilattice Val where
+  meet (Val c1 m1) (Val c2 m2) = Val (c1 `min` c2) (m1 `unionWithNonAda min` m2)
+
+type ValAssets = Map ScriptHash (Map AssetName BigInt)
 
 getAssets :: Val -> Map ScriptHash (Map AssetName BigInt)
 getAssets (Val _ ma) = ma
@@ -95,6 +131,29 @@ fromMint (Mint ma) = Val zero $ map (map Int.toBigInt) $ ma
 
 minus :: Val -> Val -> Val
 minus (Val a ma) (Val b mb) = Val (a - b) (unionWithNonAda (-) ma mb)
+
+-- Like `mapEither` that works with 'These'.
+mapThese
+  :: forall (a :: Type) (b :: Type) (k :: Type) (v :: Type)
+   . Ord k
+  => (v -> These a b)
+  -> Map k v
+  -> Map k a /\ Map k b
+mapThese f mps =
+  bimap Map.fromFoldable Map.fromFoldable $ foldrWithIndex f' ([] /\ []) mps'
+  where
+  mps' :: Map k (These a b)
+  mps' = map f mps
+
+  f'
+    :: k
+    -> These a b
+    -> Array (k /\ a) /\ Array (k /\ b)
+    -> Array (k /\ a) /\ Array (k /\ b)
+  f' k v (as /\ bs) = case v of
+    This a -> (k /\ a) `cons` as /\ bs
+    That b -> as /\ (k /\ b) `cons` bs
+    Both a b -> (k /\ a) `cons` as /\ (k /\ b) `cons` bs
 
 unionWithNonAda
   :: (BigInt -> BigInt -> BigInt)

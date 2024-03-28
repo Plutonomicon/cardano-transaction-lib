@@ -4,14 +4,13 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
+import Cardano.Types (Epoch(Epoch), Slot(Slot))
 import Cardano.Types.BigNum as BigNum
 import Ctl.Internal.QueryM.Ogmios
   ( OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosSystemStart
   )
-import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.EraSummaries
   ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
@@ -46,6 +45,7 @@ import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
+import Data.UInt as UInt
 import Effect.Aff (Aff)
 import JS.BigInt as BigInt
 import Mote (group)
@@ -79,7 +79,7 @@ relSlotFixture :: RelSlot
 relSlotFixture = RelSlot $ BigInt.fromInt 12855
 
 currentEpochFixture :: Epoch
-currentEpochFixture = Epoch $ BigInt.fromInt 58326646
+currentEpochFixture = Epoch $ UInt.fromInt 58326646
 
 systemStartFixture :: OgmiosSystemStart
 systemStartFixture =
@@ -95,7 +95,7 @@ mkSlot :: Int -> Slot
 mkSlot = Slot <<< BigNum.fromInt
 
 mkEpoch :: Int -> Epoch
-mkEpoch = Epoch <<< BigInt.fromInt
+mkEpoch = Epoch <<< UInt.fromInt
 
 mkEpochLength :: Int -> EpochLength
 mkEpochLength = EpochLength <<< BigInt.fromInt

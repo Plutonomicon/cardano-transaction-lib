@@ -15,7 +15,8 @@ module Ctl.Internal.Test.UtxoDistribution
 import Prelude
 
 import Cardano.Types
-  ( Credential(PubKeyHashCredential)
+  ( BigNum
+  , Credential(PubKeyHashCredential)
   , PaymentCredential(PaymentCredential)
   , PaymentPubKeyHash
   , StakePubKeyHash
@@ -29,9 +30,7 @@ import Contract.Monad (Contract, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , FinalizedTransaction(FinalizedTransaction)
-  , awaitTxConfirmed
+  ( awaitTxConfirmed
   , balanceTx
   , signTransaction
   , submit
@@ -67,11 +66,10 @@ import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import JS.BigInt (BigInt)
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces
-type UtxoAmount = BigInt
+type UtxoAmount = BigNum
 
 -- | A list of UTxOs for a single wallet
 type InitialUTxOs = Array UtxoAmount
@@ -213,6 +211,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       lookups :: Lookups.ScriptLookups
       lookups = Lookups.unspentOutputs ourUtxos
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
+        <> Lookups.ownPaymentPubKeyHash ourPkh
 
       constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh

@@ -13,17 +13,16 @@ module Ctl.Examples.Lose7Ada
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -33,14 +32,14 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
-import Contract.Value as Value
+import Contract.Value (lovelaceValueOf, minus) as Value
 import Contract.Wallet (getWalletBalance)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
 import Data.Map as Map
 import Effect.Exception (error)
-import JS.BigInt as BigInt
+import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (shouldEqual)
 
 main :: Effect Unit
@@ -66,7 +65,7 @@ payToAlwaysFails vhash = do
       Constraints.mustPayToScript vhash unitDatum
         Constraints.DatumWitness
         $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+        $ BigNum.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -79,8 +78,8 @@ spendFromAlwaysFails
   -> TransactionHash
   -> Contract Unit
 spendFromAlwaysFails vhash validator txId = do
-  balanceBefore <- fold <$> getWalletBalance
-  let scriptAddress = scriptHashAddress vhash Nothing
+  balanceBefore <- unsafePartial $ fold <$> getWalletBalance
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
   txInput <- liftM
     ( error
@@ -106,9 +105,9 @@ spendFromAlwaysFails vhash validator txId = do
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
 
-  balance <- fold <$> getWalletBalance
-  let collateralLoss = Value.lovelaceValueOf $ BigInt.fromInt (-5_000_000)
-  balance `shouldEqual` (balanceBefore <> collateralLoss)
+  balance <- unsafePartial $ fold <$> getWalletBalance
+  let collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt (5_000_000)
+  Just balance `shouldEqual` (Value.minus balanceBefore collateralLoss)
 
   where
   hasTransactionId :: TransactionInput /\ _ -> Boolean
@@ -119,7 +118,7 @@ alwaysFailsScript :: Contract Validator
 alwaysFailsScript = do
   liftMaybe (error "Error decoding alwaysFails") do
     envelope <- decodeTextEnvelope alwaysFails
-    Validator <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 alwaysFails :: String
 alwaysFails =

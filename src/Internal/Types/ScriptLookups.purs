@@ -22,8 +22,8 @@ import Cardano.Types
   , UtxoMap
   )
 import Cardano.Types.DataHash (hashPlutusData)
-import Ctl.Internal.Helpers ((<\>))
 import Contract.Types (MintingPolicy)
+import Ctl.Internal.Helpers ((<\>))
 import Data.Array (singleton, union) as Array
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map, empty, singleton, union)

@@ -9,7 +9,6 @@ import Prelude
 
 import Cardano.AsCbor (encodeCbor)
 import Cardano.MessageSigning (signData)
-import Cardano.Serialization.Lib as Csl
 import Cardano.Types
   ( Address
   , CborBytes
@@ -20,12 +19,9 @@ import Cardano.Types
 import Cardano.Types.NetworkId (NetworkId(MainnetId))
 import Cardano.Types.NetworkId as NetworkId
 import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.PublicKey as PublicKey
 import Contract.Keys (publicKeyFromBytes)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.Serialization.Keys
-  ( bytesFromPublicKey
-  , publicKeyFromPrivateKey
-  )
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key
@@ -75,18 +71,18 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
       (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
-  dataSignature <- liftEffect $ signData (wrap privatePaymentKey) address
+  dataSignature <- liftEffect $ signData (privatePaymentKey) address
     payload
   { coseKey } <- checkCip30SignDataResponse address dataSignature
 
   assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
-    (getCoseKeyHeaderX coseKey == Just (bytesFromPublicKey publicPaymentKey))
+    (getCoseKeyHeaderX coseKey == Just (PublicKey.toRawBytes publicPaymentKey))
   where
-  privatePaymentKey :: Csl.PrivateKey
-  privatePaymentKey = unwrap $ unwrap $ unwrap privateKey
+  privatePaymentKey :: PrivateKey
+  privatePaymentKey = unwrap $ unwrap privateKey
 
-  publicPaymentKey :: Csl.PublicKey
-  publicPaymentKey = publicKeyFromPrivateKey privatePaymentKey
+  publicPaymentKey :: PublicKey
+  publicPaymentKey = PrivateKey.toPublicKey privatePaymentKey
 
 checkCip30SignDataResponse
   :: Address -> DataSignature -> Aff DeserializedDataSignature

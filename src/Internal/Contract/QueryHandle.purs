@@ -7,7 +7,7 @@ module Ctl.Internal.Contract.QueryHandle
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
-import Cardano.Types.Transaction (hashTransaction)
+import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
@@ -62,7 +62,7 @@ queryHandleForCtlBackend runQueryM params backend =
   , getChainTip: Right <$> runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
   , submitTx: \tx -> runQueryM' do
-      let txHash = hashTransaction tx
+      let txHash = Transaction.hash tx
       logDebug' $ "Pre-calculated tx hash: " <> show txHash
       let txCborBytes = encodeCbor tx
       result <- QueryM.submitTxOgmios txHash txCborBytes

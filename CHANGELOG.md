@@ -99,6 +99,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `ToData`/`FromData` Instances for `purescript-noble-secp256k1` types (PS does not allow orphans)
 - `ToMetadata`/`FromMetadata` instance for `BigInt`: it was partial and unsafe
 - `Cardano.Types.BigNum.toInt'` method
+- `Contract.Address`:
+   - `scriptHashAddress` - use `Contract.Address.mkAddress`
+   - `payPubKeyHashBaseAddress` - use `Contract.Address.mkAddress`
+   - `payPubKeyHashEnterpriseAddress` - use `Contract.Address.mkAddress`
+- `Contract.Value`:
+   - `flattenNonAdaAssets` - use `Cardano.Types.Value.flatten`.
+- `Contract.PlutusData`:
+   - `Datum`: removed, use `Cardano.Types.PlutusData`
+   - `unitDatum`
+- `Contract.TextEnvelope`:
+   - `plutusScriptV1FromEnvelope` - use `plutusScriptFromEnvelope`
+- `Contract.Hashing`
+- `Contract.Transaction`:
+   - `TransactionOutputWithRefScript` - use `Cardano.Types.TransactionOutput`. It comes with refscript included.
+   - `getTxFinalFee`
+
 
 
 

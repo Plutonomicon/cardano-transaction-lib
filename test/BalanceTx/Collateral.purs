@@ -2,6 +2,18 @@ module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
+import Cardano.Types
+  ( Coin(Coin)
+  , TransactionHash
+  , TransactionInput
+  , TransactionOutput
+  , TransactionUnspentOutput
+  , UtxoMap
+  , Value(Value)
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.Value as Value
 import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
@@ -11,22 +23,11 @@ import Ctl.Internal.BalanceTx.Collateral.Select
   , selectCollateral
   )
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
-import Ctl.Internal.Cardano.Types.Transaction (TransactionOutput, UtxoMap)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value(Value))
-import Ctl.Internal.Cardano.Types.Value
-  ( lovelaceValueOf
-  , mkSingletonNonAdaAsset
-  ) as Value
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.Transaction (TransactionHash, TransactionInput)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
-import Data.Maybe (Maybe(Just))
+import Data.Maybe (Maybe(Just), fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple (Tuple(Tuple))
@@ -34,9 +35,9 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Data.UInt (fromInt, toInt) as UInt
 import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
 import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures
   ( currencySymbol1
   , tokenName1
@@ -54,7 +55,7 @@ suite = do
         withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
             measure
-              $ liftEffect
+              $ pure
               $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture1
           collateral `shouldEqual`
@@ -64,7 +65,7 @@ suite = do
         withParams \coinsPerUtxoUnit maxCollateralInputs -> do
           collateral <-
             measure
-              $ liftEffect
+              $ pure
               $ selectCollateral coinsPerUtxoUnit maxCollateralInputs
                   utxosFixture2
           collateral `shouldEqual`
@@ -73,12 +74,12 @@ suite = do
       test "Selects a collateral in less than 2 seconds" do
         withParams \coinsPerUtxoUnit maxCollateralInputs ->
           measureWithTimeout (Seconds 2.0)
-            ( void $ liftEffect $ selectCollateral coinsPerUtxoUnit
+            ( void $ pure $ selectCollateral coinsPerUtxoUnit
                 maxCollateralInputs
                 utxosFixture3
             )
 
-withParams :: (CoinsPerUtxoUnit -> Int -> Contract Unit) -> Aff Unit
+withParams :: (Coin -> Int -> Contract Unit) -> Aff Unit
 withParams test =
   runContract testnetConfig { suppressLogs = true }
     (join (test <$> getCoinsPerUtxoUnit <*> getMaxCollateralInputs))
@@ -88,37 +89,50 @@ withParams test =
     getProtocolParameters <#>
       UInt.toInt <<< _.maxCollateralInputs <<< unwrap
 
-  getCoinsPerUtxoUnit :: Contract CoinsPerUtxoUnit
+  getCoinsPerUtxoUnit :: Contract Coin
   getCoinsPerUtxoUnit =
     getProtocolParameters <#> unwrap >>>
-      _.coinsPerUtxoUnit
+      _.coinsPerUtxoByte
 
 -- | Ada-only tx output sufficient to cover `minRequiredCollateral`.
 adaOnlyTxOutputSuf :: TransactionOutput
 adaOnlyTxOutputSuf =
   fakeOutputWithValue $
-    Value.lovelaceValueOf (minRequiredCollateral + one)
+    Value.lovelaceValueOf
+      ( unsafePartial $ fromJust $ BigNum.add BigNum.one $ unwrap
+          minRequiredCollateral
+      )
 
 -- | Ada-only tx output insufficient to cover `minRequiredCollateral`.
 adaOnlyTxOutputInsuf :: TransactionOutput
 adaOnlyTxOutputInsuf =
-  fakeOutputWithValue $
-    Value.lovelaceValueOf (minRequiredCollateral / BigInt.fromInt 2)
+  fakeOutputWithValue
+    $ Value.lovelaceValueOf
+    $ unsafePartial
+    $ fromJust
+    $ BigNum.fromBigInt
+    $ BigNum.toBigInt (unwrap minRequiredCollateral) / BigInt.fromInt 2
 
 -- | Single-asset tx output sufficient to cover `minRequiredCollateral`.
 singleAssetTxOutputSuf :: TransactionOutput
 singleAssetTxOutputSuf =
   fakeOutputWithValue
-    $ Value (Coin $ minRequiredCollateral + one)
-    $ Value.mkSingletonNonAdaAsset currencySymbol1 tokenName1 one
+    $ Value
+        ( Coin $ unsafePartial $ fromJust $ BigNum.add BigNum.one $ unwrap
+            minRequiredCollateral
+        )
+    $ MultiAsset.singleton currencySymbol1 tokenName1 BigNum.one
 
 -- | Multi-asset tx output sufficient to cover `minRequiredCollateral`.
 multiAssetTxOutputSuf :: TransactionOutput
-multiAssetTxOutputSuf =
-  fakeOutputWithValue
-    $ Value (Coin $ minRequiredCollateral + one)
-    $ Value.mkSingletonNonAdaAsset currencySymbol1 tokenName1 one
-        <> Value.mkSingletonNonAdaAsset currencySymbol1 tokenName2 one
+multiAssetTxOutputSuf = unsafePartial
+  $ fakeOutputWithValue
+  $ Value
+      ( Coin $ unsafePartial $ fromJust $ BigNum.add BigNum.one $ unwrap
+          minRequiredCollateral
+      )
+  $ MultiAsset.singleton currencySymbol1 tokenName1 BigNum.one
+      <> MultiAsset.singleton currencySymbol1 tokenName2 BigNum.one
 
 utxosFixture1 :: UtxoMap
 utxosFixture1 =

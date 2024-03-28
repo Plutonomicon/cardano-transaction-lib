@@ -12,20 +12,33 @@ module Contract.Scripts
 
 import Prelude
 
-import Cardano.Types (PlutusScript(PlutusScript)) as X
+import Cardano.Types
+  ( PlutusScript(PlutusScript)
+  , ScriptHash
+  ) as X
 import Cardano.Types (ScriptHash)
+import Cardano.Types.NativeScript
+  ( NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  ) as X
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptRef (ScriptRef)
 import Contract.Monad (Contract)
-import Control.Parallel (parTraverse)
-import Ctl.Internal.ApplyArgs (applyArgs) as X
-import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Service.Error (ClientError)
 import Contract.Types
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , hash
   ) as X
+import Control.Parallel (parTraverse)
+import Ctl.Internal.ApplyArgs (applyArgs) as X
+import Ctl.Internal.Contract.Monad (getQueryHandle)
+import Ctl.Internal.Service.Error (ClientError)
 import Data.Either (Either)
 import Data.Map (Map)
 import Data.Map as Map

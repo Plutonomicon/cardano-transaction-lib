@@ -39,4 +39,3 @@ contract = do
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
-

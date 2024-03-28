@@ -5,6 +5,7 @@ module Test.Ctl.Plutip.ExUnits
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Log (logInfo')
 import Contract.Scripts (validatorHash)
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
@@ -24,8 +25,8 @@ mkSuite n = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 500_000_000
-          , BigInt.fromInt 500_000_000
+          [ BigNum.fromInt 500_000_000
+          , BigNum.fromInt 500_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -44,8 +45,8 @@ mkFailingSuite n = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 500_000_000
-          , BigInt.fromInt 500_000_000
+          [ BigNum.fromInt 500_000_000
+          , BigNum.fromInt 500_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do

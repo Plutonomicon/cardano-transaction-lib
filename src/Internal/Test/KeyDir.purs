@@ -4,7 +4,7 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Cardano.Types (Value)
+import Cardano.Types (BigNum, Value)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset as MultiAsset
@@ -23,8 +23,7 @@ import Contract.Monad
   )
 import Contract.TextEnvelope (decodeTextEnvelope)
 import Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , awaitTxConfirmed
+  ( awaitTxConfirmed
   , balanceTx
   , signTransaction
   , submit
@@ -151,7 +150,7 @@ runContractTestsWithKeyDir params backup = do
         -- because it is expected that test wallets have thousands of ADA.
         let
           distrTotalAmount :: BigInt
-          distrTotalAmount = sum $ map sum distrArray
+          distrTotalAmount = sum $ map (sum <<< map BigNum.toBigInt) distrArray
 
           minAdaRoughEstimation :: BigInt
           minAdaRoughEstimation = BigInt.fromInt 1_000_000
@@ -300,7 +299,7 @@ backupWallets backup env walletsArray =
 
 -- | Create a transaction that builds a specific UTxO distribution on the wallets.
 fundWallets
-  :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigInt
+  :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigNum
 fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   logTrace' "Funding wallets"
   let
@@ -308,16 +307,19 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
       \(wallet /\ walletDistr) -> flip foldMap walletDistr
         \value -> mustPayToKeyWallet wallet $
           Value.mkValue
-            (wrap $ unsafePartial $ fromJust $ BigNum.fromBigInt value)
+            (wrap value)
             MultiAsset.empty
 
   txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
-  let fundTotal = Array.foldl (+) zero $ join distrArray
+  let
+    fundTotal =
+      Array.foldl (\x y -> unsafePartial $ fromJust $ BigNum.add x y)
+        BigNum.zero $ join distrArray
   -- Use log so we can see, regardless of suppression
   info $ joinWith " "
     [ "Sent"
-    , showLovelace fundTotal
+    , showLovelace $ BigNum.toBigInt fundTotal
     , "to test wallets"
     ]
   pure fundTotal
@@ -360,7 +362,7 @@ returnFunds
   :: FilePath
   -> ContractEnv
   -> Array KeyWallet
-  -> Maybe BigInt
+  -> Maybe BigNum
   -> Boolean
   -> Aff Unit
 returnFunds backup env allWalletsArray mbFundTotal hasRun =
@@ -417,13 +419,13 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
           ] <> maybe []
             ( \fundTotal ->
                 [ "of"
-                , showLovelace fundTotal
+                , showLovelace $ BigNum.toBigInt fundTotal
                 , "from test wallets"
                 ]
             )
             mbFundTotal
         for_ mbFundTotal \fundTotal -> do
-          when (fundTotal == refundTotal && hasRun) do
+          when (BigNum.toBigInt fundTotal == refundTotal && hasRun) do
             info $ "The test below didn't spend any ADA. Perhaps it does not "
               <> "need any funds to succeed. Consider using `noWallet` to "
               <> "skip funds distribution step"

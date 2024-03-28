@@ -14,7 +14,7 @@ import Prelude
 import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Noble.Secp256k1.Schnorr (SchnorrPublicKey, SchnorrSignature) as X
 import Noble.Secp256k1.Schnorr
@@ -33,12 +33,12 @@ import Noble.Secp256k1.Schnorr (mkSchnorrPublicKey, unSchnorrPublicKey) as ECDSA
 verifySchnorrSecp256k1Signature
   :: SchnorrPublicKey -> ByteArray -> SchnorrSignature -> Aff Boolean
 verifySchnorrSecp256k1Signature publicKey message signature =
-  verifySchnorr signature (unwrap message) publicKey
+  verifySchnorr signature message publicKey
 
 -- | Sign a message using Schnorr signature scheme.
 signSchnorrSecp256k1 :: Secp256k1PrivateKey -> ByteArray -> Aff SchnorrSignature
 signSchnorrSecp256k1 privateKey message =
-  signSchnorr (unwrap message) (unwrap privateKey)
+  signSchnorr message (unwrap privateKey)
 
 deriveSchnorrSecp256k1PublicKey :: Secp256k1PrivateKey -> SchnorrPublicKey
 deriveSchnorrSecp256k1PublicKey = unwrap >>> getSchnorrPublicKey
@@ -46,7 +46,7 @@ deriveSchnorrSecp256k1PublicKey = unwrap >>> getSchnorrPublicKey
 -- | Construct a public key from its byte representation.
 mkSchnorrPublicKey
   :: ByteArray -> Maybe SchnorrPublicKey
-mkSchnorrPublicKey = unwrap >>> ECDSA.mkSchnorrPublicKey
+mkSchnorrPublicKey = ECDSA.mkSchnorrPublicKey
 
 unSchnorrPublicKey :: SchnorrPublicKey -> ByteArray
-unSchnorrPublicKey = wrap <<< ECDSA.unSchnorrPublicKey
+unSchnorrPublicKey = ECDSA.unSchnorrPublicKey

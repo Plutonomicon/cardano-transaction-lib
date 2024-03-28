@@ -34,7 +34,6 @@ import Ctl.Internal.BalanceTx.RedeemerIndex
   )
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
-  , FinalizedTransaction(FinalizedTransaction)
   , askCostModelsForLanguages
   , asksConstraints
   , liftContract
@@ -129,7 +128,7 @@ evalExUnitsAndMinFee unattachedTx allUtxos = do
       _ -> throwError $ ExUnitsEvaluationFailed attachedTx
         (UnparsedError "Unable to extract ExUnits from Ogmios response")
   -- Attach datums and redeemers, set the script integrity hash:
-  FinalizedTransaction finalizedTx <- finalizeTransaction txWithExUnits allUtxos
+  finalizedTx <- finalizeTransaction txWithExUnits allUtxos
   -- Calculate the minimum fee for a transaction:
   additionalUtxos <- asksConstraints Constraints._additionalUtxos
   collateralUtxos <- fromMaybe Map.empty
@@ -141,7 +140,7 @@ evalExUnitsAndMinFee unattachedTx allUtxos = do
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
 finalizeTransaction
-  :: EvaluatedTx -> UtxoMap -> BalanceTxM FinalizedTransaction
+  :: EvaluatedTx -> UtxoMap -> BalanceTxM Transaction
 finalizeTransaction tx utxos = do
   let
     attachedTxWithExUnits :: Transaction
@@ -171,8 +170,8 @@ finalizeTransaction tx utxos = do
 
   (costModels :: Map Language CostModel) <- askCostModelsForLanguages languages
 
-  liftEffect $ FinalizedTransaction <$>
-    setScriptDataHash costModels redeemers datums attachedTxWithExUnits
+  liftEffect $ setScriptDataHash costModels redeemers datums
+    attachedTxWithExUnits
   where
   getRefPlutusScripts
     :: TransactionBody -> Either BalanceTxError (Array PlutusScript)

@@ -15,7 +15,8 @@ import Cardano.Types
   , StakeCredential
   )
 import Cardano.Types
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  ( Ed25519KeyHash
+  , PaymentPubKeyHash(PaymentPubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as X
 import Cardano.Types.Address (Address(..)) as X

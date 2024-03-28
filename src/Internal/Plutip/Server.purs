@@ -82,7 +82,7 @@ import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isLeft)
-import Data.Foldable (sum)
+import Data.Foldable (fold)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
@@ -109,13 +109,13 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
+import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Type.Prelude (Proxy(Proxy))
 
@@ -329,8 +329,8 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         encodeDistribution $
           ourInitialUtxos (encodeDistribution distr) /\
             distr
-    for_ distrArray $ traverse_ \n -> when (n < BigInt.fromInt 1_000_000) do
-      liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
+    for_ distrArray $ traverse_ \n -> when (n < BigNum.fromInt 1_000_000) do
+      liftEffect $ throw $ "UTxO is too low: " <> BigNum.toString n <>
         ", must be at least 1_000_000 Lovelace"
     bracket
       (startPlutipCluster plutipCfg distrArray)
@@ -489,12 +489,14 @@ startPlutipCluster cfg keysToGenerate = do
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
-    total = Array.foldr (sum >>> add) zero utxoDistribution
+    total = Array.foldr (\e acc -> unsafePartial $ fold e # append acc)
+      BigNum.zero
+      utxoDistribution
   in
     [ -- Take the total value of the UTxOs and add some extra on top
       -- of it to cover the possible transaction fees. Also make sure
       -- we don't request a 0 ada UTxO
-      total + BigInt.fromInt 1_000_000_000
+      unsafePartial $ append total (BigNum.fromInt 1_000_000)
     ]
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse

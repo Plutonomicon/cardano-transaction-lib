@@ -7,7 +7,7 @@ import Contract.Prelude
 
 import Contract.Monad (Contract)
 import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Control.Monad.Error.Class (liftMaybe)
 import Effect.Exception (error)
 
@@ -18,7 +18,7 @@ alwaysMintsPolicyScriptV2 :: Contract PlutusScript
 alwaysMintsPolicyScriptV2 = do
   liftMaybe (error "Error decoding alwaysMintsV2") do
     envelope <- decodeTextEnvelope alwaysMintsV2
-    plutusScriptV2FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 alwaysMintsV2 :: String
 alwaysMintsV2 =

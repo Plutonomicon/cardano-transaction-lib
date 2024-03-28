@@ -9,8 +9,7 @@ import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Scripts (PlutusScript)
 import Contract.TextEnvelope
   ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  , plutusScriptV2FromEnvelope
+  , plutusScriptFromEnvelope
   )
 import Control.Monad.Error.Class (class MonadError)
 import Ctl.Internal.ApplyArgs (applyArgs)
@@ -356,7 +355,7 @@ v1
   => Object String
   -> String
   -> m PlutusScript
-v1 scripts name = lookupAux plutusScriptV1FromEnvelope scripts name
+v1 scripts name = lookupAux plutusScriptFromEnvelope scripts name
 
 v2
   :: forall (m :: Type -> Type)
@@ -364,7 +363,7 @@ v2
   => Object String
   -> String
   -> m PlutusScript
-v2 scripts name = lookupAux plutusScriptV2FromEnvelope scripts name
+v2 scripts name = lookupAux plutusScriptFromEnvelope scripts name
 
 lookupAux
   :: forall (m :: Type -> Type)

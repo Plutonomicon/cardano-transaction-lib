@@ -10,6 +10,7 @@ import Prelude
 import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey as PrivateKey
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
@@ -113,7 +114,6 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
@@ -246,12 +246,15 @@ testPlan opts@{ tests } rt@{ wallets } =
       -- Plutip in E2E tests
       { url, wallet: PlutipCluster } -> do
         let
+          amount = unsafePartial $ fromJust $ BigNum.mul
+            (BigNum.fromInt 2_000_000_000)
+            (BigNum.fromInt 100)
           distr = withStakeKey privateStakeKey
-            [ BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            [ amount
+            , amount
+            , amount
+            , amount
+            , amount
             ]
         -- TODO: don't connect to services in ContractEnv, just start them
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197

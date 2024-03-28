@@ -5,6 +5,7 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
+import Cardano.Types (Transaction)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo', logWarn')
 import Contract.Monad
@@ -14,10 +15,10 @@ import Contract.Monad
   , runContract
   , throwContractError
   )
+import Contract.Numeric.BigNum as BigNum
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , TransactionHash
+  ( TransactionHash
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , signTransaction
@@ -40,7 +41,6 @@ import Data.Map (Map, filter)
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
 
 getLockedInputs
   :: Contract (Map TransactionHash (Set UInt))
@@ -67,7 +67,7 @@ contract = do
     constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKeyAddress pkh skh
       $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+      $ BigNum.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -94,7 +94,7 @@ contract = do
 
   where
   submitAndLog
-    :: BalancedSignedTransaction
+    :: Transaction
     -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx
@@ -105,8 +105,8 @@ contract = do
   hasSufficientUtxos = do
     let
       -- 4 Ada: enough to cover 2 Ada transfer and fees
-      isUtxoValid u = (Value.lovelaceValueOf $ BigInt.fromInt 4_000_000) `leq`
-        (unwrap (unwrap u).output).amount
+      isUtxoValid u = (Value.lovelaceValueOf $ BigNum.fromInt 4_000_000) `leq`
+        (unwrap u).amount
 
     walletValidUtxos <- liftedM "Failed to get wallet Utxos"
       $ map (filter isUtxoValid)
@@ -126,11 +126,11 @@ createAdditionalUtxos = do
     constraints =
       Constraints.mustPayToPubKeyAddress pkh skh
         ( Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
+            $ BigNum.fromInt 2_000_000
         ) <>
         Constraints.mustPayToPubKeyAddress pkh skh
           ( Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
+              $ BigNum.fromInt 2_000_000
           )
 
     lookups :: Lookups.ScriptLookups

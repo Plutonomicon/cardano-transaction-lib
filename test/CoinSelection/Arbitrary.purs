@@ -2,26 +2,19 @@ module Test.Ctl.CoinSelection.Arbitrary where
 
 import Prelude
 
-import Control.Apply (lift2)
-import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, fromIndexFiltered)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , UtxoMap
-  )
-import Ctl.Internal.Cardano.Types.Value (Value)
-import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
-import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
-import Ctl.Internal.Serialization.Address
+import Cardano.Types
   ( Address
   , NetworkId(MainnetId)
-  , baseAddressToAddress
-  , paymentKeyHashStakeKeyHashAddress
-  )
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Ctl.Internal.Types.Transaction
-  ( TransactionHash
+  , TransactionHash
   , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , UtxoMap
+  , Value
   )
+import Control.Apply (lift2)
+import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, fromIndexFiltered)
+import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
+import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map.Gen (genMap) as Map
@@ -108,31 +101,7 @@ newtype ArbitraryTransactionOutput =
 
 derive instance Newtype ArbitraryTransactionOutput _
 
-instance Arbitrary ArbitraryTransactionOutput where
-  arbitrary = wrap <$> lift2 mkTxOutput arbitrary arbitrary
-    where
-    mkTxOutput :: ArbitraryAddress -> Value -> TransactionOutput
-    mkTxOutput address amount =
-      TransactionOutput
-        { address: unwrap address
-        , amount
-        , datum: NoOutputDatum
-        , scriptRef: Nothing
-        }
-
---------------------------------------------------------------------------------
--- ArbitraryAddress
---------------------------------------------------------------------------------
-
-newtype ArbitraryAddress = ArbitraryAddress Address
-
-derive instance Newtype ArbitraryAddress _
-
-instance Arbitrary ArbitraryAddress where
-  arbitrary =
-    wrap <<< baseAddressToAddress <$>
-      lift2 (paymentKeyHashStakeKeyHashAddress MainnetId) arbitrary arbitrary
-
+derive newtype instance Arbitrary ArbitraryTransactionOutput
 --------------------------------------------------------------------------------
 -- ArbitrarySelectionState
 --------------------------------------------------------------------------------

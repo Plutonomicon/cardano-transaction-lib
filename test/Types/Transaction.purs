@@ -12,7 +12,6 @@ import Aeson
   )
 import Contract.Transaction
   ( TransactionInput
-  , TransactionOutputWithRefScript
   )
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
@@ -42,10 +41,6 @@ loadAesonFixture filename = do
 transactionInputFixture :: Effect TransactionInput
 transactionInputFixture = loadAesonFixture "TransactionInput"
 
-transactionOutputWithRefScriptFixture :: Effect TransactionOutputWithRefScript
-transactionOutputWithRefScriptFixture = loadAesonFixture
-  "TransactionOutputWithRefScript"
-
 toFromAesonTest'
   :: forall a
    . Eq a
@@ -63,5 +58,3 @@ suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Transaction-related Aeson representation tests" do
     toFromAesonTest' "TransactionInput" transactionInputFixture
-    toFromAesonTest' "TransactionOutputWithRefScript"
-      transactionOutputWithRefScriptFixture

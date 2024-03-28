@@ -16,7 +16,7 @@ import Prelude
 import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
 import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Noble.Secp256k1.ECDSA (ECDSAPublicKey, ECDSASignature, MessageHash) as X
 import Noble.Secp256k1.ECDSA
@@ -57,17 +57,17 @@ deriveEcdsaSecp256k1PublicKey = unwrap >>> flip ECDSA.getECDSAPublicKey true
 
 -- | Construct a public key from its byte representation.
 mkECDSAPublicKey :: ByteArray -> Maybe ECDSAPublicKey
-mkECDSAPublicKey = unwrap >>> ECDSA.mkECDSAPublicKey
+mkECDSAPublicKey = ECDSA.mkECDSAPublicKey
 
 unECDSAPublicKey :: ECDSAPublicKey -> ByteArray
-unECDSAPublicKey = ECDSA.unECDSAPublicKey >>> wrap
+unECDSAPublicKey = ECDSA.unECDSAPublicKey
 
 -- | Construct a message hash from its byte representation.
 -- |
 -- | This function **DOES NOT** compute the hash.
 -- | Use `Contract.Crypto.Utils.hashMessageSha256` for that.
 mkMessageHash :: ByteArray -> Maybe MessageHash
-mkMessageHash = unwrap >>> ECDSA.mkMessageHash
+mkMessageHash = ECDSA.mkMessageHash
 
 unMessageHash :: MessageHash -> ByteArray
-unMessageHash = wrap <<< ECDSA.unMessageHash
+unMessageHash = ECDSA.unMessageHash

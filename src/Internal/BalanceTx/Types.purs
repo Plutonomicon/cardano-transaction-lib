@@ -1,7 +1,6 @@
 module Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
   , BalanceTxMContext
-  , FinalizedTransaction(FinalizedTransaction)
   , askCoinsPerUtxoUnit
   , askCostModelsForLanguages
   , askNetworkId
@@ -13,7 +12,7 @@ module Ctl.Internal.BalanceTx.Types
 
 import Prelude
 
-import Cardano.Types (Coin, CostModel, Language, NetworkId, Transaction)
+import Cardano.Types (Coin, CostModel, Language, NetworkId)
 import Cardano.Types.Address as Csl
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
@@ -28,15 +27,13 @@ import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Data.Either (Either)
-import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Getter (view)
 import Data.Map (Map)
 import Data.Map (filterKeys) as Map
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable, member) as Set
-import Data.Show.Generic (genericShow)
 
 type BalanceTxMContext =
   { constraints :: BalanceTxConstraints, ownAddresses :: Set Csl.Address }
@@ -84,12 +81,3 @@ askCostModelsForLanguages :: Set Language -> BalanceTxM (Map Language CostModel)
 askCostModelsForLanguages languages =
   asksContractEnv (_.costModels <<< unwrap <<< _.pparams <<< _.ledgerConstants)
     <#> Map.filterKeys (flip Set.member languages)
-
-newtype FinalizedTransaction = FinalizedTransaction Transaction
-
-derive instance Generic FinalizedTransaction _
-derive instance Newtype FinalizedTransaction _
-derive newtype instance Eq FinalizedTransaction
-
-instance Show FinalizedTransaction where
-  show = genericShow

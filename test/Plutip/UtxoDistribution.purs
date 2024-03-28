@@ -14,11 +14,16 @@ module Test.Ctl.Plutip.UtxoDistribution
 
 import Prelude
 
-import Contract.Address
-  ( Address
-  , getNetworkId
-  , payPubKeyHashEnterpriseAddress
+import Cardano.Types
+  ( BigNum
+  , Credential(PubKeyHashCredential)
+  , TransactionInput
+  , TransactionOutput
+  , UtxoMap
   )
+import Cardano.Types.Address (Address(EnterpriseAddress))
+import Cardano.Types.BigNum as BigNum
+import Contract.Address (Address, getNetworkId)
 import Contract.Monad (Contract, liftedM)
 import Contract.Test.Plutip
   ( class UtxoDistribution
@@ -27,11 +32,7 @@ import Contract.Test.Plutip
   , runPlutipContract
   , withStakeKey
   )
-import Contract.Transaction
-  ( TransactionInput
-  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  )
-import Contract.Utxos (UtxoMap, utxosAt)
+import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet
   ( KeyWallet
@@ -48,17 +49,16 @@ import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.Foldable (intercalate)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Map (empty, insert, isEmpty) as Map
-import Data.Maybe (isJust)
-import Data.Newtype (unwrap)
+import Data.Maybe (fromJust, isJust)
+import Data.Newtype (unwrap, wrap)
 import Data.NonEmpty ((:|))
 import Data.Traversable (for_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
-import JS.BigInt (BigInt)
-import JS.BigInt (fromInt, toString) as BigInt
 import Mote (group, test)
+import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
@@ -79,7 +79,7 @@ suite = group "UtxoDistribution" do
     do
       let
         distribution :: Array InitialUTxOs
-        distribution = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+        distribution = replicate 2 [ BigNum.fromInt 1_000_000_000 ]
       runPlutipContract config distribution $ checkUtxoDistribution distribution
 
   test
@@ -88,7 +88,7 @@ suite = group "UtxoDistribution" do
       let
         distribution :: Array InitialUTxOsWithStakeKey
         distribution = withStakeKey privateStakeKey <$> replicate 2
-          [ BigInt.fromInt 1_000_000_000 ]
+          [ BigNum.fromInt 1_000_000_000 ]
       runPlutipContract config distribution $ checkUtxoDistribution distribution
 
   test
@@ -96,7 +96,7 @@ suite = group "UtxoDistribution" do
     do
       let
         distribution1 :: Array InitialUTxOs
-        distribution1 = replicate 2 [ BigInt.fromInt 1_000_000_000 ]
+        distribution1 = replicate 2 [ BigNum.fromInt 1_000_000_000 ]
 
         distribution = distribution1 /\
           (withStakeKey privateStakeKey <$> distribution1)
@@ -133,8 +133,10 @@ checkUtxoDistribution distr wallets = do
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/857
 -- is resolved
 genInitialUtxo :: Gen InitialUTxOs
-genInitialUtxo = map (BigInt.fromInt >>> (_ * BigInt.fromInt 1_000_000))
-  <$> arrayOf (chooseInt 1 1000)
+genInitialUtxo = unsafePartial $
+  map
+    (BigNum.fromInt >>> (_ `BigNum.mul` BigNum.fromInt 1_000_000) >>> fromJust)
+    <$> arrayOf (chooseInt 1 1000)
 
 instance Arbitrary ArbitraryUtxoDistr where
   arbitrary =
@@ -164,7 +166,7 @@ data ArbitraryUtxoDistr
   | UDTuple ArbitraryUtxoDistr ArbitraryUtxoDistr
 
 ppInitialUtxos :: InitialUTxOs -> String
-ppInitialUtxos x = "[" <> intercalate ", " (map BigInt.toString x) <> "]"
+ppInitialUtxos x = "[" <> intercalate ", " (map BigNum.toString x) <> "]"
 
 ppArbitraryUtxoDistr :: ArbitraryUtxoDistr -> String
 ppArbitraryUtxoDistr = case _ of
@@ -205,11 +207,15 @@ assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
 assertNoUtxosAtEnterpriseAddress
   :: KeyWallet -> Contract Unit
 assertNoUtxosAtEnterpriseAddress wallet = withKeyWallet wallet $
-  assertNoUtxosAtAddress =<< liftedM "Could not get wallet address"
-    ( payPubKeyHashEnterpriseAddress
-        <$> getNetworkId
-        <*> liftedM "Could not get payment pubkeyhash"
-          (head <$> ownPaymentPubKeyHashes)
+  assertNoUtxosAtAddress =<<
+    ( EnterpriseAddress <$>
+        ( { networkId: _, paymentCredential: _ }
+            <$> getNetworkId
+            <*> liftedM "Could not get payment pubkeyhash"
+              ( map (wrap <<< PubKeyHashCredential <<< unwrap) <<< head <$>
+                  ownPaymentPubKeyHashes
+              )
+        )
     )
 
 assertNoUtxosAtAddress :: Address -> Contract Unit
@@ -245,7 +251,7 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
     -- Remove a single utxo containing the expected ada amount,
     -- returning the updated utxo map and false if it could not be
     -- found
-    findAndRemoveExpected :: Boolean /\ UtxoMap -> BigInt -> Boolean /\ UtxoMap
+    findAndRemoveExpected :: Boolean /\ UtxoMap -> BigNum -> Boolean /\ UtxoMap
     findAndRemoveExpected o@(false /\ _) _ = o
     findAndRemoveExpected (_ /\ utxos) expected =
       foldlWithIndex
@@ -259,12 +265,12 @@ assertCorrectDistribution wallets = for_ wallets \(wallet /\ expectedAmounts) ->
       :: Value
       -> TransactionInput
       -> Boolean /\ UtxoMap
-      -> TransactionOutputWithRefScript
+      -> TransactionOutput
       -> Boolean /\ UtxoMap
     removeUtxoMatchingValue
       expected
       i
       (found /\ m)
-      o@(TransactionOutputWithRefScript { output })
+      output
       | not found && expected == (unwrap output).amount = true /\ m
-      | otherwise = found /\ Map.insert i o m
+      | otherwise = found /\ Map.insert i output m

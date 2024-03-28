@@ -2,12 +2,14 @@ module Test.Ctl.Blockfrost (main, testPlan) where
 
 import Prelude
 
+import Cardano.AsCbor (decodeCbor)
 import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types (ScriptHash)
+import Cardano.Types.BigNum as BigNum
 import Contract.Config (blockfrostPublicPreviewServerConfig)
 import Contract.Metadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum(Text, MetadataMap)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  , TransactionMetadatum(Text, Map)
   )
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
@@ -22,7 +24,6 @@ import Contract.Transaction
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Helpers (liftedM)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
@@ -40,7 +41,6 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class.Console (log)
-import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Process (argv)
 import Partial.Unsafe (unsafePartial)
@@ -65,10 +65,11 @@ testPlan :: BlockfrostBackend -> TestPlanM (Aff Unit) Unit
 testPlan backend = group "Blockfrost" do
   let
     mkDatumHash :: String -> DataHash
-    mkDatumHash = wrap <<< hexToByteArrayUnsafe
+    mkDatumHash s = unsafePartial $ fromJust $ decodeCbor $ wrap $
+      hexToByteArrayUnsafe s
 
     mkStringHash :: String -> ScriptHash
-    mkStringHash s = unsafePartial $ fromJust $ scriptHashFromBytes $
+    mkStringHash s = unsafePartial $ fromJust $ decodeCbor $ wrap $
       hexToByteArrayUnsafe s
 
   test "getDatumByHash - not found" do
@@ -185,7 +186,7 @@ fixture1 = TxWithMetadata
         , 77 /\
             "4e5205e5df368030e9f814c2258c01f50c62375c55b07fbcc076c181::02"
         ] <#> \(label /\ text) ->
-          TransactionMetadatumLabel (BigInt.fromInt label) /\ Text text
+          BigNum.fromInt label /\ Text text
   }
 
 fixture2 :: Fixture
@@ -201,8 +202,7 @@ fixture2 = TxWithMetadata
             , "Timestamp" /\ "1672173001"
             ]
         ] <#> \(label /\ metamap) ->
-          TransactionMetadatumLabel
-            (BigInt.fromInt label) /\ MetadataMap
+          BigNum.fromInt label /\ Map
             (Map.fromFoldable $ metamap <#> \(k /\ v) -> Text k /\ Text v)
   }
 

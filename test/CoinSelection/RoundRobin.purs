@@ -2,7 +2,7 @@ module Test.Ctl.CoinSelection.RoundRobin where
 
 import Prelude
 
-import Cardano.Types.AssetName (TokenName)
+import Cardano.Types.AssetName (AssetName)
 import Ctl.Internal.BalanceTx.CoinSelection (runRoundRobinM)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Foldable (all, foldl, sum)
@@ -95,7 +95,7 @@ prop_runRoundRobin_generationCount initialState =
   where
   finalState = runMockRoundRobin initialState
 
-  generationCounts :: Map TokenName Int
+  generationCounts :: Map AssetName Int
   generationCounts = (unwrap finalState).accumulatedEntries
     # groupByKey
     # map length
@@ -106,7 +106,7 @@ prop_runRoundRobin_generationOrder initialState =
   where
   finalState = runMockRoundRobin initialState
 
-  generations :: Map Int (Set.Set TokenName)
+  generations :: Map Int (Set.Set AssetName)
   generations = (unwrap finalState).accumulatedEntries
     # map swap
     # groupByKey
@@ -152,9 +152,9 @@ derive instance Generic (MockRoundRobinState k n) _
 instance (Show k, Show n) => Show (MockRoundRobinState k n) where
   show = genericShow
 
-type SimpleMockRoundRobinState = MockRoundRobinState TokenName Int
+type SimpleMockRoundRobinState = MockRoundRobinState AssetName Int
 
-derive instance Eq (MockRoundRobinState TokenName Int)
+derive instance Eq (MockRoundRobinState AssetName Int)
 
 instance Arbitrary SimpleMockRoundRobinState where
   arbitrary = do
@@ -163,12 +163,12 @@ instance Arbitrary SimpleMockRoundRobinState where
     pure $ MockRoundRobinState
       { processorLifetimes: lifetimes, accumulatedEntries: fromFoldable [] }
     where
-    genProcessorLifetimes :: Int -> Gen (Map.Map TokenName Int)
+    genProcessorLifetimes :: Int -> Gen (Map.Map AssetName Int)
     genProcessorLifetimes processorCount =
       Map.fromFoldable <$>
         (replicateA processorCount genProcessorLifetime :: Gen (Array _))
 
-    genProcessorLifetime :: Gen (TokenName /\ Int)
+    genProcessorLifetime :: Gen (AssetName /\ Int)
     genProcessorLifetime = (/\)
       <$> arbitrary
       <*> chooseInt 0 127 -- Using `Arbitrary` leads to stack overflows in tests

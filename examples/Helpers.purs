@@ -16,20 +16,17 @@ import Cardano.Types
   , ScriptHash
   , ScriptRef
   , StakePubKeyHash
+  , Transaction
   , Value
   )
 import Cardano.Types.AssetName as AssetName
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.Transaction
-  ( BalancedSignedTransaction
-  , awaitTxConfirmed
-  , submit
-  )
+import Contract.Scripts (MintingPolicy)
+import Contract.Transaction (awaitTxConfirmed, submit)
 import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
-import Contract.Types.MintingPolicy (MintingPolicy)
 import Contract.Types.MintingPolicy as MintingPolicy
 
 mkCurrencySymbol
@@ -82,7 +79,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
   Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef
 
 submitAndLog
-  :: BalancedSignedTransaction -> Contract Unit
+  :: Transaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId

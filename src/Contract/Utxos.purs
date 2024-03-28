@@ -4,11 +4,13 @@
 module Contract.Utxos
   ( getUtxo
   , utxosAt
+  , module X
   ) where
 
 import Prelude
 
 import Cardano.Types (Address, TransactionOutput, UtxoMap)
+import Cardano.Types (UtxoMap) as X
 import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Log (logWarn')
 import Contract.Monad (Contract, liftedE)

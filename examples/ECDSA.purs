@@ -2,13 +2,16 @@ module Ctl.Examples.ECDSA (contract) where
 
 import Contract.Prelude
 
-import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Contract.Address (getNetworkId, mkAddress)
 import Contract.Crypto.Secp256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature
   , MessageHash
   , deriveEcdsaSecp256k1PublicKey
   , signEcdsaSecp256k1
+  , unECDSAPublicKey
+  , unMessageHash
   )
 import Contract.Crypto.Secp256k1.Utils
   ( hashMessageSha256
@@ -20,14 +23,14 @@ import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( class ToData
   , PlutusData(Constr)
-  , Redeemer(Redeemer)
+  , RedeemerDatum(RedeemerDatum)
   , toData
   , unitDatum
   )
 import Contract.Prim.ByteArray (byteArrayFromIntArrayUnsafe)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
@@ -38,6 +41,7 @@ import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Data.Map as Map
 import Data.Set as Set
+import Noble.Secp256k1.ECDSA (unECDSASignature)
 
 newtype ECDSARedemeer = ECDSARedemeer
   { msg :: MessageHash
@@ -50,7 +54,10 @@ derive instance Newtype ECDSARedemeer _
 
 instance ToData ECDSARedemeer where
   toData (ECDSARedemeer { msg, sig, pk }) = Constr BigNum.zero
-    [ toData msg, toData sig, toData pk ]
+    [ toData $ unMessageHash msg
+    , toData $ unECDSASignature sig
+    , toData $ unECDSAPublicKey pk
+    ]
 
 contract :: Contract Unit
 contract = do
@@ -63,7 +70,7 @@ prepTest = do
   let
     valHash = validatorHash validator
 
-    val = Value.lovelaceValueOf one
+    val = Value.lovelaceValueOf BigNum.one
 
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
@@ -83,14 +90,12 @@ prepTest = do
 testVerification
   :: TransactionHash -> ECDSARedemeer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
-  let red = Redeemer $ toData ecdsaRed
+  let red = RedeemerDatum $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
   let valHash = validatorHash validator
 
-  netId <- getNetworkId
-  valAddr <- liftContractM "cannot get validator address"
-    (validatorHashEnterpriseAddress netId valHash)
+  valAddr <- mkAddress (wrap $ ScriptHashCredential valHash) Nothing
 
   scriptUtxos <- utxosAt valAddr
   txIn <- liftContractM "No UTxOs found at validator address"
@@ -130,7 +135,7 @@ testECDSA txId = do
 
 getValidator :: Maybe Validator
 getValidator =
-  decodeTextEnvelope validateECDSA >>= plutusScriptV2FromEnvelope >>> map wrap
+  decodeTextEnvelope validateECDSA >>= plutusScriptFromEnvelope
 
 validateECDSA :: String
 validateECDSA =

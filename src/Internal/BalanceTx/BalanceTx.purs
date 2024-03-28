@@ -74,7 +74,6 @@ import Ctl.Internal.BalanceTx.RedeemerIndex
 import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncBackendWithWallet)
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
-  , FinalizedTransaction
   , askCoinsPerUtxoUnit
   , askNetworkId
   , asksConstraints
@@ -164,7 +163,7 @@ balanceTxWithConstraints
   :: UnindexedTx
   -> Map TransactionInput TransactionOutput
   -> BalanceTxConstraintsBuilder
-  -> Contract (Either BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError Transaction)
 balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
   pparams <- getProtocolParameters
 
@@ -323,7 +322,7 @@ data BalancerStep
   = PrebalanceTx (BalancerState UnindexedTx)
   | BalanceChangeAndMinFee (BalancerState UnindexedTx)
 
-runBalancer :: BalancerParams -> BalanceTxM FinalizedTransaction
+runBalancer :: BalancerParams -> BalanceTxM Transaction
 runBalancer p = do
   utxos <- partitionAndFilterUtxos
   transaction <- addLovelacesToTransactionOutputs p.transaction
@@ -389,10 +388,10 @@ runBalancer p = do
             }
             (Map.toUnfoldable p.utxos :: Array _)
 
-  mainLoop :: BalancerState UnindexedTx -> BalanceTxM FinalizedTransaction
+  mainLoop :: BalancerState UnindexedTx -> BalanceTxM Transaction
   mainLoop = worker <<< PrebalanceTx
     where
-    worker :: BalancerStep -> BalanceTxM FinalizedTransaction
+    worker :: BalancerStep -> BalanceTxM Transaction
     worker (PrebalanceTx state) = do
       logBalancerState "Pre-balancing (Stage 1)" p.allUtxos state
       prebalanceTx state >>= runNextBalancerStep
@@ -433,7 +432,7 @@ runBalancer p = do
     -- | after generation of change, the first balancing step `PrebalanceTx`
     -- | is performed, otherwise we proceed to `BalanceChangeAndMinFee`.
     runNextBalancerStep
-      :: BalancerState UnindexedTx -> BalanceTxM FinalizedTransaction
+      :: BalancerState UnindexedTx -> BalanceTxM Transaction
     runNextBalancerStep state@{ transaction } = do
       let txBody = transaction ^. _transaction <<< _body
       inputValue <- except $ getInputVal p.allUtxos txBody

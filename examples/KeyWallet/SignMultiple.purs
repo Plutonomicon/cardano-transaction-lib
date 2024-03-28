@@ -2,12 +2,12 @@ module Ctl.Examples.KeyWallet.SignMultiple where
 
 import Contract.Prelude
 
+import Cardano.Types (Transaction(..))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, throwContractError)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , TransactionHash
+  ( TransactionHash
   , awaitTxConfirmed
   , signTransaction
   , submit
@@ -65,7 +65,7 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   liftEffect unlock
   where
   submitAndLog
-    :: BalancedSignedTransaction
+    :: Transaction
     -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx

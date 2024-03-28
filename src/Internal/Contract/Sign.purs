@@ -20,6 +20,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (try)
 
+-- | Signs a transaction with potential failure.
 signTransaction
   :: Transaction -> Contract Transaction
 signTransaction tx = do

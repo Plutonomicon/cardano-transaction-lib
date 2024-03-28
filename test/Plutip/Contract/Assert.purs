@@ -3,7 +3,9 @@ module Test.Ctl.Plutip.Contract.Assert (suite) where
 
 import Prelude
 
+import Cardano.Types (ExUnits(..))
 import Contract.Monad (liftedM)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(Integer))
 import Contract.Test (ContractTest)
 import Contract.Test.Assert
@@ -20,7 +22,7 @@ import Contract.Wallet
   )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName)
+import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
 import Data.Array (head)
 import Data.Either (isLeft, isRight)
@@ -30,7 +32,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import JS.BigInt as BigInt
 import Mote (group, test)
-import Test.Ctl.Fixtures (cip25MetadataFixture1)
+import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
@@ -39,7 +41,7 @@ suite = do
     let
       initialUtxos :: InitialUTxOs
       initialUtxos =
-        [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+        [ BigNum.fromInt 2_000_000_000, BigNum.fromInt 2_000_000_000 ]
 
       distribution :: InitialUTxOs /\ InitialUTxOs
       distribution = initialUtxos /\ initialUtxos
@@ -53,18 +55,17 @@ suite = do
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
-        tn <- mkTokenName "TheToken"
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <- ContractTestUtils.mkChecks params
@@ -82,22 +83,24 @@ suite = do
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
-        tn <- mkTokenName "TheToken"
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <- ContractTestUtils.mkChecks params
-            { tokensToMint = cs /\ tn /\ (one + one) /\ unit }
+            { tokensToMint = cs /\ tn
+                /\ (unsafePartial $ BigNum.one <> BigNum.one)
+                /\ unit
+            }
           eiResult /\ failures <- collectAssertionFailures checks $ lift do
             ContractTestUtils.mkContract params
           eiResult `shouldSatisfy` isRight
@@ -113,24 +116,24 @@ suite = do
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
-        tn <- mkTokenName "TheToken"
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <- ContractTestUtils.mkChecks params <#>
             ( _ <>
                 [ checkExUnitsNotExceed
-                    { mem: BigInt.fromInt 800, steps: BigInt.fromInt 16110 }
+                    $ ExUnits
+                        { mem: BigNum.fromInt 800, steps: BigNum.fromInt 16110 }
                 ]
             )
           eiResult /\ failures <- collectAssertionFailures checks $ lift do
@@ -148,26 +151,28 @@ suite = do
 
         mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
 
-        tn <- mkTokenName "TheToken"
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <-
             ContractTestUtils.mkChecks params
-              { tokensToMint = cs /\ tn /\ (one + one) /\ unit } <#>
+              { tokensToMint = cs /\ tn
+                  /\ (unsafePartial $ BigNum.one <> BigNum.one)
+                  /\ unit
+              } <#>
               ( _ <>
-                  [ checkExUnitsNotExceed
-                      { mem: BigInt.fromInt 800, steps: BigInt.fromInt 16110 }
+                  [ checkExUnitsNotExceed $ ExUnits
+                      { mem: BigNum.fromInt 800, steps: BigNum.fromInt 16110 }
                   ]
               )
 

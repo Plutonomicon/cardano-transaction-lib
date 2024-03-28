@@ -112,8 +112,8 @@ import Cardano.Types
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Ctl.Internal.Types.Interval (POSIXTimeRange)
-import Ctl.Internal.Types.Redeemer (Redeemer, unitRedeemer)
 import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
+import Ctl.Internal.Types.RedeemerDatum as RedeemerDatum
 import Data.Array as Array
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep (class Generic)
@@ -145,7 +145,7 @@ data TxConstraint
   | MustSpendScriptOutput TransactionInput RedeemerDatum
       (Maybe InputWithScriptRef)
   | MustReferenceOutput TransactionInput
-  | MustMintValue ScriptHash Redeemer AssetName Int.Int
+  | MustMintValue ScriptHash RedeemerDatum AssetName Int.Int
       (Maybe InputWithScriptRef)
   | MustMintValueUsingNativeScript NativeScript AssetName Int.Int
   | MustPayToPubKeyAddress PaymentPubKeyHash (Maybe StakePubKeyHash)
@@ -160,16 +160,16 @@ data TxConstraint
   | MustRegisterStakePubKey StakePubKeyHash
   | MustDeregisterStakePubKey StakePubKeyHash
   | MustRegisterStakeScript ScriptHash
-  | MustDeregisterStakePlutusScript PlutusScript Redeemer
+  | MustDeregisterStakePlutusScript PlutusScript RedeemerDatum
   | MustDeregisterStakeNativeScript NativeScript
   | MustRegisterPool PoolParams
   | MustRetirePool PoolPubKeyHash Epoch
   | MustDelegateStakePubKey StakePubKeyHash PoolPubKeyHash
-  | MustDelegateStakePlutusScript PlutusScript Redeemer
+  | MustDelegateStakePlutusScript PlutusScript RedeemerDatum
       PoolPubKeyHash
   | MustDelegateStakeNativeScript NativeScript PoolPubKeyHash
   | MustWithdrawStakePubKey StakePubKeyHash
-  | MustWithdrawStakePlutusScript PlutusScript Redeemer
+  | MustWithdrawStakePlutusScript PlutusScript RedeemerDatum
   | MustWithdrawStakeNativeScript NativeScript
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
@@ -453,13 +453,13 @@ mustPayToNativeScriptAddress nsHash credential vl =
 -- | Mint the given `Value`
 -- | The amount to mint must not be zero.
 mustMintValue :: Mint -> TxConstraints
-mustMintValue = mustMintValueWithRedeemer unitRedeemer
+mustMintValue = mustMintValueWithRedeemer RedeemerDatum.unit
 
 -- | Mint the given `Value` by accessing non-Ada assets.
 -- | The amount to mint must not be zero.
 mustMintValueWithRedeemer
   :: forall (i :: Type) (o :: Type)
-   . Redeemer
+   . RedeemerDatum
   -> Mint
   -> TxConstraints
 mustMintValueWithRedeemer redeemer =
@@ -478,7 +478,7 @@ mustMintCurrency
   -> Int.Int
   -> TxConstraints
 mustMintCurrency mph =
-  mustMintCurrencyWithRedeemer mph unitRedeemer
+  mustMintCurrencyWithRedeemer mph RedeemerDatum.unit
 
 mustMintCurrencyUsingNativeScript
   :: forall (i :: Type) (o :: Type)
@@ -498,13 +498,13 @@ mustMintCurrencyUsingScriptRef
   -> InputWithScriptRef
   -> TxConstraints
 mustMintCurrencyUsingScriptRef mph =
-  mustMintCurrencyWithRedeemerUsingScriptRef mph unitRedeemer
+  mustMintCurrencyWithRedeemerUsingScriptRef mph RedeemerDatum.unit
 
 -- | Create the given amount of the currency.
 -- | The amount to mint must not be zero.
 mustMintCurrencyWithRedeemer
   :: ScriptHash
-  -> Redeemer
+  -> RedeemerDatum
   -> AssetName
   -> Int.Int
   -> TxConstraints
@@ -515,7 +515,7 @@ mustMintCurrencyWithRedeemer mph red tn amount =
 -- | The amount to mint must not be zero.
 mustMintCurrencyWithRedeemerUsingScriptRef
   :: ScriptHash
-  -> Redeemer
+  -> RedeemerDatum
   -> AssetName
   -> Int.Int
   -> InputWithScriptRef
@@ -580,7 +580,7 @@ mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
 mustDeregisterStakePlutusScript
   :: forall (i :: Type) (o :: Type)
    . PlutusScript
-  -> Redeemer
+  -> RedeemerDatum
   -> TxConstraints
 mustDeregisterStakePlutusScript sv = singleton <<<
   MustDeregisterStakePlutusScript sv
@@ -613,7 +613,7 @@ mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
 mustDelegateStakePlutusScript
   :: forall (i :: Type) (o :: Type)
    . PlutusScript
-  -> Redeemer
+  -> RedeemerDatum
   -> PoolPubKeyHash
   -> TxConstraints
 mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
@@ -634,7 +634,7 @@ mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
 mustWithdrawStakePlutusScript
   :: forall (i :: Type) (o :: Type)
    . PlutusScript
-  -> Redeemer
+  -> RedeemerDatum
   -> TxConstraints
 mustWithdrawStakePlutusScript validator redeemer =
   singleton $ MustWithdrawStakePlutusScript validator redeemer

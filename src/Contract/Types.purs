@@ -4,4 +4,4 @@ import Contract.Types.MintingPolicy
   ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   , hash
   , toScriptRef
-  )  as X
+  ) as X

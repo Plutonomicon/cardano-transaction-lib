@@ -7,6 +7,7 @@ module Test.Ctl.CoinSelection.SelectionState
 
 import Prelude
 
+import Cardano.Types.Asset (Asset)
 import Ctl.Internal.BalanceTx.CoinSelection (SelectionState)
 import Ctl.Internal.BalanceTx.CoinSelection as CoinSelection
 import Ctl.Internal.CoinSelection.UtxoIndex as UtxoIndex
@@ -54,7 +55,7 @@ prop_select_isValid u s =
   isValidSelection $ CoinSelection.selectUtxo (unwrap u) (unwrap s)
 
 prop_selectRandomWithPriority
-  :: ArbitraryUtxoIndex -> UtxoIndex.Asset -> UtxoIndex.Asset -> Boolean
+  :: ArbitraryUtxoIndex -> Asset -> Asset -> Boolean
 prop_selectRandomWithPriority index a1 a2 =
   if a1 == a2 then true
   else

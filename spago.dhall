@@ -99,6 +99,7 @@ You can edit this file as you like.
   , "typelevel-prelude"
   , "uint"
   , "unfoldable"
+  , "unsafe-coerce"
   , "untagged-union"
   , "variant"
   , "web-html"

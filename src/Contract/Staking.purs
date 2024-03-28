@@ -7,16 +7,15 @@ module Contract.Staking
 
 import Prelude
 
-import Cardano.Types (PoolPubKeyHash, StakePubKeyHash)
+import Cardano.Types (Ed25519KeyHash, PoolPubKeyHash, ScriptHash)
 import Contract.Monad (Contract)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
-import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Data.Either (either)
 import Data.Maybe (Maybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (wrap)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -29,22 +28,23 @@ getPoolIds = do
       >>= either (liftEffect <<< throw <<< show) pure
 
 getPubKeyHashDelegationsAndRewards
-  :: StakePubKeyHash
+  :: Ed25519KeyHash
   -> Contract (Maybe DelegationsAndRewards)
 getPubKeyHashDelegationsAndRewards stakePubKeyHash = do
   queryHandle <- getQueryHandle
   networkId <- asks _.networkId
   liftAff do
-    queryHandle.getPubKeyHashDelegationsAndRewards networkId stakePubKeyHash
+    queryHandle.getPubKeyHashDelegationsAndRewards networkId
+      (wrap stakePubKeyHash)
       >>= either (liftEffect <<< throw <<< show) pure
 
 getValidatorHashDelegationsAndRewards
-  :: StakeValidatorHash
+  :: ScriptHash
   -> Contract (Maybe DelegationsAndRewards)
 getValidatorHashDelegationsAndRewards stakeValidatorHash = do
   queryHandle <- getQueryHandle
   networkId <- asks _.networkId
   liftAff do
     queryHandle.getValidatorHashDelegationsAndRewards networkId
-      (unwrap stakeValidatorHash)
+      stakeValidatorHash
       >>= either (liftEffect <<< throw <<< show) pure

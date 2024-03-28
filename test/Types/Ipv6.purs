@@ -27,4 +27,5 @@ suite = do
 testIpv6 :: String -> String -> TestPlanM (Aff Unit) Unit
 testIpv6 str expected =
   test str do
-    parseIpv6String str `shouldEqual` (decodeCbor (wrap $ hexToByteArrayUnsafe expected))
+    parseIpv6String str `shouldEqual`
+      (decodeCbor (wrap $ hexToByteArrayUnsafe expected))

@@ -27,7 +27,6 @@ module Ctl.Internal.Helpers
   , logWithLevel
   , maybeArrayMerge
   , mkErrorRecord
-  , notImplemented
   , showWithParens
   , uIntToBigInt
   , pprintTagSet
@@ -230,9 +229,6 @@ uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
 -- | Converts a `BigInt` to `UInt` with potential failure.
 bigIntToUInt :: BigInt -> Maybe UInt
 bigIntToUInt = UInt.fromString <<< BigInt.toString
-
-notImplemented :: forall a. Warn (Text "Function not implemented!") => a
-notImplemented = undefined
 
 -- | Log a message by printing it to the console, depending on the provided
 -- | `LogLevel`

@@ -1,8 +1,7 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
-  ( BalancedSignedTransaction(BalancedSignedTransaction)
-  , balanceTx
+  ( balanceTx
   , balanceTxE
   , balanceTxWithConstraints
   , balanceTxWithConstraintsE
@@ -11,9 +10,7 @@ module Contract.Transaction
   , createAdditionalUtxos
   , getTxMetadata
   , module BalanceTxError
-  , module FinalizedTransaction
   , module X
-  , signTransaction
   , submit
   , submitE
   , submitTxFromConstraints
@@ -23,16 +20,18 @@ module Contract.Transaction
   , withBalancedTxs
   , withBalancedTxsWithConstraints
   , lookupTxHash
-  , getTxFinalFee
   , scriptRefFromMintingPolicy
+  , mkPoolPubKeyHash
+  , hashTransaction
   ) where
 
 import Prelude
 
-import Aeson (class EncodeAeson)
 import Cardano.Types
-  ( Coin
+  ( Bech32String
+  , Coin
   , GeneralTransactionMetadata
+  , PoolPubKeyHash(..)
   , Transaction(Transaction)
   , TransactionHash
   , TransactionInput(TransactionInput)
@@ -41,15 +40,31 @@ import Cardano.Types
   , UtxoMap
   )
 import Cardano.Types
-  ( TransactionHash(TransactionHash)
+  ( DataHash(DataHash)
+  , Epoch(Epoch)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   ) as X
+import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatum, OutputDatumHash)) as X
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash(PoolPubKeyHash)) as X
 import Cardano.Types.ScriptRef (ScriptRef)
-import Cardano.Types.Transaction as Hashing
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef)) as X
+import Cardano.Types.Transaction (Transaction(Transaction), empty) as X
+import Cardano.Types.Transaction as Transaction
 import Contract.Monad (Contract, runContractInEnv)
+import Contract.Types (MintingPolicy)
+import Contract.Types as MintingPolicy
 import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
@@ -75,10 +90,6 @@ import Ctl.Internal.BalanceTx.Error
   , Expected(Expected)
   , explainBalanceTxError
   ) as BalanceTxError
-import Ctl.Internal.BalanceTx.Types (FinalizedTransaction)
-import Ctl.Internal.BalanceTx.Types
-  ( FinalizedTransaction(FinalizedTransaction)
-  ) as FinalizedTransaction
 import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
@@ -96,7 +107,8 @@ import Ctl.Internal.Contract.QueryHandle.Error
       , GetTxMetadataClientError
       )
   ) as X
-import Ctl.Internal.Contract.Sign (signTransaction) as Contract
+import Ctl.Internal.Contract.Sign (signTransaction)
+import Ctl.Internal.Contract.Sign (signTransaction) as X
 import Ctl.Internal.Lens
   ( _amount
   , _auxiliaryData
@@ -129,8 +141,6 @@ import Ctl.Internal.Lens
 import Ctl.Internal.Lens (_body, _fee, _outputs)
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Service.Error (ClientError)
-import Contract.Types (MintingPolicy)
-import Contract.Types as MintingPolicy
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
@@ -143,12 +153,12 @@ import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right))
 import Data.Foldable (foldl, length)
-import Data.Generic.Rep (class Generic)
 import Data.Lens.Getter (view)
 import Data.Map (Map)
 import Data.Map (empty, insert, toUnfoldable) as Map
-import Data.Newtype (class Newtype, unwrap)
-import Data.Show.Generic (genericShow)
+import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (unwrap)
+import Data.String.Utils (startsWith)
 import Data.Traversable (class Traversable, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -158,40 +168,36 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (try)
 import Prim.Coerce (class Coercible)
+import Prim.TypeError (class Warn, Text)
 import Safe.Coerce (coerce)
 
--- | Signs a transaction with potential failure.
-signTransaction
-  :: forall (tx :: Type)
-   . Coercible tx Transaction
-  => tx
-  -> Contract BalancedSignedTransaction
-signTransaction =
-  map BalancedSignedTransaction
-    <<< Contract.signTransaction
-    <<< coerce
+hashTransaction
+  :: Warn (Text "Deprecated: Validator. Use Cardano.Types.PlutusData.hash")
+  => Transaction
+  -> TransactionHash
+hashTransaction = Transaction.hash
 
--- | Submits a `BalancedSignedTransaction`, which is the output of
+-- | Submits a `Transaction`, which is the output of
 -- | `signTransaction`.
 submit
-  :: BalancedSignedTransaction
+  :: Transaction
   -> Contract TransactionHash
 submit tx = do
   eiTxHash <- submitE tx
   liftEither $ flip lmap eiTxHash \err -> error $
     "Failed to submit tx:\n" <> show err
 
--- | Submits a `BalancedSignedTransaction`, which is the output of
+-- | Submits a `Transaction` that normally should be retreived from
 -- | `signTransaction`. Preserves the errors returned by the backend in
 -- | the case they need to be inspected.
 submitE
-  :: BalancedSignedTransaction
+  :: Transaction
   -> Contract (Either ClientError TransactionHash)
 submitE tx = do
   queryHandle <- getQueryHandle
-  eiTxHash <- liftAff $ queryHandle.submitTx $ unwrap tx
+  eiTxHash <- liftAff $ queryHandle.submitTx tx
   void $ asks (_.hooks >>> _.onSubmit) >>=
-    traverse \hook -> liftEffect $ void $ try $ hook $ unwrap tx
+    traverse \hook -> liftEffect $ void $ try $ hook tx
   pure eiTxHash
 
 -- | Helper to adapt to UsedTxOuts.
@@ -247,19 +253,19 @@ withSingleTransaction prepare extract utx action =
 withBalancedTxsWithConstraints
   :: forall (a :: Type)
    . Array (UnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> (Array FinalizedTransaction -> Contract a)
+  -> (Array Transaction -> Contract a)
   -> Contract a
 withBalancedTxsWithConstraints =
-  withTransactions balanceTxsWithConstraints unwrap
+  withTransactions balanceTxsWithConstraints identity
 
 -- | Same as `withBalancedTxsWithConstraints`, but uses the default balancer
 -- | constraints.
 withBalancedTxs
   :: forall (a :: Type)
    . Array UnbalancedTx
-  -> (Array FinalizedTransaction -> Contract a)
+  -> (Array Transaction -> Contract a)
   -> Contract a
-withBalancedTxs = withTransactions balanceTxs unwrap
+withBalancedTxs = withTransactions balanceTxs identity
 
 -- | Execute an action on a balanced transaction (`balanceTx` will
 -- | be called). Within this function, all transaction inputs
@@ -271,10 +277,10 @@ withBalancedTxWithConstraints
   :: forall (a :: Type)
    . UnbalancedTx
   -> BalanceTxConstraintsBuilder
-  -> (FinalizedTransaction -> Contract a)
+  -> (Transaction -> Contract a)
   -> Contract a
 withBalancedTxWithConstraints unbalancedTx =
-  withSingleTransaction balanceAndLockWithConstraints unwrap
+  withSingleTransaction balanceAndLockWithConstraints identity
     <<< Tuple unbalancedTx
 
 -- | Same as `withBalancedTxWithConstraints`, but uses the default balancer
@@ -282,9 +288,9 @@ withBalancedTxWithConstraints unbalancedTx =
 withBalancedTx
   :: forall (a :: Type)
    . UnbalancedTx
-  -> (FinalizedTransaction -> Contract a)
+  -> (Transaction -> Contract a)
   -> Contract a
-withBalancedTx = withSingleTransaction balanceAndLock unwrap
+withBalancedTx = withSingleTransaction balanceAndLock identity
 
 unUnbalancedTx
   :: UnbalancedTx -> UnindexedTx /\ Map TransactionInput TransactionOutput
@@ -305,7 +311,7 @@ unUnbalancedTx
 balanceTxWithConstraintsE
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
-  -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError.BalanceTxError Transaction)
 balanceTxWithConstraintsE tx =
   let
     tx' /\ ix = unUnbalancedTx tx
@@ -319,7 +325,7 @@ balanceTxWithConstraintsE tx =
 balanceTxWithConstraints
   :: UnbalancedTx
   -> BalanceTxConstraintsBuilder
-  -> Contract FinalizedTransaction
+  -> Contract Transaction
 balanceTxWithConstraints tx bcb = do
   result <- balanceTxWithConstraintsE tx bcb
   case result of
@@ -331,13 +337,13 @@ balanceTxWithConstraints tx bcb = do
 -- | `balanceTx` is a throwing variant.
 balanceTxE
   :: UnbalancedTx
-  -> Contract (Either BalanceTxError.BalanceTxError FinalizedTransaction)
+  -> Contract (Either BalanceTxError.BalanceTxError Transaction)
 balanceTxE = flip balanceTxWithConstraintsE mempty
 
 -- | Balance a transaction without providing balancer constraints.
 -- |
 -- | `balanceTxE` is a non-throwing version of this function.
-balanceTx :: UnbalancedTx -> Contract FinalizedTransaction
+balanceTx :: UnbalancedTx -> Contract Transaction
 balanceTx utx = do
   result <- balanceTxE utx
   case result of
@@ -351,7 +357,7 @@ balanceTxsWithConstraints
   :: forall (t :: Type -> Type)
    . Traversable t
   => t (UnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> Contract (t FinalizedTransaction)
+  -> Contract (t Transaction)
 balanceTxsWithConstraints unbalancedTxs =
   unlockAllOnError $ traverse balanceAndLockWithConstraints unbalancedTxs
   where
@@ -370,32 +376,21 @@ balanceTxs
   :: forall (t :: Type -> Type)
    . Traversable t
   => t UnbalancedTx
-  -> Contract (t FinalizedTransaction)
+  -> Contract (t Transaction)
 balanceTxs = balanceTxsWithConstraints <<< map (flip Tuple mempty)
 
 balanceAndLockWithConstraints
   :: UnbalancedTx /\ BalanceTxConstraintsBuilder
-  -> Contract FinalizedTransaction
+  -> Contract Transaction
 balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
   balancedTx <- balanceTxWithConstraints unbalancedTx constraints
-  void $ withUsedTxOuts $
-    lockTransactionInputs (unwrap balancedTx)
+  void $ withUsedTxOuts $ lockTransactionInputs balancedTx
   pure balancedTx
 
 balanceAndLock
   :: UnbalancedTx
-  -> Contract FinalizedTransaction
+  -> Contract Transaction
 balanceAndLock = balanceAndLockWithConstraints <<< flip Tuple mempty
-
-newtype BalancedSignedTransaction = BalancedSignedTransaction Transaction
-
-derive instance Generic BalancedSignedTransaction _
-derive instance Newtype BalancedSignedTransaction _
-derive newtype instance Eq BalancedSignedTransaction
-derive newtype instance EncodeAeson BalancedSignedTransaction
-
-instance Show BalancedSignedTransaction where
-  show = genericShow
 
 -- | Fetch transaction metadata.
 -- | Returns `Right` when the transaction exists and metadata was non-empty
@@ -417,7 +412,7 @@ createAdditionalUtxos
   => tx
   -> Contract UtxoMap
 createAdditionalUtxos tx = do
-  let transactionId = Hashing.hashTransaction $ coerce tx
+  let transactionId = Transaction.hash $ coerce tx
   let
     txOutputs :: Array TransactionOutput
     txOutputs = view (_body <<< _outputs) $ coerce tx
@@ -437,7 +432,7 @@ submitTxFromConstraintsReturningFee lookups constraints = do
   balancedTx <- balanceTx unbalancedTx
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
-  pure { txHash, txFinalFee: getTxFinalFee balancedSignedTx }
+  pure { txHash, txFinalFee: view (_body <<< _fee) balancedSignedTx }
 
 submitTxFromConstraints
   :: ScriptLookups
@@ -453,9 +448,11 @@ lookupTxHash txHash utxos =
     $ Array.filter (fst >>> unwrap >>> _.transactionId >>> eq txHash)
     $ Map.toUnfoldable utxos
 
-getTxFinalFee :: BalancedSignedTransaction -> Coin
-getTxFinalFee =
-  view (_body <<< _fee) <<< unwrap
-
 scriptRefFromMintingPolicy :: MintingPolicy -> ScriptRef
 scriptRefFromMintingPolicy = MintingPolicy.toScriptRef
+
+mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
+mkPoolPubKeyHash str
+  | startsWith "pool" str = PoolPubKeyHash <$>
+      Ed25519KeyHash.fromBech32 str
+  | otherwise = Nothing
