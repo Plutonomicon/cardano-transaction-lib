@@ -75,7 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
 
 ### Fixed
-
+- Plutip cluster's Kupo instances don't share the same working folder anymore - ([#1570](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1570))
 - WebAssembly memory leaks (`csl-gc-wrapper` used to depend on unstable `wasm-bidngen` API [that got changed](https://github.com/mlabs-haskell/csl-gc-wrapper/commit/2dea38228b77f7c904aafef12eece7e5af195977)) ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1595))
 
 ### Removed
