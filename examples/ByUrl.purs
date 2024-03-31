@@ -163,6 +163,7 @@ wallets = Map.fromFoldable
   , "lode" /\ testnetLodeConfig /\ Nothing
   , "nufi" /\ testnetNuFiConfig /\ Nothing
   , "lace" /\ testnetLaceConfig /\ Nothing
+  , "nami-mainnet" /\ mainnetNamiConfig /\ Nothing
   , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
