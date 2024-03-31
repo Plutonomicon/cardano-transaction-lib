@@ -230,4 +230,4 @@ examples = addSuccessLog <$> Map.fromFoldable
   ]
 
 addSuccessLog :: Contract Unit -> Contract Unit
-addSuccessLog contract = contract *> logInfo' "Success!"
+addSuccessLog contract = contract *> logInfo' "[CTL TEST SUCCESS]"
