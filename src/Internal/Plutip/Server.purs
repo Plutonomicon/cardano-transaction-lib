@@ -326,6 +326,14 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   tryWithReport (startKupo' clusterParams) "Could not start Kupo"
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey clusterParams
+  void $ try $ liftEffect do
+    for_ env.hooks.onClusterStartup \clusterParamsCb -> do
+      clusterParamsCb
+        { privateKeys: clusterParams.privateKeys <#> unwrap
+        , nodeSocketPath: clusterParams.nodeSocketPath
+        , nodeConfigPath: clusterParams.nodeConfigPath
+        , privateKeysDirectory: clusterParams.keysDirectory
+        }
   pure
     { clusterParams
     , env
