@@ -78,7 +78,65 @@ import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Cardano.AsCbor (decodeCbor, encodeCbor)
-import Cardano.Types (AuxiliaryData(AuxiliaryData), Certificate(MoveInstantaneousRewardsCert, GenesisKeyDelegation, PoolRetirement, PoolRegistration, StakeDelegation, StakeDeregistration, StakeRegistration), Coin(Coin), Credential(PubKeyHashCredential), Ed25519KeyHash, Epoch(Epoch), ExUnitPrices(ExUnitPrices), ExUnits(ExUnits), GeneralTransactionMetadata(GeneralTransactionMetadata), MIRPot(Treasury, Reserves), MIRToStakeCredentials(MIRToStakeCredentials), MoveInstantaneousReward(ToStakeCreds, ToOtherPot), NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK, TimelockStart, TimelockExpiry), NetworkId(TestnetId, MainnetId), OutputDatum(OutputDatum), PaymentPubKeyHash(PaymentPubKeyHash), PlutusData(Constr, Map, Integer, List, Bytes), PlutusScript, PoolMetadata(PoolMetadata), PoolParams(PoolParams), ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates), ProtocolParamUpdate(ProtocolParamUpdate), ProtocolVersion(ProtocolVersion), Redeemer(Redeemer), RedeemerTag(Spend), Relay(MultiHostName, SingleHostName, SingleHostAddr), RewardAddress, ScriptHash, Slot(Slot), Transaction(Transaction), TransactionBody(TransactionBody), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), TransactionUnspentOutput(TransactionUnspentOutput), TransactionWitnessSet(TransactionWitnessSet), URL(URL), UnitInterval(UnitInterval), Update(Update), UtxoMap, Value(Value), Vkey(Vkey), Vkeywitness(Vkeywitness))
+import Cardano.Types
+  ( AuxiliaryData(AuxiliaryData)
+  , Certificate
+      ( MoveInstantaneousRewardsCert
+      , GenesisKeyDelegation
+      , PoolRetirement
+      , PoolRegistration
+      , StakeDelegation
+      , StakeDeregistration
+      , StakeRegistration
+      )
+  , Coin(Coin)
+  , Credential(PubKeyHashCredential)
+  , Ed25519KeyHash
+  , Epoch(Epoch)
+  , ExUnitPrices(ExUnitPrices)
+  , ExUnits(ExUnits)
+  , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , MIRPot(Treasury, Reserves)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , MoveInstantaneousReward(ToStakeCreds, ToOtherPot)
+  , NativeScript
+      ( ScriptPubkey
+      , ScriptAll
+      , ScriptAny
+      , ScriptNOfK
+      , TimelockStart
+      , TimelockExpiry
+      )
+  , NetworkId(TestnetId, MainnetId)
+  , OutputDatum(OutputDatum)
+  , PaymentPubKeyHash(PaymentPubKeyHash)
+  , PlutusData(Constr, Map, Integer, List, Bytes)
+  , PlutusScript
+  , PoolMetadata(PoolMetadata)
+  , PoolParams(PoolParams)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , ProtocolParamUpdate(ProtocolParamUpdate)
+  , ProtocolVersion(ProtocolVersion)
+  , Redeemer(Redeemer)
+  , RedeemerTag(Spend)
+  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
+  , RewardAddress
+  , ScriptHash
+  , Slot(Slot)
+  , Transaction(Transaction)
+  , TransactionBody(TransactionBody)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , URL(URL)
+  , UnitInterval(UnitInterval)
+  , Update(Update)
+  , UtxoMap
+  , Value(Value)
+  , Vkey(Vkey)
+  , Vkeywitness(Vkeywitness)
+  )
 import Cardano.Types.Address (Address(BaseAddress))
 import Cardano.Types.AssetName (AssetName, mkAssetName)
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
@@ -92,10 +150,17 @@ import Cardano.Types.TransactionMetadatum (TransactionMetadatum(Text))
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
 import Contract.Transaction (PoolPubKeyHash(PoolPubKeyHash))
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef, NativeScriptRef))
+import Ctl.Internal.Cardano.Types.ScriptRef
+  ( ScriptRef(PlutusScriptRef, NativeScriptRef)
+  )
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.Array as Array
-import Data.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe, hexToByteArray, hexToByteArrayUnsafe)
+import Data.ByteArray
+  ( ByteArray
+  , byteArrayFromIntArrayUnsafe
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  )
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -442,15 +507,16 @@ txFixture3 =
     }
 
 mint1 = Mint $ Map.fromFoldable
-            [ currencySymbol1 /\ Map.fromFoldable
-                [ tokenName2 /\ Int.newPositive BigNum.one
-                ]
-            ]
+  [ currencySymbol1 /\ Map.fromFoldable
+      [ tokenName2 /\ Int.newPositive BigNum.one
+      ]
+  ]
+
 mint0 = Mint $ Map.fromFoldable
-            [ currencySymbol1 /\ Map.fromFoldable
-                [ tokenName2 /\ Int.newPositive BigNum.one
-                ]
-            ]
+  [ currencySymbol1 /\ Map.fromFoldable
+      [ tokenName2 /\ Int.newPositive BigNum.zero
+      ]
+  ]
 
 int1 :: Int.Int
 int1 = Int.newPositive BigNum.one
@@ -462,17 +528,17 @@ txFixture4 =
         { inputs: [ txInputFixture1 ]
         , outputs:
             [ -- TransactionOutput
-              --   { address: keyHashBaseAddress
-              --       { stake:
-              --           "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-              --       -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-              --       , payment:
-              --           "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-              --       }
-              --   , amount: Value (Coin $ BigNum.fromInt 2353402) MultiAsset.empty
-              --   , datum: Just $ OutputDatum plutusDataFixture1
-              --   , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
-              --   }
+            --   { address: keyHashBaseAddress
+            --       { stake:
+            --           "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+            --       -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+            --       , payment:
+            --           "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+            --       }
+            --   , amount: Value (Coin $ BigNum.fromInt 2353402) MultiAsset.empty
+            --   , datum: Just $ OutputDatum plutusDataFixture1
+            --   , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
+            --   }
             -- , TransactionOutput
             --     { address: keyHashBaseAddress
             --         { stake:

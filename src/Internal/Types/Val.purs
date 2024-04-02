@@ -3,7 +3,15 @@ module Ctl.Internal.Types.Val where
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
-import Cardano.Types (AssetClass(AssetClass), AssetName, BigInt, Coin, MultiAsset(MultiAsset), ScriptHash, Value(Value))
+import Cardano.Types
+  ( AssetClass(AssetClass)
+  , AssetName
+  , BigInt
+  , Coin
+  , MultiAsset(MultiAsset)
+  , ScriptHash
+  , Value(Value)
+  )
 import Cardano.Types.AssetName (fromAssetName)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
@@ -42,6 +50,7 @@ instance Split Val where
   split (Val c1 mp) = Val np npos /\ Val p pos
     where
     np /\ p = split c1
+
     splitIntl
       :: Map AssetName BigInt
       -> These (Map AssetName BigInt) (Map AssetName BigInt)

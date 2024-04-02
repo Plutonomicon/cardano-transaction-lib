@@ -11,7 +11,10 @@ import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Mote (group, test)
 import Test.Ctl.Fixtures
-  ( nativeScriptFixture1
+  ( int1
+  , mint0
+  , mint1
+  , nativeScriptFixture1
   , nativeScriptFixture2
   , nativeScriptFixture3
   , nativeScriptFixture4
@@ -40,9 +43,6 @@ import Test.Ctl.Fixtures
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
-  , mint0
-  , mint1
-  , int1
   )
 import Test.Spec.Assertions (shouldEqual)
 import Type.Proxy (Proxy(Proxy))
@@ -71,16 +71,16 @@ suite = do
       roundtripTest "txFixture1" txFixture1
       roundtripTest "txFixture2" txFixture2
       roundtripTest "txFixture3" txFixture3
-      -- roundtripTest "txFixture4" txFixture4
+      roundtripTest "txFixture4" txFixture4
       roundtripTest "txFixture5" txFixture5
       roundtripTest "txFixture6" txFixture6
     group "TransactionInput" do
       roundtripTest "txInputFixture1" txInputFixture1
     group "Int" do
       roundtripTest "int0" int1
-    -- group "Mint" do
-    --   roundtripTest "mint1" mint1
-      -- roundtripTest "mint0" mint0
+    group "Mint" do
+      roundtripTest "mint1" mint1
+      roundtripTest "mint0" mint0
     group "TransactionOutput" do
       roundtripTest "txOutputFixture1" txOutputFixture1
     group "TransactionWitnessSet" do
@@ -124,9 +124,3 @@ roundtripTestBytes label _ bytes = do
   test ("Serialization is inverse to deserialization: " <> label) do
     (encodeCbor <$> (decodeCbor (wrap bytes) :: Maybe a)) `shouldEqual` Just
       (wrap bytes)
-
-plutipSuccessResponseFixture :: String
-plutipSuccessResponseFixture =
-  """
-{"contents":{"keysDirectory":"/tmp/nix-shell.xvz2Lq/test-cluster149328/signing-keys","nodeConfigPath":"/tmp/nix-shell.xvz2Lq/test-cluster149328/pool-3/node.config","nodeSocketPath":"/tmp/nix-shell.xvz2Lq/test-cluster149328/pool-3/node.socket","privateKeys":["e61e29b40ba4e5a3100363d86669f3cb604ea3fc971b43510c97daeb9bf2e4e2","9cd3bd5deb0a04ef2e20160b85b889f32dfc66d2f7b7a0fac5aec3b1ad950227"]},"tag":"ClusterStartupSuccess"}
-"""

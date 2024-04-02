@@ -4,10 +4,34 @@ module Ctl.Internal.ProcessConstraints
 
 import Prelude
 
-import Cardano.Types (Certificate(StakeDelegation, PoolRetirement, PoolRegistration, StakeDeregistration, StakeRegistration), DataHash, NetworkId, PlutusData, PlutusScript, ScriptHash, ScriptRef(NativeScriptRef, PlutusScriptRef), StakeCredential(StakeCredential), Transaction, TransactionInput, TransactionOutput(TransactionOutput), TransactionUnspentOutput(TransactionUnspentOutput), TransactionWitnessSet(TransactionWitnessSet), Value(Value))
+import Cardano.Types
+  ( Certificate
+      ( StakeDelegation
+      , PoolRetirement
+      , PoolRegistration
+      , StakeDeregistration
+      , StakeRegistration
+      )
+  , DataHash
+  , NetworkId
+  , PlutusData
+  , PlutusScript
+  , ScriptHash
+  , ScriptRef(NativeScriptRef, PlutusScriptRef)
+  , StakeCredential(StakeCredential)
+  , Transaction
+  , TransactionInput
+  , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  , TransactionWitnessSet(TransactionWitnessSet)
+  , Value(Value)
+  )
 import Cardano.Types.Address (Address(..), getPaymentCredential)
 import Cardano.Types.Coin as Coin
-import Cardano.Types.Credential (Credential(PubKeyHashCredential, ScriptHashCredential), asScriptHash)
+import Cardano.Types.Credential
+  ( Credential(PubKeyHashCredential, ScriptHashCredential)
+  , asScriptHash
+  )
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.DataHash as Datum
 import Cardano.Types.Int as Int
@@ -27,19 +51,126 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.BalanceTx.RedeemerIndex (RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend), UnindexedRedeemer(UnindexedRedeemer), unindexedRedeemerToRedeemer)
+import Ctl.Internal.BalanceTx.RedeemerIndex
+  ( RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
+  , UnindexedRedeemer(UnindexedRedeemer)
+  , unindexedRedeemerToRedeemer
+  )
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
 import Ctl.Internal.Helpers (liftEither, liftM)
-import Ctl.Internal.Lens (_body, _certs, _inputs, _isValid, _mint, _networkId, _outputs, _referenceInputs, _requiredSigners, _scriptDataHash, _withdrawals, _witnessSet)
-import Ctl.Internal.ProcessConstraints.Error (MkUnbalancedTxError(CannotSatisfyAny, CannotWithdrawRewardsNativeScript, CannotWithdrawRewardsPlutusScript, CannotWithdrawRewardsPubKey, DatumWrongHash, CannotMintZero, ExpectedPlutusScriptGotNativeScript, CannotFindDatum, CannotQueryDatum, CannotGetValidatorHashFromAddress, TxOutRefWrongType, CannotConvertPOSIXTimeRange, NumericOverflow, WrongRefScriptHash, ValidatorHashNotFound, MintingPolicyNotFound, DatumNotFound, TxOutRefNotFound, CannotSolveTimeConstraints, OwnPubKeyAndStakeKeyMissing))
-import Ctl.Internal.ProcessConstraints.State (ConstraintProcessingState, ConstraintsM, ValueSpentBalances(ValueSpentBalances), _costModels, _cpsTransaction, _cpsUsedUtxos, _datums, _lookups, _redeemers, _refScriptsUtxoMap, _valueSpentBalancesInputs, _valueSpentBalancesOutputs, provideValue, requireValue, totalMissingValue)
+import Ctl.Internal.Lens
+  ( _body
+  , _certs
+  , _inputs
+  , _isValid
+  , _mint
+  , _networkId
+  , _outputs
+  , _referenceInputs
+  , _requiredSigners
+  , _scriptDataHash
+  , _withdrawals
+  , _witnessSet
+  )
+import Ctl.Internal.ProcessConstraints.Error
+  ( MkUnbalancedTxError
+      ( CannotSatisfyAny
+      , CannotWithdrawRewardsNativeScript
+      , CannotWithdrawRewardsPlutusScript
+      , CannotWithdrawRewardsPubKey
+      , DatumWrongHash
+      , CannotMintZero
+      , ExpectedPlutusScriptGotNativeScript
+      , CannotFindDatum
+      , CannotQueryDatum
+      , CannotGetValidatorHashFromAddress
+      , TxOutRefWrongType
+      , CannotConvertPOSIXTimeRange
+      , NumericOverflow
+      , WrongRefScriptHash
+      , ValidatorHashNotFound
+      , MintingPolicyNotFound
+      , DatumNotFound
+      , TxOutRefNotFound
+      , CannotSolveTimeConstraints
+      , OwnPubKeyAndStakeKeyMissing
+      )
+  )
+import Ctl.Internal.ProcessConstraints.State
+  ( ConstraintProcessingState
+  , ConstraintsM
+  , ValueSpentBalances(ValueSpentBalances)
+  , _costModels
+  , _cpsTransaction
+  , _cpsUsedUtxos
+  , _datums
+  , _lookups
+  , _redeemers
+  , _refScriptsUtxoMap
+  , _valueSpentBalancesInputs
+  , _valueSpentBalancesOutputs
+  , provideValue
+  , requireValue
+  , totalMissingValue
+  )
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
-import Ctl.Internal.QueryM.Pools (getPubKeyHashDelegationsAndRewards, getValidatorHashDelegationsAndRewards)
-import Ctl.Internal.Transaction (attachDatum, attachNativeScript, attachPlutusScript, setScriptDataHash)
-import Ctl.Internal.Types.Interval (POSIXTimeRange, always, intersection, isEmpty, posixTimeRangeToTransactionValidity)
+import Ctl.Internal.QueryM.Pools
+  ( getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  )
+import Ctl.Internal.Transaction
+  ( attachDatum
+  , attachNativeScript
+  , attachPlutusScript
+  , setScriptDataHash
+  )
+import Ctl.Internal.Types.Interval
+  ( POSIXTimeRange
+  , always
+  , intersection
+  , isEmpty
+  , posixTimeRangeToTransactionValidity
+  )
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.TxConstraints (DatumPresence(DatumWitness, DatumInline), InputWithScriptRef(SpendInput, RefInput), TxConstraint(MustNotBeValid, MustSatisfyAnyOf, MustWithdrawStakeNativeScript, MustWithdrawStakePlutusScript, MustWithdrawStakePubKey, MustDelegateStakeNativeScript, MustDelegateStakePlutusScript, MustDelegateStakePubKey, MustRetirePool, MustRegisterPool, MustDeregisterStakeNativeScript, MustDeregisterStakePlutusScript, MustRegisterStakeScript, MustDeregisterStakePubKey, MustRegisterStakePubKey, MustHashDatum, MustPayToNativeScript, MustPayToScript, MustPayToPubKeyAddress, MustMintValueUsingNativeScript, MustMintValue, MustReferenceOutput, MustSpendNativeScriptOutput, MustSpendScriptOutput, MustSpendPubKeyOutput, MustProduceAtLeast, MustSpendAtLeast, MustBeSignedBy, MustValidateIn, MustIncludeDatum), TxConstraints(TxConstraints), utxoWithScriptRef)
+import Ctl.Internal.Types.TxConstraints
+  ( DatumPresence(DatumWitness, DatumInline)
+  , InputWithScriptRef(SpendInput, RefInput)
+  , TxConstraint
+      ( MustNotBeValid
+      , MustSatisfyAnyOf
+      , MustWithdrawStakeNativeScript
+      , MustWithdrawStakePlutusScript
+      , MustWithdrawStakePubKey
+      , MustDelegateStakeNativeScript
+      , MustDelegateStakePlutusScript
+      , MustDelegateStakePubKey
+      , MustRetirePool
+      , MustRegisterPool
+      , MustDeregisterStakeNativeScript
+      , MustDeregisterStakePlutusScript
+      , MustRegisterStakeScript
+      , MustDeregisterStakePubKey
+      , MustRegisterStakePubKey
+      , MustHashDatum
+      , MustPayToNativeScript
+      , MustPayToScript
+      , MustPayToPubKeyAddress
+      , MustMintValueUsingNativeScript
+      , MustMintValue
+      , MustReferenceOutput
+      , MustSpendNativeScriptOutput
+      , MustSpendScriptOutput
+      , MustSpendPubKeyOutput
+      , MustProduceAtLeast
+      , MustSpendAtLeast
+      , MustBeSignedBy
+      , MustValidateIn
+      , MustIncludeDatum
+      )
+  , TxConstraints(TxConstraints)
+  , utxoWithScriptRef
+  )
 import Ctl.Internal.Types.Val as Val
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (mapMaybe, singleton, (:)) as Array
@@ -192,7 +323,8 @@ addMissingValueSpent = do
       Just pkh, Nothing -> pure $ EnterpriseAddress
         { networkId, paymentCredential: wrap $ PubKeyHashCredential pkh }
       Nothing, _ -> throwError OwnPubKeyAndStakeKeyMissing
-    missingValue <- maybe (throwError NumericOverflow) pure $ Val.toValue missing
+    missingValue <- maybe (throwError NumericOverflow) pure $ Val.toValue
+      missing
     let
       txOut = TransactionOutput
         { address: txOutAddress

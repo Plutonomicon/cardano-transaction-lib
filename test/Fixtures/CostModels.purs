@@ -17,4 +17,4 @@ foreign import defaultCostmdls :: Effect Costmdls
 costModelsFixture1 :: Map Language CostModel
 costModelsFixture1 = unsafePerformEffect do
   defaultCostmdls <#> unpackMapContainerToMapWith Language.fromCsl
-      CostModel.fromCsl
+    CostModel.fromCsl

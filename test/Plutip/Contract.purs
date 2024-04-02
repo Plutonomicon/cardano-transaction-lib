@@ -6,17 +6,32 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Serialization.Lib (fromBytes)
-import Cardano.Types (Address, GeneralTransactionMetadata(GeneralTransactionMetadata), TransactionUnspentOutput(..))
+import Cardano.Types
+  ( Address
+  , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
 import Cardano.Types.Credential (Credential(..))
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Cardano.Types.Value (lovelaceValueOf)
-import Contract.Address (PaymentPubKeyHash(PaymentPubKeyHash), StakePubKeyHash, getNetworkId, mkAddress)
+import Contract.Address
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , StakePubKeyHash
+  , getNetworkId
+  , mkAddress
+  )
 import Contract.AuxiliaryData (setGeneralTxMetadata)
-import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder, mustUseAdditionalUtxos) as BalanceTxConstraints
-import Contract.BalanceTxConstraints (mustNotSpendUtxosWithOutRefs, mustUseCollateralUtxos)
+import Contract.BalanceTxConstraints
+  ( BalanceTxConstraintsBuilder
+  , mustUseAdditionalUtxos
+  ) as BalanceTxConstraints
+import Contract.BalanceTxConstraints
+  ( mustNotSpendUtxosWithOutRefs
+  , mustUseCollateralUtxos
+  )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Keys (privateKeyFromBytes)
@@ -24,16 +39,63 @@ import Contract.Log (logInfo')
 import Contract.Metadata as Metadatum
 import Contract.Monad (Contract, liftContractE, liftContractM, liftedM)
 import Contract.Numeric.BigNum as BigNum
-import Contract.PlutusData (PlutusData(Bytes, Integer, List), RedeemerDatum(RedeemerDatum), getDatumByHash, getDatumsByHashes, getDatumsByHashesWithErrors, unitRedeemer)
+import Contract.PlutusData
+  ( PlutusData(Bytes, Integer, List)
+  , RedeemerDatum(RedeemerDatum)
+  , getDatumByHash
+  , getDatumsByHashes
+  , getDatumsByHashesWithErrors
+  , unitRedeemer
+  )
 import Contract.Prelude (liftM, mconcat)
-import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArray, hexToByteArrayUnsafe, hexToRawBytes)
+import Contract.Prim.ByteArray
+  ( byteArrayFromAscii
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  , hexToRawBytes
+  )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (ValidatorHash, applyArgs, getScriptByHash, getScriptsByHashes, validatorHash)
+import Contract.Scripts
+  ( ValidatorHash
+  , applyArgs
+  , getScriptByHash
+  , getScriptsByHashes
+  , validatorHash
+  )
 import Contract.Test (ContractTest)
 import Contract.Test.Assert (runChecks)
-import Contract.Test.Plutip (InitialUTxOs, InitialUTxOsWithStakeKey, withStakeKey, withWallets)
+import Contract.Test.Plutip
+  ( InitialUTxOs
+  , InitialUTxOsWithStakeKey
+  , withStakeKey
+  , withWallets
+  )
 import Contract.Time (Slot(Slot), getEraSummaries)
-import Contract.Transaction (BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos), DataHash, NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll), OutputDatum(OutputDatumHash, OutputDatum), ScriptRef(PlutusScriptRef, NativeScriptRef), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), _input, _output, awaitTxConfirmed, balanceTx, balanceTxE, balanceTxWithConstraints, balanceTxWithConstraintsE, createAdditionalUtxos, getTxMetadata, lookupTxHash, signTransaction, submit, submitTxFromConstraints, withBalancedTx, withBalancedTxs)
+import Contract.Transaction
+  ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
+  , DataHash
+  , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
+  , OutputDatum(OutputDatumHash, OutputDatum)
+  , ScriptRef(PlutusScriptRef, NativeScriptRef)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , _input
+  , _output
+  , awaitTxConfirmed
+  , balanceTx
+  , balanceTxE
+  , balanceTxWithConstraints
+  , balanceTxWithConstraintsE
+  , createAdditionalUtxos
+  , getTxMetadata
+  , lookupTxHash
+  , signTransaction
+  , submit
+  , submitTxFromConstraints
+  , withBalancedTx
+  , withBalancedTxs
+  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Types.MintingPolicy as MintingPolicy
@@ -41,7 +103,16 @@ import Contract.UnbalancedTx (mkUnbalancedTx, mkUnbalancedTxE)
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
-import Contract.Wallet (getWalletAddresses, getWalletBalance, getWalletCollateral, getWalletUtxos, isWalletAvailable, ownPaymentPubKeyHashes, ownStakePubKeyHashes, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , getWalletCollateral
+  , getWalletUtxos
+  , isWalletAvailable
+  , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
+  , withKeyWallet
+  )
 import Control.Monad.Error.Class (try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
@@ -53,11 +124,19 @@ import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.ECDSA as ECDSA
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol, mustPayToPubKeyStakeAddress)
+import Ctl.Examples.Helpers
+  ( mkAssetName
+  , mkCurrencySymbol
+  , mustPayToPubKeyStakeAddress
+  )
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.ManyAssets as ManyAssets
-import Ctl.Examples.MintsMultipleTokens (mintingPolicyRdmrInt1, mintingPolicyRdmrInt2, mintingPolicyRdmrInt3)
+import Ctl.Examples.MintsMultipleTokens
+  ( mintingPolicyRdmrInt1
+  , mintingPolicyRdmrInt2
+  , mintingPolicyRdmrInt3
+  )
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
@@ -73,8 +152,13 @@ import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Wallet (WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet))
-import Ctl.Internal.Wallet.Cip30Mock (WalletMock(MockNami, MockGero, MockFlint, MockNuFi, MockGenericCip30), withCip30Mock)
+import Ctl.Internal.Wallet
+  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
+  )
+import Ctl.Internal.Wallet.Cip30Mock
+  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi, MockGenericCip30)
+  , withCip30Mock
+  )
 import Data.Array (head, (!!))
 import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
@@ -92,7 +176,18 @@ import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
-import Test.Ctl.Fixtures (fullyAppliedScriptFixture, nativeScriptFixture1, nativeScriptFixture2, nativeScriptFixture3, nativeScriptFixture4, nativeScriptFixture5, nativeScriptFixture6, nativeScriptFixture7, partiallyAppliedScriptFixture, unappliedScriptFixture)
+import Test.Ctl.Fixtures
+  ( fullyAppliedScriptFixture
+  , nativeScriptFixture1
+  , nativeScriptFixture2
+  , nativeScriptFixture3
+  , nativeScriptFixture4
+  , nativeScriptFixture5
+  , nativeScriptFixture6
+  , nativeScriptFixture7
+  , partiallyAppliedScriptFixture
+  , unappliedScriptFixture
+  )
 import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
@@ -799,7 +894,8 @@ suite = do
       withWallets unit \_ -> do
         let
           mkDatumHash :: String -> DataHash
-          mkDatumHash str = unsafePartial $ fromJust $ decodeCbor <<< wrap =<< hexToByteArray str
+          mkDatumHash str = unsafePartial $ fromJust $ decodeCbor <<< wrap =<<
+            hexToByteArray str
         -- Nothing is expected, because we are in an empty chain.
         -- This test only checks for ability to connect to the datum-querying
         -- backend.
@@ -962,8 +1058,10 @@ suite = do
           let
             constraints :: Constraints.TxConstraints
             constraints = mconcat
-              [ Constraints.mustMintCurrency (MintingPolicy.hash mp1) tn1 Int.zero
-              , Constraints.mustMintCurrency (MintingPolicy.hash mp2) tn1 Int.one
+              [ Constraints.mustMintCurrency (MintingPolicy.hash mp1) tn1
+                  Int.zero
+              , Constraints.mustMintCurrency (MintingPolicy.hash mp2) tn1
+                  Int.one
               ]
 
             lookups :: Lookups.ScriptLookups
@@ -1128,7 +1226,9 @@ suite = do
           vhash = validatorHash validator
 
         scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
-        aliceAddress <- mkAddress (wrap $ PubKeyHashCredential $ unwrap alicePkh) Nothing
+        aliceAddress <- mkAddress
+          (wrap $ PubKeyHashCredential $ unwrap alicePkh)
+          Nothing
         let
           datum42 = Integer $ BigInt.fromInt 42
           datum42Hash = datumHash datum42
@@ -1379,7 +1479,8 @@ suite = do
             let
               collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt $
                 -5_000_000
-            balance `shouldEqual` (unsafePartial $ balanceBefore <> collateralLoss)
+            balance `shouldEqual`
+              (unsafePartial $ balanceBefore <> collateralLoss)
 
       test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
         do
@@ -1399,8 +1500,8 @@ suite = do
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= AssetName.mkAssetName
             let
-             asset = Value.singleton cs tn $ BigNum.fromInt 50
-             mint = Mint.singleton cs tn $ Int.fromInt 50
+              asset = Value.singleton cs tn $ BigNum.fromInt 50
+              mint = Mint.singleton cs tn $ Int.fromInt 50
 
             validator <- AlwaysFails.alwaysFailsScript
             let vhash = validatorHash validator
@@ -1409,15 +1510,16 @@ suite = do
               logInfo' "Minting asset to Alice"
               let
                 constraints :: Constraints.TxConstraints
-                constraints = Constraints.mustMintValue (unsafePartial $ mint <> mint)
-                  <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
-                    ( unsafePartial $ asset <>
-                        (Value.lovelaceValueOf $ BigNum.fromInt 10_000_000)
-                    )
-                  <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
-                    ( unsafePartial $ asset <>
-                        (Value.lovelaceValueOf $ BigNum.fromInt 50_000_000)
-                    )
+                constraints =
+                  Constraints.mustMintValue (unsafePartial $ mint <> mint)
+                    <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
+                      ( unsafePartial $ asset <>
+                          (Value.lovelaceValueOf $ BigNum.fromInt 10_000_000)
+                      )
+                    <> mustPayToPubKeyStakeAddress alicePkh aliceStakePkh
+                      ( unsafePartial $ asset <>
+                          (Value.lovelaceValueOf $ BigNum.fromInt 50_000_000)
+                      )
 
                 lookups :: Lookups.ScriptLookups
                 lookups = Lookups.mintingPolicy mp

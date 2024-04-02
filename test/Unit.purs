@@ -56,22 +56,22 @@ testPlan = do
   Cip30SignData.suite
   Data.suite
   Deserialization.suite
-  -- Hashing.suite
-  -- Partition.suite
-  -- Plutus.Time.suite
-  -- Serialization.suite
-  -- Serialization.Hash.suite
-  -- UsedTxOuts.suite
-  -- Ogmios.Aeson.suite
-  -- Ogmios.EvaluateTx.suite
-  -- ProtocolParams.suite
-  -- Blockfrost.Aeson.suite
-  -- Blockfrost.ProtocolParameters.suite
-  -- Types.TokenName.suite
-  -- Types.Transaction.suite
-  -- Ctl.Data.Interval.suite
-  -- flip mapTest Types.Interval.suite \f -> liftEffect $ join $
-  --   f <$> Types.Interval.eraSummariesFixture
-  --     <*> Types.Interval.systemStartFixture
-  -- E2E.Route.suite
-  -- CoinSelection.suite
+-- Hashing.suite
+-- Partition.suite
+-- Plutus.Time.suite
+-- Serialization.suite
+-- Serialization.Hash.suite
+-- UsedTxOuts.suite
+-- Ogmios.Aeson.suite
+-- Ogmios.EvaluateTx.suite
+-- ProtocolParams.suite
+-- Blockfrost.Aeson.suite
+-- Blockfrost.ProtocolParameters.suite
+-- Types.TokenName.suite
+-- Types.Transaction.suite
+-- Ctl.Data.Interval.suite
+-- flip mapTest Types.Interval.suite \f -> liftEffect $ join $
+--   f <$> Types.Interval.eraSummariesFixture
+--     <*> Types.Interval.systemStartFixture
+-- E2E.Route.suite
+-- CoinSelection.suite

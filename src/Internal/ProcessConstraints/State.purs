@@ -143,7 +143,9 @@ totalMissingValue { valueSpentBalancesInputs, valueSpentBalancesOutputs } =
     missingValueSpent valueSpentBalancesOutputs
 
 provideValue :: Value -> ValueSpentBalances
-provideValue provided = ValueSpentBalances { provided: Val.fromValue provided, required: mempty }
+provideValue provided = ValueSpentBalances
+  { provided: Val.fromValue provided, required: mempty }
 
 requireValue :: Value -> ValueSpentBalances
-requireValue required = ValueSpentBalances { required: Val.fromValue required, provided: mempty }
+requireValue required = ValueSpentBalances
+  { required: Val.fromValue required, provided: mempty }
