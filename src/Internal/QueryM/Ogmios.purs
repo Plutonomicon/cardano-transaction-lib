@@ -552,7 +552,13 @@ instance DecodeAeson OgmiosEraSummaries where
             ( (*) slotLengthFactor <$>
                 (flip getField "seconds" =<< getField o "slotLength")
             )
-        ) <|> getField o "slotLength"
+        )
+          <|>
+            ( wrap <$>
+                (flip getField "milliseconds" =<< getField o "slotLength")
+            )
+          <|>
+            getField o "slotLength"
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 

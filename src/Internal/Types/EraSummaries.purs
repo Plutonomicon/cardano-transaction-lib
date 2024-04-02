@@ -145,10 +145,10 @@ derive newtype instance Ord RelativeTime
 instance DecodeAeson RelativeTime where
   decodeAeson aeson = decodeV5 <|> decodeV6
     where
-      decodeV5 = RelativeTime <$> decodeAeson aeson
-      decodeV6 = do
-        obj <- decodeAeson aeson
-        RelativeTime <$> obj .: "seconds"
+    decodeV5 = RelativeTime <$> decodeAeson aeson
+    decodeV6 = do
+      obj <- decodeAeson aeson
+      RelativeTime <$> obj .: "seconds"
 
 instance EncodeAeson RelativeTime where
   encodeAeson (RelativeTime rt) =
