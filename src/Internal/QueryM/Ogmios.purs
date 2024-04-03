@@ -814,10 +814,11 @@ instance DecodeAeson TxEvaluationResult where
       :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem elem = do
       res
-        :: { validator :: String
+        :: { validator :: Aeson
            , budget :: { memory :: Natural, cpu :: Natural }
            } <- decodeAeson elem
-      redeemerPtr <- decodeRedeemerPointer res.validator
+      redeemerPtr <- (decodeAeson res.validator >>= decodeRedeemerPointer) <|>
+        decodeRedeemerPointerV6 res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
 
 redeemerPtrTypeMismatch :: JsonDecodeError
@@ -833,6 +834,16 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <$> RedeemerTag.fromString tagRaw
         <*> Natural.fromString indexRaw
     _ -> Nothing
+
+decodeRedeemerPointerV6 :: Aeson -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointerV6 aeson = do
+  obj <- decodeAeson aeson
+  purpose <- obj .: "purpose"
+  index <- obj .: "index"
+  note (TypeMismatch "RedeemerPointer") $
+    { redeemerTag: _, redeemerIndex: _ }
+      <$> RedeemerTag.fromString purpose
+      <*> Natural.fromString index
 
 type OgmiosDatum = String
 type OgmiosScript = String
