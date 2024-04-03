@@ -660,7 +660,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , logLevel: plutipCfg.logLevel
     , customLogger: customLogger
     , suppressLogs: plutipCfg.suppressLogs
-    , hooks: emptyHooks
+    , hooks: plutipCfg.hooks
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants

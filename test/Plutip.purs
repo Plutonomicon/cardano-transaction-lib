@@ -39,6 +39,7 @@ import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
+import Test.Ctl.Plutip.Contract.ClusterParameters as ClusterParameters
 import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
@@ -75,6 +76,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
           UtxoDistribution.suite
           testPlutipContracts config OgmiosMempool.suite
           runPlutipTestPlan config SameWallets.suite
+          ClusterParameters.runTest
 
 configWithMaxExUnits :: PlutipConfig
 configWithMaxExUnits = config
