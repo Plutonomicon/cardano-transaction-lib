@@ -841,9 +841,8 @@ decodeRedeemerPointerV6 aeson = do
   purpose <- obj .: "purpose"
   index <- obj .: "index"
   note (TypeMismatch "RedeemerPointer") $
-    { redeemerTag: _, redeemerIndex: _ }
+    { redeemerTag: _, redeemerIndex: index }
       <$> RedeemerTag.fromString purpose
-      <*> Natural.fromString index
 
 type OgmiosDatum = String
 type OgmiosScript = String
