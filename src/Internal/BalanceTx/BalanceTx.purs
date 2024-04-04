@@ -19,6 +19,7 @@ import Cardano.Types
 import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
+import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum))
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutputs
@@ -144,7 +145,16 @@ import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (TagSet, tag, tagSetTag)
 import Data.Log.Tag (fromArray) as TagSet
 import Data.Map (Map)
-import Data.Map (empty, insert, lookup, singleton, toUnfoldable, union) as Map
+import Data.Map
+  ( empty
+  , filter
+  , insert
+  , isEmpty
+  , lookup
+  , singleton
+  , toUnfoldable
+  , union
+  ) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -410,14 +420,12 @@ runBalancer p = do
                     (lovelaceValueOf $ BigNum.one)
                 runNextBalancerStep $ state
                   { transaction = transaction #
-                      _transaction <<< _body <<< _inputs %~ append
+                      _transaction <<< _body <<< _inputs %~ appendInputs
                         (selectedInputs selectionState)
                   , leftoverUtxos =
                       selectionState ^. _leftoverUtxos
                   }
             else do
-              logTransaction "Balanced transaction (Done)" p.allUtxos
-                transaction.transaction
               finalizeTransaction evaluatedTx p.allUtxos
           false ->
             runNextBalancerStep $ state
@@ -464,7 +472,7 @@ runBalancer p = do
         { transaction =
             ( transaction #
                 _transaction <<< _body <<< _inputs %~
-                  append (selectedInputs selectionState)
+                  appendInputs (selectedInputs selectionState)
             )
         , leftoverUtxos =
             selectionState ^. _leftoverUtxos
@@ -526,6 +534,13 @@ addLovelacesToTransactionOutput txOutput = do
   pure $ wrap txOutputRec
     { amount = mkValue newCoin (getMultiAsset txOutputValue) }
 
+-- removes duplicates
+appendInputs
+  :: Array TransactionInput
+  -> Array TransactionInput
+  -> Array TransactionInput
+appendInputs a b = Set.toUnfoldable (Set.fromFoldable a <> Set.fromFoldable b)
+
 setTxChangeOutputs
   :: Array TransactionOutput -> UnindexedTx -> UnindexedTx
 setTxChangeOutputs outputs tx =
@@ -573,8 +588,7 @@ makeChange
   else do
     res <- traverse (ltraverse liftValue) changeValueOutputCoinPairs
       >>= splitOversizedValues
-      >>=
-        assignCoinsToChangeValues changeAddress excessCoin
+      >>= assignCoinsToChangeValues changeAddress excessCoin
     pure $ mkChangeOutput changeAddress changeDatum <$> res
   where
   inputValue = Val.fromValue inputValue'
@@ -649,7 +663,9 @@ makeChange
 
   posVal :: Val -> Val
   posVal (Val coin nonAdaAsset) =
-    Val (max coin zero) $ map (map (max zero)) nonAdaAsset
+    Val (max coin zero) $
+      Map.filter (not <<< Map.isEmpty) $
+      map (Map.filter (\x -> x > zero)) nonAdaAsset
 
 -- | Constructs change outputs for an asset.
 -- |

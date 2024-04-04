@@ -72,7 +72,7 @@ _isValid = _Newtype <<< prop (Proxy :: Proxy "isValid")
 _witnessSet :: Lens' Transaction TransactionWitnessSet
 _witnessSet = _Newtype <<< prop (Proxy :: Proxy "witnessSet")
 
-_auxiliaryData :: Lens' Transaction AuxiliaryData
+_auxiliaryData :: Lens' Transaction (Maybe AuxiliaryData)
 _auxiliaryData = _Newtype <<< prop (Proxy :: Proxy "auxiliaryData")
 
 -- TransactionBody

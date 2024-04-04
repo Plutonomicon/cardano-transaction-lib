@@ -25,7 +25,7 @@ import Data.Lens.Getter (view)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Tuple (Tuple(Tuple))
 import Type.Proxy (Proxy(Proxy))
 
@@ -37,7 +37,8 @@ setAuxiliaryData tx auxData =
   let
     auxDataHash = hashAuxiliaryData auxData
   in
-    tx # _auxiliaryData .~ auxData # _auxiliaryDataHash ?~ auxDataHash
+    tx # _auxiliaryData .~ Just auxData
+      # _auxiliaryDataHash ?~ auxDataHash
 
 setGeneralTxMetadata
   :: UnbalancedTx
@@ -47,7 +48,8 @@ setGeneralTxMetadata tx generalMetadata =
   let
     auxData = view _auxiliaryData tx
   in
-    setAuxiliaryData tx (auxData # _metadata ?~ generalMetadata)
+    setAuxiliaryData tx
+      (fromMaybe mempty auxData # _metadata ?~ generalMetadata)
 
 setTxMetadata
   :: forall (m :: Type)
@@ -65,7 +67,7 @@ setTxMetadata tx =
 _transaction :: Lens' UnbalancedTx Transaction
 _transaction = _Newtype <<< prop (Proxy :: Proxy "transaction")
 
-_auxiliaryData :: Lens' UnbalancedTx AuxiliaryData
+_auxiliaryData :: Lens' UnbalancedTx (Maybe AuxiliaryData)
 _auxiliaryData =
   _Newtype <<< prop (Proxy :: Proxy "transaction") <<< Tx._auxiliaryData
 

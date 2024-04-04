@@ -737,7 +737,7 @@ txFixture6 =
         , redeemers: []
         }
     , isValid: true
-    , auxiliaryData: AuxiliaryData
+    , auxiliaryData: Just $ AuxiliaryData
         { metadata: Just $ GeneralTransactionMetadata
             ( Map.fromFoldable
                 [ BigNum.fromInt 8 /\ Text "foo" ]
