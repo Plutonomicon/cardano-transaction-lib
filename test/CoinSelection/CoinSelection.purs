@@ -27,6 +27,7 @@ import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Ctl.Internal.Hashing (blake2b224Hash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Ctl.Internal.Types.Val as Val
 import Data.ByteArray (byteArrayFromAscii)
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
@@ -83,7 +84,7 @@ prop_performMultiAssetSelection_empty
   :: SelectionStrategy -> ArbitraryUtxoIndex -> CoinSelectionTestM Result
 prop_performMultiAssetSelection_empty strategy utxoIndex =
   assertEquals (mkSelectionState $ unwrap utxoIndex) <$>
-    performMultiAssetSelection strategy (unwrap utxoIndex) Value.empty
+    performMultiAssetSelection strategy (unwrap utxoIndex) mempty
 
 runSelectionTestWithFixture
   :: (SelectionStrategy -> SelFixture) -> String -> TestPlanM (Aff Unit) Unit
@@ -94,7 +95,8 @@ runSelectionTestWithFixture mkFixture testLabel =
       td <- liftEffect $ selTestDataFromFixture (mkFixture strategy)
       selectedUtxos <-
         _.selectedUtxos <<< unwrap <$>
-          performMultiAssetSelection td.strategy td.utxoIndex td.requiredValue
+          performMultiAssetSelection td.strategy td.utxoIndex
+            (Val.fromValue td.requiredValue)
       liftEffect $
         td.selectedValue `shouldEqual`
           unsafePartial

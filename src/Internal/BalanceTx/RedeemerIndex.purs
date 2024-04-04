@@ -149,7 +149,7 @@ type RedeemersContext =
 mkRedeemersContext :: Transaction -> RedeemersContext
 mkRedeemersContext
   (Transaction { body: TransactionBody { inputs, mint, withdrawals, certs } }) =
-  { inputs: inputs
+  { inputs: Set.toUnfoldable $ Set.fromFoldable inputs
   , mintingPolicyHashes:
       Set.toUnfoldable $ Map.keys $ unwrap $ fromMaybe
         (wrap Map.empty)

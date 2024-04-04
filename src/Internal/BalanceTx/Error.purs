@@ -49,6 +49,7 @@ import Ctl.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
+import Ctl.Internal.Types.Val (Val)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
 import Data.Either (Either(Left, Right), either, isLeft)
@@ -82,7 +83,7 @@ data BalanceTxError
   | ReindexRedeemersError UnindexedRedeemer
   | UtxoLookupFailedFor TransactionInput
   | UtxoMinAdaValueCalculationFailed
-  | NumericOverflowError
+  | NumericOverflowError (Maybe Val)
 
 derive instance Generic BalanceTxError _
 
@@ -133,8 +134,9 @@ explainBalanceTxError = case _ of
       <> bugTrackerLink
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
-  NumericOverflowError ->
-    "Could not compute output value due to numeric overflow. Decrease the quantity of assets"
+  NumericOverflowError mbVal ->
+    "Could not compute output value due to numeric overflow. Decrease the quantity of assets. Value: "
+      <> show mbVal
   where
   prettyValue :: String -> Value -> String
   prettyValue str = pprintValue >>> pprintTagSet str

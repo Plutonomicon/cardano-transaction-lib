@@ -132,5 +132,5 @@ nonAdaAsset =
 
 throwOnOverflow :: forall a. Maybe a -> BalanceTxM a
 throwOnOverflow = case _ of
-  Nothing -> throwError NumericOverflowError
+  Nothing -> throwError (NumericOverflowError Nothing)
   Just a -> pure a

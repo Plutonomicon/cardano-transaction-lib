@@ -422,6 +422,7 @@ checkUtxoIndexMinimal utxoIndex =
 
   txOutputHasAsset :: TransactionOutput -> Asset -> Boolean
   txOutputHasAsset _ AdaAsset = true
+  -- ^ TODO: shouldn't we check if it is greater than 0?
   txOutputHasAsset (TransactionOutput { amount }) (asset) =
     Value.valueOf asset amount >= BigNum.one
 

@@ -20,6 +20,7 @@ import Cardano.Types.MultiAsset as MultiAsset
 import Data.Array (cons)
 import Data.Bifunctor (bimap)
 import Data.ByteArray (byteArrayToHex)
+import Data.Foldable (all)
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (class JoinSemilattice, class MeetSemilattice)
@@ -27,7 +28,7 @@ import Data.Log.Tag (TagSet, tag, tagSetTag)
 import Data.Log.Tag as TagSet
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.These (These(This, That, Both))
@@ -64,9 +65,7 @@ instance Split Val where
 data Val = Val BigInt ValAssets
 
 instance Eq Val where
-  eq a b =
-    -- the second part is to check for empty outer Map
-    toValue a == toValue b && valueAssets a == valueAssets b
+  eq = checkBinRel (==)
 
 instance Semigroup Val where
   append (Val a ma) (Val b mb) = Val (a + b) (unionWithNonAda add ma mb)
@@ -87,8 +86,41 @@ instance MeetSemilattice Val where
 
 type ValAssets = Map ScriptHash (Map AssetName BigInt)
 
+leq :: Val -> Val -> Boolean
+leq = checkBinRel (<=)
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#checkBinRel
+-- Check whether a binary relation holds for value pairs of two `Value` maps,
+-- supplying 0 where a key is only present in one of them.
+checkBinRel :: (BigInt -> BigInt -> Boolean) -> Val -> Val -> Boolean
+checkBinRel f l r =
+  let
+    unThese :: These BigInt BigInt -> Boolean
+    unThese k' = case k' of
+      This a -> f a zero
+      That b -> f zero b
+      Both a b -> f a b
+  in
+    checkPred unThese l r
+
+-- https://playground.plutus.iohkdev.io/doc/haddock/plutus-ledger-api/html/src/Plutus.V1.Ledger.Value.html#checkPred
+checkPred :: (These BigInt BigInt -> Boolean) -> Val -> Val -> Boolean
+checkPred f (Val l ls) (Val r rs) =
+  let
+    inner :: Map AssetName (These BigInt BigInt) -> Boolean
+    inner = all f -- this "all" may need to be checked?
+  in
+    f (Both l r) && all inner (unionNonAda ls rs) -- this "all" may need to be checked?
+
+getCoin :: Val -> BigInt
+getCoin (Val c _) = c
+
 getAssets :: Val -> Map ScriptHash (Map AssetName BigInt)
 getAssets (Val _ ma) = ma
+
+getAssetQuantity :: AssetClass -> Val -> BigInt
+getAssetQuantity (AssetClass sh tn) val =
+  fromMaybe zero $ Map.lookup sh (getAssets val) >>= Map.lookup tn
 
 valueAssets :: Val -> Array (AssetClass /\ BigInt)
 valueAssets (Val _ ma) =

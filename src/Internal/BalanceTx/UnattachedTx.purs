@@ -5,6 +5,7 @@ module Ctl.Internal.BalanceTx.UnattachedTx
   , EvaluatedTx
   , indexTx
   , _transaction
+  , _redeemers
   ) where
 
 import Prelude
@@ -49,3 +50,7 @@ indexTx { transaction, datums, redeemers } = do
 _transaction
   :: forall (redeemer :: Type). Lens' (UnattachedTx redeemer) Transaction
 _transaction = prop (Proxy :: Proxy "transaction")
+
+_redeemers
+  :: forall (redeemer :: Type). Lens' (UnattachedTx redeemer) (Array redeemer)
+_redeemers = prop (Proxy :: Proxy "redeemers")

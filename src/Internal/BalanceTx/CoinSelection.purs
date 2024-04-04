@@ -19,40 +19,28 @@ module Ctl.Internal.BalanceTx.CoinSelection
   , selectRandomWithPriority
   ) where
 
+import Data.Tuple.Nested
 import Prelude
 
-import Cardano.AsCbor (encodeCbor)
-import Cardano.Types (AssetClass(AssetClass), Coin, Value)
-import Cardano.Types.Asset (Asset(Asset, AdaAsset))
-import Cardano.Types.AssetName (unAssetName) as AssetName
-import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.Asset (Asset(..))
+import Cardano.Types.Asset as Asset
+import Cardano.Types.AssetClass (AssetClass(..))
+import Cardano.Types.AssetName (unAssetName)
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.Coin (Coin(..))
+import Cardano.Types.TransactionInput (TransactionInput(..))
 import Cardano.Types.UtxoMap (UtxoMap)
-import Cardano.Types.Value
-  ( add
-  , empty
-  , getAssetQuantity
-  , getCoin
-  , leq
-  , valueAssets
-  , valueToCoin
-  ) as Value
-import Control.Monad.Error.Class
-  ( class MonadThrow
-  , throwError
-  )
+import Cardano.Types.Value as Value
+import Contract.Log (logError')
+import Control.Monad.Error.Class (class MonadThrow, throwError)
+import Control.Monad.Logger.Class (class MonadLogger)
 import Ctl.Internal.BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( NumericOverflowError
-      , BalanceInsufficientError
-      , InsufficientUtxoBalanceToCoverAsset
-      )
-  , Expected(Expected)
+  ( Actual(..)
+  , BalanceTxError(..)
+  , Expected(..)
   )
 import Ctl.Internal.CoinSelection.UtxoIndex
-  ( SelectionFilter(SelectAnyWith, SelectPairWith, SelectSingleton)
+  ( SelectionFilter(..)
   , TxUnspentOutput
   , UtxoIndex
   , emptyUtxoIndex
@@ -61,29 +49,34 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexPartition
   , utxoIndexUniverse
   )
-import Ctl.Internal.Helpers (liftM)
-import Data.Array (foldr)
-import Data.Array (fromFoldable, snoc, uncons) as Array
+import Ctl.Internal.Types.Val (Val(..))
+import Ctl.Internal.Types.Val as Val
+import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty (cons', fromArray, singleton, uncons) as NEArray
+import Data.Array.NonEmpty as NEArray
 import Data.ByteArray (byteArrayToHex)
+import Data.Foldable (foldMap)
 import Data.Function (applyFlipped)
 import Data.Generic.Rep (class Generic)
-import Data.Lens (Lens')
-import Data.Lens.Getter (view, (^.))
+import Data.Lens (Lens', over, view, (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
-import Data.Lens.Setter (over)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), isNothing, maybe, maybe')
+import Data.Maybe (Maybe(..), fromJust, maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Set (Set)
+import Data.Set as Set
+import Data.Show (show)
 import Data.Show.Generic (genericShow)
-import Data.Tuple (fst) as Tuple
-import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Class (class MonadEffect)
-import Test.QuickCheck.Arbitrary (class Arbitrary)
-import Test.QuickCheck.Gen (elements) as Arbitrary
-import Type.Proxy (Proxy(Proxy))
+import Data.Tuple (fst)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Console as Console
+import JS.BigInt (BigInt)
+import JS.BigInt as BigInt
+import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck (class Arbitrary)
+import Test.QuickCheck.Gen as Arbitrary
+import Type.Proxy (Proxy(..))
 
 --------------------------------------------------------------------------------
 -- Coin Selection
@@ -130,40 +123,43 @@ performMultiAssetSelection
   => MonadThrow BalanceTxError m
   => SelectionStrategy
   -> UtxoIndex
-  -> Value
+  -> Val
   -> m SelectionState
 performMultiAssetSelection strategy utxoIndex requiredValue = do
-  availableValue <- liftM NumericOverflowError $ balance
-    (utxoIndexUniverse utxoIndex)
-  let
-    balanceInsufficientError :: BalanceTxError
-    balanceInsufficientError =
-      BalanceInsufficientError
-        (Expected requiredValue)
-        (Actual availableValue)
-
-  case requiredValue `Value.leq` availableValue of
-    true ->
+  liftEffect $ Console.log "performMultiAssetSelection"
+  liftEffect $ Console.log $ show utxoIndex
+  liftEffect $ Console.log $ show requiredValue
+  liftEffect $ Console.log $ show availableValue
+  case requiredValue `Val.leq` availableValue of
+    true -> do
       runRoundRobinM (mkSelectionState utxoIndex) selectors
-    false ->
+    false -> do
       throwError balanceInsufficientError
   where
+  balanceInsufficientError :: BalanceTxError
+  balanceInsufficientError =
+    BalanceInsufficientError
+      (Expected Value.empty) --  $ unsafePartial $ fromJust $ Val.toValue requiredValue)
+      (Actual Value.empty) -- $ unsafePartial $ fromJust $ Val.toValue availableValue)
+
+  availableValue :: Val
+  availableValue = balance (utxoIndexUniverse utxoIndex)
 
   selectors
     :: Array (SelectionState -> m (Maybe SelectionState))
   selectors = map assetSelector assets `Array.snoc` coinSelector
     where
-    assets :: Array (AssetClass /\ BigNum)
-    assets = Value.valueAssets requiredValue
+    assets :: Array (AssetClass /\ BigInt)
+    assets = Val.valueAssets requiredValue
 
     assetSelector
-      :: AssetClass /\ BigNum -> SelectionState -> m (Maybe SelectionState)
+      :: AssetClass /\ BigInt -> SelectionState -> m (Maybe SelectionState)
     assetSelector = runSelectionStep <<< assetSelectionLens strategy
 
     coinSelector :: SelectionState -> m (Maybe SelectionState)
     coinSelector =
       runSelectionStep $
-        coinSelectionLens strategy (Value.valueToCoin requiredValue)
+        coinSelectionLens strategy (Val.getCoin requiredValue)
 
 -- | Represents the internal state of a selection.
 -- |
@@ -218,36 +214,34 @@ selectUtxo utxo@(oref /\ out) =
     <<< over _leftoverUtxos (utxoIndexDeleteEntry utxo)
 
 -- | Returns the balance of the given utxo set.
-balance :: UtxoMap -> Maybe Value
-balance = Array.fromFoldable >>> map (unwrap >>> _.amount) >>> foldr
-  (\bn mbn -> mbn >>= Value.add bn)
-  (Just Value.empty)
+balance :: UtxoMap -> Val
+balance = foldMap (Val.fromValue <<< _.amount <<< unwrap)
 
 -- | Returns the balance of selected utxos.
 -- |
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/Primitive/Types/UTxOSelection.hs#L375
-selectedBalance :: SelectionState -> Maybe Value
+selectedBalance :: SelectionState -> Val
 selectedBalance = balance <<< _.selectedUtxos <<< unwrap
 
 -- | Returns the quantity of the given asset in the selected `Value`.
 -- |
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2169
-selectedAssetQuantity :: AssetClass -> SelectionState -> Maybe BigNum
+selectedAssetQuantity :: AssetClass -> SelectionState -> BigInt
 selectedAssetQuantity assetClass =
-  map (Value.getAssetQuantity assetClass) <<< selectedBalance
+  Val.getAssetQuantity assetClass <<< selectedBalance
 
 -- | Returns the selected amount of Ada.
 -- |
 -- | Taken from cardano-wallet:
 -- |https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L2175
-selectedCoinQuantity :: SelectionState -> Maybe BigNum
-selectedCoinQuantity = map (unwrap <<< Value.getCoin) <<< selectedBalance
+selectedCoinQuantity :: SelectionState -> BigInt
+selectedCoinQuantity = Val.getCoin <<< selectedBalance
 
 -- | Returns the output references of the selected utxos.
-selectedInputs :: SelectionState -> Array TransactionInput
-selectedInputs = Array.fromFoldable <<< Map.keys <<< view _selectedUtxos
+selectedInputs :: SelectionState -> Set TransactionInput
+selectedInputs = Map.keys <<< view _selectedUtxos
 
 -- | A `SelectionLens` gives `runSelectionStep` the information on the current
 -- | selection state along with the functions required to transition to the next
@@ -257,8 +251,8 @@ selectedInputs = Array.fromFoldable <<< Map.keys <<< view _selectedUtxos
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1254
 type SelectionLens (m :: Type -> Type) =
   { assetDisplayString :: String
-  , currentQuantity :: SelectionState -> Maybe BigNum
-  , requiredQuantity :: BigNum
+  , currentQuantity :: SelectionState -> BigInt
+  , requiredQuantity :: BigInt
   , selectQuantityCover :: SelectionState -> m (Maybe SelectionState)
   , selectQuantityImprove :: SelectionState -> m (Maybe SelectionState)
   , selectionStrategy :: SelectionStrategy
@@ -270,7 +264,7 @@ assetSelectionLens
   :: forall (m :: Type -> Type)
    . MonadEffect m
   => SelectionStrategy
-  -> AssetClass /\ BigNum
+  -> AssetClass /\ BigInt
   -> SelectionLens m
 assetSelectionLens selectionStrategy (assetClass /\ requiredQuantity) =
   { assetDisplayString:
@@ -279,15 +273,12 @@ assetSelectionLens selectionStrategy (assetClass /\ requiredQuantity) =
       selectedAssetQuantity assetClass
   , requiredQuantity
   , selectQuantityCover:
-      selectQuantityOf (assetClassToAsset assetClass) SelectionPriorityCover
+      selectQuantityOf (Asset.fromAssetClass assetClass) SelectionPriorityCover
   , selectQuantityImprove:
-      selectQuantityOf (assetClassToAsset assetClass) SelectionPriorityImprove
+      selectQuantityOf (Asset.fromAssetClass assetClass)
+        SelectionPriorityImprove
   , selectionStrategy
   }
-  where
-  assetClassToAsset :: AssetClass -> Asset
-  assetClassToAsset (AssetClass scriptHash assetName) = Asset scriptHash
-    assetName
 
 -- | Taken from cardano-wallet:
 -- | https://github.com/input-output-hk/cardano-wallet/blob/a61d37f2557b8cb5c47b57da79375afad698eed4/lib/wallet/src/Cardano/Wallet/CoinSelection/Internal/Balance.hs#L1173
@@ -295,12 +286,12 @@ coinSelectionLens
   :: forall (m :: Type -> Type)
    . MonadEffect m
   => SelectionStrategy
-  -> Coin
+  -> BigInt
   -> SelectionLens m
 coinSelectionLens selectionStrategy coin =
   { assetDisplayString: show coin
   , currentQuantity: selectedCoinQuantity
-  , requiredQuantity: unwrap coin
+  , requiredQuantity: coin
   , selectQuantityCover:
       selectQuantityOf AdaAsset SelectionPriorityCover
   , selectQuantityImprove:
@@ -332,7 +323,7 @@ selectQuantityOf asset priority state =
   filters = filtersForAssetWithPriority asset priority
 
   updateState :: TxUnspentOutput /\ UtxoIndex -> SelectionState
-  updateState = flip selectUtxo state <<< Tuple.fst
+  updateState = flip selectUtxo state <<< fst
 
 -- | Runs just a single step of a coin selection.
 -- |
@@ -360,8 +351,7 @@ runSelectionStep
   -> SelectionState
   -> m (Maybe SelectionState)
 runSelectionStep lens state
-  | isNothing (lens.currentQuantity state) = pure Nothing
-  | lens.currentQuantity state < Just lens.requiredQuantity =
+  | lens.currentQuantity state < lens.requiredQuantity =
       let
         balanceInsufficientError :: BalanceTxError
         balanceInsufficientError =
@@ -381,21 +371,22 @@ runSelectionStep lens state
         | distanceFromTarget state' < distanceFromTarget state = Just state'
         | otherwise = Nothing
 
-      distanceFromTarget :: SelectionState -> Maybe BigNum
-      distanceFromTarget state' = do
-        cq <- lens.currentQuantity state'
-        tc <- targetQuantity
-        BigNum.abs <$> BigNum.sub tc cq
+      distanceFromTarget :: SelectionState -> BigInt
+      distanceFromTarget =
+        bigIntAbs <<< sub targetQuantity <<< lens.currentQuantity
 
-      targetMultiplier :: Prim.Int
+      bigIntAbs :: BigInt -> BigInt
+      bigIntAbs x = if x < zero then negate x else x
+
+      targetMultiplier :: Int
       targetMultiplier =
         case lens.selectionStrategy of
           SelectionStrategyMinimal -> 1
           SelectionStrategyOptimal -> 2
 
-      targetQuantity :: Maybe BigNum
+      targetQuantity :: BigInt
       targetQuantity =
-        BigNum.mul lens.requiredQuantity (BigNum.fromInt targetMultiplier)
+        lens.requiredQuantity * (BigInt.fromInt targetMultiplier)
 
 --------------------------------------------------------------------------------
 -- Round-robin processing
@@ -473,20 +464,18 @@ selectRandomWithPriority utxoIndex filters =
 -- Helpers
 --------------------------------------------------------------------------------
 
-showAssetClassWithQuantity :: AssetClass -> BigNum -> String
+showAssetClassWithQuantity :: AssetClass -> BigInt -> String
 showAssetClassWithQuantity (AssetClass cs tn) quantity =
-  "(Asset (" <> displayCurrencySymbol <> "," <> displayAssetName <> ", "
-    <> displayQuantity
-    <> "))"
+  "(Asset (" <> displayCurrencySymbol <> displayTokenName <> displayQuantity
   where
   displayCurrencySymbol :: String
   displayCurrencySymbol =
-    "cs: " <> byteArrayToHex (unwrap $ encodeCbor cs)
+    "cs: " <> show cs <> ", "
 
-  displayAssetName :: String
-  displayAssetName =
-    "tn: " <> byteArrayToHex (AssetName.unAssetName tn)
+  displayTokenName :: String
+  displayTokenName =
+    "tn: " <> byteArrayToHex (unAssetName tn) <> ", "
 
   displayQuantity :: String
   displayQuantity =
-    "quantity: " <> BigNum.toString quantity
+    "quantity: " <> BigInt.toString quantity <> "))"

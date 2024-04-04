@@ -31,7 +31,7 @@ import Cardano.Types.Value
   , pprintValue
   )
 import Cardano.Types.Value as Value
-import Contract.Log (logWarn')
+import Contract.Log (logError', logWarn')
 import Control.Monad.Except (class MonadError)
 import Control.Monad.Except.Trans (except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
@@ -85,6 +85,7 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.BalanceTx.UnattachedTx
   ( EvaluatedTx
   , UnindexedTx
+  , _redeemers
   , _transaction
   , indexTx
   )
@@ -164,6 +165,8 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (toInt) as UInt
 import Effect.Aff.Class (liftAff)
+import Effect.Class (liftEffect)
+import Effect.Console as Console
 import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 
@@ -174,7 +177,10 @@ balanceTxWithConstraints
   -> Map TransactionInput TransactionOutput
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError Transaction)
-balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
+balanceTxWithConstraints transaction_ extraUtxos constraintsBuilder = do
+
+  logError' $ show transaction
+  logError' $ show extraUtxos
   pparams <- getProtocolParameters
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
@@ -258,6 +264,8 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
   getChangeAddress :: BalanceTxM Address
   getChangeAddress = maybe (liftContract Wallet.getChangeAddress) pure
     =<< asksConstraints Constraints._changeAddress
+
+  transaction = transaction_ -- # _redeemers .~ [] # _transaction <<< _body <<< _mint .~ Nothing
 
   transactionWithNetworkId :: BalanceTxM Transaction
   transactionWithNetworkId = do
@@ -417,11 +425,11 @@ runBalancer p = do
               do
                 selectionState <-
                   performMultiAssetSelection p.strategy leftoverUtxos
-                    (lovelaceValueOf $ BigNum.one)
+                    (Val one Map.empty)
                 runNextBalancerStep $ state
                   { transaction = transaction #
                       _transaction <<< _body <<< _inputs %~ appendInputs
-                        (selectedInputs selectionState)
+                        (Array.fromFoldable $ selectedInputs selectionState)
                   , leftoverUtxos =
                       selectionState ^. _leftoverUtxos
                   }
@@ -458,7 +466,7 @@ runBalancer p = do
               _body
 
       worker $
-        if requiredValue == Value.empty then BalanceChangeAndMinFee $ state
+        if requiredValue == mempty then BalanceChangeAndMinFee $ state
           { changeOutputs = changeOutputs, transaction = transaction }
         else PrebalanceTx $ state { changeOutputs = changeOutputs }
 
@@ -472,21 +480,22 @@ runBalancer p = do
         { transaction =
             ( transaction #
                 _transaction <<< _body <<< _inputs %~
-                  appendInputs (selectedInputs selectionState)
+                  appendInputs
+                    (Array.fromFoldable $ selectedInputs selectionState)
             )
         , leftoverUtxos =
             selectionState ^. _leftoverUtxos
         }
       where
       performCoinSelection :: BalanceTxM SelectionState
-      performCoinSelection =
+      performCoinSelection = do
+        liftEffect $ Console.log "performCoinSelection"
         let
           txBody :: TransactionBody
           txBody = setTxChangeOutputs changeOutputs transaction ^. _transaction
             <<< _body
-        in
-          except (getRequiredValue p.certsFee p.allUtxos txBody)
-            >>= performMultiAssetSelection p.strategy leftoverUtxos
+        except (getRequiredValue p.certsFee p.allUtxos txBody)
+          >>= performMultiAssetSelection p.strategy leftoverUtxos
 
     -- | Calculates execution units for each script in the transaction and sets
     -- | min fee.
@@ -629,7 +638,8 @@ makeChange
     where
     bundle :: Value /\ BigInt -> BalanceTxM Value
     bundle (Value _ assets /\ coin) = do
-      coin' <- liftEither (note NumericOverflowError $ BigNum.fromBigInt coin)
+      coin' <- liftEither
+        (note (NumericOverflowError Nothing) $ BigNum.fromBigInt coin)
       pure $ mkValue (wrap coin') assets
 
     unbundle :: Value -> Value /\ BigInt
@@ -812,13 +822,12 @@ mkChangeOutput changeAddress datum amount = wrap
 --------------------------------------------------------------------------------
 
 getRequiredValue
-  :: BigInt -> UtxoMap -> TransactionBody -> Either BalanceTxError Value
+  :: BigInt -> UtxoMap -> TransactionBody -> Either BalanceTxError Val
 getRequiredValue certsFee utxos txBody = do
-  val <- getInputVal utxos txBody <#> \inputValue ->
+  getInputVal utxos txBody <#> \inputValue ->
     ( outputValue txBody <> minFeeValue txBody <> Val certsFee Map.empty
     )
       `Val.minus` (inputValue <> mintValue txBody)
-  note NumericOverflowError $ Val.toValue val
 
 getAmount :: TransactionOutput -> Value
 getAmount = _.amount <<< unwrap
@@ -917,4 +926,5 @@ logTransactionWithChange message utxos mChangeOutputs tx =
       >>= (flip Logger.info (message <> ":") <<< transactionInfo)
 
 liftValue :: forall a. MonadError BalanceTxError a => Val -> a Value
-liftValue val = liftEither $ note NumericOverflowError $ Val.toValue val
+liftValue val = liftEither $ note (NumericOverflowError $ Just val) $
+  Val.toValue val
