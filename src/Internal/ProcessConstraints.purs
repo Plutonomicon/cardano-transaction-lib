@@ -177,7 +177,7 @@ import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
-import Data.Lens (_Just, (%=), (%~), (.=), (.~), (<>=))
+import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.List (List(Nil, Cons))
@@ -185,6 +185,7 @@ import Data.Map (Map, empty, fromFoldable, lookup, union)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Newtype (over, unwrap, wrap)
+import Data.Set as Set
 import Data.Traversable (for, traverse_)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
@@ -413,6 +414,11 @@ lookupValidator
 lookupValidator vh osMap =
   note (ValidatorHashNotFound vh) $ lookup vh osMap
 
+-- Ensures uniqueness
+appendInputs
+  :: Array TransactionInput -> Array TransactionInput -> Array TransactionInput
+appendInputs a b = Set.toUnfoldable (Set.fromFoldable a <> Set.fromFoldable b)
+
 processScriptRefUnspentOut
   :: ScriptHash
   -> InputWithScriptRef
@@ -420,12 +426,13 @@ processScriptRefUnspentOut
 processScriptRefUnspentOut scriptHash inputWithRefScript = do
   unspentOut <- case inputWithRefScript of
     SpendInput unspentOut -> do
-      _cpsTransaction <<< _body <<< _inputs <>=
-        [ _.input <<< unwrap $ unspentOut ]
+      _cpsTransaction <<< _body <<< _inputs %=
+        appendInputs [ _.input <<< unwrap $ unspentOut ]
       pure unspentOut
     RefInput unspentOut -> do
       let refInput = (unwrap unspentOut).input
-      _cpsTransaction <<< _body <<< _referenceInputs <>= [ refInput ]
+      _cpsTransaction <<< _body <<< _referenceInputs %=
+        appendInputs [ refInput ]
       pure unspentOut
 
   updateRefScriptsUtxoMap unspentOut
@@ -515,7 +522,7 @@ processConstraint mpsMap osMap c = do
       -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
       -- keeps track TransactionInput and TxInType (the input type, whether
       -- consuming script, public key or simple script)
-      _cpsTransaction <<< _body <<< _inputs <>= [ txo ]
+      _cpsTransaction <<< _body <<< _inputs %= appendInputs [ txo ]
       _valueSpentBalancesInputs <>= provideValue amount
     MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo scriptRefUnspentOut
@@ -551,7 +558,7 @@ processConstraint mpsMap osMap c = do
                 lift $ addDatum dat
               Just (OutputDatum _) -> pure unit
               Nothing -> throwError CannotFindDatum
-            _cpsTransaction <<< _body <<< _inputs <>= [ txo ]
+            _cpsTransaction <<< _body <<< _inputs %= appendInputs [ txo ]
             let
               uiRedeemer = UnindexedRedeemer
                 { purpose: ForSpend txo
@@ -560,7 +567,7 @@ processConstraint mpsMap osMap c = do
             _redeemers <>= [ uiRedeemer ]
             _valueSpentBalancesInputs <>= provideValue amount
     MustSpendNativeScriptOutput txo ns -> runExceptT do
-      _cpsTransaction <<< _body <<< _inputs <>= [ txo ]
+      _cpsTransaction <<< _body <<< _inputs %= appendInputs [ txo ]
       lift $ attachToCps (map pure <<< attachNativeScript) ns
     MustReferenceOutput refInput -> runExceptT do
       _cpsTransaction <<< _body <<< _referenceInputs <>= [ refInput ]
@@ -604,7 +611,7 @@ processConstraint mpsMap osMap c = do
       _redeemers <>=
         [ UnindexedRedeemer { purpose: ForMint scriptHash, datum: unwrap red } ]
       -- Remove mint redeemers from array before reindexing.
-      unsafePartial $ _cpsTransaction <<< _body <<< _mint <<< _Just <>= mint
+      unsafePartial $ _cpsTransaction <<< _body <<< _mint <>= Just mint
 
     MustMintValueUsingNativeScript ns tn i -> runExceptT do
       let

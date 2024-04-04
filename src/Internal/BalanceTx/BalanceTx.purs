@@ -663,9 +663,9 @@ makeChange
 
   posVal :: Val -> Val
   posVal (Val coin nonAdaAsset) =
-    Val (max coin zero) $
-      Map.filter (not <<< Map.isEmpty) $
-      map (Map.filter (\x -> x > zero)) nonAdaAsset
+    Val (max coin zero)
+      $ Map.filter (not <<< Map.isEmpty)
+      $ map (Map.filter (\x -> x > zero)) nonAdaAsset
 
 -- | Constructs change outputs for an asset.
 -- |
