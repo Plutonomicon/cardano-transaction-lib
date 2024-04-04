@@ -26,7 +26,6 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Affjax (request) as Affjax
-import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
   , getLedgerConstants
@@ -291,6 +290,14 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   tryWithReport (startKupo' response) "Could not start Kupo"
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
+  void $ try $ liftEffect do
+    for_ env.hooks.onClusterStartup \clusterParamsCb -> do
+      clusterParamsCb
+        { privateKeys: response.privateKeys <#> unwrap
+        , nodeSocketPath: response.nodeSocketPath
+        , nodeConfigPath: response.nodeConfigPath
+        , privateKeysDirectory: response.keysDirectory
+        }
   pure
     { env
     , wallets
@@ -652,7 +659,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , logLevel: plutipCfg.logLevel
     , customLogger: customLogger
     , suppressLogs: plutipCfg.suppressLogs
-    , hooks: emptyHooks
+    , hooks: plutipCfg.hooks
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants

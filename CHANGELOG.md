@@ -69,6 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Sharing wallets between Plutip tests - see [the docs for this feature](./doc/plutip-testing.md#sharing-wallet-state-between-tests) ([#1585](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1585))
   - `runPlutipTestPlan` is a new function that executes a `ContractTestPlan`.
   - `sameWallets` is a new function that creates a `ContractTestPlan` from a `UtxoDistribution` and a `TestPlanM` of the same wallets running different `Contract`s.
+- new `onClusterStartup` hook that allows to get cluster startup parameters (private keys, `cardano-node` socket and config paths). See [`Test.Ctl.Plutip.Contract.ClusterParameters`](./test/Plutip/Contract/ClusterParameters.purs). ([#1610](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1610))
 
 ### Changed
 
