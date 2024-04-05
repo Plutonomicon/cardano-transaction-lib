@@ -29,6 +29,7 @@ import Cardano.Types.TransactionBody (TransactionBody(TransactionBody))
 import Cardano.Types.TransactionWitnessSet
   ( TransactionWitnessSet(TransactionWitnessSet)
   )
+import Data.Array as Array
 import Data.Foldable (null)
 import Data.Map (Map)
 import Data.Map as Map
@@ -36,6 +37,8 @@ import Data.Maybe (Maybe(Just))
 import Data.Newtype (over, unwrap)
 import Data.Profunctor.Strong ((***))
 import Effect (Effect)
+import Literals.Undefined (undefined)
+import Unsafe.Coerce (unsafeCoerce)
 
 -- | Set the `Transaction` body's script data hash. NOTE: Must include *all* of
 -- | the datums and redeemers for the given transaction
@@ -64,7 +67,12 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
         redeemersCsl =
           packListContainer $ Redeemer.toCsl <$> rs
         datumsCsl =
-          packListContainer $ PlutusData.toCsl <$> ds
+          if Array.null ds
+          -- This is a hack. The argument datums argument is optional and is
+          -- supposed to not be provided if there are no datums.
+          -- TODO: fix upstream
+          then unsafeCoerce undefined
+          else packListContainer $ PlutusData.toCsl <$> ds
         scriptDataHash =
           ScriptDataHash $ hashScriptData redeemersCsl costMdlsCsl datumsCsl
       pure $ over Transaction

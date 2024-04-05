@@ -23,7 +23,12 @@ import Cardano.Types.CborBytes (CborBytes(..))
 import Contract.Prelude (foldl)
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)
-import Data.ByteArray (ByteArray(ByteArray), byteArrayToIntArray, byteLength, subarray)
+import Data.ByteArray
+  ( ByteArray(ByteArray)
+  , byteArrayToIntArray
+  , byteLength
+  , subarray
+  )
 import Data.Either (Either)
 import Data.Newtype (class Newtype)
 import Data.UInt (UInt, shl, zshr, (.&.), (.|.))

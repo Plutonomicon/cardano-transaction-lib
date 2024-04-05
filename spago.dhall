@@ -50,6 +50,7 @@ You can edit this file as you like.
   , "js-date"
   , "lattice"
   , "lists"
+  , "literals"
   , "maybe"
   , "media-types"
   , "monad-logger"
