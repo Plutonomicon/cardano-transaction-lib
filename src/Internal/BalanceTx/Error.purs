@@ -114,8 +114,11 @@ explainBalanceTxError = case _ of
       <> show coinsPerUtxoUnit
       <> "\nTransaction output: "
       <> show txOut
-  ExUnitsEvaluationFailed _ _ ->
-    "Script evaluation failure while trying to estimate ExUnits"
+  ExUnitsEvaluationFailed tx err ->
+    "Script evaluation failure while trying to estimate ExUnits. Tx: "
+      <> show tx
+      <> ", error: "
+      <> show err
   InsufficientUtxoBalanceToCoverAsset asset ->
     "Insufficient UTxO balance to cover asset named "
       <> asset

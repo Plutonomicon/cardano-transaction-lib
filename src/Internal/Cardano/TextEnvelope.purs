@@ -17,6 +17,7 @@ import Aeson (class DecodeAeson, decodeAeson, parseJsonStringToAeson)
 import Cardano.Types.Language (Language(..))
 import Cardano.Types.PlutusScript (PlutusScript(..))
 import Control.Alt ((<|>))
+import Ctl.Internal.Types.Cbor (toByteArray)
 import Data.ByteArray (ByteArray, hexToByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
@@ -67,13 +68,18 @@ newtype TextEnvelope =
 
 derive instance Newtype TextEnvelope _
 
+decodeCborHexToBytes :: String -> Maybe ByteArray
+decodeCborHexToBytes cborHex = do
+  cborBa <- hexToByteArray cborHex
+  hush $ toByteArray $ wrap $ wrap cborBa
+
 decodeTextEnvelope
   :: String -> Maybe TextEnvelope
 decodeTextEnvelope json = do
   aeson <- hush $ parseJsonStringToAeson json
   { "type": type_, description, cborHex } <-
     hush $ decodeAeson aeson :: _ TextEnvelopeRaw
-  ba <- hexToByteArray cborHex
+  ba <- decodeCborHexToBytes cborHex
   pure $ wrap { type_, description, bytes: ba }
 
 plutusScriptFromEnvelope
