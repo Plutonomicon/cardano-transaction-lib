@@ -42,7 +42,15 @@
 
     ogmios.follows = "ogmios-nixos/ogmios";
 
-    kupo-nixos.url = "github:Fourierlabs/kupo-nixos/add-conway";
+    kupo-nixos = {
+      url = "github:Fourierlabs/kupo-nixos/add-conway";
+      inputs = {
+        CHaP.follows = "CHaP";
+        # TODO iogx hackage should follow CTL hackage
+        #  but it's not working for some reason
+        # iogx.inputs.hackage.follows = "hackage";
+      };
+    };
     kupo.follows = "kupo-nixos/kupo";
 
     # Repository with network parameters
