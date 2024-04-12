@@ -227,13 +227,21 @@ printContractAssertionFailure = case _ of
     "Error while trying to get expected value: " <> err
 
   MaxExUnitsExceeded expectedActual ->
-    "ExUnits limit exceeded: " <> printExpectedActual expectedActual
+    "ExUnits limit exceeded: " <> printExpectedActualWith printExUnits
+      expectedActual
 
   CustomFailure msg -> msg
   SkippedTest msg -> msg
 
 showTxHash :: TransactionHash -> String
 showTxHash = byteArrayToHex <<< toBytes <<< unwrap
+
+printExUnits :: ExUnits -> String
+printExUnits (ExUnits { mem, steps }) =
+  "{ mem: " <> BigNum.toString mem
+    <> ", steps: "
+    <> BigNum.toString steps
+    <> " }"
 
 type Label = String
 
@@ -271,8 +279,15 @@ instance Show a => Show (ExpectedActual a) where
 derive instance Functor ExpectedActual
 
 printExpectedActual :: forall (a :: Type). Show a => ExpectedActual a -> String
-printExpectedActual (ExpectedActual expected actual) =
-  " Expected: " <> show expected <> ", Actual: " <> show actual <> " "
+printExpectedActual = printExpectedActualWith show
+
+printExpectedActualWith
+  :: forall (a :: Type)
+   . (a -> String)
+  -> ExpectedActual a
+  -> String
+printExpectedActualWith format (ExpectedActual expected actual) =
+  " Expected: " <> format expected <> ", Actual: " <> format actual <> " "
 
 --------------------------------------------------------------------------------
 -- Different types of assertions, Assertion composition, Basic functions
