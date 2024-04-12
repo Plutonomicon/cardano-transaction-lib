@@ -875,7 +875,7 @@ attachToCps
 attachToCps handler object = do
   tx <- use _cpsTransaction
   newTx <- liftEffect $ handler object tx
-  (.=) _cpsTransaction newTx
+  _cpsTransaction .= newTx
 
 -- Attaches datum to the transaction and to Array of datums in the state.
 addDatum

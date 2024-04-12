@@ -14,22 +14,21 @@ module Ctl.Internal.Cardano.TextEnvelope
 import Prelude
 
 import Aeson (class DecodeAeson, decodeAeson, parseJsonStringToAeson)
-import Cardano.Types.Language (Language(..))
-import Cardano.Types.PlutusScript (PlutusScript(..))
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.PlutusScript as PlutusScript
 import Control.Alt ((<|>))
 import Ctl.Internal.Types.Cbor (toByteArray)
 import Data.ByteArray (ByteArray, hexToByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
-import Data.Tuple.Nested ((/\))
 
 data TextEnvelopeType
   = PlutusScriptV1
   | PlutusScriptV2
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
-  | Other String -- TextEnvelope we can parse from String, but cannot use now
+  | Other String
 
 derive instance Eq TextEnvelopeType
 
@@ -89,8 +88,8 @@ plutusScriptFromEnvelope (TextEnvelope envelope) =
   where
   plutusScriptV1FromEnvelope = do
     unless (envelope.type_ == PlutusScriptV1) Nothing
-    pure $ PlutusScript $ envelope.bytes /\ PlutusV1
+    pure $ PlutusScript.plutusV1Script $ wrap envelope.bytes
 
   plutusScriptV2FromEnvelope = do
     unless (envelope.type_ == PlutusScriptV2) Nothing
-    pure $ PlutusScript $ envelope.bytes /\ PlutusV2
+    pure $ PlutusScript.plutusV2Script $ wrap envelope.bytes

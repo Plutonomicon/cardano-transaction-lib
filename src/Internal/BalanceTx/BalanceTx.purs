@@ -31,7 +31,7 @@ import Cardano.Types.Value
   , pprintValue
   )
 import Cardano.Types.Value as Value
-import Contract.Log (logError', logWarn')
+import Contract.Log (logWarn')
 import Control.Monad.Except (class MonadError)
 import Control.Monad.Except.Trans (except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
@@ -179,8 +179,6 @@ balanceTxWithConstraints
   -> Contract (Either BalanceTxError Transaction)
 balanceTxWithConstraints transaction_ extraUtxos constraintsBuilder = do
 
-  logError' $ show transaction
-  logError' $ show extraUtxos
   pparams <- getProtocolParameters
 
   withBalanceTxConstraints constraintsBuilder $ runExceptT do
@@ -489,7 +487,6 @@ runBalancer p = do
       where
       performCoinSelection :: BalanceTxM SelectionState
       performCoinSelection = do
-        liftEffect $ Console.log "performCoinSelection"
         let
           txBody :: TransactionBody
           txBody = setTxChangeOutputs changeOutputs transaction ^. _transaction

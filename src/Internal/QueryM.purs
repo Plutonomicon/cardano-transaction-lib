@@ -65,6 +65,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Affjax.StatusCode as Affjax.StatusCode
 import Cardano.Types (PlutusScript)
 import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
@@ -486,7 +487,8 @@ postAeson url body = Affjax.request $ Affjax.defaultRequest
 -- instance (there are some brutal cyclical dependency issues trying to
 -- write an instance in the `Types.*` modules)
 scriptToAeson :: PlutusScript -> Aeson
-scriptToAeson = encodeAeson <<< byteArrayToHex <<< fst <<< unwrap
+scriptToAeson = encodeAeson <<< byteArrayToHex <<< unwrap <<<
+  PlutusScript.getBytes
 
 --------------------------------------------------------------------------------
 -- Type-safe `WebSocket`

@@ -126,10 +126,6 @@ performMultiAssetSelection
   -> Val
   -> m SelectionState
 performMultiAssetSelection strategy utxoIndex requiredValue = do
-  liftEffect $ Console.log "performMultiAssetSelection"
-  liftEffect $ Console.log $ show utxoIndex
-  liftEffect $ Console.log $ show requiredValue
-  liftEffect $ Console.log $ show availableValue
   case requiredValue `Val.leq` availableValue of
     true -> do
       runRoundRobinM (mkSelectionState utxoIndex) selectors

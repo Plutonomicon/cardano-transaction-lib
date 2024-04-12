@@ -126,6 +126,7 @@ import Cardano.Types.NativeScript
       )
   )
 import Cardano.Types.PlutusScript (PlutusScript(..))
+import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.PoolMetadata (PoolMetadata(..))
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
 import Cardano.Types.Relay (Relay(..))
@@ -1195,10 +1196,16 @@ instance EncodeAeson AdditionalUtxoSet where
         -- NOTE: We omit the cbor argument.
         , "json": (encodeNativeScript s)
         }
-    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =
-      encodeAeson { "language": "plutus:v1", "cbor": byteArrayToHex s }
-    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
-      encodeAeson { "language": "plutus:v2", "cbor": byteArrayToHex s }
+    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (s /\ PlutusV1)))) =
+      encodeAeson
+        { "language": "plutus:v1"
+        , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
+        }
+    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (s /\ PlutusV2)))) =
+      encodeAeson
+        { "language": "plutus:v2"
+        , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
+        }
 
     encodeValue :: Value -> Aeson
     encodeValue value = encodeMap $ map encodeMap $ Map.union adaPart nonAdaPart

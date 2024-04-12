@@ -77,12 +77,13 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
   waitForConfirmation = do
     { delay: delayMs } <- asks (_.timeParams >>> _.awaitTxConfirmed)
     tryUntilTrue delayMs (doesTxExist txHash)
-    confirmTxDelay <-
-      asks _.backend <#> (getBlockfrostBackend >=> _.confirmTxDelay)
-    isBlockfrost <- asks _.backend <#> getBlockfrostBackend >>> isJust
-    when isBlockfrost do
-      tryUntilTrue delayMs (utxosPresentForTxHash txHash)
-      for_ confirmTxDelay (liftAff <<< delay <<< fromDuration)
+    do
+      confirmTxDelay <-
+        asks _.backend <#> (getBlockfrostBackend >=> _.confirmTxDelay)
+      isBlockfrost <- asks _.backend <#> getBlockfrostBackend >>> isJust
+      when isBlockfrost do
+        tryUntilTrue delayMs (utxosPresentForTxHash txHash)
+        for_ confirmTxDelay (liftAff <<< delay <<< fromDuration)
     whenM
       ( asks $ _.synchronizationParams
           >>> _.syncWalletWithTransaction

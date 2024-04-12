@@ -49,6 +49,7 @@ import Cardano.Types.BigNum (toString) as BigNum
 import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
+import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Cardano.Types.Value as Value
 import Contract.Log (logTrace')
@@ -418,11 +419,11 @@ instance DecodeAeson KupoScriptRef where
                 NativeScriptRef <$>
                   note (TypeMismatch "NativeScript") (decodeCbor scriptBytes)
               PlutusV1Script ->
-                pure $ PlutusScriptRef $ PlutusScript
-                  (unwrap scriptBytes /\ PlutusV1)
+                pure $ PlutusScriptRef $ PlutusScript.plutusV1Script $ wrap $
+                  unwrap scriptBytes
               PlutusV2Script ->
-                pure $ PlutusScriptRef $ PlutusScript
-                  (unwrap scriptBytes /\ PlutusV2)
+                pure $ PlutusScriptRef $ PlutusScript.plutusV2Script $ wrap $
+                  unwrap scriptBytes
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing

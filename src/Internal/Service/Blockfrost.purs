@@ -91,6 +91,7 @@ import Cardano.Types
   , PlutusData
   , PlutusScript(PlutusScript)
   , PoolPubKeyHash
+  , RawBytes(RawBytes)
   , ScriptHash
   , StakePubKeyHash
   , Transaction
@@ -127,6 +128,7 @@ import Cardano.Types.NativeScript
   )
 import Cardano.Types.NetworkId (NetworkId)
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum, OutputDatumHash))
+import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.PoolPubKeyHash as PoolPubKeyHash
 import Cardano.Types.RewardAddress as RewardAddress
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
@@ -584,10 +586,10 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
       NativeScriptRef <$>
         MaybeT (ExceptT getNativeScriptByHash)
     PlutusV1Script ->
-      PlutusScriptRef <<< PlutusScript <<< (_ /\ PlutusV1) <$>
+      PlutusScriptRef <<< PlutusScript.plutusV1Script <$>
         MaybeT (ExceptT getPlutusScriptCborByHash)
     PlutusV2Script ->
-      PlutusScriptRef <<< PlutusScript <<< (_ /\ PlutusV2) <$>
+      PlutusScriptRef <<< PlutusScript.plutusV2Script <$>
         MaybeT (ExceptT getPlutusScriptCborByHash)
   where
   getNativeScriptByHash
@@ -598,11 +600,13 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
         handle404AsNothing (handleBlockfrostResponse response)
 
   getPlutusScriptCborByHash
-    :: BlockfrostServiceM (Either ClientError (Maybe ByteArray))
+    :: BlockfrostServiceM (Either ClientError (Maybe RawBytes))
   getPlutusScriptCborByHash =
     blockfrostGetRequest (PlutusScriptCborByHash scriptHash) <#> \response ->
       handle404AsNothing
-        (unwrapBlockfrostCbor <$> handleBlockfrostResponse response)
+        ( map wrap <<< unwrapBlockfrostCbor <$> handleBlockfrostResponse
+            response
+        )
 
 getScriptInfo
   :: ScriptHash

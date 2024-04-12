@@ -18,7 +18,6 @@ import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.CoinSelection as CoinSelection
 import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
-import Test.Ctl.Deserialization as Deserialization
 import Test.Ctl.E2E.Route as E2E.Route
 import Test.Ctl.Hashing as Hashing
 import Test.Ctl.Internal.Plutus.Time as Plutus.Time
@@ -55,17 +54,16 @@ testPlan = do
   ByteArray.suite
   Cip30SignData.suite
   Data.suite
-  Deserialization.suite
--- Hashing.suite
--- Partition.suite
--- Plutus.Time.suite
--- Serialization.suite
--- Serialization.Hash.suite
--- UsedTxOuts.suite
--- Ogmios.Aeson.suite
--- Ogmios.EvaluateTx.suite
--- ProtocolParams.suite
--- Blockfrost.Aeson.suite
+  Hashing.suite
+  Partition.suite
+  Plutus.Time.suite
+  Serialization.suite
+  Serialization.Hash.suite
+  UsedTxOuts.suite
+  Ogmios.Aeson.suite
+  Ogmios.EvaluateTx.suite
+  ProtocolParams.suite
+  Blockfrost.Aeson.suite
 -- Blockfrost.ProtocolParameters.suite
 -- Types.TokenName.suite
 -- Types.Transaction.suite

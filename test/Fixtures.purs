@@ -15,6 +15,9 @@ module Test.Ctl.Fixtures
   , ed25519KeyHash1
   , ed25519KeyHashFixture1
   , fullyAppliedScriptFixture
+  , int1
+  , mint0
+  , mint1
   , mkSampleTx
   , mkTxInput
   , nativeScriptFixture1
@@ -25,8 +28,8 @@ module Test.Ctl.Fixtures
   , nativeScriptFixture6
   , nativeScriptFixture7
   , nullPaymentPubKeyHash
-  , ogmiosEvaluateTxFailScriptErrorsFixture
   , ogmiosEvaluateTxFailIncompatibleEraFixture
+  , ogmiosEvaluateTxFailScriptErrorsFixture
   , ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   , partiallyAppliedScriptFixture
@@ -40,6 +43,9 @@ module Test.Ctl.Fixtures
   , plutusDataFixture8
   , plutusDataFixture8Bytes
   , plutusDataFixture8Bytes'
+  , plutusScriptFixture1
+  , plutusScriptFixture2
+  , plutusScriptFixture3
   , redeemerFixture1
   , tokenName1
   , tokenName2
@@ -62,33 +68,28 @@ module Test.Ctl.Fixtures
   , unappliedScriptFixture
   , utxoFixture1
   , utxoFixture1'
+  , utxoMapFixture
   , witnessSetFixture1
   , witnessSetFixture2
   , witnessSetFixture2Value
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
-  , utxoMapFixture
-  , mint1
-  , mint0
-  , int1
+  , txMetadatumFixture
   ) where
 
 import Prelude
 
-import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
-import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Aeson
+  ( Aeson
+  , aesonNull
+  , decodeAeson
+  , fromString
+  , parseJsonStringToAeson
+  )
+import Cardano.AsCbor (decodeCbor)
 import Cardano.Types
   ( AuxiliaryData(AuxiliaryData)
-  , Certificate
-      ( MoveInstantaneousRewardsCert
-      , GenesisKeyDelegation
-      , PoolRetirement
-      , PoolRegistration
-      , StakeDelegation
-      , StakeDeregistration
-      , StakeRegistration
-      )
   , Coin(Coin)
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
@@ -96,30 +97,25 @@ import Cardano.Types
   , ExUnitPrices(ExUnitPrices)
   , ExUnits(ExUnits)
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , MIRPot(Treasury, Reserves)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , MoveInstantaneousReward(ToStakeCreds, ToOtherPot)
+  , Language(PlutusV2)
   , NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
+      ( TimelockExpiry
       , TimelockStart
-      , TimelockExpiry
+      , ScriptNOfK
+      , ScriptAny
+      , ScriptAll
+      , ScriptPubkey
       )
   , NetworkId(TestnetId, MainnetId)
   , OutputDatum(OutputDatum)
   , PaymentPubKeyHash(PaymentPubKeyHash)
-  , PlutusData(Constr, Map, Integer, List, Bytes)
-  , PlutusScript
-  , PoolMetadata(PoolMetadata)
-  , PoolParams(PoolParams)
+  , PlutusData(Integer, Bytes, Constr, List, Map)
+  , PlutusScript(PlutusScript)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate(ProtocolParamUpdate)
   , ProtocolVersion(ProtocolVersion)
   , Redeemer(Redeemer)
   , RedeemerTag(Spend)
-  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
   , RewardAddress
   , ScriptHash
   , Slot(Slot)
@@ -129,9 +125,7 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , URL(URL)
   , UnitInterval(UnitInterval)
-  , Update(Update)
   , UtxoMap
   , Value(Value)
   , Vkey(Vkey)
@@ -149,22 +143,18 @@ import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.TransactionMetadatum (TransactionMetadatum(Text))
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
-import Contract.Transaction (PoolPubKeyHash(PoolPubKeyHash))
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(PlutusScriptRef, NativeScriptRef)
-  )
+import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
 import Ctl.Internal.Types.Aliases (Bech32String)
-import Data.Array as Array
 import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
-  , hexToByteArray
   , hexToByteArrayUnsafe
   )
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
@@ -173,7 +163,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
-import Unsafe.Coerce (unsafeCoerce)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
@@ -379,6 +368,20 @@ plutusScriptFixture2 = unsafePartial $ fromJust $ map plutusV2Script $ hush
   $ decodeAeson
   $ fromString "4d010000deadbeef33222220051200120011"
 
+txMetadatumFixture :: ByteArray
+txMetadatumFixture = hexToByteArrayUnsafe "60" -- "a11902d1a278383733336136646663363063613639396261616236346336353836663464633138653263613733343232363730333439666361396235346339a174537061636550756773476c617373504334393730ab646e616d65781b5370616365205075677320476c617373202d20504320233439373065696d6167657835697066733a2f2f516d516f4d61554e3239554278776154515373566b48783748324d57627365794e6d4c78386f745a7a5167395a34696d656469615479706569696d6167652f6769666b6465736372697074696f6e606566696c657381a3646e616d6574537061636550756773476c617373504334393730696d656469615479706569766964656f2f6d7034637372637835697066733a2f2f516d57646b7231634b42345065764739784a4b76536e71336d33354a5478726771673158725742475062456f62696a4261636b67726f756e646b507572706c652046656c7463546f706e517565656e204f6620436c75627366426f74746f6d754a61636b204f662048656172747320426f74746f6d6644657369676e75323920284d616420446f672043617220436c756229664578747261737157696e73746f6e20436875726368696c6c684c69676874696e676c4e6f726d616c204c696768746776657273696f6e63312e30"
+
+plutusScriptFixture3 :: PlutusScript
+plutusScriptFixture3 =
+  ( PlutusScript
+      ( Tuple
+          ( hexToByteArrayUnsafe
+              "59088501000032332232323233223232323232323232323322323232323232322223232533532325335001101b13357389211d556e657870656374656420646174756d206174206f776e20696e7075740001a323253335002153335001101c2101c2101c2153335002101c21333573466ebc00800407807484074854ccd400840708407484ccd5cd19b8f00200101e01d323500122220023235001220013553353500222350022222222222223333500d2501e2501e2501e233355302d12001321233001225335002210031001002501e2350012253355335333573466e3cd400888008d4010880080b40b04ccd5cd19b873500222001350042200102d02c102c1350220031502100d21123001002162001300a0053333573466e1cd55cea80124000466442466002006004646464646464646464646464646666ae68cdc39aab9d500c480008cccccccccccc88888888888848cccccccccccc00403403002c02802402001c01801401000c008cd4054058d5d0a80619a80a80b1aba1500b33501501735742a014666aa034eb94064d5d0a804999aa80d3ae501935742a01066a02a0426ae85401cccd54068089d69aba150063232323333573466e1cd55cea801240004664424660020060046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40b1d69aba15002302d357426ae8940088c98c80bccd5ce01901881689aab9e5001137540026ae854008c8c8c8cccd5cd19b8735573aa004900011991091980080180119a8163ad35742a004605a6ae84d5d1280111931901799ab9c03203102d135573ca00226ea8004d5d09aba2500223263202b33573805c05a05226aae7940044dd50009aba1500533501575c6ae854010ccd540680788004d5d0a801999aa80d3ae200135742a00460406ae84d5d1280111931901399ab9c02a029025135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d55cf280089baa00135742a00460206ae84d5d1280111931900c99ab9c01c01b017101a132632018335738921035054350001a135573ca00226ea800448c88c008dd6000990009aa80d111999aab9f0012501c233501b30043574200460066ae8800805c8c8c8cccd5cd19b8735573aa004900011991091980080180118069aba150023005357426ae8940088c98c8054cd5ce00c00b80989aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180b1aba1500233500e015357426ae8940088c98c8068cd5ce00e80e00c09aab9e5001137540026ae854010ccd54025d728041aba150033232323333573466e1d400520042300b357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403866ae7007c0780680640604d55cea80089baa00135742a00466a014eb8d5d09aba2500223263201633573803203002826ae8940044d5d1280089aab9e500113754002424446004008266aa002eb9d6889119118011bab00132001355016223233335573e0044a032466a03066442466002006004600c6aae754008c014d55cf280118021aba200301413574200224464646666ae68cdc3a800a400046a00e600a6ae84d55cf280191999ab9a3370ea00490011280391931900919ab9c01501401000f135573aa00226ea800448488c00800c44880048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01301200e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00f00e00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00680600409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00b00a80880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae7003c0380280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801801600e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7003403002001c0184d55cea80089baa0012323333573466e1d40052002200623333573466e1d40092000200623263200633573801201000800626aae74dd5000a4c24400424400224002920103505431003200135500322112225335001135003220012213335005220023004002333553007120010050040011122002122122330010040031123230010012233003300200200101"
+          )
+          PlutusV2
+      )
+  )
+
 txFixture1 :: Transaction
 txFixture1 =
   Transaction
@@ -435,14 +438,7 @@ txFixture2 =
         , collateralReturn: Nothing
         , totalCollateral: Nothing
         }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: []
-        , nativeScripts: []
-        , bootstraps: []
-        , plutusScripts: []
-        , plutusData: []
-        , redeemers: []
-        }
+    , witnessSet: witnessSetFixture3Value
     , isValid: true
     , auxiliaryData: mempty
     }
@@ -506,12 +502,14 @@ txFixture3 =
     , auxiliaryData: mempty
     }
 
+mint1 :: Mint
 mint1 = Mint $ Map.fromFoldable
   [ currencySymbol1 /\ Map.fromFoldable
       [ tokenName2 /\ Int.newPositive BigNum.one
       ]
   ]
 
+mint0 :: Mint
 mint0 = Mint $ Map.fromFoldable
   [ currencySymbol1 /\ Map.fromFoldable
       [ tokenName2 /\ Int.newPositive BigNum.zero
@@ -1147,7 +1145,7 @@ witnessSetFixture3Value =
                 ]
             )
         ]
-    , plutusScripts: []
+    , plutusScripts: [ plutusScriptFixture3 ]
     , redeemers: []
     , vkeys:
         [ Vkeywitness
@@ -1352,7 +1350,7 @@ redeemerFixture1 = Redeemer
 
 unappliedScriptFixture :: PlutusScript
 unappliedScriptFixture =
-  plutusV1Script $ hexToByteArrayUnsafe $
+  plutusV1Script $ wrap $ hexToByteArrayUnsafe $
     "586f010000333222323233222233222225335300c33225335300e0021001100f333500b223\
     \33573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010\
     \091326353008009498cd4015d680119a802bae001120012001120011200112200212200120\
@@ -1360,7 +1358,7 @@ unappliedScriptFixture =
 
 partiallyAppliedScriptFixture :: PlutusScript
 partiallyAppliedScriptFixture =
-  plutusV1Script $ hexToByteArrayUnsafe $
+  plutusV1Script $ wrap $ hexToByteArrayUnsafe $
     "58750100003333222323233222233222225335300c33225335300e0021001100f333500b22\
     \333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010\
     \091326353008009498cd4015d680119a802bae001120012001120011200112200212200120\
@@ -1368,7 +1366,7 @@ partiallyAppliedScriptFixture =
 
 fullyAppliedScriptFixture :: PlutusScript
 fullyAppliedScriptFixture =
-  plutusV1Script $ hexToByteArrayUnsafe $
+  plutusV1Script $ wrap $ hexToByteArrayUnsafe $
     "587f01000033333222323233222233222225335300c33225335300e0021001100f333500b2\
     \2333573466e1c00800404003c0152002333500b22333573466e3c00800404003c011220100\
     \10091326353008009498cd4015d680119a802bae0011200120011200112001122002122001\

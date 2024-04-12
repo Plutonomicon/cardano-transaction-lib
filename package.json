@@ -33,7 +33,6 @@
   "dependencies": {
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
-    "@mlabs-haskell/cardano-serialization-lib-gc": "^1.0.8",
     "@mlabs-haskell/cardano-message-signing": "^1.0.1",
     "@mlabs-haskell/cardano-serialization-lib-gc": "^1.0.9",
     "@mlabs-haskell/json-bigint": "2.0.0",

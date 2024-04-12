@@ -105,7 +105,7 @@ datumHashFixture =
 
 plutusV1ScriptFixture :: PlutusScript
 plutusV1ScriptFixture =
-  plutusV1Script $
+  plutusV1Script $ wrap $
     hexToByteArrayUnsafe "4d01000033222220051200120011"
 
 plutusV1ScriptHashFixture :: ScriptHash
@@ -116,7 +116,7 @@ plutusV1ScriptHashFixture =
 
 plutusV2ScriptFixture :: PlutusScript
 plutusV2ScriptFixture =
-  plutusV2Script
+  plutusV2Script $ wrap
     $ hexToByteArrayUnsafe "4d01000033222220051200120011"
 
 plutusV2ScriptHashFixture :: ScriptHash

@@ -173,7 +173,7 @@ import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -408,7 +408,6 @@ suite = do
           ownPaymentPubKeyHashes
         stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeyHashes
         withKeyWallet alice $ pkh2PkhContract pkh stakePkh
-
     test
       "Base Address to Base Address transaction (Pkh2Pkh example, but with stake keys)"
       do

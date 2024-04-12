@@ -12,6 +12,7 @@ import Cardano.Types.Int as Int
 import Cardano.Types.NativeScript (pprintNativeScript)
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
+import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
 import Cardano.Types.TransactionInput (TransactionInput(TransactionInput))
@@ -160,8 +161,8 @@ explainMkUnbalancedTxError = case _ of
   prettyAssetName = fromAssetName byteArrayToHex show
 
   prettyPlutusScript :: PlutusScript -> String
-  prettyPlutusScript (PlutusScript (code /\ lang)) =
-    show lang <> ": " <> byteArrayToHex code
+  prettyPlutusScript ps@(PlutusScript (_ /\ lang)) =
+    show lang <> ": " <> byteArrayToHex (unwrap $ PlutusScript.getBytes ps)
 
   prettyTxIn :: TransactionInput -> String
   prettyTxIn (TransactionInput ti) =
