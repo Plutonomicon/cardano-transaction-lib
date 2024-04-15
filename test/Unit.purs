@@ -64,12 +64,12 @@ testPlan = do
   Ogmios.EvaluateTx.suite
   ProtocolParams.suite
   Blockfrost.Aeson.suite
--- Blockfrost.ProtocolParameters.suite
--- Types.TokenName.suite
--- Types.Transaction.suite
--- Ctl.Data.Interval.suite
--- flip mapTest Types.Interval.suite \f -> liftEffect $ join $
---   f <$> Types.Interval.eraSummariesFixture
---     <*> Types.Interval.systemStartFixture
--- E2E.Route.suite
--- CoinSelection.suite
+  Blockfrost.ProtocolParameters.suite
+  Types.TokenName.suite
+  Types.Transaction.suite
+  Ctl.Data.Interval.suite
+  flip mapTest Types.Interval.suite \f -> liftEffect $ join $
+    f <$> Types.Interval.eraSummariesFixture
+      <*> Types.Interval.systemStartFixture
+  E2E.Route.suite
+  CoinSelection.suite

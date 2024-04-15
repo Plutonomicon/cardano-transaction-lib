@@ -31,7 +31,7 @@ import Cardano.Types
   ( Bech32String
   , Coin
   , GeneralTransactionMetadata
-  , PoolPubKeyHash(..)
+  , PoolPubKeyHash(PoolPubKeyHash)
   , Transaction(Transaction)
   , TransactionHash
   , TransactionInput(TransactionInput)
