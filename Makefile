@@ -61,6 +61,7 @@ webpack-serve: spago-build create-bundle-entrypoint create-html-entrypoint
 check-explicit-exports:
 	@if grep -rn '(\.\.)' ${ps-sources}; then
 		echo "Use explicit imports/exports ^"
+		echo "Run ./scripts/import-fixer.sh to autofix some of these"
 		exit 1
 	else
 		echo "All imports/exports are explicit"
