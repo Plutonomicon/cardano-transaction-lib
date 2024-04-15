@@ -34,7 +34,7 @@ import Test.Ctl.CoinSelection.Arbitrary
 import Test.QuickCheck (Result(Failed, Success)) as QuickCheck
 import Test.QuickCheck ((===))
 import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.QuickCheck (quickCheck)
+import Test.Spec.QuickCheck (quickCheck, quickCheck')
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
@@ -49,10 +49,10 @@ suite =
       quickCheck prop_partition_disjoint
 
     test "prop_utxoIndexInsertEntry_invariant" do
-      quickCheck prop_utxoIndexInsertEntry_invariant
+      quickCheck' 30 prop_utxoIndexInsertEntry_invariant
 
     test "prop_utxoIndexDeleteEntry_invariant" do
-      quickCheck prop_utxoIndexDeleteEntry_invariant
+      quickCheck' 30 prop_utxoIndexDeleteEntry_invariant
 
     group "SelectRandom" do
       test "prop_selectRandom_invariant" do

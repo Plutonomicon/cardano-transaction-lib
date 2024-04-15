@@ -58,7 +58,7 @@ import Test.QuickCheck (test) as QuickCheck
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Test.QuickCheck.Gen (Gen, randomSampleOne)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.QuickCheck (quickCheck)
+import Test.Spec.QuickCheck (quickCheck')
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
@@ -68,7 +68,7 @@ suite =
     UtxoIndex.suite
     group "performMultiAssetSelection" do
       test "Performs a selection with zero outputs" do
-        quickCheck prop_performMultiAssetSelection_empty
+        quickCheck' 30 prop_performMultiAssetSelection_empty
       runSelectionTestWithFixture selFixture0
         "Selects only from the 'singletons' subset if possible"
       runSelectionTestWithFixture selFixture1
