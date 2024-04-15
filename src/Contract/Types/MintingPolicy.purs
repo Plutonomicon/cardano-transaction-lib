@@ -26,6 +26,7 @@ data MintingPolicy
 
 derive instance Generic MintingPolicy _
 derive instance Eq MintingPolicy
+derive instance Ord MintingPolicy
 
 instance DecodeAeson MintingPolicy where
   decodeAeson aes =

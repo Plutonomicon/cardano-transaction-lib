@@ -22,8 +22,9 @@ import Cardano.Types
   , UtxoMap
   )
 import Cardano.Types.DataHash (hashPlutusData)
-import Contract.Types (MintingPolicy)
+import Contract.Types.MintingPolicy (MintingPolicy)
 import Ctl.Internal.Helpers ((<\>))
+import Data.Array (nub)
 import Data.Array (singleton, union) as Array
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map, empty, singleton, union)
@@ -74,7 +75,7 @@ instance Show ScriptLookups where
 instance Semigroup ScriptLookups where
   append (ScriptLookups l) (ScriptLookups r) =
     ScriptLookups
-      { mintingPolicies: l.mintingPolicies `Array.union` r.mintingPolicies
+      { mintingPolicies: nub $ l.mintingPolicies `Array.union` r.mintingPolicies
       , txOutputs: l.txOutputs `union` r.txOutputs
       , scripts: l.scripts `Array.union` r.scripts
       , datums: l.datums `union` r.datums

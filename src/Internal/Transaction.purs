@@ -29,6 +29,7 @@ import Cardano.Types.TransactionBody (TransactionBody(TransactionBody))
 import Cardano.Types.TransactionWitnessSet
   ( TransactionWitnessSet(TransactionWitnessSet)
   )
+import Data.Array (nub)
 import Data.Array as Array
 import Data.Foldable (null)
 import Data.Map (Map)
@@ -68,7 +69,7 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
           packListContainer $ Redeemer.toCsl <$> rs
         datumsCsl =
           if Array.null ds
-          -- This is a hack. The argument datums argument is optional and is
+          -- This is a hack. The datums argument is optional and is
           -- supposed to not be provided if there are no datums.
           -- TODO: fix upstream
           then unsafeCoerce undefined
@@ -95,7 +96,7 @@ attachDatums [] tx = tx
 attachDatums datums tx@(Transaction { witnessSet: TransactionWitnessSet ws }) =
   do
     updateTxWithWitnesses tx $ TransactionWitnessSet $ ws
-      { plutusData = ws.plutusData <> datums }
+      { plutusData = nub $ ws.plutusData <> datums }
 
 -- | Attach a `PlutusScript` to a transaction by modifying its existing witness
 -- | set
@@ -111,7 +112,7 @@ attachPlutusScripts ps tx@(Transaction { witnessSet: TransactionWitnessSet ws })
   do
     updateTxWithWitnesses tx
       $ TransactionWitnessSet
-      $ ws { plutusScripts = ws.plutusScripts <> ps }
+      $ ws { plutusScripts = nub $ ws.plutusScripts <> ps }
 
 -- | Attach a `NativeScript` to a transaction by modifying its existing witness
 -- | set
@@ -121,7 +122,7 @@ attachNativeScript ns tx@(Transaction { witnessSet: TransactionWitnessSet ws }) 
   do
     updateTxWithWitnesses tx
       $ TransactionWitnessSet
-      $ ws { nativeScripts = ws.nativeScripts <> [ ns ] }
+      $ ws { nativeScripts = nub $ ws.nativeScripts <> [ ns ] }
 
 updateTxWithWitnesses
   :: Transaction

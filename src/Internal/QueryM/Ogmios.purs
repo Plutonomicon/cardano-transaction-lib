@@ -98,20 +98,20 @@ import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Serialization.Lib (fromBytes, ipv4_new)
 import Cardano.Types
   ( Bech32String
-  , BigNum(..)
-  , Language(..)
+  , BigNum(BigNum)
+  , Language(PlutusV1, PlutusV2)
   , RedeemerTag
-  , VRFKeyHash(..)
+  , VRFKeyHash(VRFKeyHash)
   )
 import Cardano.Types.AssetName (unAssetName)
 import Cardano.Types.BigNum (BigNum)
 import Cardano.Types.BigNum (fromBigInt, fromString) as BigNum
 import Cardano.Types.CborBytes (CborBytes)
-import Cardano.Types.Coin (Coin(..))
-import Cardano.Types.CostModel (CostModel(..))
+import Cardano.Types.Coin (Coin(Coin))
+import Cardano.Types.CostModel (CostModel(CostModel))
 import Cardano.Types.Ed25519KeyHash (Ed25519KeyHash)
-import Cardano.Types.ExUnitPrices (ExUnitPrices(..))
-import Cardano.Types.ExUnits (ExUnits(..))
+import Cardano.Types.ExUnitPrices (ExUnitPrices(ExUnitPrices))
+import Cardano.Types.ExUnits (ExUnits(ExUnits))
 import Cardano.Types.Int as Cardano
 import Cardano.Types.Ipv4 (Ipv4(Ipv4))
 import Cardano.Types.Ipv6 (Ipv6)
@@ -125,18 +125,21 @@ import Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Cardano.Types.PlutusScript (PlutusScript(..))
+import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
 import Cardano.Types.PlutusScript as PlutusScript
-import Cardano.Types.PoolMetadata (PoolMetadata(..))
+import Cardano.Types.PoolMetadata (PoolMetadata(PoolMetadata))
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
-import Cardano.Types.Relay (Relay(..))
+import Cardano.Types.Relay
+  ( Relay(SingleHostAddr, SingleHostName, MultiHostName)
+  )
 import Cardano.Types.RewardAddress (RewardAddress)
+import Cardano.Types.RewardAddress as RewardAddress
 import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
-import Cardano.Types.Slot (Slot(..))
+import Cardano.Types.Slot (Slot(Slot))
 import Cardano.Types.TransactionHash (TransactionHash)
-import Cardano.Types.URL (URL(..))
-import Cardano.Types.UnitInterval (UnitInterval(..))
+import Cardano.Types.URL (URL(URL))
+import Cardano.Types.UnitInterval (UnitInterval(UnitInterval))
 import Cardano.Types.Value (Value, getMultiAsset, valueToCoin)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
@@ -155,7 +158,9 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   )
-import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters(..))
+import Ctl.Internal.Types.ProtocolParameters
+  ( ProtocolParameters(ProtocolParameters)
+  )
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.RedeemerTag as RedeemerTag
@@ -642,7 +647,8 @@ decodePoolParameters objParams = do
   pledge <- objParams .: "pledge" >>= aesonObject (\obj -> obj .: "lovelace")
   cost <- objParams .: "cost" >>= aesonObject (\obj -> obj .: "lovelace")
   margin <- decodeUnitInterval =<< objParams .: "margin"
-  rewardAccount <- objParams .: "rewardAccount"
+  rewardAccount <- objParams .: "rewardAccount" >>=
+    RewardAddress.fromBech32 >>> note (TypeMismatch "RewardAddress")
   poolOwners <- objParams .: "owners"
   relayArr <- objParams .: "relays"
   relays <- for relayArr decodeRelay

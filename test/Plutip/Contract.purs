@@ -1477,9 +1477,11 @@ suite = do
             balance <- unsafePartial $ fold <$> getWalletBalance
             let
               collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt $
-                -5_000_000
+                5_000_000
             balance `shouldEqual`
-              (unsafePartial $ balanceBefore <> collateralLoss)
+              ( unsafePartial $ fromJust $ balanceBefore `Value.minus`
+                  collateralLoss
+              )
 
       test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
         do

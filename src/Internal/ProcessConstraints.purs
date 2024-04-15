@@ -26,7 +26,16 @@ import Cardano.Types
   , TransactionWitnessSet(TransactionWitnessSet)
   , Value(Value)
   )
-import Cardano.Types.Address (Address(..), getPaymentCredential)
+import Cardano.Types.Address
+  ( Address
+      ( BaseAddress
+      , ByronAddress
+      , EnterpriseAddress
+      , RewardAddress
+      , PointerAddress
+      )
+  , getPaymentCredential
+  )
 import Cardano.Types.Coin as Coin
 import Cardano.Types.Credential
   ( Credential(PubKeyHashCredential, ScriptHashCredential)
@@ -41,9 +50,6 @@ import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.OutputDatum (OutputDatum(..))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Transaction as Transaction
-import Cardano.Types.Value (isZero)
-import Cardano.Types.Value as Value
-import Contract.Log (logInfo')
 import Contract.Types (MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy))
 import Contract.Types as MintingPolicy
 import Control.Monad.Error.Class (catchError, throwError)
@@ -191,7 +197,6 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
 import Prelude (join) as Bind
