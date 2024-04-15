@@ -80,16 +80,19 @@ module Test.Ctl.Fixtures
 
 import Prelude
 
-import Aeson
-  ( Aeson
-  , aesonNull
-  , decodeAeson
-  , fromString
-  , parseJsonStringToAeson
-  )
+import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Types
   ( AuxiliaryData(AuxiliaryData)
+  , Certificate
+      ( StakeRegistration
+      , StakeDeregistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
+      )
   , Coin(Coin)
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
@@ -98,6 +101,9 @@ import Cardano.Types
   , ExUnits(ExUnits)
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , Language(PlutusV2)
+  , MIRPot(Reserves, Treasury)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
   , NativeScript
       ( TimelockExpiry
       , TimelockStart
@@ -111,13 +117,18 @@ import Cardano.Types
   , PaymentPubKeyHash(PaymentPubKeyHash)
   , PlutusData(Integer, Bytes, Constr, List, Map)
   , PlutusScript(PlutusScript)
+  , PoolMetadata(PoolMetadata)
+  , PoolParams(PoolParams)
+  , PoolPubKeyHash(PoolPubKeyHash)
   , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
   , ProtocolParamUpdate(ProtocolParamUpdate)
   , ProtocolVersion(ProtocolVersion)
   , Redeemer(Redeemer)
   , RedeemerTag(Spend)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , RewardAddress
   , ScriptHash
+  , ScriptRef(NativeScriptRef)
   , Slot(Slot)
   , Transaction(Transaction)
   , TransactionBody(TransactionBody)
@@ -125,7 +136,9 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
+  , URL(URL)
   , UnitInterval(UnitInterval)
+  , Update(Update)
   , UtxoMap
   , Value(Value)
   , Vkey(Vkey)
@@ -140,11 +153,13 @@ import Cardano.Types.Mint (Mint(Mint))
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.PlutusScript (plutusV1Script, plutusV2Script)
 import Cardano.Types.PublicKey as PublicKey
+import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
 import Cardano.Types.TransactionMetadatum (TransactionMetadatum(Text))
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
+import Contract.Prim.ByteArray (hexToByteArray)
 import Ctl.Internal.Types.Aliases (Bech32String)
+import Data.Array as Array
 import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -217,9 +232,6 @@ tokenName1 = tokenNameFromString "4974657374546f6b656e"
 
 tokenName2 :: AssetName
 tokenName2 = tokenNameFromString "54657374546f6b656e32"
-
-tokenName4 :: AssetName
-tokenName4 = tokenNameFromString "abcdef"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -525,111 +537,109 @@ txFixture4 =
     { body: TransactionBody
         { inputs: [ txInputFixture1 ]
         , outputs:
-            [ -- TransactionOutput
-            --   { address: keyHashBaseAddress
-            --       { stake:
-            --           "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-            --       -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-            --       , payment:
-            --           "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-            --       }
-            --   , amount: Value (Coin $ BigNum.fromInt 2353402) MultiAsset.empty
-            --   , datum: Just $ OutputDatum plutusDataFixture1
-            --   , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
-            --   }
-            -- , TransactionOutput
-            --     { address: keyHashBaseAddress
-            --         { stake:
-            --             "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-            --         -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-            --         , payment:
-            --             "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-            --         }
-            --     , amount: Value (Coin $ BigNum.fromInt 1000000) MultiAsset.empty
-            --     , datum: Nothing
-            --     , scriptRef: Just $ NativeScriptRef nativeScriptFixture5
-            --     }
+            [ TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake:
+                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment:
+                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigNum.fromInt 2353402) MultiAsset.empty
+                , datum: Just $ OutputDatum plutusDataFixture1
+                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
+                }
+            , TransactionOutput
+                { address: keyHashBaseAddress
+                    { stake:
+                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
+                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+                    , payment:
+                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
+                    }
+                , amount: Value (Coin $ BigNum.fromInt 1000000) MultiAsset.empty
+                , datum: Nothing
+                , scriptRef: Just $ NativeScriptRef nativeScriptFixture5
+                }
             ]
         , fee: Coin $ BigNum.fromInt 177513
         , ttl: Just $ Slot $ BigNum.fromInt 123
         , certs:
-            [ -- StakeRegistration $ wrap stake1
-            -- , StakeDeregistration $ wrap stake1
-            -- , StakeDelegation (wrap stake1)
-            --     (PoolPubKeyHash ed25519KeyHash1)
-            -- , PoolRegistration $ PoolParams
-            --     { operator: PoolPubKeyHash ed25519KeyHash1
-            --     , vrfKeyhash: unsafePartial $ fromJust $
-            --         hexToByteArray
-            --           "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-            --           >>= wrap >>> decodeCbor
-            --     , pledge: bigNumOne
-            --     , cost: bigNumOne
-            --     , margin: UnitInterval
-            --         { numerator: bigNumOne, denominator: bigNumOne }
-            --     , rewardAccount:
-            --         { networkId: MainnetId, stakeCredential: wrap stake1 }
-            --     , poolOwners: [ ed25519KeyHash1 ]
-            --     , relays:
-            --         [ SingleHostAddr
-            --             { port: Just 8080
-            --             , ipv4: decodeCbor $ wrap $ byteArrayFromIntArrayUnsafe
-            --                 [ 127, 0, 0, 1 ]
-            --             , ipv6: decodeCbor $ wrap $ byteArrayFromIntArrayUnsafe
-            --                 $ Array.replicate 16 123
-            --             }
-            --         , SingleHostName
-            --             { port: Just 8080
-            --             , dnsName: "example.com"
-            --             }
-            --         , MultiHostName { dnsName: "example.com" }
-            --         ]
-            --     , poolMetadata: Just $ PoolMetadata
-            --         { url: URL "https://example.com/"
-            --         , hash: unsafePartial $ fromJust $ decodeCbor $ wrap $
-            --             hexToByteArrayUnsafe
-            --               "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
-            --         }
-            --     }
-            -- , PoolRetirement
-            --     { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
-            --     , epoch: Epoch one
-            --     }
-            -- , GenesisKeyDelegation
-            --     { genesisHash: unsafePartial $ fromJust $ decodeCbor $ wrap $
-            --         hexToByteArrayUnsafe
-            --           "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-            --     , genesisDelegateHash: unsafePartial $ fromJust $ decodeCbor
-            --         $ wrap
-            --         $
-            --           hexToByteArrayUnsafe
-            --             "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-            --     , vrfKeyhash: unsafePartial $ fromJust $ decodeCbor $ wrap $
-            --         hexToByteArrayUnsafe
-            --           "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-            --     }
-            -- , MoveInstantaneousRewardsCert $ ToOtherPot
-            --     { pot: Reserves
-            --     , amount: wrap bigNumOne
-            --     }
-            -- , MoveInstantaneousRewardsCert $ ToStakeCreds
-            --     { pot: Treasury
-            --     , amounts: MIRToStakeCredentials $ Map.fromFoldable
-            --         [ wrap stake1 /\ Int.newPositive bigNumOne ]
-            --     }
+            [ StakeRegistration $ wrap stake1
+            , StakeDeregistration $ wrap stake1
+            , StakeDelegation (wrap stake1)
+                (PoolPubKeyHash ed25519KeyHash1)
+            , PoolRegistration $ PoolParams
+                { operator: PoolPubKeyHash ed25519KeyHash1
+                , vrfKeyhash: unsafePartial $ fromJust $
+                    hexToByteArray
+                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+                      >>= wrap >>> decodeCbor
+                , pledge: bigNumOne
+                , cost: bigNumOne
+                , margin: UnitInterval
+                    { numerator: bigNumOne, denominator: bigNumOne }
+                , rewardAccount:
+                    { networkId: MainnetId, stakeCredential: wrap stake1 }
+                , poolOwners: [ ed25519KeyHash1 ]
+                , relays:
+                    [ SingleHostAddr
+                        { port: Just 8080
+                        , ipv4: decodeCbor $ wrap $ byteArrayFromIntArrayUnsafe
+                            [ 127, 0, 0, 1 ]
+                        , ipv6: decodeCbor $ wrap $ byteArrayFromIntArrayUnsafe
+                            $ Array.replicate 16 123
+                        }
+                    , SingleHostName
+                        { port: Just 8080
+                        , dnsName: "example.com"
+                        }
+                    , MultiHostName { dnsName: "example.com" }
+                    ]
+                , poolMetadata: Just $ PoolMetadata
+                    { url: URL "https://example.com/"
+                    , hash: unsafePartial $ fromJust $ decodeCbor $ wrap $
+                        hexToByteArrayUnsafe
+                          "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
+                    }
+                }
+            , PoolRetirement
+                { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
+                , epoch: Epoch one
+                }
+            , GenesisKeyDelegation
+                { genesisHash: unsafePartial $ fromJust $ decodeCbor $ wrap $
+                    hexToByteArrayUnsafe
+                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , genesisDelegateHash: unsafePartial $ fromJust $ decodeCbor
+                    $ wrap
+                    $
+                      hexToByteArrayUnsafe
+                        "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , vrfKeyhash: unsafePartial $ fromJust $ decodeCbor $ wrap $
+                    hexToByteArrayUnsafe
+                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+                }
+            , MoveInstantaneousRewardsCert $ ToOtherPot
+                { pot: Reserves
+                , amount: wrap bigNumOne
+                }
+            , MoveInstantaneousRewardsCert $ ToStakeCreds
+                { pot: Treasury
+                , amounts: MIRToStakeCredentials $ Map.fromFoldable
+                    [ wrap stake1 /\ Int.newPositive bigNumOne ]
+                }
             ]
         , withdrawals: Map.fromFoldable
             [ rewardAddress1 /\ Coin BigNum.one ]
-        , update: -- Just $ Update
-            -- { proposedProtocolParameterUpdates:
-            --     proposedProtocolParameterUpdates1
-            -- , epoch: Epoch zero
-            -- }
-            Nothing
-        , auxiliaryDataHash: -- decodeCbor $ wrap
-            -- $ byteArrayFromIntArrayUnsafe
-            -- $ Array.replicate 32 0
-            Nothing
+        , update: Just $ Update
+            { proposedProtocolParameterUpdates:
+                proposedProtocolParameterUpdates1
+            , epoch: Epoch zero
+            }
+        , auxiliaryDataHash: decodeCbor $ wrap
+            $ byteArrayFromIntArrayUnsafe
+            $ Array.replicate 32 0
         , validityStartInterval: Nothing -- Just $ Slot $ BigNum.fromInt 124
         , mint: Just $ Mint $ Map.fromFoldable
             [ currencySymbol1 /\ Map.fromFoldable

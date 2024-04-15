@@ -3,7 +3,7 @@ module Ctl.Examples.ECDSA (contract) where
 import Contract.Prelude
 
 import Cardano.Types.Credential (Credential(ScriptHashCredential))
-import Contract.Address (getNetworkId, mkAddress)
+import Contract.Address (mkAddress)
 import Contract.Crypto.Secp256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature

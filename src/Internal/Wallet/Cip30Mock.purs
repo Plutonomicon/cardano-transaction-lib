@@ -17,8 +17,8 @@ import Cardano.Types
   ( Credential(PubKeyHashCredential)
   , StakeCredential(StakeCredential)
   )
-import Cardano.Types.Address (Address(..))
-import Cardano.Types.NetworkId (NetworkId(..))
+import Cardano.Types.Address (Address(RewardAddress))
+import Cardano.Types.NetworkId (NetworkId(MainnetId, TestnetId))
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput

@@ -19,7 +19,7 @@ module Ctl.Internal.Types.Cbor
 
 import Prelude
 
-import Cardano.Types.CborBytes (CborBytes(..))
+import Cardano.Types.CborBytes (CborBytes(CborBytes))
 import Contract.Prelude (foldl)
 import Control.Monad.Except (Except, runExcept, throwError)
 import Control.Monad.State.Trans (StateT, evalStateT, get, put)

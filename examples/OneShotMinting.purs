@@ -39,7 +39,10 @@ import Contract.Test.Assert
   , checkTokenGainInWallet'
   , runChecks
   )
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
+import Contract.TextEnvelope
+  ( decodeTextEnvelope
+  , plutusScriptFromEnvelope
+  )
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
@@ -51,7 +54,6 @@ import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
-import Ctl.Internal.ApplyArgs (ApplyArgsError)
 import Data.Array (head, singleton) as Array
 import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error, throw)
@@ -128,7 +130,7 @@ oneShotMintingPolicyScript txInput = do
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Either ApplyArgsError PlutusScript
+  -> Either String PlutusScript
 mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData

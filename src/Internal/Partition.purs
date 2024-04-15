@@ -15,7 +15,7 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset (MultiAsset)
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.ScriptHash (ScriptHash)
-import Cardano.Types.Value (Value(..))
+import Cardano.Types.Value (Value(Value))
 import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty

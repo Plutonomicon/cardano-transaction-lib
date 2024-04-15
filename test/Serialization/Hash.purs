@@ -1,17 +1,15 @@
 module Test.Ctl.Serialization.Hash (suite) where
 
+import Prelude
+
 import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
-import Control.Bind (bind, discard)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.ByteArray (hexToByteArrayUnsafe)
-import Data.Eq ((==))
-import Data.Function (($))
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (wrap)
-import Data.Unit (Unit)
 import Effect.Aff (Aff)
 import Mote (test)
 import Partial.Unsafe (unsafePartial)
@@ -31,42 +29,43 @@ suite = unsafePartial $ test "Serialization.Hash" do
   assertTrue "ed25519KeyHashFromBech32 returns Nothing on random string"
     (isNothing $ Ed25519KeyHash.fromBech32 invalidBech32)
 
-  pkh <- errMaybe "ed25519KeyHashFromBech32 failed" $ Ed25519KeyHash.fromBech32
-    pkhBech32
-  let
-    pkhB32 = Ed25519KeyHash.toBech32Unsafe "addr_vkh" pkh
-    mPkhB32 = Ed25519KeyHash.toBech32 "addr_vkh" pkh
-    pkhBts = encodeCbor pkh
-    pkh2 = decodeCbor pkhBts
+  do
+    pkh <- errMaybe "ed25519KeyHashFromBech32 failed" $
+      Ed25519KeyHash.fromBech32
+        pkhBech32
+    let
+      pkhB32 = Ed25519KeyHash.toBech32Unsafe "addr_vkh" pkh
+      mPkhB32 = Ed25519KeyHash.toBech32 "addr_vkh" pkh
+      pkhBts = encodeCbor pkh
+      pkh2 = decodeCbor pkhBts
 
-  assertTrue
-    "Safe Ed25519KeyHash.toBech32 should produce Just when unsafe version works"
-    (mPkhB32 == Just pkhB32)
+    assertTrue
+      "Safe Ed25519KeyHash.toBech32 should produce Just when unsafe version works"
+      (mPkhB32 == Just pkhB32)
 
-  assertTrue
-    "Safe Ed25519KeyHash.toBech32 should return Nothing on invalid prefix"
-    (Ed25519KeyHash.toBech32 "" pkh == Nothing)
+    assertTrue
+      "Safe Ed25519KeyHash.toBech32 should return Nothing on invalid prefix"
+      (Ed25519KeyHash.toBech32 "" pkh == Nothing)
 
-  assertTrue "ed25519KeyHashFromBytes does not reverts ed25519KeyHashToBytes"
-    (pkh2 == Just pkh)
+    assertTrue "ed25519KeyHashFromBytes does not reverts ed25519KeyHashToBytes"
+      (pkh2 == Just pkh)
 
-  assertTrue
-    "ed25519KeyHashFromBech32 does not reverts Ed25519KeyHash.toBech32Unsafe"
-    (pkhB32 == pkhBech32)
+    assertTrue
+      "ed25519KeyHashFromBech32 does not reverts Ed25519KeyHash.toBech32Unsafe"
+      (pkhB32 == pkhBech32)
 
   --
+  do
+    assertTrue "scriptHashFromBech32 returns Nothing on random string"
+      (isNothing $ ScriptHash.fromBech32 invalidBech32)
 
-  assertTrue "scriptHashFromBech32 returns Nothing on random string"
-    (isNothing $ ScriptHash.fromBech32 invalidBech32)
+    scrh <- errMaybe "scriptHashFromBytes failed" $ decodeCbor
+      $ wrap
+      $ hexToByteArrayUnsafe scriptHashHex
+    let
+      scrhB32 = ScriptHash.toBech32Unsafe "stake_vkh" scrh
+      scrhFromBech = ScriptHash.fromBech32 scrhB32
 
-  scrh <- errMaybe "scriptHashFromBytes failed" $ decodeCbor
-    $ wrap
-    $ hexToByteArrayUnsafe scriptHashHex
-  let
-    scrhB32 = ScriptHash.toBech32Unsafe "stake_vkh" scrh
-    mScrhB32 = ScriptHash.toBech32Unsafe "stake_vkh" scrh
-    scrhBts = encodeCbor scrh
-    scrhFromBech = ScriptHash.fromBech32 scrhB32
-
-  assertTrue "ScriptHash.fromBech32 does not reverts ScriptHash.toBech32Unsafe"
-    (scrhFromBech == Just scrh)
+    assertTrue
+      "ScriptHash.fromBech32 does not reverts ScriptHash.toBech32Unsafe"
+      (scrhFromBech == Just scrh)

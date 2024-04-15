@@ -15,8 +15,7 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.Value (mkValue)
-import Cardano.Types.Value as Value
-import Control.Monad.Error.Class (class MonadError, class MonadThrow)
+import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
   , mkSelectionState
@@ -43,7 +42,6 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throw)
 import Effect.Unsafe (unsafePerformEffect)
-import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.CoinSelection.Arbitrary

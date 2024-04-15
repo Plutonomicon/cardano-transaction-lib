@@ -19,7 +19,15 @@ import Cardano.Types
   , PaymentPubKeyHash(PaymentPubKeyHash)
   , StakePubKeyHash(StakePubKeyHash)
   ) as X
-import Cardano.Types.Address (Address(..)) as X
+import Cardano.Types.Address
+  ( Address
+      ( BaseAddress
+      , ByronAddress
+      , EnterpriseAddress
+      , RewardAddress
+      , PointerAddress
+      )
+  ) as X
 import Cardano.Types.Address (mkPaymentAddress)
 import Cardano.Types.Address as Address
 import Contract.Monad (Contract, liftContractM)

@@ -12,7 +12,7 @@ import Cardano.Types.NativeScript (NativeScript)
 import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
-import Cardano.Types.ScriptRef (ScriptRef(..))
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Control.Alt ((<|>))
 import Ctl.Internal.Helpers (decodeTaggedNewtype)
 import Data.Generic.Rep (class Generic)

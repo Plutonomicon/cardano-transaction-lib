@@ -22,13 +22,7 @@ import Effect.Exception (error)
 import JS.BigInt as BigInt
 import Mote (group, test)
 import Test.Ctl.Fixtures
-  ( txBinaryFixture1
-  , txBinaryFixture2
-  , txBinaryFixture3
-  , txBinaryFixture4
-  , txBinaryFixture5
-  , txBinaryFixture6
-  , txFixture1
+  ( txFixture1
   , txFixture2
   , txFixture3
   , txFixture4
@@ -135,12 +129,6 @@ suite = do
       test "BigNum negative" $ do
         let bnNeg = "-1"
         BN.fromString bnNeg `shouldSatisfy` isNothing
-
-serializeTX :: Transaction -> String -> Aff Unit
-serializeTX tx fixture =
-  liftEffect $ do
-    let bytes = unwrap $ encodeCbor tx
-    byteArrayToHex bytes `shouldEqual` fixture
 
 txSerializedRoundtrip :: Transaction -> Aff Unit
 txSerializedRoundtrip tx = do

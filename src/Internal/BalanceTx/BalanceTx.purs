@@ -19,17 +19,11 @@ import Cardano.Types
 import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
-import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum))
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutputs
 import Cardano.Types.UtxoMap (pprintUtxoMap)
-import Cardano.Types.Value
-  ( getMultiAsset
-  , lovelaceValueOf
-  , mkValue
-  , pprintValue
-  )
+import Cardano.Types.Value (getMultiAsset, mkValue, pprintValue)
 import Cardano.Types.Value as Value
 import Contract.Log (logWarn')
 import Control.Monad.Except (class MonadError)
@@ -62,7 +56,16 @@ import Ctl.Internal.BalanceTx.Constraints
   , _selectionStrategy
   , _srcAddresses
   ) as Constraints
-import Ctl.Internal.BalanceTx.Error (BalanceTxError(..))
+import Ctl.Internal.BalanceTx.Error
+  ( BalanceTxError
+      ( CouldNotGetUtxos
+      , ReindexRedeemersError
+      , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
+      , NumericOverflowError
+      , UtxoLookupFailedFor
+      )
+  )
 import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
   ( evalExUnitsAndMinFee
   , finalizeTransaction
@@ -85,7 +88,6 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.BalanceTx.UnattachedTx
   ( EvaluatedTx
   , UnindexedTx
-  , _redeemers
   , _transaction
   , indexTx
   )
@@ -121,7 +123,7 @@ import Ctl.Internal.Partition
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )
-import Ctl.Internal.Types.Val (Val(..), pprintVal)
+import Ctl.Internal.Types.Val (Val(Val), pprintVal)
 import Ctl.Internal.Types.Val as Val
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -165,8 +167,6 @@ import Data.Tuple (fst)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (toInt) as UInt
 import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Console as Console
 import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
 

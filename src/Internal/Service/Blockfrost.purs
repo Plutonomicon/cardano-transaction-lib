@@ -89,9 +89,8 @@ import Cardano.Types
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , Language(PlutusV2, PlutusV1)
   , PlutusData
-  , PlutusScript(PlutusScript)
   , PoolPubKeyHash
-  , RawBytes(RawBytes)
+  , RawBytes
   , ScriptHash
   , StakePubKeyHash
   , Transaction

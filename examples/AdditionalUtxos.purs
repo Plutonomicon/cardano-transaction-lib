@@ -6,7 +6,7 @@ module Ctl.Examples.AdditionalUtxos
 import Contract.Prelude
 
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.Credential (Credential(..))
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
 import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (mkAddress)
 import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder)

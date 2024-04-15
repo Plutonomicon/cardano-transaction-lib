@@ -1202,12 +1202,12 @@ instance EncodeAeson AdditionalUtxoSet where
         -- NOTE: We omit the cbor argument.
         , "json": (encodeNativeScript s)
         }
-    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (s /\ PlutusV1)))) =
+    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (_ /\ PlutusV1)))) =
       encodeAeson
         { "language": "plutus:v1"
         , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
         }
-    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (s /\ PlutusV2)))) =
+    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (_ /\ PlutusV2)))) =
       encodeAeson
         { "language": "plutus:v2"
         , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps

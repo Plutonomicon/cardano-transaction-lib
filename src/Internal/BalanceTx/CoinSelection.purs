@@ -19,28 +19,26 @@ module Ctl.Internal.BalanceTx.CoinSelection
   , selectRandomWithPriority
   ) where
 
-import Data.Tuple.Nested
 import Prelude
 
-import Cardano.Types.Asset (Asset(..))
+import Cardano.Types.Asset (Asset(AdaAsset))
 import Cardano.Types.Asset as Asset
-import Cardano.Types.AssetClass (AssetClass(..))
+import Cardano.Types.AssetClass (AssetClass(AssetClass))
 import Cardano.Types.AssetName (unAssetName)
-import Cardano.Types.BigNum as BigNum
-import Cardano.Types.Coin (Coin(..))
-import Cardano.Types.TransactionInput (TransactionInput(..))
+import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value as Value
-import Contract.Log (logError')
 import Control.Monad.Error.Class (class MonadThrow, throwError)
-import Control.Monad.Logger.Class (class MonadLogger)
 import Ctl.Internal.BalanceTx.Error
-  ( Actual(..)
-  , BalanceTxError(..)
-  , Expected(..)
+  ( Actual(Actual)
+  , BalanceTxError
+      ( BalanceInsufficientError
+      , InsufficientUtxoBalanceToCoverAsset
+      )
+  , Expected(Expected)
   )
 import Ctl.Internal.CoinSelection.UtxoIndex
-  ( SelectionFilter(..)
+  ( SelectionFilter(SelectSingleton, SelectPairWith, SelectAnyWith)
   , TxUnspentOutput
   , UtxoIndex
   , emptyUtxoIndex
@@ -49,7 +47,7 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexPartition
   , utxoIndexUniverse
   )
-import Ctl.Internal.Types.Val (Val(..))
+import Ctl.Internal.Types.Val (Val)
 import Ctl.Internal.Types.Val as Val
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -62,21 +60,18 @@ import Data.Lens (Lens', over, view, (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromJust, maybe, maybe')
+import Data.Maybe (Maybe(Just, Nothing), maybe, maybe')
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set (Set)
-import Data.Set as Set
-import Data.Show (show)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (fst)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Console as Console
+import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Class (class MonadEffect)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
-import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck (class Arbitrary)
 import Test.QuickCheck.Gen as Arbitrary
-import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(Proxy))
 
 --------------------------------------------------------------------------------
 -- Coin Selection

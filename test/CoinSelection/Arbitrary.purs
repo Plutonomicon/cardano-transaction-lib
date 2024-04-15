@@ -3,13 +3,10 @@ module Test.Ctl.CoinSelection.Arbitrary where
 import Prelude
 
 import Cardano.Types
-  ( Address
-  , NetworkId(MainnetId)
-  , TransactionHash
+  ( TransactionHash
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
   , UtxoMap
-  , Value
   )
 import Control.Apply (lift2)
 import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, fromIndexFiltered)
@@ -18,7 +15,6 @@ import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map.Gen (genMap) as Map
-import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (Tuple(Tuple))

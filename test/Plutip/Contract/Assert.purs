@@ -3,7 +3,7 @@ module Test.Ctl.Plutip.Contract.Assert (suite) where
 
 import Prelude
 
-import Cardano.Types (ExUnits(..))
+import Cardano.Types (ExUnits(ExUnits))
 import Contract.Monad (liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(Integer))

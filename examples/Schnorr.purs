@@ -2,8 +2,8 @@ module Ctl.Examples.Schnorr (contract) where
 
 import Contract.Prelude
 
-import Cardano.Types (Credential(..))
-import Cardano.Types.Address (Address(..))
+import Cardano.Types (Credential(ScriptHashCredential))
+import Cardano.Types.Address (Address(EnterpriseAddress))
 import Contract.Address (getNetworkId)
 import Contract.Crypto.Secp256k1.Schnorr
   ( deriveSchnorrSecp256k1PublicKey

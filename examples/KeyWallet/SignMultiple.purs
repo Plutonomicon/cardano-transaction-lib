@@ -2,7 +2,7 @@ module Ctl.Examples.KeyWallet.SignMultiple where
 
 import Contract.Prelude
 
-import Cardano.Types (Transaction(..))
+import Cardano.Types (Transaction)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, throwContractError)
 import Contract.ScriptLookups as Lookups

@@ -45,7 +45,7 @@ import Aeson
   , class DecodeTupleAux
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , decodeAeson
   , encodeAeson
@@ -65,7 +65,7 @@ import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (ltraverse)
 import Data.ByteArray (byteArrayToHex)
-import Data.Either (Either(..), either)
+import Data.Either (Either(Left, Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
@@ -82,7 +82,6 @@ import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
 import Data.Traversable (for, traverse)
 import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
@@ -94,7 +93,6 @@ import Foreign.Object as Obj
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
-import Prim.TypeError (class Warn, Text)
 
 bugTrackerLink :: String
 bugTrackerLink =

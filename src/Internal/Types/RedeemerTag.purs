@@ -2,7 +2,7 @@ module Ctl.Internal.Types.RedeemerTag
   ( fromString
   ) where
 
-import Cardano.Types.RedeemerTag (RedeemerTag(..))
+import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
 import Data.Maybe (Maybe(Just, Nothing))
 
 fromString :: String -> Maybe RedeemerTag

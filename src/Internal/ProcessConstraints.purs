@@ -27,13 +27,7 @@ import Cardano.Types
   , Value(Value)
   )
 import Cardano.Types.Address
-  ( Address
-      ( BaseAddress
-      , ByronAddress
-      , EnterpriseAddress
-      , RewardAddress
-      , PointerAddress
-      )
+  ( Address(BaseAddress, EnterpriseAddress)
   , getPaymentCredential
   )
 import Cardano.Types.Coin as Coin
@@ -47,7 +41,7 @@ import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.NativeScript as NativeScript
-import Cardano.Types.OutputDatum (OutputDatum(..))
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Transaction as Transaction
 import Contract.Types (MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy))

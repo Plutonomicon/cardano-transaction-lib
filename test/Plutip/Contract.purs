@@ -13,14 +13,15 @@ import Cardano.Types
   )
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
-import Cardano.Types.Credential (Credential(..))
+import Cardano.Types.Credential
+  ( Credential(PubKeyHashCredential, ScriptHashCredential)
+  )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , StakePubKeyHash
-  , getNetworkId
   , mkAddress
   )
 import Contract.AuxiliaryData (setGeneralTxMetadata)
@@ -173,7 +174,7 @@ import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures
@@ -560,7 +561,6 @@ suite = do
           -- Bob attempts to unlock and send Ada to Charlie
           withKeyWallet bob do
             -- First, he should find the transaction input where Ada is locked
-            networkId <- getNetworkId
             nsAddr <- mkAddress (wrap $ ScriptHashCredential nsHash) Nothing
             utxos <- utxosAt nsAddr
             txInput <- liftContractM "Unable to get UTxO" $
@@ -655,7 +655,6 @@ suite = do
           -- Bob attempts to unlock and send Ada to Charlie
           withKeyWallet bob do
             -- First, he should find the transaction input where Ada is locked
-            networkId <- getNetworkId
             nsAddr <- mkAddress (wrap $ ScriptHashCredential nsHash) Nothing
             utxos <- utxosAt nsAddr
             txInput <- liftContractM "Unable to get UTxO" $

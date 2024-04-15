@@ -4,7 +4,6 @@ import Prelude
 
 import Cardano.Types
   ( Ed25519Signature
-  , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
   )
@@ -29,7 +28,7 @@ import Ctl.Internal.Wallet.Spec
   , PrivateStakeKeySource(PrivateStakeKeyFile)
   , WalletSpec(UseKeys)
   )
-import Data.Lens (_2, _Just, (^?))
+import Data.Lens (_Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)

@@ -31,10 +31,8 @@ import Cardano.Types
   , BigNum
   , DataHash
   , GeneralTransactionMetadata
-  , Language(PlutusV1, PlutusV2)
   , MultiAsset
   , PlutusData
-  , PlutusScript(PlutusScript)
   , ScriptHash
   , Slot
   , TransactionHash(TransactionHash)

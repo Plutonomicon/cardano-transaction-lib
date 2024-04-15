@@ -13,7 +13,7 @@ module Ctl.Examples.PlutusV2.InlineDatum
 
 import Contract.Prelude
 
-import Cardano.Types (Credential(..))
+import Cardano.Types (Credential(ScriptHashCredential))
 import Cardano.Types.BigNum as BigNum
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)

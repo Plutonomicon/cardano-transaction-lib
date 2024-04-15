@@ -4,7 +4,7 @@ import Contract.Prelude
 
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint (Mint(..))
+import Cardano.Types.Mint (Mint)
 import Cardano.Types.Mint as Mint
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Config (ContractParams, testnetNamiConfig)

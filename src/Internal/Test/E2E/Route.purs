@@ -10,11 +10,10 @@ module Ctl.Internal.Test.E2E.Route
 import Prelude
 
 import Cardano.Types (NetworkId(MainnetId))
-import Cardano.Types.PrivateKey (PrivateKey(..))
+import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.RawBytes (RawBytes(RawBytes))
 import Contract.Config (ContractParams)
-import Contract.Keys (privateKeyFromBytes)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
 import Contract.Wallet

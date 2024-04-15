@@ -6,7 +6,10 @@ module Ctl.Examples.PlutusV2.ReferenceScripts
 
 import Contract.Prelude
 
-import Cardano.Types (Credential(..), TransactionUnspentOutput(..))
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  )
 import Cardano.Types.BigNum as BigNum
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)

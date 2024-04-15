@@ -21,7 +21,7 @@ module Ctl.Internal.ProcessConstraints.State
 import Prelude hiding (join)
 
 import Cardano.Types (CostModel, Language, PlutusData, Transaction, UtxoMap)
-import Cardano.Types.Value (Value(..))
+import Cardano.Types.Value (Value)
 import Control.Monad.State.Trans (StateT)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Contract.Monad (Contract)

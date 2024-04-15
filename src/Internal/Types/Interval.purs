@@ -90,7 +90,7 @@ import Cardano.Plutus.DataSchema
 import Cardano.ToData (class ToData, genericToData, toData)
 import Cardano.Types.BigNum (add, fromBigInt, maxValue, one, toBigInt, zero) as BigNum
 import Cardano.Types.PlutusData (PlutusData(Constr))
-import Cardano.Types.Slot (Slot(..))
+import Cardano.Types.Slot (Slot(Slot))
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Ctl.Internal.Helpers

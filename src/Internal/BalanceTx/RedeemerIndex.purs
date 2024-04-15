@@ -47,7 +47,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
-import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(Proxy))
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
 attachRedeemers redeemers =
