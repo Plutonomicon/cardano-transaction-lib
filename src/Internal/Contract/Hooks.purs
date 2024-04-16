@@ -1,10 +1,12 @@
 module Ctl.Internal.Contract.Hooks
   ( Hooks
+  , ClusterParameters
   , emptyHooks
   ) where
 
 import Prelude
 
+import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.Transaction (Transaction)
 import Data.Maybe (Maybe(Nothing))
 import Effect (Effect)
@@ -16,6 +18,14 @@ type Hooks =
   , onSuccess :: Maybe (Effect Unit)
   , onError :: Maybe (Error -> Effect Unit)
   , onSubmit :: Maybe (Transaction -> Effect Unit)
+  , onClusterStartup :: Maybe (ClusterParameters -> Effect Unit)
+  }
+
+type ClusterParameters =
+  { privateKeys :: Array PrivateKey
+  , nodeSocketPath :: String
+  , nodeConfigPath :: String
+  , privateKeysDirectory :: String
   }
 
 emptyHooks :: Hooks
@@ -25,4 +35,5 @@ emptyHooks =
   , onSuccess: Nothing
   , onError: Nothing
   , onSubmit: Nothing
+  , onClusterStartup: Nothing
   }

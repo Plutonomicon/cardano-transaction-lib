@@ -87,6 +87,11 @@ Starting from this version, CTL does not use Plutus-domain types anymore. There 
   - [`purescript-cardano-serialization-lib`](https://github.com/mlabs-haskell/purescript-cardano-serialization-lib)
   - [`purescript-cardano-types`](https://github.com/mlabs-haskell/purescript-cardano-types)
 - `Contract.Address.mkAddress` - a helper that automatically uses the correct `NetworkId` to construct an `Address`.
+- Sharing wallets between Plutip tests - see [the docs for this feature](./doc/plutip-testing.md#sharing-wallet-state-between-tests) ([#1585](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1585))
+  - `runPlutipTestPlan` is a new function that executes a `ContractTestPlan`.
+  - `sameWallets` is a new function that creates a `ContractTestPlan` from a `UtxoDistribution` and a `TestPlanM` of the same wallets running different `Contract`s.
+- new `onClusterStartup` hook that allows to get cluster startup parameters (private keys, `cardano-node` socket and config paths). See [`Test.Ctl.Plutip.Contract.ClusterParameters`](./test/Plutip/Contract/ClusterParameters.purs). ([#1610](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1610))
+
 
 ### Changed
 
@@ -102,9 +107,41 @@ Starting from this version, CTL does not use Plutus-domain types anymore. There 
 - `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
 
 ### Fixed
+- Plutip cluster's Kupo instances don't share the same working folder anymore - ([#1570](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1570))
+- WebAssembly memory leaks (`csl-gc-wrapper` used to depend on unstable `wasm-bidngen` API [that got changed](https://github.com/mlabs-haskell/csl-gc-wrapper/commit/2dea38228b77f7c904aafef12eece7e5af195977)) ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1595))
 
 ### Removed
 
+- **[IMPORTANT]** Removed use of conditional code rewriting based on `BROWSER_RUNTIME` env variable during bundling ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1598)). This change simplifies the bundling process, but it requires a number of updates for all CTL-dependent projects:
+
+   * WebPack users should make this change to the webpack config:
+   ```diff
+       plugins: [
+   -      new webpack.DefinePlugin({
+   -        BROWSER_RUNTIME: isBrowser
+   -      }),
+   ```
+   * Esbuild users should make this change:
+   ```diff
+   const config = {
+     ...
+   -    define: {
+   -      BROWSER_RUNTIME: isBrowser ? "true" : '""'
+   -    },
+   ```
+   * All users should update the runtime dependencies:
+   ```diff
+   -    "@emurgo/cardano-message-signing-browser": "1.0.1",
+   -    "@emurgo/cardano-message-signing-nodejs": "1.0.1",
+   +    "@mlabs-haskell/cardano-message-signing": "1.0.1",
+   -    "apply-args-browser": "0.0.1",
+   -    "apply-args-nodejs": "0.0.1",
+   +    "@mlabs-haskell/uplc-apply-args": "1.0.0",
+   +    "isomorphic-ws": "^5.0.0",
+   -    "ws": "8.4.0",
+   +    "ws": "^8.16.0",
+   +    "web-encoding": "^1.1.5",
+   ```
 - NPM runtime dependencies:
 
 ```diff

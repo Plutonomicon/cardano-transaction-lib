@@ -4,7 +4,12 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Test.Plutip (PlutipConfig, noWallet, testPlutipContracts)
+import Contract.Test.Plutip
+  ( PlutipConfig
+  , noWallet
+  , runPlutipTestPlan
+  , testPlutipContracts
+  )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutip.Server
@@ -34,10 +39,12 @@ import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
+import Test.Ctl.Plutip.Contract.ClusterParameters as ClusterParameters
 import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Plutip.ExUnits as ExUnits
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.SameWallets as SameWallets
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldSatisfy)
@@ -66,6 +73,8 @@ main = interruptOnSignal SIGINT =<< launchAff do
             Contract.suite
           UtxoDistribution.suite
           testPlutipContracts config OgmiosMempool.suite
+          runPlutipTestPlan config SameWallets.suite
+          ClusterParameters.runTest
 
 configWithMaxExUnits :: PlutipConfig
 configWithMaxExUnits = config

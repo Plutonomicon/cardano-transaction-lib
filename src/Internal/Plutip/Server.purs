@@ -1,12 +1,13 @@
 module Ctl.Internal.Plutip.Server
-  ( runPlutipContract
-  , withPlutipContractEnv
+  ( checkPlutipServer
+  , runPlutipContract
+  , runPlutipTestPlan
   , startPlutipCluster
-  , stopPlutipCluster
   , startPlutipServer
-  , checkPlutipServer
   , stopChildProcessWithPort
+  , stopPlutipCluster
   , testPlutipContracts
+  , withPlutipContractEnv
   ) where
 
 import Prelude
@@ -27,7 +28,6 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Affjax (request) as Affjax
-import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
   , getLedgerConstants
@@ -58,6 +58,7 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
+import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , pprintClientError
@@ -87,7 +88,7 @@ import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
-import Data.Newtype (over, wrap)
+import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
@@ -160,8 +161,18 @@ testPlutipContracts
   -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
+  plutipTestPlan <- lift $ execDistribution tp
+  runPlutipTestPlan plutipCfg plutipTestPlan
+
+-- | Run a `ContractTestPlan` in a (single) Plutip environment.
+-- | Supports wallet reuse - see docs on sharing wallet state between
+-- | wallets in `doc/plutip-testing.md`.
+runPlutipTestPlan
+  :: PlutipConfig
+  -> ContractTestPlan
+  -> TestPlanM (Aff Unit) Unit
+runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
   -- Modify tests to pluck out parts of a single combined distribution
-  ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
   runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     -- Sets a single Mote bracket at the top level, it will be run for all
@@ -283,6 +294,14 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   tryWithReport (startKupo' response) "Could not start Kupo"
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
+  void $ try $ liftEffect do
+    for_ env.hooks.onClusterStartup \clusterParamsCb -> do
+      clusterParamsCb
+        { privateKeys: response.privateKeys <#> unwrap
+        , nodeSocketPath: response.nodeSocketPath
+        , nodeConfigPath: response.nodeConfigPath
+        , privateKeysDirectory: response.keysDirectory
+        }
   pure
     { env
     , wallets
@@ -550,8 +569,9 @@ startKupo
   -> Aff (ManagedProcess /\ String /\ OnSignalRef)
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
+  randomStr <- liftEffect $ uniqueId ""
   let
-    workdir = tmpDir <</>> "kupo-db"
+    workdir = tmpDir <</>> randomStr <> "-kupo-db"
     testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
@@ -646,7 +666,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , logLevel: plutipCfg.logLevel
     , customLogger: customLogger
     , suppressLogs: plutipCfg.suppressLogs
-    , hooks: emptyHooks
+    , hooks: plutipCfg.hooks
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants
