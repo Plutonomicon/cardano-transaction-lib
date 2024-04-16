@@ -14,10 +14,13 @@ import Prelude
 import Aeson
   ( class DecodeAeson
   , class EncodeAeson
+  , decodeAeson
   , encodeAeson
   , finiteNumber
   , getField
+  , (.:)
   )
+import Control.Alt ((<|>))
 import Ctl.Internal.Helpers (showWithParens)
 import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
@@ -138,7 +141,14 @@ derive instance Generic RelativeTime _
 derive instance Newtype RelativeTime _
 derive newtype instance Eq RelativeTime
 derive newtype instance Ord RelativeTime
-derive newtype instance DecodeAeson RelativeTime
+
+instance DecodeAeson RelativeTime where
+  decodeAeson aeson = decodeV5 <|> decodeV6
+    where
+    decodeV5 = RelativeTime <$> decodeAeson aeson
+    decodeV6 = do
+      obj <- decodeAeson aeson
+      RelativeTime <$> obj .: "seconds"
 
 instance EncodeAeson RelativeTime where
   encodeAeson (RelativeTime rt) =
