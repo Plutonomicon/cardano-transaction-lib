@@ -64,7 +64,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
-In this version, we've refactored CTL and separated it into multiple reusable sub-packages, most notably:
+In this version, we've refactored CTL and split it into multiple reusable sub-packages, most notably:
 
 - this package
 - `purescript-cardano-types` - (`Cardano.Types.*`) - domain types for Cardano ledger
@@ -73,26 +73,48 @@ In this version, we've refactored CTL and separated it into multiple reusable su
 
 See the [cardano-purescript repo](https://github.com/klntsky/cardano-purescript) for a complete list of new packages.
 
+These packages maintain their own public API, so the interfaces you should use are not necessarily namespaced under `Contract.*` anymore. E.g. `Cardano.Types.*` from `purescript-cardano-types` is public.
+
+Starting from this version, CTL does not use Plutus-domain types anymore. There are no more Plutus domain <-> Cardano domain conversion functions. This change comes with some downsides (e.g. the need to provide NetworkId in `Address`es), but the benefit of not caring about conversions for basic functionality will hopefully be more noticeable.
+
 ### Added
+
+- New purescript dependencies:
+  - [`purescript-bytearrays`](https://github.com/mlabs-haskell/purescript-bytearrays)
+  - [`purescript-cardano-hd-wallet`](https://github.com/mlabs-haskell/purescript-cardano-hd-wallet)
+  - [`purescript-cardano-message-signing`](https://github.com/mlabs-haskell/purescript-cardano-message-signing)
+  - [`purescript-cardano-plutus-data-schema`](https://github.com/mlabs-haskell/purescript-cardano-plutus-data-schema)
+  - [`purescript-cardano-serialization-lib`](https://github.com/mlabs-haskell/purescript-cardano-serialization-lib)
+  - [`purescript-cardano-types`](https://github.com/mlabs-haskell/purescript-cardano-types)
+- `Contract.Address.mkAddress` - a helper that automatically uses the correct `NetworkId` to construct an `Address`.
 
 ### Changed
 
 - Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
-- Renamings for better confirmity with CSL:
+- Renamings for better conformity with CSL:
   - `TokenName` renamed to `AssetName`
   - `NonAdaAsset` renamed to `MultiAsset`
 - `Coin` now wraps BigNum instead of BigInt (in line with CSL)
-- Instances for `Address` type:
-  - `Show`, `EncodeAeson` and `DecodeAeson` return a data-generic representation instead of Bech32-based.
-- `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
-- `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via Maybe in `TransactionOutput`
-- `TransactionMetadatum` constructor naming, in PS and JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
+- `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via `Maybe` in `TransactionOutput`
+- `TransactionMetadatum` constructor naming change, in PS and in JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
 - `Contract.PlutusData.Redeemer` has been renamed to `RedeemerDatum` (to resolve naming conflict with `cardano-ledger`-style redeemer)
 - `Contract.PlutusData.Datum` has been deprecated, use `Cardano.Types.PlutusData`
+- `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
 
 ### Fixed
 
 ### Removed
+
+- NPM runtime dependencies:
+
+```diff
+     "bip39": "^3.1.0",
+-    "blakejs": "1.2.1",
+     "bufferutil": "4.0.5",
+-    "jssha": "3.2.0",
+     "puppeteer-core": "^15.3.2",
+     "reconnecting-webs
+```
 
 - `Contract.Address` utilities to work with `Address` - use `mkAddress` and machinery from `Cardano.Types.Address`
 - `Contract.Credential` renamings:
@@ -131,8 +153,6 @@ See the [cardano-purescript repo](https://github.com/klntsky/cardano-purescript)
    - `getTxFinalFee`
 - `Contract.Numeric.NatRatio` - the module was not used in the library.
 - `Contract.AssocMap` - use `Cardano.Plutus.Types.Map` from [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types)
-
-
 
 ## [v7.0.0]
 
