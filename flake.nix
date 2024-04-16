@@ -394,7 +394,7 @@
             diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
             # We don't want to include `doctoc` in the template dev dependencies.
             diff \
-              <(jq -S '.devDependencies | del(.doctoc)' <<< $ctlPackageJson) \
+              <(jq -S '.devDependencies | del(.jssha) | del(.blakejs) | del(.doctoc)' <<< $ctlPackageJson) \
               <(jq -S .devDependencies <<< $ctlScaffoldPackageJson)
             touch $out
           '';
