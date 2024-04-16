@@ -129,6 +129,7 @@ import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.PoolMetadata (PoolMetadata(PoolMetadata))
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
+import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward)) as RedeemerTag
 import Cardano.Types.Relay
   ( Relay(SingleHostAddr, SingleHostName, MultiHostName)
   )
@@ -163,7 +164,6 @@ import Ctl.Internal.Types.ProtocolParameters
   )
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.RedeemerTag as RedeemerTag
 import Ctl.Internal.Types.SystemStart
   ( SystemStart
   , sysStartFromOgmiosTimestamp
@@ -806,9 +806,17 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
   case split (Pattern ":") redeemerPtrRaw of
     [ tagRaw, indexRaw ] ->
       { redeemerTag: _, redeemerIndex: _ }
-        <$> RedeemerTag.fromString tagRaw
+        <$> redeemerTagFromString tagRaw
         <*> UInt.fromString indexRaw
     _ -> Nothing
+
+redeemerTagFromString :: String -> Maybe RedeemerTag
+redeemerTagFromString = case _ of
+  "spend" -> Just RedeemerTag.Spend
+  "mint" -> Just RedeemerTag.Mint
+  "certificate" -> Just RedeemerTag.Cert
+  "withdrawal" -> Just RedeemerTag.Reward
+  _ -> Nothing
 
 type OgmiosDatum = String
 type OgmiosScript = String

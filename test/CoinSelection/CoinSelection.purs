@@ -24,7 +24,6 @@ import Ctl.Internal.BalanceTx.CoinSelection
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
-import Ctl.Internal.Hashing (blake2b224Hash)
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Val as Val
 import Data.ByteArray (byteArrayFromAscii)
@@ -51,6 +50,7 @@ import Test.Ctl.CoinSelection.Arbitrary
 import Test.Ctl.CoinSelection.RoundRobin (suite) as RoundRobin
 import Test.Ctl.CoinSelection.SelectionState (suite) as SelectionState
 import Test.Ctl.CoinSelection.UtxoIndex (suite) as UtxoIndex
+import Test.Ctl.Internal.Hashing (blake2b224Hash)
 import Test.QuickCheck (class Testable, Result, assertEquals)
 import Test.QuickCheck (test) as QuickCheck
 import Test.QuickCheck.Arbitrary (arbitrary)

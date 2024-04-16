@@ -84,6 +84,7 @@ import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Types
   ( AuxiliaryData(AuxiliaryData)
+  , Bech32String
   , Certificate
       ( StakeRegistration
       , StakeDeregistration
@@ -158,7 +159,6 @@ import Cardano.Types.TransactionMetadatum (TransactionMetadatum(Text))
 import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
 import Contract.Prim.ByteArray (hexToByteArray)
-import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.Array as Array
 import Data.ByteArray
   ( ByteArray

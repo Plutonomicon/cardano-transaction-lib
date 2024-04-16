@@ -1,4 +1,4 @@
-module Ctl.Internal.Hashing
+module Test.Ctl.Internal.Hashing
   ( blake2b224Hash
   , blake2b224HashHex
   , blake2b256Hash
@@ -73,11 +73,6 @@ mintingPolicyHash :: MintingPolicy -> ScriptHash
 mintingPolicyHash = case _ of
   PlutusMintingPolicy script -> plutusScriptHash script
   NativeMintingPolicy nscript -> nativeScriptHash nscript
-
--- -- can't fail, because the length is correct
--- wrap $ unsafePartial $ fromJust $ fromBytes $ blake2b256Hash $ toBytes
---   $ _txBody
---   $ tx
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = wrap <<< plutusScript_hash <<< PlutusScript.toCsl

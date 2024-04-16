@@ -14,6 +14,7 @@ import Contract.Test.Plutip
   , withWallets
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Contract.Numeric.BigNum as BigNum
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect.Aff
   ( Milliseconds(Milliseconds)
@@ -21,7 +22,6 @@ import Effect.Aff
   , effectCanceler
   , launchAff
   )
-import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Scaffold (contract)
 import Test.Spec.Runner (defaultConfig)
@@ -41,8 +41,8 @@ suite = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigNum.fromInt 5_000_000
+          , BigNum.fromInt 2_000_000_000
           ]
       withWallets distribution \wallet -> do
         withKeyWallet wallet do

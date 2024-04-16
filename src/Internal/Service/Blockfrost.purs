@@ -165,7 +165,6 @@ import Ctl.Internal.QueryM.Ogmios
   , decodeRedeemerPointer
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error
   ( ClientError
@@ -183,6 +182,7 @@ import Ctl.Internal.Service.Helpers
   , decodeAssetClass
   )
 import Ctl.Internal.Types.Chain (Tip(Tip, TipAtGenesis))
+import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries
   , EraSummary

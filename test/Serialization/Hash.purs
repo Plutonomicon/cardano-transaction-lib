@@ -3,10 +3,10 @@ module Test.Ctl.Serialization.Hash (suite) where
 import Prelude
 
 import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Types (Bech32String)
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (wrap)

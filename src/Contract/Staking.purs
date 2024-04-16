@@ -11,8 +11,8 @@ import Cardano.Types (Ed25519KeyHash, PoolPubKeyHash, ScriptHash)
 import Contract.Monad (Contract)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.QueryM.Pools (DelegationsAndRewards)
-import Ctl.Internal.QueryM.Pools (DelegationsAndRewards) as X
+import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
+import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Data.Either (either)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)

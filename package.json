@@ -42,9 +42,7 @@
     "base64-js": "^1.5.1",
     "bignumber.js": "^9.1.1",
     "bip39": "^3.1.0",
-    "blakejs": "1.2.1",
     "bufferutil": "4.0.5",
-    "jssha": "3.2.0",
     "puppeteer-core": "^15.3.2",
     "reconnecting-websocket": "4.4.0",
     "uniqid": "5.4.0",
@@ -53,6 +51,8 @@
     "xhr2": "0.2.1"
   },
   "devDependencies": {
+    "blakejs": "1.2.1",
+    "jssha": "3.2.0",
     "buffer": "6.0.3",
     "doctoc": "^2.2.1",
     "esbuild": "0.18.11",

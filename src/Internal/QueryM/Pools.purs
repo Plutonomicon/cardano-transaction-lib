@@ -4,7 +4,6 @@ module Ctl.Internal.QueryM.Pools
   , getPoolsParameters
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
-  , module X
   ) where
 
 import Prelude
@@ -21,7 +20,6 @@ import Ctl.Internal.QueryM.Ogmios
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
-import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Data.ByteArray (byteArrayToHex)
 import Data.Map (Map)

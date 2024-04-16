@@ -8,6 +8,7 @@ module Contract.PlutusData
   , unitRedeemer
   , module X
   , Datum
+  , Redeemer
   ) where
 
 import Prelude
@@ -125,3 +126,6 @@ unitRedeemer = Redeemer.unit
 
 -- | DEPRECATED. Use `Cardano.Types.PlutusData`
 type Datum = PlutusData
+
+-- | DEPRECATED. Use `Contract.PlutusData.RedeemerDatum`
+type Redeemer = RedeemerDatum

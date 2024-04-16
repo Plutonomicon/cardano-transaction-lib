@@ -16,6 +16,7 @@ import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Type.Proxy (Proxy(Proxy))
 
+-- | Associates a metadata label with a type. E.g. a CIP-25 metadata type could be associated with label `721`.
 class (FromMetadata a, ToMetadata a) <= MetadataType (a :: Type) where
   metadataLabel :: Proxy a -> MetadataLabel
 

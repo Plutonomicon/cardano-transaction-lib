@@ -64,6 +64,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [Unreleased]
 
+In this version, we've refactored CTL and separated it into multiple reusable sub-packages, most notably:
+
+- this package
+- `purescript-cardano-types` - (`Cardano.Types.*`) - domain types for Cardano ledger
+- `purescript-cardano-serialization-lib` - (`Cardano.Serialization.Lib.*`) - PureScript wrapper for CSL
+- `purescript-plutus-types` - (`Cardano.Plutus.*`) - Plutus-style domain types used only for `ToData`/`FromData` instances.
+
+See the [cardano-purescript repo](https://github.com/klntsky/cardano-purescript) for a complete list of new packages.
+
 ### Added
 
 ### Changed
@@ -78,11 +87,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
 - `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via Maybe in `TransactionOutput`
 - `TransactionMetadatum` constructor naming, in PS and JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
+- `Contract.PlutusData.Redeemer` has been renamed to `RedeemerDatum` (to resolve naming conflict with `cardano-ledger`-style redeemer)
+- `Contract.PlutusData.Datum` has been deprecated, use `Cardano.Types.PlutusData`
 
 ### Fixed
 
 ### Removed
 
+- `Contract.Address` utilities to work with `Address` - use `mkAddress` and machinery from `Cardano.Types.Address`
+- `Contract.Credential` renamings:
+  - `PubKeyCredential` -> `PubKeyHashCredential`
+  - `ScriptCredential` -> `ScriptHashCredential`
 - `ModifyTx` error: made conversion functions total and removed the need to handle it
 - `Contract.CborBytes` utils:
   - `cborBytesToByteArray`
@@ -114,7 +129,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Transaction`:
    - `TransactionOutputWithRefScript` - use `Cardano.Types.TransactionOutput`. It comes with refscript included.
    - `getTxFinalFee`
-
+- `Contract.Numeric.NatRatio` - the module was not used in the library.
+- `Contract.AssocMap` - use `Cardano.Plutus.Types.Map` from [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types)
 
 
 

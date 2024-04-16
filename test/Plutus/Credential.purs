@@ -5,13 +5,13 @@ module Test.Ctl.Internal.Plutus.Credential
 
 import Prelude
 
+import Cardano.Types (Bech32String)
 import Cardano.Types.Credential
   ( Credential(ScriptHashCredential, PubKeyHashCredential)
   )
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Aliases (Bech32String)
 import Data.Maybe (fromJust)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)

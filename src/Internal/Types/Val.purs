@@ -36,6 +36,31 @@ import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt as BigInt
 
+-- | A long-integer-backed Value that can be negative and does not overflow.
+-- | Used in CTL internally instead of the ledger-style `Value` type to simplify
+-- | overflow handling.
+data Val = Val BigInt ValAssets
+
+instance Eq Val where
+  eq = checkBinRel (==)
+
+instance Semigroup Val where
+  append (Val a ma) (Val b mb) = Val (a + b) (unionWithNonAda add ma mb)
+
+instance Monoid Val where
+  mempty = Val zero Map.empty
+
+derive instance Generic Val _
+
+instance Show Val where
+  show = genericShow
+
+instance JoinSemilattice Val where
+  join (Val c1 m1) (Val c2 m2) = Val (c1 `max` c2) (m1 `unionWithNonAda max` m2)
+
+instance MeetSemilattice Val where
+  meet (Val c1 m1) (Val c2 m2) = Val (c1 `min` c2) (m1 `unionWithNonAda min` m2)
+
 -- | Split a value into its positive and non-positive parts. The first element of
 -- | the tuple contains the non-positive parts of the value, the second element
 -- | contains the positive parts. The convention is non-positive parts are
@@ -61,28 +86,6 @@ instance Split Val where
         mp'
 
     npos /\ pos = mapThese splitIntl mp
-
-data Val = Val BigInt ValAssets
-
-instance Eq Val where
-  eq = checkBinRel (==)
-
-instance Semigroup Val where
-  append (Val a ma) (Val b mb) = Val (a + b) (unionWithNonAda add ma mb)
-
-instance Monoid Val where
-  mempty = Val zero Map.empty
-
-derive instance Generic Val _
-
-instance Show Val where
-  show = genericShow
-
-instance JoinSemilattice Val where
-  join (Val c1 m1) (Val c2 m2) = Val (c1 `max` c2) (m1 `unionWithNonAda max` m2)
-
-instance MeetSemilattice Val where
-  meet (Val c1 m1) (Val c2 m2) = Val (c1 `min` c2) (m1 `unionWithNonAda min` m2)
 
 type ValAssets = Map ScriptHash (Map AssetName BigInt)
 

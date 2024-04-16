@@ -7,19 +7,11 @@ import Cardano.Types (ScriptHash)
 import Cardano.Types.DataHash (DataHash)
 import Cardano.Types.PlutusData (PlutusData(Integer))
 import Cardano.Types.PlutusScript (plutusV1Script, plutusV2Script)
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Hashing (datumHash) as Hashing
 import Contract.Scripts (PlutusScript)
-import Ctl.Internal.Hashing
-  ( blake2b256Hash
-  , blake2b256HashHex
-  , plutusScriptHash
-  , sha256Hash
-  , sha256HashHex
-  , sha3_256Hash
-  , sha3_256HashHex
-  ) as Hashing
 import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Data.ByteArray (ByteArray, byteArrayFromAscii, hexToByteArrayUnsafe)
+import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
@@ -32,20 +24,13 @@ import Test.Spec.Assertions (shouldEqual)
 suite :: TestPlanM (Aff Unit) Unit
 suite =
   group "Hashing" do
-    test "blake2b256 hash of an arbitrary byte array" do
-      Hashing.blake2b256Hash inputDataFixture
-        `shouldEqual` (hexToByteArrayUnsafe blake2b256HexDigestFixture)
-
-    test "blake2b256 hash of an arbitrary byte array as a hex string" do
-      Hashing.blake2b256HashHex inputDataFixture
-        `shouldEqual` blake2b256HexDigestFixture
 
     test "blake2b224 hash of a PlutusV1 script" do
-      Hashing.plutusScriptHash plutusV1ScriptFixture
+      PlutusScript.hash plutusV1ScriptFixture
         `shouldEqual` plutusV1ScriptHashFixture
 
     test "blake2b224 hash of a PlutusV2 script" do
-      Hashing.plutusScriptHash plutusV2ScriptFixture
+      PlutusScript.hash plutusV2ScriptFixture
         `shouldEqual` plutusV2ScriptHashFixture
 
     test "blake2b256 hash of Plutus data" do
@@ -57,38 +42,6 @@ suite =
       do
         Hashing.datumHash (Integer (fromInt 0))
           `shouldEqual` zeroIntDatumHashFixture
-
-    test "sha256 hash of an arbitrary byte array" do
-      Hashing.sha256Hash inputDataFixture
-        `shouldEqual` (hexToByteArrayUnsafe sha256HexDigestFixture)
-
-    test "sha256 hash of an arbitrary byte array as a hex string" do
-      Hashing.sha256HashHex inputDataFixture
-        `shouldEqual` sha256HexDigestFixture
-
-    test "sha3_256 hash of an arbitrary byte array" do
-      Hashing.sha3_256Hash inputDataFixture
-        `shouldEqual` (hexToByteArrayUnsafe sha3_256HexDigestFixture)
-
-    test "sha3_256 hash of an arbitrary byte array as a hex string" do
-      Hashing.sha3_256HashHex inputDataFixture
-        `shouldEqual` sha3_256HexDigestFixture
-
-inputDataFixture :: ByteArray
-inputDataFixture =
-  unsafePartial $ fromJust $ byteArrayFromAscii "some message"
-
-blake2b256HexDigestFixture :: String
-blake2b256HexDigestFixture =
-  "e04294b4b3a1b6e031af82eca8847d2c7be14f588fe326b78a7cc5060da35480"
-
-sha256HexDigestFixture :: String
-sha256HexDigestFixture =
-  "c47757abe4020b9168d0776f6c91617f9290e790ac2f6ce2bd6787c74ad88199"
-
-sha3_256HexDigestFixture :: String
-sha3_256HexDigestFixture =
-  "832978c1119fe706ddfe32de31f1986ba3654198b3b7656b050e2ab3b1fe3de3"
 
 -- Checked that it corresponds to blake2b256(\00) ie. Integer 0
 zeroIntDatumHashFixture :: DataHash
