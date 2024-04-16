@@ -56,6 +56,7 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
+import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , pprintClientError
@@ -563,8 +564,9 @@ startKupo
   -> Aff (ManagedProcess /\ String /\ OnSignalRef)
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
+  randomStr <- liftEffect $ uniqueId ""
   let
-    workdir = tmpDir <</>> "kupo-db"
+    workdir = tmpDir <</>> randomStr <> "-kupo-db"
     testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
