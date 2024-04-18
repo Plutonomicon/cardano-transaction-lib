@@ -6,7 +6,7 @@ import Prelude
 
 import Aeson (decodeAeson)
 import Ctl.Internal.QueryM.Ogmios (OgmiosProtocolParameters)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Either (Either, isRight)
 import Effect.Aff (Aff)
 import Mote (group, test)

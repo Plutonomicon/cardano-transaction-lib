@@ -42,7 +42,7 @@ import Contract.Wallet
   , withKeyWallet
   )
 import Control.Lazy (fix)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray

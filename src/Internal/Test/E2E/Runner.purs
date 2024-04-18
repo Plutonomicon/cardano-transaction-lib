@@ -72,7 +72,7 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiConfirmAccess
   , namiSign
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
+import Mote.TestPlanM (TestPlanM, interpretWithConfig)
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey

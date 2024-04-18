@@ -23,7 +23,7 @@ import Ctl.Internal.Service.Blockfrost
   , BlockfrostScriptInfo
   , BlockfrostSystemStart
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, length)
 import Data.Array.NonEmpty (tail)
 import Data.Bifunctor (bimap, lmap)

@@ -26,7 +26,7 @@ import Aeson
   )
 import Cardano.Serialization.Lib (class IsBytes, fromBytes)
 import Cardano.Serialization.Lib.Internal (class IsCsl)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (ByteArray)
 import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right), either)

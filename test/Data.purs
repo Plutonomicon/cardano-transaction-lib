@@ -29,7 +29,7 @@ import Cardano.Types.PlutusData as PlutusData
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Helpers (showWithParens)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))

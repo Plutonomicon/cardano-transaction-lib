@@ -6,7 +6,7 @@ import Prelude
 
 import Contract.Log (logWarn')
 import Contract.Test.Plutip (runPlutipContract)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)

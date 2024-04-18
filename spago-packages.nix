@@ -845,6 +845,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "mote-testplan" = pkgs.stdenv.mkDerivation {
+        name = "mote-testplan";
+        version = "d1c93e08ef09f5427b460f396b89da7255f8af52";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-mote-testplan";
+          rev = "d1c93e08ef09f5427b460f396b89da7255f8af52";
+          sha256 = "1317v612hq1hlw3m6vvzjfpg3vzm4pdlpix6z4z221cpgaga4i2r";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "newtype" = pkgs.stdenv.mkDerivation {
         name = "newtype";
         version = "v5.0.0";

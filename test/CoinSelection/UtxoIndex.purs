@@ -18,7 +18,7 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexInsertEntry
   , utxoIndexPartition
   ) as UtxoIndex
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)

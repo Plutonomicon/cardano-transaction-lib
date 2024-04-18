@@ -27,7 +27,7 @@ import Contract.Time
 import Contract.TxConstraints (mustValidateIn)
 import Contract.UnbalancedTx (mkUnbalancedTxE)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (Interval)
 import Effect.Aff (Aff)
 import Effect.Exception (error)

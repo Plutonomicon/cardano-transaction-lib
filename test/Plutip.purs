@@ -20,8 +20,8 @@ import Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   )
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Test.TestPlanM as Utils
+import Mote.TestPlanM (TestPlanM)
+import Mote.TestPlanM as Utils
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)

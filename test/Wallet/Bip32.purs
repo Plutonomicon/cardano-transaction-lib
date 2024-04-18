@@ -10,7 +10,7 @@ import Contract.Wallet.Key
   ( StakeKeyPresence(WithStakeKey)
   , mkKeyWalletFromMnemonic
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
 import Data.Lens (_Left, preview)
 import Data.UInt as UInt

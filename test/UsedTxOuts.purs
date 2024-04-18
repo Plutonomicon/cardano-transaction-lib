@@ -5,7 +5,7 @@ import Prelude
 import Cardano.Types (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Monad.Reader (runReaderT)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts
   ( isTxOutRefUsed
   , lockTransactionInputs

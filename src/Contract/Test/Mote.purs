@@ -1,6 +1,6 @@
 module Contract.Test.Mote (module X) where
 
-import Ctl.Internal.Test.TestPlanM
+import Mote.TestPlanM
   ( TestPlanM
   , interpret
   , interpretWithConfig

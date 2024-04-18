@@ -5,7 +5,7 @@ import Prelude
 import Contract.Config (testnetConfig)
 import Contract.Log (logWarn')
 import Contract.Monad (runContract)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)

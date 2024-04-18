@@ -5,7 +5,7 @@ import Prelude
 import Cardano.Types.BigNum as BigNum
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Mote (group, test)
 
 suite :: TestPlanM ContractTest Unit

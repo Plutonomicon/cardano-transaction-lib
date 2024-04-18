@@ -10,7 +10,7 @@ import Cardano.Types.PlutusScript (plutusV1Script, plutusV2Script)
 import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Hashing (datumHash) as Hashing
 import Contract.Scripts (PlutusScript)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)

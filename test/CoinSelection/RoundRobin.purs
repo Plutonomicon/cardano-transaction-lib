@@ -4,7 +4,7 @@ import Prelude
 
 import Cardano.Types.AssetName (AssetName)
 import Ctl.Internal.BalanceTx.CoinSelection (runRoundRobinM)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Foldable (all, foldl, sum)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)

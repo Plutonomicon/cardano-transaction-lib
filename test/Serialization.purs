@@ -10,7 +10,7 @@ import Cardano.Types.PlutusData as PD
 import Cardano.Types.PublicKey as PublicKey
 import Contract.Keys (publicKeyFromBech32)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Maybe (Maybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)

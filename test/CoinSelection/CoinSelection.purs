@@ -24,7 +24,7 @@ import Ctl.Internal.BalanceTx.CoinSelection
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Val as Val
 import Data.ByteArray (byteArrayFromAscii)
 import Data.Foldable (fold, foldMap)

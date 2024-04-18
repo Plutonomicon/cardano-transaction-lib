@@ -11,7 +11,7 @@ import Cardano.Types.Asset (Asset)
 import Ctl.Internal.BalanceTx.CoinSelection (SelectionState)
 import Ctl.Internal.BalanceTx.CoinSelection as CoinSelection
 import Ctl.Internal.CoinSelection.UtxoIndex as UtxoIndex
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Array.NonEmpty (cons')
 import Data.Maybe (Maybe(Just), isJust)
 import Data.Newtype (unwrap)

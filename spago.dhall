@@ -52,6 +52,7 @@ You can edit this file as you like.
   , "media-types"
   , "monad-logger"
   , "mote"
+  , "mote-testplan"
   , "newtype"
   , "noble-secp256k1"
   , "node-buffer"

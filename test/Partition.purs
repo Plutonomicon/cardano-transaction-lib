@@ -8,7 +8,7 @@ import Ctl.Internal.Partition
   , equipartition
   , partition
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray, (:))
 import Data.Array.NonEmpty (length, singleton, sort, zip) as NEArray

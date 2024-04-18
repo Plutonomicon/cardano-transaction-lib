@@ -68,7 +68,7 @@ import Ctl.Internal.Test.ContractTest
   , ContractTestPlan(ContractTestPlan)
   , ContractTestPlanHandler
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , InitialUTxODistribution

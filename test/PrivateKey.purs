@@ -16,7 +16,7 @@ import Contract.Transaction
   , signTransaction
   )
 import Contract.Wallet.Key (publicKeyFromPrivateKey)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyToFile

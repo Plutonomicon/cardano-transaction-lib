@@ -14,7 +14,7 @@ import Contract.Transaction
   ( TransactionInput
   )
 import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Bifunctor (lmap)
 import Effect (Effect)
 import Effect.Aff (Aff)

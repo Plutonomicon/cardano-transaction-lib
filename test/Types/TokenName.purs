@@ -3,7 +3,7 @@ module Test.Ctl.Types.TokenName (suite) where
 import Prelude
 
 import Cardano.Types.AssetName (mkAssetName)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)

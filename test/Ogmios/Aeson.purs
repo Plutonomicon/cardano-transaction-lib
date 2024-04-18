@@ -23,7 +23,7 @@ import Ctl.Internal.QueryM.Ogmios
   , aesonObject
   )
 import Ctl.Internal.QueryM.Ogmios as O
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)

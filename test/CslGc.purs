@@ -5,7 +5,7 @@ module Test.Ctl.CslGc
 import Prelude
 
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Mote (group, test)

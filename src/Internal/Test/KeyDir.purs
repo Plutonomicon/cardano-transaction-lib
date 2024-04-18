@@ -55,7 +55,7 @@ import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( UtxoAmount
   , decodeWallets

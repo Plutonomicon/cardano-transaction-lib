@@ -390,6 +390,25 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-hd-wallet"
         , version = "640b10e00d6eeb4a1c13e730295072ae34e56ac9"
         }
+      , mote-testplan =
+        { dependencies =
+          [ "aff"
+          , "console"
+          , "datetime"
+          , "effect"
+          , "foldable-traversable"
+          , "maybe"
+          , "mote"
+          , "newtype"
+          , "numbers"
+          , "ordered-collections"
+          , "prelude"
+          , "spec"
+          , "transformers"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-mote-testplan"
+        , version = "d1c93e08ef09f5427b460f396b89da7255f8af52"
+        }
       }
 
 in  upstream // additions

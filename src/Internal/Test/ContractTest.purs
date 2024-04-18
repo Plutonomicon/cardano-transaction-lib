@@ -11,7 +11,7 @@ module Ctl.Internal.Test.ContractTest
 import Prelude
 
 import Contract.Monad (Contract)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet

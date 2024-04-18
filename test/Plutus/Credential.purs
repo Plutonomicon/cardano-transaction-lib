@@ -11,7 +11,7 @@ import Cardano.Types.Credential
   )
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Maybe (fromJust)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)

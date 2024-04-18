@@ -11,7 +11,7 @@ import Contract.Scripts (validatorHash)
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Contract.Transaction (awaitTxConfirmed)
 import Ctl.Examples.ExUnits as ExUnits
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Either (isLeft)
 import Effect.Aff (try)
 import JS.BigInt as BigInt

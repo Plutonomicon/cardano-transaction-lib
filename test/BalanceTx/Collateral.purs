@@ -23,7 +23,7 @@ import Ctl.Internal.BalanceTx.Collateral.Select
   , selectCollateral
   )
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map

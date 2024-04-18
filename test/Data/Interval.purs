@@ -22,7 +22,7 @@ import Contract.PlutusData
   )
 import Contract.Prelude (Aff, liftEffect)
 import Contract.Time (always, never)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval
   ( Extended(NegInf, Finite, PosInf)
   , Interval(EmptyInterval, StartAt, EndAt, AlwaysInterval, FiniteInterval)

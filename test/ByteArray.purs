@@ -2,7 +2,7 @@ module Test.Ctl.ByteArray where
 
 import Prelude
 
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArray

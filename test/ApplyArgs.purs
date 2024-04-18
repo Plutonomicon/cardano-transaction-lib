@@ -14,7 +14,7 @@ import Contract.TextEnvelope
 import Control.Monad.Error.Class (class MonadError)
 import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Cardano.TextEnvelope (TextEnvelope)
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Data.List.Lazy (replicate)
 import Data.Profunctor.Choice (left)
 import Effect.Aff (Error, error, throwError)

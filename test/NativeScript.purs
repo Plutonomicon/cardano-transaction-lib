@@ -10,7 +10,7 @@ import Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
 import Ctl.Internal.NativeScripts (getMaximumSigners)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Right))
 import Data.Maybe (fromJust)
