@@ -15,8 +15,10 @@
     };
     haskell-nix = {
       url = "github:input-output-hk/haskell.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.hackage.follows = "hackage-nix";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        hackage.follows = "hackage-nix";
+      };
     };
     CHaP = {
       url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
@@ -33,14 +35,26 @@
     };
 
     cardano-node = {
-      url = "github:input-output-hk/cardano-node/8.8.0-pre";
-      inputs.hackageNix.follows = "hackage-nix";
-      inputs.CHaP.follows = "CHaP";
+      url = "github:IntersectMBO/cardano-node/8.10.0-pre";
+      inputs = {
+        hackageNix.follows = "hackage-nix";
+        CHaP.follows = "CHaP";
+      };
     };
 
-    ogmios-nixos.url = "github:Fourierlabs/ogmios-nixos";
+    ogmios-nixos = {
+      url = "github:Fourierlabs/ogmios-nixos";
+      inputs = {
+        hackage.follows = "hackage-nix";
+        CHaP.follows = "CHaP";
+        ogmios.follows = "ogmios";
+      };
+    };
 
-    ogmios.follows = "ogmios-nixos/ogmios";
+    ogmios = {
+      url = "github:Fourierlabs/ogmios";
+      flake = false;
+    };
 
     kupo-nixos = {
       url = "github:Fourierlabs/kupo-nixos/add-conway";
@@ -57,7 +71,7 @@
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=0b98af1c65c10cf4c83d418d6a246d82e4684076";
+      url = "github:input-output-hk/cardano-configurations?rev=d55cc5cd71f95807601800f4d6b148eefffbfe10";
       flake = false;
     };
     easy-purescript-nix = {
