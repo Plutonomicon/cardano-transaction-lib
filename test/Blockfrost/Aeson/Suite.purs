@@ -23,7 +23,6 @@ import Ctl.Internal.Service.Blockfrost
   , BlockfrostScriptInfo
   , BlockfrostSystemStart
   )
-import Mote.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, length)
 import Data.Array.NonEmpty (tail)
 import Data.Bifunctor (bimap, lmap)
@@ -38,6 +37,7 @@ import Data.Traversable (for_)
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)

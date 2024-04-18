@@ -10,7 +10,6 @@ import Cardano.Types.PlutusData as PD
 import Cardano.Types.PublicKey as PublicKey
 import Contract.Keys (publicKeyFromBech32)
 import Ctl.Internal.Helpers (liftM)
-import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (byteArrayToHex, hexToByteArrayUnsafe)
 import Data.Maybe (Maybe, isJust, isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -21,6 +20,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import JS.BigInt as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.Fixtures
   ( txFixture1
   , txFixture2

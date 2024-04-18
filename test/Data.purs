@@ -29,7 +29,6 @@ import Cardano.Types.PlutusData as PlutusData
 import Control.Lazy (fix)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Helpers (showWithParens)
-import Mote.TestPlanM (TestPlanM)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
@@ -46,6 +45,7 @@ import Effect.Exception (Error)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary, genericArbitrary)

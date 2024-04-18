@@ -10,7 +10,6 @@ import Ctl.Internal.QueryM.Ogmios
   ( OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosSystemStart
   )
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.EraSummaries
   ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
@@ -49,6 +48,7 @@ import Data.UInt as UInt
 import Effect.Aff (Aff)
 import JS.BigInt as BigInt
 import Mote (group)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
 
 slotFixture :: Slot

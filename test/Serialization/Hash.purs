@@ -6,12 +6,12 @@ import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Types (Bech32String)
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
-import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Mote (test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Utils (assertTrue, errMaybe)
 

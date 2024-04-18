@@ -151,7 +151,6 @@ import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet
   ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
@@ -175,6 +174,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
 import Mote (group, skip, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Test.Ctl.Fixtures

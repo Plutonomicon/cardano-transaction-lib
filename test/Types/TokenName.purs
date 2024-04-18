@@ -3,12 +3,12 @@ module Test.Ctl.Types.TokenName (suite) where
 import Prelude
 
 import Cardano.Types.AssetName (mkAssetName)
-import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (isJust)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.Utils (toFromAesonTest)
 import Test.Spec.Assertions (shouldSatisfy)
 

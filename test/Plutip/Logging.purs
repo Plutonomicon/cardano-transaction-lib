@@ -6,7 +6,6 @@ import Prelude
 
 import Contract.Log (logWarn')
 import Contract.Test.Plutip (runPlutipContract)
-import Mote.TestPlanM (TestPlanM)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
@@ -14,6 +13,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.Plutip.Common (config)
 import Test.Spec.Assertions (shouldEqual)
 

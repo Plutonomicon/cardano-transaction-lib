@@ -14,13 +14,13 @@ import Contract.Transaction
   ( TransactionInput
   )
 import Control.Monad.Error.Class (liftEither)
-import Mote.TestPlanM (TestPlanM)
 import Data.Bifunctor (lmap)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Mote (group)
+import Mote.TestPlanM (TestPlanM)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path

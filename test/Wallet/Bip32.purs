@@ -10,12 +10,12 @@ import Contract.Wallet.Key
   ( StakeKeyPresence(WithStakeKey)
   , mkKeyWalletFromMnemonic
   )
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
 import Data.Lens (_Left, preview)
 import Data.UInt as UInt
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

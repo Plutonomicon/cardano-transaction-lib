@@ -23,7 +23,6 @@ import Ctl.Internal.QueryM.Ogmios
   , aesonObject
   )
 import Ctl.Internal.QueryM.Ogmios as O
-import Mote.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)
@@ -41,6 +40,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Foreign.Object (update) as Object
 import Mote (group, skip, test)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)

@@ -55,7 +55,6 @@ import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( UtxoAmount
   , decodeWallets
@@ -103,6 +102,7 @@ import Effect.Ref as Ref
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Mote.Monad (mapTest)
+import Mote.TestPlanM (TestPlanM)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (mkdir, readTextFile, readdir, writeTextFile)
 import Node.FS.Sync (exists)

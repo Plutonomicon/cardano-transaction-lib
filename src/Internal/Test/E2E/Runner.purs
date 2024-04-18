@@ -72,7 +72,6 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiConfirmAccess
   , namiSign
   )
-import Mote.TestPlanM (TestPlanM, interpretWithConfig)
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
@@ -115,6 +114,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM, interpretWithConfig)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
   ( Exit(Normally, BySignal)

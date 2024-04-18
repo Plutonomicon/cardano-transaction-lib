@@ -17,7 +17,6 @@ import Ctl.Internal.QueryM.Ogmios
   , TxEvaluationR(TxEvaluationR)
   , TxEvaluationResult(TxEvaluationResult)
   )
-import Mote.TestPlanM (TestPlanM)
 import Data.Either (Either(Left, Right))
 import Data.Map as Map
 import Data.Maybe (fromJust)
@@ -25,6 +24,7 @@ import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures
   ( ogmiosEvaluateTxFailIncompatibleEraFixture

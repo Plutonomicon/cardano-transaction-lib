@@ -68,7 +68,6 @@ import Ctl.Internal.Test.ContractTest
   , ContractTestPlan(ContractTestPlan)
   , ContractTestPlanHandler
   )
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , InitialUTxODistribution
@@ -113,6 +112,7 @@ import Effect.Ref as Ref
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
+import Mote.TestPlanM (TestPlanM)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)

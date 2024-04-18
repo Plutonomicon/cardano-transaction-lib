@@ -5,7 +5,6 @@ import Prelude
 import Cardano.Types (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Control.Monad.Reader (runReaderT)
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Types.UsedTxOuts
   ( isTxOutRefUsed
   , lockTransactionInputs
@@ -21,6 +20,7 @@ import Data.Traversable (traverse)
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (mkSampleTx, mkTxInput, txFixture1)
 import Test.Spec.Assertions (shouldReturn)

@@ -16,7 +16,6 @@ import Contract.Transaction
   , signTransaction
   )
 import Contract.Wallet.Key (publicKeyFromPrivateKey)
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyToFile
@@ -37,6 +36,7 @@ import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Node.FS.Sync (unlink)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (txFixture1)

@@ -6,11 +6,11 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor)
 import Ctl.Internal.QueryM.Ogmios (parseIpv6String)
-import Mote.TestPlanM (TestPlanM)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

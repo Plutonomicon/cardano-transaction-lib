@@ -11,11 +11,11 @@ import Contract.Scripts (validatorHash)
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Contract.Transaction (awaitTxConfirmed)
 import Ctl.Examples.ExUnits as ExUnits
-import Mote.TestPlanM (TestPlanM)
 import Data.Either (isLeft)
 import Effect.Aff (try)
 import JS.BigInt as BigInt
 import Mote (test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 
 mkSuite :: Int -> TestPlanM ContractTest Unit

@@ -8,7 +8,6 @@ import Ctl.Internal.Partition
   , equipartition
   , partition
   )
-import Mote.TestPlanM (TestPlanM)
 import Data.Array (elem) as Array
 import Data.Array.NonEmpty (NonEmptyArray, (:))
 import Data.Array.NonEmpty (length, singleton, sort, zip) as NEArray
@@ -22,6 +21,7 @@ import Effect.Aff (Aff)
 import JS.BigInt (BigInt)
 import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (suchThat)
 import Test.Spec.QuickCheck (quickCheck, quickCheck')

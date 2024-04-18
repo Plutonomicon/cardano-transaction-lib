@@ -42,7 +42,6 @@ import Contract.Wallet
   , withKeyWallet
   )
 import Control.Lazy (fix)
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
 import Data.Array (foldl, head, replicate, zip)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
@@ -58,6 +57,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config, privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)

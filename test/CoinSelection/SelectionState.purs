@@ -11,7 +11,6 @@ import Cardano.Types.Asset (Asset)
 import Ctl.Internal.BalanceTx.CoinSelection (SelectionState)
 import Ctl.Internal.BalanceTx.CoinSelection as CoinSelection
 import Ctl.Internal.CoinSelection.UtxoIndex as UtxoIndex
-import Mote.TestPlanM (TestPlanM)
 import Data.Array.NonEmpty (cons')
 import Data.Maybe (Maybe(Just), isJust)
 import Data.Newtype (unwrap)
@@ -19,6 +18,7 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Unsafe (unsafePerformEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.CoinSelection.Arbitrary
   ( ArbitrarySelectionState
   , ArbitraryTxUnspentOut

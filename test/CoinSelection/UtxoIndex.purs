@@ -18,7 +18,6 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexInsertEntry
   , utxoIndexPartition
   ) as UtxoIndex
-import Mote.TestPlanM (TestPlanM)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
@@ -26,6 +25,7 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Unsafe (unsafePerformEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.CoinSelection.Arbitrary
   ( ArbitraryTxUnspentOut
   , ArbitraryUtxoIndex

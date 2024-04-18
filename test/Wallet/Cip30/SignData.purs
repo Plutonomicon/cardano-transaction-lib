@@ -22,7 +22,6 @@ import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Contract.Keys (publicKeyFromBytes)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Mote.TestPlanM (TestPlanM)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey
@@ -37,6 +36,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Utils (assertTrue, errMaybe)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)

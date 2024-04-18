@@ -20,8 +20,6 @@ import Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   )
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Mote.TestPlanM (TestPlanM)
-import Mote.TestPlanM as Utils
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -35,6 +33,8 @@ import Effect.Aff
   )
 import Mote (group, test)
 import Mote.Monad (mapTest)
+import Mote.TestPlanM (TestPlanM)
+import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract

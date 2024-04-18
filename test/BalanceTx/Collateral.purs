@@ -23,7 +23,6 @@ import Ctl.Internal.BalanceTx.Collateral.Select
   , selectCollateral
   )
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
-import Mote.TestPlanM (TestPlanM)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map
@@ -37,6 +36,7 @@ import Data.UInt (fromInt, toInt) as UInt
 import Effect.Aff (Aff)
 import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures
   ( currencySymbol1
