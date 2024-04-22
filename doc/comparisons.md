@@ -6,6 +6,7 @@ This document highlights key differences between CTL and other Cardano offchain 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [Plutus Application Backend](#plutus-application-backend)
 - [Lucid](#lucid)
   - [Wallet support](#wallet-support)
   - [Query layer differences](#query-layer-differences)
@@ -15,6 +16,23 @@ This document highlights key differences between CTL and other Cardano offchain 
   - [API design](#api-design)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Plutus Application Backend
+
+CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, however, CTL is a library and not a standalone process. Over the course of CTL's development, several questions have been raised as to how best create PAB-as-a-library:
+
+1. How do we get the transaction in the right format?
+   - This is handled by `cardano-serialization-lib`, a Rust library available as WASM
+2. How do we query the chain?
+   - This has been solved using Ogmios & Kupo
+   - Thanks to [Catalyst](https://cardano.ideascale.com/c/idea/420791), we now support an alternative [BlockFrost](https://blockfrost.io/) backend as well ([docs](./blockfrost.md))
+3. How do we get wallet data?
+   - This is done via browser-based light wallet integration in the browser based on CIP-30 ([`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe))
+4. How closely should we follow Plutus' `Contract` API?
+   - CTL's `Contract` model is **significantly** less restrictive than Plutus' and allows for arbitrary effects within the `Contract` monad
+   - Certain features cannot be directly translated into Purescript from Haskell due to differences between the two languages
+   - Some of the Plutus conventions do not make sense for us, due to differences between on-chain and off-chain
+   - Our API scope is a lot more extensive, as we provide support for wallet interactions, staking operations, and more support for balancer tweaking.
 
 ## Lucid
 

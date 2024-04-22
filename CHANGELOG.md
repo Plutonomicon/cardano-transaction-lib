@@ -99,6 +99,7 @@ Starting from this version, CTL does not use Plutus-domain types anymore. There 
 - Renamings for better conformity with CSL:
   - `TokenName` renamed to `AssetName`
   - `NonAdaAsset` renamed to `MultiAsset`
+  - `CurrencySymbol` renamed to `ScriptHash`
 - `Coin` now wraps BigNum instead of BigInt (in line with CSL)
 - `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via `Maybe` in `TransactionOutput`
 - `TransactionMetadatum` constructor naming change, in PS and in JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
@@ -154,6 +155,13 @@ Starting from this version, CTL does not use Plutus-domain types anymore. There 
 ```
 
 - `Contract.Address` utilities to work with `Address` - use `mkAddress` and machinery from `Cardano.Types.Address`
+- `Contract.RewardAddress` - use `Cardano.Types.RewardAddress`
+- `Contract.Transaction`:
+  - Removed newtypes for `Transaction`:
+     - `BalancedSignedTransaction`
+     - `FinalizedTransaction`
+- `Contract.ScriptLookups`:
+  - synonyms for lookup functions that use `Maybe` have been removed: `mintingPolicyM`, `ownPaymentPubKeyHashM`, `ownStakePubKeyHashM`, `unspentOutputsM`, `validatorM`
 - `Contract.Credential` renamings:
   - `PubKeyCredential` -> `PubKeyHashCredential`
   - `ScriptCredential` -> `ScriptHashCredential`

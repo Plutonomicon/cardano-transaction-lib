@@ -103,5 +103,12 @@ You can edit this file as you like.
   , "web-storage"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "examples/**/*.purs", "test/**/*.purs" ]
+, sources =
+  [ "src/**/*.purs"
+  , "examples/**/*.purs"
+  , "test/**/*.purs"
+  , "templates/ctl-scaffold/src/**/*.purs"
+  , "templates/ctl-scaffold/test/**/*.purs"
+  , "templates/ctl-scaffold/exe/**/*.purs"
+  ]
 }
