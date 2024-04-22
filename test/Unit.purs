@@ -14,7 +14,6 @@ import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
 import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
-import Test.Ctl.ByteArray as ByteArray
 import Test.Ctl.CoinSelection as CoinSelection
 import Test.Ctl.CslGc as CslGc
 import Test.Ctl.Data as Data
@@ -52,7 +51,6 @@ testPlan = do
   Ipv6.suite
   NativeScript.suite
   Bip32.suite
-  ByteArray.suite
   Cip30SignData.suite
   CslGc.suite
   Data.suite

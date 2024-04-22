@@ -19,9 +19,6 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Documentation](#documentation)
-  - [Light wallet support](#light-wallet-support)
-- [Roadmap](#roadmap)
-- [Architecture](#architecture)
 - [Additional resources/tools:](#additional-resourcestools)
 - [Available support channels info](#available-support-channels-info)
 - [Funding acknowledgements](#funding-acknowledgements)
