@@ -14,12 +14,12 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Scaffold as Scaffold
 
-contractApi :: Effect(Promise Unit)
+contractApi :: Effect (Promise Unit)
 contractApi = fromAff $ runContract config $ Scaffold.contract
   where
-    config = testnetNamiConfig { backendParams = bfParams,  logLevel = Trace }
-    bfParams = mkBlockfrostBackendParams
-      { blockfrostConfig: blockfrostPublicPreprodServerConfig
-      , blockfrostApiKey: Just "preprodAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-      , confirmTxDelay: Just $ wrap 5.0
-      }
+  config = testnetNamiConfig { backendParams = bfParams, logLevel = Trace }
+  bfParams = mkBlockfrostBackendParams
+    { blockfrostConfig: blockfrostPublicPreprodServerConfig
+    , blockfrostApiKey: Just "preprodAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    , confirmTxDelay: Just $ wrap 5.0
+    }
