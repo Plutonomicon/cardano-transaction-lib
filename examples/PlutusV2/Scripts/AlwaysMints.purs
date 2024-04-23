@@ -1,18 +1,14 @@
 module Ctl.Examples.PlutusV2.Scripts.AlwaysMints
   ( alwaysMintsPolicyScriptV2
-  , alwaysMintsPolicyV2
   ) where
 
 import Contract.Prelude
 
 import Contract.Monad (Contract)
-import Contract.Scripts (MintingPolicy(PlutusMintingPolicy), PlutusScript)
+import Contract.Scripts (PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Control.Monad.Error.Class (liftMaybe)
 import Effect.Exception (error)
-
-alwaysMintsPolicyV2 :: Contract MintingPolicy
-alwaysMintsPolicyV2 = PlutusMintingPolicy <$> alwaysMintsPolicyScriptV2
 
 alwaysMintsPolicyScriptV2 :: Contract PlutusScript
 alwaysMintsPolicyScriptV2 = do

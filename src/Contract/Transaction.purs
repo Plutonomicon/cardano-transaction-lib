@@ -20,7 +20,6 @@ module Contract.Transaction
   , withBalancedTxs
   , withBalancedTxsWithConstraints
   , lookupTxHash
-  , scriptRefFromMintingPolicy
   , mkPoolPubKeyHash
   , hashTransaction
   ) where
@@ -58,13 +57,10 @@ import Cardano.Types
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum, OutputDatumHash)) as X
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash(PoolPubKeyHash)) as X
-import Cardano.Types.ScriptRef (ScriptRef)
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef)) as X
 import Cardano.Types.Transaction (Transaction(Transaction), empty) as X
 import Cardano.Types.Transaction as Transaction
 import Contract.Monad (Contract, runContractInEnv)
-import Contract.Types (MintingPolicy)
-import Contract.Types as MintingPolicy
 import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
@@ -447,9 +443,6 @@ lookupTxHash txHash utxos =
   map (\(input /\ output) -> TransactionUnspentOutput { input, output })
     $ Array.filter (fst >>> unwrap >>> _.transactionId >>> eq txHash)
     $ Map.toUnfoldable utxos
-
-scriptRefFromMintingPolicy :: MintingPolicy -> ScriptRef
-scriptRefFromMintingPolicy = MintingPolicy.toScriptRef
 
 mkPoolPubKeyHash :: Bech32String -> Maybe PoolPubKeyHash
 mkPoolPubKeyHash str

@@ -11,17 +11,18 @@ module Ctl.Examples.AlwaysMints
 
 import Contract.Prelude
 
+import Cardano.Types (PlutusScript)
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -29,7 +30,8 @@ main = example testnetNamiConfig
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysMints"
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
+  mp <- alwaysMintsPolicy
+  let cs = PlutusScript.hash mp
   tn <- Helpers.mkAssetName "TheToken"
   let
     constraints :: Constraints.TxConstraints
@@ -38,7 +40,7 @@ contract = do
       $ Int.fromInt 100
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints
 
@@ -51,11 +53,10 @@ example cfg = launchAff_ $ do
 
 foreign import alwaysMints :: String
 
-alwaysMintsPolicyMaybe :: Maybe MintingPolicy
-alwaysMintsPolicyMaybe = do
-  PlutusMintingPolicy <$>
-    (plutusScriptFromEnvelope =<< decodeTextEnvelope alwaysMints)
+alwaysMintsPolicyMaybe :: Maybe PlutusScript
+alwaysMintsPolicyMaybe =
+  plutusScriptFromEnvelope =<< decodeTextEnvelope alwaysMints
 
-alwaysMintsPolicy :: Contract MintingPolicy
+alwaysMintsPolicy :: Contract PlutusScript
 alwaysMintsPolicy =
   liftContractM "Error decoding alwaysMintsPolicy" alwaysMintsPolicyMaybe

@@ -6,6 +6,7 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint (Mint)
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo, logInfo')
@@ -18,7 +19,6 @@ import Contract.Monad
   )
 import Contract.PlutusData (PlutusData(Integer))
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , awaitTxConfirmed
@@ -33,7 +33,7 @@ import Contract.Wallet
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
 import Data.Array (head) as Array
 import Data.Log.Tag (tag)
@@ -67,9 +67,7 @@ contract = do
 
   oneShotMintingPolicy <- oneShotMintingPolicyScriptV2 oref
 
-  mp0 /\ cs0 <-
-    Helpers.mkCurrencySymbol
-      (pure $ PlutusMintingPolicy $ oneShotMintingPolicy)
+  let cs0 = PlutusScript.hash oneShotMintingPolicy
   tn0 <- Helpers.mkAssetName "CTLNFT"
 
   let plutusScriptRef = PlutusScriptRef oneShotMintingPolicy
@@ -94,7 +92,8 @@ contract = do
       ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp0 <> Lookups.unspentOutputs utxos
+    lookups = Lookups.plutusMintingPolicy oneShotMintingPolicy <>
+      Lookups.unspentOutputs utxos
 
   txHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txHash

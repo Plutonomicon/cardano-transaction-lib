@@ -42,7 +42,6 @@ import Contract.TxConstraints
   , TxConstraints
   )
 import Contract.TxConstraints as Constraints
-import Contract.Types.MintingPolicy as MintingPolicy
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value as Value
@@ -54,7 +53,6 @@ import Contract.Wallet
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
   ( alwaysMintsPolicyScriptV2
-  , alwaysMintsPolicyV2
   )
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
@@ -187,8 +185,8 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
 mintAlwaysMintsV2ToTheScript
   :: TokenName -> Validator -> Int -> Contract Unit
 mintAlwaysMintsV2ToTheScript tokenName validator sum = do
-  mp <- alwaysMintsPolicyV2
-  let cs = MintingPolicy.hash mp
+  mp <- alwaysMintsPolicyScriptV2
+  let cs = PlutusScript.hash mp
 
   let
     vhash = PlutusScript.hash validator
@@ -204,7 +202,7 @@ mintAlwaysMintsV2ToTheScript tokenName validator sum = do
       ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
   txHash <- submitTxFromConstraints lookups constraints
   void $ awaitTxConfirmed txHash

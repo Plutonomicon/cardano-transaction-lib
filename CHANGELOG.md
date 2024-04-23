@@ -160,6 +160,8 @@ Starting from this version, CTL does not use Plutus-domain types anymore. There 
   - Removed newtypes for `Transaction`:
      - `BalancedSignedTransaction`
      - `FinalizedTransaction`
+- `Contract.Scripts`:
+  - `MintingPolicy` type. It was not used anywhere except of `mintingPolicy` lookup. Use `plutusMintingPolicy` and `nativeMintingPolicy` lookups instead.
 - `Contract.ScriptLookups`:
   - synonyms for lookup functions that use `Maybe` have been removed: `mintingPolicyM`, `ownPaymentPubKeyHashM`, `ownStakePubKeyHashM`, `unspentOutputsM`, `validatorM`
 - `Contract.Credential` renamings:

@@ -9,6 +9,7 @@ import Cardano.Types (Asset(Asset), BigNum)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (Address)
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
@@ -52,7 +53,7 @@ import Contract.Wallet
   )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
 import Data.Array (sort) as Array
 import Data.Map (fromFoldable, keys, member) as Map
@@ -153,8 +154,8 @@ contract (ContractParams p) = do
   nonSpendableOref <-
     liftedM "Failed to get utxos at Alice's address"
       (Set.findMin <<< Map.keys <$> utxosAt aliceAddress)
-
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
+  mp <- alwaysMintsPolicy
+  let cs = PlutusScript.hash mp
   tn <- Helpers.mkAssetName "The Token"
   let
     constraints :: Constraints.TxConstraints
@@ -163,7 +164,7 @@ contract (ContractParams p) = do
         <> foldMap Constraints.mustBeSignedBy [ alicePubKeyHash, bobPubKeyHash ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
     balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
     balanceTxConstraints =

@@ -116,11 +116,13 @@ getDatumsByHashesWithErrors hashes = do
       Left err -> Left $ show err
 
 unitDatum
-  :: Warn (Text "Deprecated: use Cardano.Types.PlutusData.unit") => PlutusData
+  :: Warn (Text "Deprecated: unitDatum. use Cardano.Types.PlutusData.unit")
+  => PlutusData
 unitDatum = Datum.unit
 
 unitRedeemer
-  :: Warn (Text "Deprecated: use Cardano.Types.PlutusData.unit")
+  :: Warn
+       (Text "Deprecated: unitRedeemer. use Cardano.Types.RedeemerDatum.unit")
   => RedeemerDatum
 unitRedeemer = Redeemer.unit
 

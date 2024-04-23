@@ -7,6 +7,7 @@ import Contract.Prelude
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (PaymentPubKeyHash)
 import Contract.Monad (Contract, liftedM)
 import Contract.ScriptLookups as Lookups
@@ -17,8 +18,7 @@ import Contract.Value (TokenName, Value)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
-import Ctl.Examples.Helpers (mkCurrencySymbol)
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Internal.Test.UtxoDistribution (InitialUTxOs)
 import Data.Array as Array
 import Mote (group, test)
@@ -47,21 +47,24 @@ suite =
               $ Array.head
               <$> ownPaymentPubKeyHashes
           withKeyWallet alice do
-            _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+            mp <- alwaysMintsPolicy
+            let cs = PlutusScript.hash mp
             tn <- Helpers.mkAssetName tokenNameAscii
             pkh2pkh bobPKH $ Value.singleton cs tn BigNum.one
 
 alwaysMint :: TokenName -> Contract Unit
 alwaysMint tn = do
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
+  mp <- alwaysMintsPolicy
   let
+    cs = PlutusScript.hash mp
+
     constraints :: Constraints.TxConstraints
     constraints = Constraints.mustMintValue
       $ Mint.singleton cs tn
       $ Int.fromInt 100
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
   submitTxFromConstraints lookups constraints
     >>= awaitTxConfirmed

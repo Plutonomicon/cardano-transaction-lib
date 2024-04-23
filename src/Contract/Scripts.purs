@@ -31,10 +31,6 @@ import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptRef (ScriptRef)
 import Contract.Monad (Contract)
-import Contract.Types
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
-  , hash
-  ) as X
 import Control.Parallel (parTraverse)
 import Ctl.Internal.ApplyArgs (applyArgs) as X
 import Ctl.Internal.Contract.Monad (getQueryHandle)

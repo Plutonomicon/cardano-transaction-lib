@@ -7,25 +7,19 @@ import Contract.Prelude
 import Cardano.Types (BigNum)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
+import Cardano.Types.NativeScript as NativeScript
 import Contract.Address (PaymentPubKeyHash)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(NativeMintingPolicy)
-  , NativeScript(ScriptPubkey)
-  )
+import Contract.Scripts (NativeScript(ScriptPubkey))
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
-import Ctl.Examples.Helpers
-  ( mkAssetName
-  , mkCurrencySymbol
-  , mustPayToPubKeyStakeAddress
-  ) as Helpers
+import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import JS.BigInt as BigInt
 
@@ -38,18 +32,19 @@ contract = do
 
   pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeyHashes
 
-  mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
+  let mp = pkhPolicy pkh
+  let cs = NativeScript.hash mp
   tn <- Helpers.mkAssetName "NSToken"
 
   let
     constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintCurrencyUsingNativeScript
-        (nsPolicy pkh)
+        (pkhPolicy pkh)
         tn $ Int.fromInt 100
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.nativeMintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints
 
@@ -81,8 +76,5 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 
-nsPolicy :: PaymentPubKeyHash -> NativeScript
-nsPolicy = ScriptPubkey <<< unwrap
-
-pkhPolicy :: PaymentPubKeyHash -> MintingPolicy
-pkhPolicy = NativeMintingPolicy <<< nsPolicy
+pkhPolicy :: PaymentPubKeyHash -> NativeScript
+pkhPolicy = ScriptPubkey <<< unwrap

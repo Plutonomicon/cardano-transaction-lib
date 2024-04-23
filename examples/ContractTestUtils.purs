@@ -17,13 +17,14 @@ import Cardano.Types.Credential (Credential(PubKeyHashCredential))
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint (Mint)
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
 import Contract.Address (Address, PaymentPubKeyHash, StakePubKeyHash, mkAddress)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
 import Contract.Test.Assert
   ( ContractCheck
   , assertOutputHasDatum
@@ -45,7 +46,6 @@ import Contract.Transaction
   , awaitTxConfirmed
   , balanceTx
   , lookupTxHash
-  , scriptRefFromMintingPolicy
   , signTransaction
   , submit
   )
@@ -69,7 +69,7 @@ type ContractParams =
   { receiverPkh :: PaymentPubKeyHash
   , receiverSkh :: Maybe StakePubKeyHash
   , adaToSend :: Coin
-  , mintingPolicy :: MintingPolicy
+  , mintingPolicy :: PlutusScript
   , tokensToMint :: Tuple3 CurrencySymbol TokenName BigNum
   , datumToAttach :: Datum
   }
@@ -117,7 +117,7 @@ mkChecks p = do
     , assertionToCheck "Output has a reference script"
         \{ txOutputUnderTest } ->
           assertOutputHasRefScript
-            (scriptRefFromMintingPolicy p.mintingPolicy)
+            (PlutusScriptRef p.mintingPolicy)
             (label txOutputUnderTest "Sender's output with reference script")
 
     ]
@@ -151,12 +151,12 @@ mkContract p = do
 
       , mustPayToPubKeyStakeAddressWithDatumAndScriptRef ownPkh p.datumToAttach
           DatumWitness
-          (scriptRefFromMintingPolicy p.mintingPolicy)
+          (PlutusScriptRef p.mintingPolicy)
           nonAdaValue
       ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy p.mintingPolicy
+    lookups = Lookups.plutusMintingPolicy p.mintingPolicy
 
   unbalancedTx <- mkUnbalancedTx lookups constraints
   balancedTx <- balanceTx unbalancedTx

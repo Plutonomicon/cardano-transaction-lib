@@ -11,7 +11,6 @@ module Test.Ctl.Internal.Hashing
   , sha256HashHex
   , sha3_256Hash
   , sha3_256HashHex
-  , mintingPolicyHash
   ) where
 
 import Prelude
@@ -31,9 +30,6 @@ import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.ScriptRef
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
-import Contract.Types
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
   )
 import Data.ByteArray (ByteArray)
 import Data.Newtype (wrap)
@@ -67,12 +63,6 @@ md5HashHex contents = do
 plutusDataHash :: PlutusData -> DataHash
 plutusDataHash =
   wrap <<< hashPlutusData <<< PlutusData.toCsl
-
--- | Converts a Plutus-style `MintingPolicy` to an `MintingPolicyHash`
-mintingPolicyHash :: MintingPolicy -> ScriptHash
-mintingPolicyHash = case _ of
-  PlutusMintingPolicy script -> plutusScriptHash script
-  NativeMintingPolicy nscript -> nativeScriptHash nscript
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = wrap <<< plutusScript_hash <<< PlutusScript.toCsl

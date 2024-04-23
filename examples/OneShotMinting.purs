@@ -7,7 +7,6 @@ module Ctl.Examples.OneShotMinting
   , main
   , mkContractWithAssertions
   , mkOneShotMintingPolicy
-  , oneShotMintingPolicy
   , oneShotMintingPolicyScript
   ) where
 
@@ -16,6 +15,7 @@ import Contract.Prelude
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -28,11 +28,7 @@ import Contract.Monad
   )
 import Contract.PlutusData (PlutusData, toData)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(PlutusMintingPolicy)
-  , PlutusScript
-  , applyArgs
-  )
+import Contract.Scripts (PlutusScript, applyArgs)
 import Contract.Test.Assert
   ( ContractCheck
   , checkLossInWallet
@@ -53,7 +49,7 @@ import Contract.Value (AssetName, ScriptHash)
 import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head, singleton) as Array
 import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error, throw)
@@ -80,11 +76,11 @@ mkChecks nft =
 
 contract :: Contract Unit
 contract =
-  mkContractWithAssertions "Examples.OneShotMinting" oneShotMintingPolicy
+  mkContractWithAssertions "Examples.OneShotMinting" oneShotMintingPolicyScript
 
 mkContractWithAssertions
   :: String
-  -> (TransactionInput -> Contract MintingPolicy)
+  -> (TransactionInput -> Contract PlutusScript)
   -> Contract Unit
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
@@ -93,7 +89,8 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
     liftContractM "Utxo set is empty"
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
 
-  mp /\ cs <- Helpers.mkCurrencySymbol (mkMintingPolicy oref)
+  ps <- mkMintingPolicy oref
+  let cs = PlutusScript.hash ps
   tn <- Helpers.mkAssetName "CTLNFT"
 
   let
@@ -104,7 +101,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 
     lookups :: Lookups.ScriptLookups
     lookups =
-      Lookups.mintingPolicy mp
+      Lookups.plutusMintingPolicy ps
         <> Lookups.unspentOutputs utxos
 
   let checks = mkChecks (cs /\ tn /\ one)
@@ -115,10 +112,6 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee: BigNum.toBigInt $ unwrap txFinalFee }
-
-oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
-oneShotMintingPolicy =
-  map PlutusMintingPolicy <<< oneShotMintingPolicyScript
 
 oneShotMintingPolicyScript :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScript txInput = do

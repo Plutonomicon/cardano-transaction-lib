@@ -4,6 +4,7 @@ module Test.Ctl.Plutip.Contract.Assert (suite) where
 import Prelude
 
 import Cardano.Types (ExUnits(ExUnits))
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Monad (liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(Integer))
@@ -22,8 +23,8 @@ import Contract.Wallet
   )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
-import Ctl.Examples.Helpers (mkAssetName, mkCurrencySymbol)
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.Helpers (mkAssetName)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Data.Array (head)
 import Data.Either (isLeft, isRight)
 import Data.Newtype (wrap)
@@ -53,7 +54,9 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
+
+        let cs = PlutusScript.hash mintingPolicy
 
         tn <- mkAssetName "TheToken"
 
@@ -81,7 +84,9 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
+
+        let cs = PlutusScript.hash mintingPolicy
 
         tn <- mkAssetName "TheToken"
 
@@ -114,7 +119,9 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
+
+        let cs = PlutusScript.hash mintingPolicy
 
         tn <- mkAssetName "TheToken"
 
@@ -149,7 +156,9 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
+
+        let cs = PlutusScript.hash mintingPolicy
 
         tn <- mkAssetName "TheToken"
 

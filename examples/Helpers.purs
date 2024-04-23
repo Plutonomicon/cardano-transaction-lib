@@ -1,6 +1,5 @@
 module Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkAssetName
+  ( mkAssetName
   , mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
   , mustPayToPubKeyStakeAddressWithScriptRef
@@ -13,7 +12,6 @@ import Cardano.Types
   ( AssetName
   , PaymentPubKeyHash
   , PlutusData
-  , ScriptHash
   , ScriptRef
   , StakePubKeyHash
   , Transaction
@@ -23,19 +21,9 @@ import Cardano.Types.AssetName as AssetName
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.Scripts (MintingPolicy)
 import Contract.Transaction (awaitTxConfirmed, submit)
 import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
-import Contract.Types.MintingPolicy as MintingPolicy
-
-mkCurrencySymbol
-  :: Contract MintingPolicy
-  -> Contract (MintingPolicy /\ ScriptHash)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  let cs = MintingPolicy.hash mp
-  pure (mp /\ cs)
 
 mkAssetName :: String -> Contract AssetName
 mkAssetName =

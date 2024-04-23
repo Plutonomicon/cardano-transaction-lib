@@ -1,6 +1,7 @@
 module Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups(ScriptLookups)
-  , mintingPolicy
+  , nativeMintingPolicy
+  , plutusMintingPolicy
   , datum
   , validator
   , ownPaymentPubKeyHash
@@ -22,7 +23,7 @@ import Cardano.Types
   , UtxoMap
   )
 import Cardano.Types.DataHash (hashPlutusData)
-import Contract.Types.MintingPolicy (MintingPolicy)
+import Cardano.Types.NativeScript (NativeScript)
 import Ctl.Internal.Helpers ((<\>))
 import Data.Array (nub)
 import Data.Array (singleton, union) as Array
@@ -48,8 +49,8 @@ import Data.Show.Generic (genericShow)
 -- The lookups uses the Plutus type `TransactionOutput` and does internal
 -- conversions to the Serialization/Cardano to append to the `TxBody` as needed.
 newtype ScriptLookups = ScriptLookups
-  { mintingPolicies ::
-      Array MintingPolicy -- Minting policies that the script interacts with
+  { plutusMintingPolicies :: Array PlutusScript
+  , nativeMintingPolicies :: Array NativeScript
   , txOutputs :: UtxoMap
   , scripts :: Array PlutusScript -- Script validators
   , datums :: Map DataHash PlutusData --  Datums that we might need
@@ -75,7 +76,10 @@ instance Show ScriptLookups where
 instance Semigroup ScriptLookups where
   append (ScriptLookups l) (ScriptLookups r) =
     ScriptLookups
-      { mintingPolicies: nub $ l.mintingPolicies `Array.union` r.mintingPolicies
+      { plutusMintingPolicies: nub $ l.plutusMintingPolicies `Array.union`
+          r.plutusMintingPolicies
+      , nativeMintingPolicies: nub $ l.nativeMintingPolicies `Array.union`
+          r.nativeMintingPolicies
       , txOutputs: l.txOutputs `union` r.txOutputs
       , scripts: l.scripts `Array.union` r.scripts
       , datums: l.datums `union` r.datums
@@ -87,7 +91,8 @@ instance Semigroup ScriptLookups where
 
 instance Monoid ScriptLookups where
   mempty = ScriptLookups
-    { mintingPolicies: mempty
+    { plutusMintingPolicies: mempty
+    , nativeMintingPolicies: mempty
     , txOutputs: empty
     , scripts: mempty
     , datums: empty
@@ -109,8 +114,14 @@ unspentOutputs
 unspentOutputs mp = over ScriptLookups _ { txOutputs = mp } mempty
 
 -- | A script lookups value with a minting policy script.
-mintingPolicy :: MintingPolicy -> ScriptLookups
-mintingPolicy pl = over ScriptLookups _ { mintingPolicies = Array.singleton pl }
+plutusMintingPolicy :: PlutusScript -> ScriptLookups
+plutusMintingPolicy ps = over ScriptLookups
+  _ { plutusMintingPolicies = Array.singleton ps }
+  mempty
+
+nativeMintingPolicy :: NativeScript -> ScriptLookups
+nativeMintingPolicy ns = over ScriptLookups
+  _ { nativeMintingPolicies = Array.singleton ns }
   mempty
 
 -- | A script lookups value with a validator script.

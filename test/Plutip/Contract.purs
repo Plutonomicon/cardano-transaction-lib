@@ -18,6 +18,7 @@ import Cardano.Types.Credential
   )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
@@ -99,7 +100,6 @@ import Contract.Transaction
   )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Types.MintingPolicy as MintingPolicy
 import Contract.UnbalancedTx (mkUnbalancedTx, mkUnbalancedTxE)
 import Contract.Utxos (UtxoMap, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
@@ -125,11 +125,7 @@ import Ctl.Examples.BalanceTxConstraints as BalanceTxConstraintsExample
 import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
 import Ctl.Examples.ECDSA as ECDSA
-import Ctl.Examples.Helpers
-  ( mkAssetName
-  , mkCurrencySymbol
-  , mustPayToPubKeyStakeAddress
-  )
+import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress)
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.ManyAssets as ManyAssets
@@ -146,7 +142,7 @@ import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
@@ -690,7 +686,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          let cs = MintingPolicy.hash mp
+          let cs = PlutusScript.hash mp
           tn <- liftContractM "Cannot make token name"
             $ AssetName.mkAssetName
                 =<< byteArrayFromAscii "TheToken"
@@ -702,7 +698,7 @@ suite = do
               $ Int.fromInt 100
 
             lookups :: Lookups.ScriptLookups
-            lookups = Lookups.mintingPolicy mp
+            lookups = Lookups.plutusMintingPolicy mp
 
           ubTx <- mkUnbalancedTx lookups constraints
           bsTx <- signTransaction =<< balanceTx ubTx
@@ -718,7 +714,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          let cs = PlutusScript.hash mp
           tn <- mkAssetName "TheToken"
 
           -- Minting
@@ -730,7 +726,7 @@ suite = do
               $ Int.fromInt 100
 
             lookups :: Lookups.ScriptLookups
-            lookups = Lookups.mintingPolicy mp
+            lookups = Lookups.plutusMintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
@@ -760,7 +756,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          let cs = PlutusScript.hash mp
           tn <- mkAssetName "TheToken"
 
           -- Minting
@@ -772,7 +768,7 @@ suite = do
               $ Int.fromInt 100
 
             lookups :: Lookups.ScriptLookups
-            lookups = Lookups.mintingPolicy mp
+            lookups = Lookups.plutusMintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
@@ -803,7 +799,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          let cs = PlutusScript.hash mp
           tn <- mkAssetName "TheToken"
 
           -- Minting
@@ -815,7 +811,7 @@ suite = do
               $ Int.fromInt 100
 
             lookups :: Lookups.ScriptLookups
-            lookups = Lookups.mintingPolicy mp
+            lookups = Lookups.plutusMintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
@@ -845,7 +841,7 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           mp <- alwaysMintsPolicy
-          _ /\ cs <- mkCurrencySymbol alwaysMintsPolicy
+          let cs = PlutusScript.hash mp
           tn <- mkAssetName "TheToken"
 
           -- Minting
@@ -857,7 +853,7 @@ suite = do
               $ Int.fromInt 100
 
             lookups :: Lookups.ScriptLookups
-            lookups = Lookups.mintingPolicy mp
+            lookups = Lookups.plutusMintingPolicy mp
 
           txHash <- submitTxFromConstraints lookups constraints
           awaitTxConfirmed txHash
@@ -1050,21 +1046,21 @@ suite = do
       withWallets distribution \alice -> do
         withKeyWallet alice do
           tn1 <- mkAssetName "Token name"
-          mp1 /\ _ <- mkCurrencySymbol alwaysMintsPolicy
-          mp2 /\ _ <- mkCurrencySymbol alwaysMintsPolicyV2
+          mp1 <- alwaysMintsPolicy
+          mp2 <- alwaysMintsPolicyScriptV2
 
           let
             constraints :: Constraints.TxConstraints
             constraints = mconcat
-              [ Constraints.mustMintCurrency (MintingPolicy.hash mp1) tn1
+              [ Constraints.mustMintCurrency (PlutusScript.hash mp1) tn1
                   Int.zero
-              , Constraints.mustMintCurrency (MintingPolicy.hash mp2) tn1
+              , Constraints.mustMintCurrency (PlutusScript.hash mp2) tn1
                   Int.one
               ]
 
             lookups :: Lookups.ScriptLookups
             lookups =
-              Lookups.mintingPolicy mp1 <> Lookups.mintingPolicy mp2
+              Lookups.plutusMintingPolicy mp1 <> Lookups.plutusMintingPolicy mp2
           result <- mkUnbalancedTxE lookups constraints
           result `shouldSatisfy` isLeft
 
@@ -1079,9 +1075,13 @@ suite = do
         withKeyWallet alice do
           tn1 <- mkAssetName "Token with a long name"
           tn2 <- mkAssetName "Token"
-          mp1 /\ cs1 <- mkCurrencySymbol mintingPolicyRdmrInt1
-          mp2 /\ cs2 <- mkCurrencySymbol mintingPolicyRdmrInt2
-          mp3 /\ cs3 <- mkCurrencySymbol mintingPolicyRdmrInt3
+          mp1 <- mintingPolicyRdmrInt1
+          mp2 <- mintingPolicyRdmrInt2
+          mp3 <- mintingPolicyRdmrInt3
+          let
+            cs1 = PlutusScript.hash mp1
+            cs2 = PlutusScript.hash mp2
+            cs3 = PlutusScript.hash mp3
 
           let
             constraints :: Constraints.TxConstraints
@@ -1105,9 +1105,9 @@ suite = do
 
             lookups :: Lookups.ScriptLookups
             lookups =
-              Lookups.mintingPolicy mp1
-                <> Lookups.mintingPolicy mp2
-                <> Lookups.mintingPolicy mp3
+              Lookups.plutusMintingPolicy mp1
+                <> Lookups.plutusMintingPolicy mp2
+                <> Lookups.plutusMintingPolicy mp3
 
           ubTx <- mkUnbalancedTx lookups constraints
           bsTx <- signTransaction =<< balanceTx ubTx
@@ -1496,7 +1496,7 @@ suite = do
               pure $ pkh /\ stakePkh
 
             mp <- alwaysMintsPolicy
-            let cs = MintingPolicy.hash mp
+            let cs = PlutusScript.hash mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= AssetName.mkAssetName
             let
@@ -1522,7 +1522,7 @@ suite = do
                       )
 
                 lookups :: Lookups.ScriptLookups
-                lookups = Lookups.mintingPolicy mp
+                lookups = Lookups.plutusMintingPolicy mp
 
               ubTx <- mkUnbalancedTx lookups constraints
               bsTx <- signTransaction =<< balanceTx ubTx
@@ -1616,8 +1616,8 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
-
+        mintingPolicy <- alwaysMintsPolicyScriptV2
+        let cs = PlutusScript.hash mintingPolicy
         tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
@@ -1770,8 +1770,8 @@ suite = do
             wUtxos0 <- liftedM "Failed to get wallet UTXOs" getWalletUtxos
             logInfo' $ "wUtxos0 " <> show wUtxos0
 
-            mp <- alwaysMintsPolicyV2
-            let cs = MintingPolicy.hash mp
+            mp <- alwaysMintsPolicyScriptV2
+            let cs = PlutusScript.hash mp
             tn <- liftContractM "Cannot make token name"
               $ byteArrayFromAscii "TheToken" >>= AssetName.mkAssetName
 
@@ -1820,7 +1820,7 @@ suite = do
                       scriptRefV2
                       value'
                   <> Constraints.mustMintCurrency
-                    (MintingPolicy.hash mp)
+                    (PlutusScript.hash mp)
                     tn
                     (Int.fromInt 50)
 
@@ -1828,7 +1828,7 @@ suite = do
 
             let
               lookups0 :: Lookups.ScriptLookups
-              lookups0 = Lookups.mintingPolicy mp <> datumLookup
+              lookups0 = Lookups.plutusMintingPolicy mp <> datumLookup
 
             unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
 

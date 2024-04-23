@@ -44,8 +44,6 @@ import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Transaction as Transaction
-import Contract.Types (MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy))
-import Contract.Types as MintingPolicy
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
@@ -216,18 +214,18 @@ processLookupsAndConstraints
   lookups <- use _lookups <#> unwrap
 
   let
-    mpsMap =
+    plutusMintingPolicies =
       fromFoldable $
-        zip (MintingPolicy.hash <$> lookups.mintingPolicies)
-          lookups.mintingPolicies
-    osMap =
+        zip (PlutusScript.hash <$> lookups.plutusMintingPolicies)
+          lookups.plutusMintingPolicies
+    plutusScripts =
       fromFoldable $
         zip (PlutusScript.hash <$> lookups.scripts) lookups.scripts
+    ctx = { plutusMintingPolicies, plutusScripts }
 
   timeConstraintsSolved <- except $ resumeTimeConstraints constraints
 
-  ExceptT $ foldConstraints (processConstraint mpsMap osMap)
-    timeConstraintsSolved
+  ExceptT $ foldConstraints (processConstraint ctx) timeConstraintsSolved
   ExceptT addFakeScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUsedUtxos
@@ -400,9 +398,10 @@ lookupDatum dh = do
   pure $ note (DatumNotFound dh) $ lookup dh otherDt
 
 lookupMintingPolicy
-  :: ScriptHash
-  -> Map ScriptHash MintingPolicy
-  -> Either MkUnbalancedTxError MintingPolicy
+  :: forall a
+   . ScriptHash
+  -> Map ScriptHash a
+  -> Either MkUnbalancedTxError a
 lookupMintingPolicy mph mpsMap =
   note (MintingPolicyNotFound mph) $ lookup mph mpsMap
 
@@ -483,11 +482,14 @@ checkRefNative scriptRef =
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
 processConstraint
-  :: Map ScriptHash MintingPolicy
-  -> Map ScriptHash PlutusScript
+  :: { plutusMintingPolicies :: Map ScriptHash PlutusScript
+     , plutusScripts :: Map ScriptHash PlutusScript
+     }
   -> TxConstraint
   -> ConstraintsM (Either MkUnbalancedTxError Unit)
-processConstraint mpsMap osMap c = do
+processConstraint
+  ctx@{ plutusMintingPolicies, plutusScripts }
+  c = do
   queryHandle <- lift $ getQueryHandle
   case c of
     MustIncludeDatum dat -> pure <$> addDatum dat
@@ -536,7 +538,7 @@ processConstraint mpsMap osMap c = do
             case scriptRefUnspentOut of
               Nothing -> do
                 plutusScript <-
-                  except $ lookupValidator vHash osMap
+                  except $ lookupValidator vHash plutusScripts
                 lift $ attachToCps (map pure <<< attachPlutusScript)
                   plutusScript
               Just scriptRefUnspentOut' ->
@@ -573,16 +575,8 @@ processConstraint mpsMap osMap c = do
     MustMintValue scriptHash red tn i scriptRefUnspentOut -> runExceptT do
       case scriptRefUnspentOut of
         Nothing -> do
-          mp <- except $ lookupMintingPolicy scriptHash mpsMap
-          ( case mp of
-              PlutusMintingPolicy p ->
-                ( lift $ attachToCps
-                    (map pure <<< attachPlutusScript)
-                    p
-                )
-              NativeMintingPolicy _ -> throwError $
-                ExpectedPlutusScriptGotNativeScript scriptHash
-          )
+          mp <- except $ lookupMintingPolicy scriptHash plutusMintingPolicies
+          lift $ attachToCps (map pure <<< attachPlutusScript) mp
         Just scriptRefUnspentOut' -> do
           isNative <- ExceptT $ checkRefNative scriptRefUnspentOut'
           when isNative
@@ -845,7 +839,7 @@ processConstraint mpsMap osMap c = do
           foldM
             ( \_ constr -> runExceptT do
                 let continue = put cps *> tryNext zs
-                ( ExceptT $ processConstraint mpsMap osMap constr
+                ( ExceptT $ processConstraint ctx constr
                     `catchError` \_ -> continue
                 )
                   `catchError` \_ -> ExceptT continue

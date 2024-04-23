@@ -6,9 +6,10 @@ import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups(ScriptLookups)
   , datum
-  , mintingPolicy
+  , nativeMintingPolicy
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
+  , plutusMintingPolicy
   , unspentOutputs
   , validator
   ) as X
