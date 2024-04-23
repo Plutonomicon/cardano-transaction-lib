@@ -1,29 +1,12 @@
 {
-  "type": "module",
   "name": "ctl-scaffold",
-  "version": "0.1.0",
-  "description": "",
-  "main": "./output/Scaffold.Main/index.js",
-  "directories": {
-    "test": "test"
-  },
-  "scripts": {
-    "start-blockfrost-runtime": "nix run -L .#ctl-scaffold-blockfrost-runtime",
-    "test": "spago run --main Test.Scaffold.Main",
-    "blockfrost-test": "source ./test/blockfrost.env && spago run --main Scaffold.Test.Blockfrost",
-    "blockfrost-local-test": "source ./test/blockfrost-local.env && spago run --main Scaffold.Test.Blockfrost",
-    "e2e-serve": "make e2e-serve",
-    "start-runtime": "nix run -L .#ctl-scaffold-runtime",
-    "e2e-test": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run'",
-    "e2e-test-debug": "source ./test/e2e.env && spago test --main Scaffold.Test.E2E -a 'e2e-test run --no-headless'",
-    "e2e-browser": "source ./test/e2e.env && spago run --main Scaffold.Test.E2E -a 'e2e-test browser'",
-    "e2e-pack-settings": "source ./test/e2e.env && spago run --main Scaffold.Test.E2E -a 'e2e-test pack'",
-    "e2e-unpack-settings": "source ./test/e2e.env && spago run --main Scaffold.Test.E2E -a 'e2e-test unpack'",
-    "dev": "make run-dev",
-    "build": "make run-build"
-  },
-  "author": "",
-  "license": "MIT",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
   "dependencies": {
     "@mlabs-haskell/cardano-message-signing": "1.0.1",
     "@mlabs-haskell/cardano-serialization-lib-gc": "^1.0.9",
@@ -46,16 +29,14 @@
     "xhr2": "0.2.1"
   },
   "devDependencies": {
+    "apply-args-nodejs": "0.0.1",
     "buffer": "6.0.3",
+    "doctoc": "^2.2.1",
     "esbuild": "0.18.11",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "esbuild-plugin-wasm": "^1.1.0",
-    "node-polyfill-webpack-plugin": "2.0.1",
-    "webpack": "5.88.1",
-    "webpack-cli": "5.1.4",
-    "webpack-dev-server": "4.15.1"
-  },
-  "prettier": {
-    "arrowParens": "avoid"
+    "http-server": "14.1.1",
+    "typescript": "5.0.4",
+    "uuid": "^8.3.2"
   }
 }

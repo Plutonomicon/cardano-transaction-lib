@@ -1,109 +1,3 @@
-{-
-Welcome to your new Dhall package-set!
-
-Below are instructions for how to edit this file for most use
-cases, so that you don't need to know Dhall to use it.
-
-## Warning: Don't Move This Top-Level Comment!
-
-Due to how `dhall format` currently works, this comment's
-instructions cannot appear near corresponding sections below
-because `dhall format` will delete the comment. However,
-it will not delete a top-level comment like this one.
-
-## Use Cases
-
-Most will want to do one or both of these options:
-1. Override/Patch a package's dependency
-2. Add a package not already in the default package set
-
-This file will continue to work whether you use one or both options.
-Instructions for each option are explained below.
-
-### Overriding/Patching a package
-
-Purpose:
-- Change a package's dependency to a newer/older release than the
-    default package set's release
-- Use your own modified version of some dependency that may
-    include new API, changed API, removed API by
-    using your custom git repo of the library rather than
-    the package set's repo
-
-Syntax:
-where `entityName` is one of the following:
-- dependencies
-- repo
-- version
--------------------------------
-let upstream = --
-in  upstream
-  with packageName.entityName = "new value"
--------------------------------
-
-Example:
--------------------------------
-let upstream = --
-in  upstream
-  with halogen.version = "master"
-  with halogen.repo = "https://example.com/path/to/git/repo.git"
-
-  with halogen-vdom.version = "v4.0.0"
--------------------------------
-
-### Additions
-
-Purpose:
-- Add packages that aren't already included in the default package set
-
-Syntax:
-where `<version>` is:
-- a tag (i.e. "v4.0.0")
-- a branch (i.e. "master")
-- commit hash (i.e. "701f3e44aafb1a6459281714858fadf2c4c2a977")
--------------------------------
-let upstream = --
-in  upstream
-  with new-package-name =
-    { dependencies =
-       [ "dependency1"
-       , "dependency2"
-       ]
-    , repo =
-       "https://example.com/path/to/git/repo.git"
-    , version =
-        "<version>"
-    }
--------------------------------
-
-Example:
--------------------------------
-let upstream = --
-in  upstream
-  with benchotron =
-      { dependencies =
-          [ "arrays"
-          , "exists"
-          , "profunctor"
-          , "strings"
-          , "quickcheck"
-          , "lcg"
-          , "transformers"
-          , "foldable-traversable"
-          , "exceptions"
-          , "node-fs"
-          , "node-buffer"
-          , "node-readline"
-          , "datetime"
-          , "now"
-          ]
-      , repo =
-          "https://github.com/hdgarrood/purescript-benchotron.git"
-      , version =
-          "v7.0.0"
-      }
--------------------------------
--}
 let upstream =
       https://github.com/purescript/package-sets/releases/download/psc-0.15.4-20230105/packages.dhall
         sha256:3e9fbc9ba03e9a1fcfd895f65e2d50ee2f5e86c4cd273f3d5c841b655a0e1bda
@@ -203,103 +97,6 @@ let additions =
             "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
         , version = "a3c0f67e9fdb0086016d7aebfad35d09a08b4ecd"
         }
-      , cardano-transaction-lib =
-        { dependencies =
-          [ "aeson"
-          , "aff"
-          , "aff-promise"
-          , "aff-retry"
-          , "affjax"
-          , "ansi"
-          , "argonaut"
-          , "argonaut-codecs"
-          , "arraybuffer-types"
-          , "arrays"
-          , "avar"
-          , "bifunctors"
-          , "js-bigints"
-          , "bignumber"
-          , "checked-exceptions"
-          , "cip30"
-          , "cip30-typesafe"
-          , "console"
-          , "control"
-          , "crypto"
-          , "datetime"
-          , "debug"
-          , "effect"
-          , "either"
-          , "encoding"
-          , "enums"
-          , "exceptions"
-          , "foldable-traversable"
-          , "foreign"
-          , "foreign-object"
-          , "formatters"
-          , "functions"
-          , "gen"
-          , "heterogeneous"
-          , "http-methods"
-          , "identity"
-          , "integers"
-          , "js-date"
-          , "lattice"
-          , "lists"
-          , "maybe"
-          , "media-types"
-          , "monad-logger"
-          , "mote"
-          , "newtype"
-          , "noble-secp256k1"
-          , "node-buffer"
-          , "node-child-process"
-          , "node-fs"
-          , "node-fs-aff"
-          , "node-path"
-          , "node-process"
-          , "node-readline"
-          , "node-streams"
-          , "nonempty"
-          , "now"
-          , "numbers"
-          , "optparse"
-          , "ordered-collections"
-          , "orders"
-          , "parallel"
-          , "partial"
-          , "posix-types"
-          , "prelude"
-          , "profunctor"
-          , "profunctor-lenses"
-          , "toppokki"
-          , "quickcheck"
-          , "quickcheck-combinators"
-          , "quickcheck-laws"
-          , "random"
-          , "rationals"
-          , "record"
-          , "refs"
-          , "safe-coerce"
-          , "spec"
-          , "spec-quickcheck"
-          , "strings"
-          , "stringutils"
-          , "tailrec"
-          , "these"
-          , "transformers"
-          , "tuples"
-          , "typelevel"
-          , "typelevel-prelude"
-          , "uint"
-          , "unfoldable"
-          , "untagged-union"
-          , "variant"
-          , "web-html"
-          , "web-storage"
-          ]
-        , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "20535070047381bea129a4130aaee23db2439fa6"
-        }
       , js-bigints =
         { dependencies = [ "integers", "maybe", "prelude" ]
         , repo = "https://github.com/purescript-contrib/purescript-js-bigints"
@@ -340,6 +137,138 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
         , version = "d72e51fbc0255eb3246c9132d295de7f65e16a99"
         }
+      , cardano-transaction-lib =
+        { dependencies =
+          [ "aeson"
+          , "aff"
+          , "aff-promise"
+          , "aff-retry"
+          , "affjax"
+          , "ansi"
+          , "argonaut"
+          , "argonaut-codecs"
+          , "arraybuffer-types"
+          , "arrays"
+          , "avar"
+          , "bifunctors"
+          , "bignumber"
+          , "checked-exceptions"
+          , "cip30"
+          , "cip30-typesafe"
+          , "console"
+          , "control"
+          , "crypto"
+          , "datetime"
+          , "debug"
+          , "effect"
+          , "either"
+          , "encoding"
+          , "enums"
+          , "exceptions"
+          , "foldable-traversable"
+          , "foreign"
+          , "foreign-object"
+          , "formatters"
+          , "functions"
+          , "gen"
+          , "heterogeneous"
+          , "http-methods"
+          , "identity"
+          , "integers"
+          , "js-bigints"
+          , "js-date"
+          , "lattice"
+          , "lists"
+          , "maybe"
+          , "media-types"
+          , "monad-logger"
+          , "mote"
+          , "newtype"
+          , "noble-secp256k1"
+          , "node-buffer"
+          , "node-child-process"
+          , "node-fs"
+          , "node-fs-aff"
+          , "node-path"
+          , "node-process"
+          , "node-readline"
+          , "node-streams"
+          , "nonempty"
+          , "now"
+          , "numbers"
+          , "optparse"
+          , "ordered-collections"
+          , "orders"
+          , "parallel"
+          , "partial"
+          , "posix-types"
+          , "prelude"
+          , "profunctor"
+          , "profunctor-lenses"
+          , "quickcheck"
+          , "quickcheck-combinators"
+          , "quickcheck-laws"
+          , "random"
+          , "rationals"
+          , "record"
+          , "refs"
+          , "safe-coerce"
+          , "spec"
+          , "spec-quickcheck"
+          , "strings"
+          , "stringutils"
+          , "tailrec"
+          , "these"
+          , "toppokki"
+          , "transformers"
+          , "tuples"
+          , "typelevel"
+          , "typelevel-prelude"
+          , "uint"
+          , "unfoldable"
+          , "untagged-union"
+          , "variant"
+          , "web-html"
+          , "web-storage"
+          ]
+        , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
+        , version = "63485e328b6008b5bea336269b9d6036d04c7c7b"
+        }
+      , errors =
+        { dependencies =
+          [ "control"
+          , "effect"
+          , "either"
+          , "identity"
+          , "maybe"
+          , "newtype"
+          , "prelude"
+          , "test-unit"
+          , "transformers"
+          ]
+        , repo = "https://github.com/passy/purescript-errors.git"
+        , version = "670485beb1e026f77d52ca58ce10c145d96c11ba"
+        }
+      , ply-ctl =
+        { dependencies =
+          [ "effect"
+          , "prelude"
+          , "cardano-transaction-lib"
+          , "bigints"
+          , "aeson"
+          , "either"
+          , "newtype"
+          , "node-buffer"
+          , "node-fs"
+          , "tuples"
+          , "arrays"
+          , "uint"
+          , "node-process"
+          , "integers"
+          ]
+        , repo = "https://github.com/mlabs-haskell/ply-ctl.git"
+        , version = "727b811b0d561cf13d5594b9352a7294e5a20378"
+        }
       }
 
-in  upstream // additions
+in  (upstream // additions)

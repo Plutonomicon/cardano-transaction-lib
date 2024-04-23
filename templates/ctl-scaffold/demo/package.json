@@ -1,0 +1,15 @@
+{
+  "name": "ctl-scaffold-demo",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "serve": "node bundle.js && http-server . -a 0.0.0.0 -p 8080 -c-1 -P http://localhost:1443 --cors"
+  },
+  "dependencies": {
+    "ctl-scaffold": "file:.."
+  },
+  "devDependencies": {
+    "esbuild": "0.18.11",
+    "http-server": "14.1.1"
+  }
+}
