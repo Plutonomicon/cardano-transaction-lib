@@ -38,7 +38,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Managing contract environment](./doc/contract-environment.md)
 - [Using CTL from JS](./doc/using-from-js.md)
 - [Importing Plutus Scripts](./doc/importing-scripts.md)
-- [Migrating from Plutus to CTL](./doc/plutus-comparison.md)
+- [Migrating from Plutus Application Backend to CTL](./doc/plutus-comparison.md)
 - [Overview of testing approaches](./doc/testing.md)
   - [Testing on local testnets with Plutip](./doc/plutip-testing.md)
   - [End-to-end dApp testing with headless browsers](./doc/e2e-testing.md)

@@ -6,13 +6,13 @@ CTL can be imported as an additional dependency into a Purescript project built 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Using CTL's overlays](#using-ctls-overlays)
+- [Using CTL's Nix overlays](#using-ctls-nix-overlays)
 - [Upgrading CTL](#upgrading-ctl)
 - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Using CTL's overlays
+## Using CTL's Nix overlays
 
 CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of your own project to use the same setup as we do, e.g. the same packages and PS builders:
 

@@ -34,6 +34,8 @@ CTL is directly inspired by the Plutus Application Backend (PAB). Unlike PAB, ho
    - Some of the Plutus conventions do not make sense for us, due to differences between on-chain and off-chain
    - Our API scope is a lot more extensive, as we provide support for wallet interactions, staking operations, and more support for balancer tweaking.
 
+For a more in-depth explanation of the differences between PAB and CTL (with code examples), refer to [`plutus-comparison.md`](./plutus-comparison.md).
+
 ## Lucid
 
 ### Wallet support
