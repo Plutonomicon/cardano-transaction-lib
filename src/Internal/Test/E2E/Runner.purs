@@ -147,6 +147,8 @@ runE2ECommand = case _ of
     runtime <- readTestRuntime testOptions
     tests <- liftEffect $ readTests testOptions.tests
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
+    passBrowserLogs <- liftEffect $ readPassBrowserLogs
+      testOptions.passBrowserLogs
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
     portOptions <- liftEffect $ readPorts testOptions
     extraBrowserArgs <- liftEffect $ readExtraArgs testOptions.extraBrowserArgs
@@ -156,6 +158,7 @@ runE2ECommand = case _ of
         , testTimeout = testTimeout
         , tests = tests
         , extraBrowserArgs = extraBrowserArgs
+        , passBrowserLogs = passBrowserLogs
         }
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
@@ -242,7 +245,7 @@ testPlan opts@{ tests } rt@{ wallets } =
         withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing \browser ->
           do
             withE2ETest true (wrap url) browser \{ page } -> do
-              subscribeToTestStatusUpdates page
+              subscribeToTestStatusUpdates opts.passBrowserLogs page
       -- Plutip in E2E tests
       { url, wallet: PlutipCluster } -> do
         let
@@ -274,7 +277,7 @@ testPlan opts@{ tests } rt@{ wallets } =
               \browser -> do
                 withE2ETest true (wrap url) browser \{ page } -> do
                   setClusterSetup page clusterSetup
-                  subscribeToTestStatusUpdates page
+                  subscribeToTestStatusUpdates opts.passBrowserLogs page
       -- E2E tests with a light wallet
       { url, wallet: WalletExtension wallet } -> do
         { password, extensionId } <- liftEffect
@@ -314,7 +317,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     res <- try aff
                     when (isLeft res) $ liftEffect $ k res
                 map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
-                  subscribeToBrowserEvents page
+                  subscribeToBrowserEvents opts.passBrowserLogs page
                     case _ of
                       ConfirmAccess -> rethrow someWallet.confirmAccess
                       Sign -> rethrow someWallet.sign
@@ -324,9 +327,9 @@ testPlan opts@{ tests } rt@{ wallets } =
                       Failure _ -> pure unit
   where
   -- A specialized version that does not deal with wallet automation
-  subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
-  subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents page
+  subscribeToTestStatusUpdates :: Boolean -> Toppokki.Page -> Aff Unit
+  subscribeToTestStatusUpdates passBrowserLogs page =
+    subscribeToBrowserEvents passBrowserLogs page
       case _ of
         Success -> pure unit
         Failure err -> throw err
@@ -365,6 +368,7 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "kupoPort")
+            <<< delete (Proxy :: Proxy "passBrowserLogs")
         )
   readBrowserRuntime Nothing $ removeUnneeded testOptions
 
@@ -592,6 +596,16 @@ readNoHeadless false = do
     Nothing -> pure false
     Just str -> do
       liftMaybe (error $ "Failed to read E2E_NO_HEADLESS: " <> str) $
+        readBoolean str
+
+readPassBrowserLogs :: Boolean -> Effect Boolean
+readPassBrowserLogs true = pure true
+readPassBrowserLogs false = do
+  mbStr <- lookupEnv "E2E_PASS_BROWSER_LOGS"
+  case mbStr of
+    Nothing -> pure false
+    Just str -> do
+      liftMaybe (error $ "Failed to read E2E_PASS_BROWSER_LOGS: " <> str) $
         readBoolean str
 
 readBoolean :: String -> Maybe Boolean

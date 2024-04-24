@@ -112,6 +112,7 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | Test timeout                                                           | `--test-timeout`            | `E2E_TEST_TIMEOUT`         |
 | Browser binary path or name                                            | `--browser`                 | `E2E_BROWSER`              |
 | Don't use headless mode                                                | `--no-headless`             | `E2E_NO_HEADLESS`          |
+| Pass browser logs to the shell console                                 | `--pass-browser-logs`       | `E2E_PASS_BROWSER_LOGS`    |
 | Path to the user settings archive                                      | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE`     |
 | URL of settings archive asset                                          | `--settings-archive-url`    | `E2E_SETTINGS_ARCHIVE_URL` |
 | Path to the user data directory                                        | `--chrome-user-data`        | `E2E_CHROME_USER_DATA`     |

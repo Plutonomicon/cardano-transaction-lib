@@ -31,9 +31,10 @@ import Data.Int (toNumber)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
 import Effect (Effect)
-import Effect.Aff (Aff, delay, error)
+import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
+import Effect.Console as Console
 
 -- NOTE: this data type is defined like this on purpose, don't change it
 -- to `(Cip30Wallet /\ WalletExtension)`. The motivation is to make it simpler
@@ -60,25 +61,14 @@ mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
 foreign import _isWalletAvailable :: String -> Effect Boolean
 
 mkWalletAff :: WalletExtension -> Aff Wallet
-mkWalletAff LodeWallet = _mkLodeWalletAff
-mkWalletAff (GenericCip30Wallet "LodeWallet") = _mkLodeWalletAff
-mkWalletAff walletExtension =
-  GenericCip30 <$>
-    ( mkCip30WalletAff =<< Cip30.enable (walletExtensionToName walletExtension)
-        []
-    )
-
--- Lode does not inject on page load, so this function retries up to set
--- number of times, for Lode to become available.
-_mkLodeWalletAff :: Aff Wallet
-_mkLodeWalletAff = do
-  retryNWithIntervalUntil 10 (toNumber 100)
-    $ liftEffect (isWalletAvailable LodeWallet)
-  (GenericCip30 <$> (mkCip30WalletAff =<< Cip30.enable "LodeWallet" []))
-    `catchError`
-      ( \e -> throwError <<< error $ show e <>
-          " Note: LodeWallet is injected asynchronously and may be unreliable."
-      )
+mkWalletAff walletExtension = do
+  retryNWithIntervalUntil 300 (toNumber 100)
+    $ liftEffect (isWalletAvailable walletExtension)
+  GenericCip30 <$> do
+    mkCip30WalletAff =<< do
+      Cip30.enable (walletExtensionToName walletExtension) [] `catchError` \err -> do
+        liftEffect $ Console.error $ "Wallet extension " <> walletExtensionToName walletExtension <> " is not available!"
+        throwError err
   where
   retryNWithIntervalUntil n ms mBool =
     if n == zero then pure unit

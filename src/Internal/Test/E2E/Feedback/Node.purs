@@ -41,24 +41,31 @@ import Toppokki as Toppokki
 
 -- | React to events raised by the browser
 subscribeToBrowserEvents
-  :: Toppokki.Page
+  :: Boolean
+  -> Toppokki.Page
   -> (BrowserEvent -> Effect Unit)
   -> Aff Unit
-subscribeToBrowserEvents page cont = do
+subscribeToBrowserEvents passBrowserLogs page cont = do
   logs <- liftEffect $ Ref.new ""
   let
     addLogLine line = Ref.modify_ (flip append (line <> "\n")) logs
   liftEffect $ Toppokki.onConsole
     ( mkEffectFn1 \cm -> launchAff_ do
-        Toppokki.consoleMessageText cm >>= liftEffect <<< addLogLine
+        -- either log right now or safe for later (to log in case of an error)
+        if passBrowserLogs then
+          Toppokki.consoleMessageText cm >>= liftEffect <<< Console.log <<<
+            append "[chrome]: "
+        else
+          Toppokki.consoleMessageText cm >>= liftEffect <<< addLogLine
     )
     page
   makeAff \f -> do
     liftEffect $ Toppokki.onPageError
       ( mkEffectFn1
           ( \err -> do
-              allLogs <- Ref.read logs
-              Console.log allLogs
+              -- log everything if we haven't been passing the logs on the fly
+              when (not passBrowserLogs) do
+                Ref.read logs >>= Console.log
               f $ Left err
           )
       )
