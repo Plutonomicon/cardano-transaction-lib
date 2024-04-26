@@ -35,7 +35,7 @@
     };
 
     cardano-node = {
-      url = "github:IntersectMBO/cardano-node/8.10.0-pre";
+      url = "github:IntersectMBO/cardano-node/8.10.1-pre";
       inputs = {
         hackageNix.follows = "hackage-nix";
         CHaP.follows = "CHaP";

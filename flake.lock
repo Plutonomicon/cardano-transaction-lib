@@ -3980,16 +3980,16 @@
         "utils": "utils_2"
       },
       "locked": {
-        "lastModified": 1712366832,
-        "narHash": "sha256-3cG3QV2DbDKxZTnSXMB+hU8Ijxb4oHWNjVs4mOPft7I=",
+        "lastModified": 1713857353,
+        "narHash": "sha256-Ss5MHb8DTFlBXlWqyjW5hzwEI9i/SEx3xXASXtxxTlM=",
         "owner": "IntersectMBO",
         "repo": "cardano-node",
-        "rev": "04e060e6d86a5791c00aa518b2cee025384be28b",
+        "rev": "1ffe4a57137000b99ae2f148eaf763bc55f0ed89",
         "type": "github"
       },
       "original": {
         "owner": "IntersectMBO",
-        "ref": "8.10.0-pre",
+        "ref": "8.10.1-pre",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -29357,11 +29357,11 @@
     "ogmios_2": {
       "flake": false,
       "locked": {
-        "lastModified": 1713474730,
-        "narHash": "sha256-GTGJvmD/KtnB8OgD+o4wXgVrPXtukaztqZU/blX8AOA=",
+        "lastModified": 1714146766,
+        "narHash": "sha256-iC4wmfxah3rFVpRLlLSmt9WdqQ6CdqMxPe68cSgiWdQ=",
         "owner": "Fourierlabs",
         "repo": "ogmios",
-        "rev": "a0dfbf69bfbcb1b5bdb7e9dcf149db7402b1c466",
+        "rev": "240c0b7e2e3da9e6bd8f6c7057366de7bae73fe4",
         "type": "github"
       },
       "original": {
