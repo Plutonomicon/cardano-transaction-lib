@@ -5,9 +5,6 @@ import { polyfillNode } from "esbuild-plugin-polyfill-node";
 esbuild.build({
   entryPoints: ["api/index.ts"],
   outfile: "dist/index.js",
-  define: {
-    BROWSER_RUNTIME: "1"
-  },
   loader: {
     ".plutus": "text"
   },

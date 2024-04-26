@@ -1,3 +1,8 @@
+# TODO
+
+* Mention Blockfrost key in Api.purs:23
+* Mention bundling strategies in general (bundle the whole app/bundle CTL-based component)
+
 # ctl-scaffold
 
 Welcome to your new CTL project!
@@ -35,7 +40,7 @@ To build the application and bundle it run
 $ make bundle
 ```
 
-Once done you will see `./dist` folder containing both application components. 
+Once done you will see `./dist` folder containing both application components.
 Every time you made a change in `src` and/or `api` folders
 you need to rebuild with this command.
 
@@ -52,7 +57,7 @@ Open another terminal in `templates/ctl-scaffold/demo` folder. Ensure you have `
 
 > Make sure not to be in the Nix shell since the command won't work well in that case.
 
-Step first is to install all dependencies into local `demo/node_modules`. 
+Step first is to install all dependencies into local `demo/node_modules`.
 Check that this folder indeed exists once it is done.
 There is no need to re-run this command after bundling the application
 since `file:` schema places a symbolic link inside `node_modules` folder.
@@ -70,7 +75,7 @@ $ npm run serve
 Open a new tab in your browser open the console and point it to
 `http://localhost:8080/index.html`
 
-Explore the `src` folder to see how the application is used on the page. 
+Explore the `src` folder to see how the application is used on the page.
 Every time you change either the application or the demo page you have to serve it again with that command.
 
 ## Further steps
