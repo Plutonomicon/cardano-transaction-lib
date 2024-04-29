@@ -407,7 +407,7 @@ let additions =
           , "transformers"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-mote-testplan"
-        , version = "d1c93e08ef09f5427b460f396b89da7255f8af52"
+        , version = "v1.0.0"
         }
       }
 

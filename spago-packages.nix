@@ -235,7 +235,7 @@ let
 
     "cardano-plutus-data-schema" = pkgs.stdenv.mkDerivation {
         name = "cardano-plutus-data-schema";
-        version = "eb0bb78927c50c4bee364e932c9fa8cf94546191";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-plutus-data-schema";
           rev = "eb0bb78927c50c4bee364e932c9fa8cf94546191";
@@ -847,11 +847,11 @@ let
 
     "mote-testplan" = pkgs.stdenv.mkDerivation {
         name = "mote-testplan";
-        version = "d1c93e08ef09f5427b460f396b89da7255f8af52";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-mote-testplan";
-          rev = "d1c93e08ef09f5427b460f396b89da7255f8af52";
-          sha256 = "1317v612hq1hlw3m6vvzjfpg3vzm4pdlpix6z4z221cpgaga4i2r";
+          rev = "3d56986a32134fbd675e42ef6b6f55dc91ad678a";
+          sha256 = "11vivzi1bs9mc8hx4v4zarb9r7x47zm6m6z1xvcn228m7lr69csy";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
