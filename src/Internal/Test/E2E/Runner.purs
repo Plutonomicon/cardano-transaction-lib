@@ -18,7 +18,7 @@ import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
-import Ctl.Internal.Helpers (liftedM, (<</>>))
+import Ctl.Internal.Helpers (liftedM, unsafeFromJust, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.QueryM (ClusterSetup)
@@ -249,7 +249,7 @@ testPlan opts@{ tests } rt@{ wallets } =
       -- Plutip in E2E tests
       { url, wallet: PlutipCluster } -> do
         let
-          amount = unsafePartial $ fromJust $ BigNum.mul
+          amount = unsafeFromJust "testPlan: integer overflow" $ BigNum.mul
             (BigNum.fromInt 2_000_000_000)
             (BigNum.fromInt 100)
           distr = withStakeKey privateStakeKey

@@ -20,14 +20,13 @@ import Aeson
   )
 import Cardano.Types.Epoch (Epoch)
 import Cardano.Types.Slot (Slot)
-import Ctl.Internal.Helpers (showWithParens)
+import Ctl.Internal.Helpers (showWithParens, unsafeFromJust)
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
 import JS.BigInt (BigInt)
-import Partial.Unsafe (unsafePartial)
 
 --------------------------------------------------------------------------------
 -- EraSummaries
@@ -143,7 +142,8 @@ derive newtype instance DecodeAeson RelativeTime
 instance EncodeAeson RelativeTime where
   encodeAeson (RelativeTime rt) =
     -- We assume the numbers are finite.
-    encodeAeson $ unsafePartial $ fromJust $ finiteNumber rt
+    encodeAeson $ unsafeFromJust "instance EncodeAeson RelativeTime" $
+      finiteNumber rt
 
 instance Show RelativeTime where
   show (RelativeTime rt) = showWithParens "RelativeTime" rt
@@ -170,7 +170,8 @@ derive newtype instance DecodeAeson SlotLength
 instance EncodeAeson SlotLength where
   encodeAeson (SlotLength sl) =
     -- We assume the numbers are finite.
-    encodeAeson $ unsafePartial $ fromJust $ finiteNumber sl
+    encodeAeson $ unsafeFromJust "instance EncodeAeson SlotLength" $
+      finiteNumber sl
 
 instance Show SlotLength where
   show (SlotLength slotLength) = showWithParens "SlotLength" slotLength

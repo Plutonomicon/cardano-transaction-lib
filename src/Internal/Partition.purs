@@ -16,6 +16,7 @@ import Cardano.Types.MultiAsset (MultiAsset)
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.Value (Value(Value))
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty
@@ -30,7 +31,7 @@ import Data.Array.NonEmpty
   ) as NEArray
 import Data.Foldable (any, foldl, length, sum)
 import Data.Function (on)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Tuple (fst, snd)
@@ -46,7 +47,8 @@ class Partition (a :: Type) where
 instance Partition BigNum where
   partition bigNum = unsafePartial $ map BigNum.toBigInt
     >>> partition (BigNum.toBigInt bigNum)
-    >>> map (map $ fromJust <<< BigNum.fromBigInt)
+    >>> map
+      (map $ unsafeFromJust "instance Partition BigNum" <<< BigNum.fromBigInt)
 
 -- | Partitions a `BigInt` into a number of parts, where the size of each part
 -- | is proportional to the size of its corresponding element in the given
@@ -91,13 +93,14 @@ instance Partition BigInt where
         round portions =
           NEArray.zipWith (+)
             (map (fst <<< unwrap) <$> portions)
-            ( fromArrayUnsafe $
+            ( unsafeFromJust "instance Partition BigInt" <<< NEArray.fromArray $
                 replicate shortfall one
                   <> replicate (length portions - shortfall) zero
             )
 
         shortfall :: Int
-        shortfall = toIntUnsafe $ target - sum (map fst portionsUnrounded)
+        shortfall = unsafeFromJust "instance Partition BigInt" <<< BigInt.toInt
+          $ target - sum (map fst portionsUnrounded)
 
         portionsUnrounded :: NonEmptyArray (BigInt /\ BigInt)
         portionsUnrounded = weights <#> \w -> (target * w) `quotRem` sumWeights
@@ -120,14 +123,16 @@ instance Equipartition BigInt where
         NEArray.singleton bi
     | otherwise =
         let
-          quot /\ rem = toIntUnsafe <$> (bi `quotRem` BigInt.fromInt numParts)
+          quot /\ rem =
+            unsafeFromJust "instance Equipartition BigInt" <<< BigInt.toInt <$>
+              (bi `quotRem` BigInt.fromInt numParts)
         in
           NEArray.replicate (numParts - rem) quot
             `NEArray.appendArray` replicate rem (quot + one)
 
 instance Equipartition BigNum where
   equipartition bn = unsafePartial
-    $ map (fromJust <<< BigNum.fromBigInt)
+    $ map (unsafeFromJust "instance Equipartition BigNum" <<< BigNum.fromBigInt)
         <<< equipartition (BigNum.toBigInt bn)
 
 instance Equipartition MultiAsset where
@@ -135,7 +140,8 @@ instance Equipartition MultiAsset where
     foldl accumulate (NEArray.replicate numParts MultiAsset.empty)
       (MultiAsset.flatten nonAdaAssets)
     where
-    append' a b = unsafePartial $ fromJust $ MultiAsset.add a b
+    append' a b = unsafeFromJust "instance Equipartition MultiAsset" $
+      MultiAsset.add a b
 
     accumulate
       :: NonEmptyArray MultiAsset
@@ -145,12 +151,6 @@ instance Equipartition MultiAsset where
       NEArray.zipWith append' xs $
         map (MultiAsset.singleton cs tn)
           (equipartition tokenQuantity numParts)
-
-toIntUnsafe :: BigInt -> Int
-toIntUnsafe = unsafePartial fromJust <<< BigInt.toInt
-
-fromArrayUnsafe :: forall (a :: Type). Array a -> NonEmptyArray a
-fromArrayUnsafe = unsafePartial fromJust <<< NEArray.fromArray
 
 quotRem :: forall (a :: Type). EuclideanRing a => a -> a -> (a /\ a)
 quotRem a b = (a `div` b) /\ (a `mod` b)
@@ -202,8 +202,9 @@ equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
       equipartition nonAdaAssets numParts /\ numParts
   where
   numParts :: Int
-  numParts = unsafePartial $ fromJust $ BigInt.toInt $
-    divCeil (BigNum.toBigInt currentMaxTokenQuantity) maxTokenQuantity
+  numParts = unsafeFromJust "equipartitionAssetsWithTokenQuantityUpperBound"
+    $ BigInt.toInt
+    $ divCeil (BigNum.toBigInt currentMaxTokenQuantity) maxTokenQuantity
 
   tokenQuantity :: (ScriptHash /\ AssetName /\ BigNum) -> BigNum
   tokenQuantity (_ /\ _ /\ quantity) = quantity

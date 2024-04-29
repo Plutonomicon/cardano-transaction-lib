@@ -51,7 +51,7 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
-import Ctl.Internal.Helpers (logWithLevel)
+import Ctl.Internal.Helpers (logWithLevel, unsafeFromJust)
 import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
@@ -79,7 +79,7 @@ import Data.Lens ((^.))
 import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isNothing, maybe)
+import Data.Maybe (Maybe(Nothing, Just), isNothing, maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.String (joinWith)
 import Data.String.Utils (startsWith) as String
@@ -314,7 +314,7 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   awaitTxConfirmed txHash
   let
     fundTotal =
-      Array.foldl (\x y -> unsafePartial $ fromJust $ BigNum.add x y)
+      Array.foldl (\x y -> unsafeFromJust "fundWallets" $ BigNum.add x y)
         BigNum.zero $ join distrArray
   -- Use log so we can see, regardless of suppression
   info $ joinWith " "

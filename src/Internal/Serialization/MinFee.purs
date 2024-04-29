@@ -18,6 +18,7 @@ import Cardano.Types.NativeScript (NativeScript(ScriptAll))
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.Transaction as Transaction
 import Control.Monad.Error.Class (class MonadThrow)
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Ctl.Internal.Lens (_vkeys, _witnessSet)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Types.ProtocolParameters
@@ -54,7 +55,7 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
   let exUnitPricesCsl = ExUnitPrices.toCsl exUnitPrices
   let scriptFee = minScriptFee cslTx exUnitPricesCsl
   -- Ignore the overflow here: fees are much lower
-  pure $ wrap $ unsafePartial $ fromJust $ BigNum.add (wrap fee)
+  pure $ wrap $ unsafeFromJust "calculateMinFeeCsl" $ BigNum.add (wrap fee)
     (wrap scriptFee)
 
 -- | Adds fake signatures for each expected signature of a transaction.

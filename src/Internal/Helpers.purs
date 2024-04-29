@@ -36,6 +36,7 @@ module Ctl.Internal.Helpers
   , compareViaCslBytes
   , decodeMap
   , decodeTaggedNewtype
+  , unsafeFromJust
   ) where
 
 import Prelude
@@ -88,6 +89,7 @@ import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
+import Effect.Unsafe (unsafePerformEffect)
 import Foreign.Object (Object)
 import Foreign.Object as Obj
 import JS.BigInt (BigInt)
@@ -372,3 +374,13 @@ showFromCbor typeName a = "(" <> typeName
   <> " $ unsafePartial $ fromJust $ decodeCbor $ CborBytes $ "
   <> show (toBytes a)
   <> ")"
+
+unsafeFromJust :: forall a. String -> Maybe a -> a
+unsafeFromJust e a = case a of
+  Nothing ->
+    unsafePerformEffect $ throw $ "unsafeFromJust: impossible happened: "
+      <> e
+      <> " (please report as bug at "
+      <> bugTrackerLink
+      <> " )"
+  Just v -> v

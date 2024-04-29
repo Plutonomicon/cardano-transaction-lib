@@ -9,18 +9,18 @@ module Ctl.Internal.Types.SystemStart
 import Prelude
 
 import Control.Alt ((<|>))
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Data.DateTime (DateTime)
 import Data.DateTime.Instant (fromDateTime, unInstant)
 import Data.Either (Either, hush)
 import Data.Formatter.DateTime (Formatter, format, parseFormatString, unformat)
 import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (length, take) as String
 import JS.BigInt (BigInt)
 import JS.BigInt (fromNumber) as BigInt
-import Partial.Unsafe (unsafePartial)
 
 newtype SystemStart = SystemStart DateTime
 
@@ -52,7 +52,8 @@ sysStartFromOgmiosTimestamp timestamp = wrap <$> (unformatMsec <|> unformatSec)
 
 sysStartFromOgmiosTimestampUnsafe :: String -> SystemStart
 sysStartFromOgmiosTimestampUnsafe timestamp =
-  unsafePartial fromJust $ hush $ sysStartFromOgmiosTimestamp timestamp
+  unsafeFromJust "sysStartFromOgmiosTimestampUnsafe" $ hush $
+    sysStartFromOgmiosTimestamp timestamp
 
 sysStartToOgmiosTimestamp :: SystemStart -> String
 sysStartToOgmiosTimestamp =
@@ -61,7 +62,7 @@ sysStartToOgmiosTimestamp =
 
 mkDateTimeFormatterUnsafe :: String -> Formatter
 mkDateTimeFormatterUnsafe =
-  unsafePartial fromJust <<< hush <<< parseFormatString
+  unsafeFromJust "mkDateTimeFormatterUnsafe" <<< hush <<< parseFormatString
 
 ogmiosDateTimeFormatStringSec :: String
 ogmiosDateTimeFormatStringSec = "YYYY-MM-DDTHH:mm:ss"

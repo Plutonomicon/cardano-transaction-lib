@@ -56,7 +56,7 @@ import Ctl.Internal.BalanceTx.RedeemerIndex
   )
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
-import Ctl.Internal.Helpers (liftEither, liftM)
+import Ctl.Internal.Helpers (liftEither, liftM, unsafeFromJust)
 import Ctl.Internal.Lens
   ( _body
   , _certs
@@ -181,7 +181,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, union)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.Traversable (for, traverse_)
@@ -594,12 +594,16 @@ processConstraint
       -- If i is zero we raise error, because of
       -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
       if Int.toBigInt i < zero then do
-        let value = mkValue $ unsafePartial $ fromJust $ Int.asNegative i
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asNegative i
         _valueSpentBalancesInputs <>= provideValue value
       else if Int.toBigInt i == zero then do
         throwError $ CannotMintZero scriptHash tn
       else do
-        let value = mkValue $ unsafePartial $ fromJust $ Int.asPositive i
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asPositive i
         _valueSpentBalancesOutputs <>= provideValue value
       _redeemers <>=
         [ UnindexedRedeemer { purpose: ForMint scriptHash, datum: unwrap red } ]
@@ -617,12 +621,16 @@ processConstraint
       -- 'valueSpentBalancesInputs'. If i is positive then new tokens are
       -- created which must be added to 'valueSpentBalancesOutputs'.
       if Int.toBigInt i < zero then do
-        let value = mkValue $ unsafePartial $ fromJust $ Int.asNegative i
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asNegative i
         _valueSpentBalancesInputs <>= provideValue value
       else if Int.toBigInt i == zero then do
         throwError $ CannotMintZero cs tn
       else do
-        let value = mkValue $ unsafePartial $ fromJust $ Int.asPositive i
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asPositive i
         _valueSpentBalancesOutputs <>= provideValue value
 
       unsafePartial $ _cpsTransaction <<< _body <<< _mint <>= Just mint

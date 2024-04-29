@@ -21,21 +21,19 @@ import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value as Value
 import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithMultiAssets)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import Ctl.Internal.Helpers (bugTrackerLink)
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Data.Array as Array
 import Data.Foldable (foldl)
 import Data.Function (on)
 import Data.List (List(Nil, Cons))
 import Data.List as List
 import Data.Map (toUnfoldable) as Map
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple (fst, snd) as Tuple
 import Data.Tuple.Nested (type (/\), (/\))
-import Effect.Exception (throw)
-import Effect.Unsafe (unsafePerformEffect)
 
 minRequiredCollateral :: Coin
 minRequiredCollateral = wrap $ BigNum.fromInt 5_000_000
@@ -164,18 +162,8 @@ adaValue =
   Value.getCoin <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
 consumeUtxoAdaValue :: Coin -> TransactionUnspentOutput -> Coin
-consumeUtxoAdaValue acc = unsafeFromMaybe "consumeUtxoAdaValue" <<< Coin.add acc
+consumeUtxoAdaValue acc = unsafeFromJust "consumeUtxoAdaValue" <<< Coin.add acc
   <<< adaValue
-
-unsafeFromMaybe :: forall a. String -> Maybe a -> a
-unsafeFromMaybe e a = case a of
-  Nothing ->
-    unsafePerformEffect $ throw $ "unsafeFromMaybe: impossible happened: "
-      <> e
-      <> " (please report as bug at "
-      <> bugTrackerLink
-      <> " )"
-  Just v -> v
 
 nonAdaAsset :: TransactionUnspentOutput -> MultiAsset
 nonAdaAsset =

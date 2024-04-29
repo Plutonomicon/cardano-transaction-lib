@@ -30,7 +30,7 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionOutput (TransactionOutput)
 import Cardano.Types.UtxoMap (UtxoMap, pprintUtxoMap)
-import Cardano.Types.Value (Value, pprintValue)
+import Cardano.Types.Value (Value)
 import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
 import Ctl.Internal.Lens (_redeemers, _witnessSet)
@@ -49,18 +49,18 @@ import Ctl.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
-import Ctl.Internal.Types.Val (Val)
+import Ctl.Internal.Types.Val (Val, pprintVal)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
 import Data.Either (Either(Left, Right), either, isLeft)
-import Data.Foldable (find, foldMap, foldl, length)
+import Data.Foldable (find, fold, foldMap, foldl, length)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Function (applyN)
 import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
 import Data.Lens ((^.))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
@@ -71,7 +71,7 @@ import JS.BigInt as BigInt
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
-  = BalanceInsufficientError Expected Actual
+  = BalanceInsufficientError Val Val
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetCollateral
   | InsufficientCollateralUtxos UtxoMap
@@ -93,9 +93,9 @@ instance Show BalanceTxError where
 explainBalanceTxError :: BalanceTxError -> String
 explainBalanceTxError = case _ of
   BalanceInsufficientError expected actual ->
-    "Insufficient balance. " <> prettyValue "Expected" (unwrap expected)
+    "Insufficient balance. " <> prettyVal "Expected" expected
       <> ", "
-      <> prettyValue "actual" (unwrap actual)
+      <> prettyVal "Actual" actual
   InsufficientCollateralUtxos utxos ->
     "Could not cover collateral requirements. " <>
       pprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
@@ -138,11 +138,11 @@ explainBalanceTxError = case _ of
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
   NumericOverflowError mbVal ->
-    "Could not compute output value due to numeric overflow. Decrease the quantity of assets. Value: "
-      <> show mbVal
+    "Could not compute output value due to numeric overflow. Decrease the quantity of assets. "
+      <> fold (prettyVal "Value:" <$> mbVal)
   where
-  prettyValue :: String -> Value -> String
-  prettyValue str = pprintValue >>> pprintTagSet str
+  prettyVal :: String -> Val -> String
+  prettyVal str = pprintVal >>> pprintTagSet str
 
 newtype Actual = Actual Value
 

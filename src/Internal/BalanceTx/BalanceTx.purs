@@ -100,7 +100,7 @@ import Ctl.Internal.Contract.Wallet
   , getWalletCollateral
   , getWalletUtxos
   ) as Wallet
-import Ctl.Internal.Helpers (liftEither, pprintTagSet, (??))
+import Ctl.Internal.Helpers (liftEither, pprintTagSet, unsafeFromJust, (??))
 import Ctl.Internal.Lens
   ( _amount
   , _body
@@ -158,7 +158,7 @@ import Data.Map
   , toUnfoldable
   , union
   ) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, isJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
@@ -177,7 +177,7 @@ balanceTxWithConstraints
   -> Map TransactionInput TransactionOutput
   -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError Transaction)
-balanceTxWithConstraints transaction_ extraUtxos constraintsBuilder = do
+balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
 
   pparams <- getProtocolParameters
 
@@ -262,8 +262,6 @@ balanceTxWithConstraints transaction_ extraUtxos constraintsBuilder = do
   getChangeAddress :: BalanceTxM Address
   getChangeAddress = maybe (liftContract Wallet.getChangeAddress) pure
     =<< asksConstraints Constraints._changeAddress
-
-  transaction = transaction_ -- # _redeemers .~ [] # _transaction <<< _body <<< _mint .~ Nothing
 
   transactionWithNetworkId :: BalanceTxM Transaction
   transactionWithNetworkId = do
@@ -756,8 +754,9 @@ assignCoinsToChangeValues
   -> NonEmptyArray (Value /\ BigInt)
   -> BalanceTxM (Array Value)
 assignCoinsToChangeValues changeAddress adaAvailable pairsAtStart =
-  unsafePartial $ changeValuesAtStart <#> \changeValues ->
-    fromJust <<< Val.toValue <$> worker (adaRequiredAtStart changeValues)
+  changeValuesAtStart <#> \changeValues ->
+    unsafeFromJust "assignCoinsToChangeValues" <<< Val.toValue <$> worker
+      (adaRequiredAtStart changeValues)
       changeValues
   where
   worker :: BigInt -> NonEmptyArray ChangeValue -> Array Val

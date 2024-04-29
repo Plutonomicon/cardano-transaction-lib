@@ -74,7 +74,6 @@ import Ctl.Internal.Types.Interval
   , after
   , always
   , before
-  , beginningOfTime
   , contains
   , findSlotEraSummary
   , findTimeEraSummary

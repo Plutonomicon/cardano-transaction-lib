@@ -66,9 +66,12 @@ mkWalletAff walletExtension = do
     $ liftEffect (isWalletAvailable walletExtension)
   GenericCip30 <$> do
     mkCip30WalletAff =<< do
-      Cip30.enable (walletExtensionToName walletExtension) [] `catchError` \err -> do
-        liftEffect $ Console.error $ "Wallet extension " <> walletExtensionToName walletExtension <> " is not available!"
-        throwError err
+      Cip30.enable (walletExtensionToName walletExtension) [] `catchError`
+        \err -> do
+          liftEffect $ Console.error $ "Wallet extension "
+            <> walletExtensionToName walletExtension
+            <> " is not available!"
+          throwError err
   where
   retryNWithIntervalUntil n ms mBool =
     if n == zero then pure unit

@@ -27,15 +27,12 @@ import Cardano.Types.AssetClass (AssetClass(AssetClass))
 import Cardano.Types.AssetName (unAssetName)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.UtxoMap (UtxoMap)
-import Cardano.Types.Value as Value
 import Control.Monad.Error.Class (class MonadThrow, throwError)
 import Ctl.Internal.BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( BalanceInsufficientError
-      , InsufficientUtxoBalanceToCoverAsset
+  ( BalanceTxError
+      ( InsufficientUtxoBalanceToCoverAsset
+      , BalanceInsufficientError
       )
-  , Expected(Expected)
   )
 import Ctl.Internal.CoinSelection.UtxoIndex
   ( SelectionFilter(SelectSingleton, SelectPairWith, SelectAnyWith)
@@ -122,16 +119,14 @@ performMultiAssetSelection
   -> m SelectionState
 performMultiAssetSelection strategy utxoIndex requiredValue = do
   case requiredValue `Val.leq` availableValue of
-    true -> do
+    true ->
       runRoundRobinM (mkSelectionState utxoIndex) selectors
-    false -> do
+    false ->
       throwError balanceInsufficientError
   where
   balanceInsufficientError :: BalanceTxError
   balanceInsufficientError =
-    BalanceInsufficientError
-      (Expected Value.empty) --  $ unsafePartial $ fromJust $ Val.toValue requiredValue)
-      (Actual Value.empty) -- $ unsafePartial $ fromJust $ Val.toValue availableValue)
+    BalanceInsufficientError requiredValue availableValue
 
   availableValue :: Val
   availableValue = balance (utxoIndexUniverse utxoIndex)
