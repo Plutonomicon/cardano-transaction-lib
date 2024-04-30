@@ -53,7 +53,7 @@ newtype ScriptLookups = ScriptLookups
   , nativeMintingPolicies :: Array NativeScript
   , txOutputs :: UtxoMap
   , scripts :: Array PlutusScript -- Script validators
-  , datums :: Map DataHash PlutusData --  Datums that we might need
+  , datums :: Map DataHash PlutusData
   -- FIXME there's currently no way to set this field
   -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
   , paymentPubKeyHashes ::

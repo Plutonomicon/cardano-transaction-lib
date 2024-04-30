@@ -1,4 +1,5 @@
-# cardano-transaction-lib
+# cardano-transaction-lib [![cardano-purescript](https://img.shields.io/badge/cardano--purescript?logo=cardano&logoColor=white&label=cardano-purescript&labelColor=blue&color=blue)](https://github.com/klntsky/cardano-purescript)
+
 
 [![Hercules-ci][herc badge]][herc link]
 [![Cachix Cache][cachix badge]][cachix link]

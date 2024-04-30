@@ -24,7 +24,6 @@ import Prelude
 import Aeson (class EncodeAeson, encodeAeson)
 import Cardano.Types
   ( Certificate
-  , ExUnits(ExUnits)
   , Redeemer(Redeemer)
   , RewardAddress
   , ScriptHash
@@ -32,28 +31,25 @@ import Cardano.Types
   , TransactionBody(TransactionBody)
   )
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.ExUnits as ExUnits
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
 import Cardano.Types.TransactionInput (TransactionInput)
+import Ctl.Internal.Lens (_redeemers, _witnessSet)
 import Data.Array (findIndex)
 import Data.Either (Either, note)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((.~))
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
 import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
-import Type.Proxy (Proxy(Proxy))
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
 attachRedeemers redeemers =
-  _Newtype <<< prop (Proxy :: Proxy "witnessSet")
-    <<< _Newtype
-    <<< prop (Proxy :: Proxy "redeemers") .~ redeemers
+  _witnessSet <<< _redeemers .~ redeemers
 
 attachIndexedRedeemers :: Array IndexedRedeemer -> Transaction -> Transaction
 attachIndexedRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
@@ -87,7 +83,7 @@ unindexedRedeemerToRedeemer (UnindexedRedeemer { datum, purpose }) =
     { tag: redeemerPurposeToRedeemerTag purpose
     , "data": datum
     , index: BigNum.zero
-    , exUnits: ExUnits { mem: BigNum.zero, steps: BigNum.zero }
+    , exUnits: ExUnits.empty
     }
 
 -- | A redeemer with an index, but without `ExUnits`
@@ -112,7 +108,7 @@ indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
     { tag
     , index: BigNum.fromInt index
     , data: datum
-    , exUnits: ExUnits { mem: BigNum.zero, steps: BigNum.zero }
+    , exUnits: ExUnits.empty
     }
 
 -- | Contains a value redeemer corresponds to, different for each possible

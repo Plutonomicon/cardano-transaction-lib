@@ -1,16 +1,20 @@
 module Ctl.Internal.Lens
-  ( _amount
+  ( _address
+  , _amount
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
   , _certs
   , _collateral
   , _collateralReturn
+  , _datum
   , _fee
+  , _input
   , _inputs
   , _isValid
   , _mint
   , _networkId
+  , _output
   , _outputs
   , _plutusData
   , _plutusScripts
@@ -18,20 +22,21 @@ module Ctl.Internal.Lens
   , _referenceInputs
   , _requiredSigners
   , _scriptDataHash
+  , _scriptRef
   , _totalCollateral
+  , _ttl
+  , _update
+  , _validityStartInterval
   , _vkeys
   , _withdrawals
   , _witnessSet
-  , _datum
-  , _scriptRef
-  , _input
-  , _output
   ) where
 
 import Prelude
 
 import Cardano.Types
-  ( AuxiliaryData
+  ( Address
+  , AuxiliaryData
   , AuxiliaryDataHash
   , Certificate
   , Coin
@@ -44,12 +49,14 @@ import Cardano.Types
   , Redeemer
   , ScriptDataHash
   , ScriptRef
+  , Slot
   , Transaction
   , TransactionBody
   , TransactionInput
   , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
+  , Update
   , Value
   , Vkeywitness
   )
@@ -119,6 +126,16 @@ _mint = _Newtype <<< prop (Proxy :: Proxy "mint")
 _auxiliaryDataHash :: Lens' TransactionBody (Maybe AuxiliaryDataHash)
 _auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
 
+_ttl :: Lens' TransactionBody (Maybe Slot)
+_ttl = _Newtype <<< prop (Proxy :: Proxy "ttl")
+
+_update :: Lens' TransactionBody (Maybe Update)
+_update = _Newtype <<< prop (Proxy :: Proxy "update")
+
+_validityStartInterval :: Lens' TransactionBody (Maybe Slot)
+_validityStartInterval = _Newtype <<< prop
+  (Proxy :: Proxy "validityStartInterval")
+
 -- TransactionUnspentOutput
 
 _output :: Lens' TransactionUnspentOutput TransactionOutput
@@ -137,6 +154,9 @@ _scriptRef = _Newtype <<< prop (Proxy :: Proxy "scriptRef")
 
 _datum :: Lens' TransactionOutput (Maybe OutputDatum)
 _datum = _Newtype <<< prop (Proxy :: Proxy "datum")
+
+_address :: Lens' TransactionOutput Address
+_address = _Newtype <<< prop (Proxy :: Proxy "address")
 
 -- TransactionWitnessSet
 

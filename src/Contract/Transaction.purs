@@ -106,7 +106,8 @@ import Ctl.Internal.Contract.QueryHandle.Error
 import Ctl.Internal.Contract.Sign (signTransaction)
 import Ctl.Internal.Contract.Sign (signTransaction) as X
 import Ctl.Internal.Lens
-  ( _amount
+  ( _address
+  , _amount
   , _auxiliaryData
   , _auxiliaryDataHash
   , _body
@@ -130,6 +131,9 @@ import Ctl.Internal.Lens
   , _scriptDataHash
   , _scriptRef
   , _totalCollateral
+  , _ttl
+  , _update
+  , _validityStartInterval
   , _vkeys
   , _withdrawals
   , _witnessSet
