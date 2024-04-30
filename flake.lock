@@ -4834,7 +4834,7 @@
           "nixpkgs-unstable"
         ],
         "offchain-metadata-tools": "offchain-metadata-tools",
-        "ogmios": "ogmios_4",
+        "ogmios": "ogmios_3",
         "std": "std_18",
         "tullia": "tullia_11"
       },
@@ -7885,7 +7885,7 @@
           "haskellNix",
           "nixpkgs-unstable"
         ],
-        "ogmios": "ogmios_3",
+        "ogmios": "ogmios_2",
         "tullia": "tullia_10"
       },
       "locked": {
@@ -29400,16 +29400,14 @@
           "iogx",
           "nixpkgs"
         ],
-        "ogmios": [
-          "ogmios"
-        ]
+        "ogmios": "ogmios_4"
       },
       "locked": {
-        "lastModified": 1714162647,
-        "narHash": "sha256-nYfwwtN/d1rhgApuQ0wQyIdPRRKoXHNEpQHbidBLEIA=",
+        "lastModified": 1714501832,
+        "narHash": "sha256-bZ+6425t7cEHsotuluhZMc0rfIieMa3KqRwdwwMDw3g=",
         "owner": "Fourierlabs",
         "repo": "ogmios-nixos",
-        "rev": "15131a0fefebc1c3fe3242a1b0894095319d040a",
+        "rev": "dd5e90ec9a17a1bb492f3e2965511855aafa6f96",
         "type": "github"
       },
       "original": {
@@ -29419,22 +29417,6 @@
       }
     },
     "ogmios_2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1714146766,
-        "narHash": "sha256-iC4wmfxah3rFVpRLlLSmt9WdqQ6CdqMxPe68cSgiWdQ=",
-        "owner": "Fourierlabs",
-        "repo": "ogmios",
-        "rev": "240c0b7e2e3da9e6bd8f6c7057366de7bae73fe4",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Fourierlabs",
-        "repo": "ogmios",
-        "type": "github"
-      }
-    },
-    "ogmios_3": {
       "flake": false,
       "locked": {
         "lastModified": 1675332795,
@@ -29451,7 +29433,7 @@
         "type": "github"
       }
     },
-    "ogmios_4": {
+    "ogmios_3": {
       "flake": false,
       "locked": {
         "lastModified": 1660919684,
@@ -29464,6 +29446,22 @@
       "original": {
         "owner": "CardanoSolutions",
         "ref": "v5.5.5",
+        "repo": "ogmios",
+        "type": "github"
+      }
+    },
+    "ogmios_4": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1714292716,
+        "narHash": "sha256-ozpn+2daZLIK5uVZIXrZ5lv+sVtRHZoBoJMUK4RFz6g=",
+        "owner": "CardanoSolutions",
+        "repo": "ogmios",
+        "rev": "83065af5d370389c09e901c64628781ac0898a03",
+        "type": "github"
+      },
+      "original": {
+        "owner": "CardanoSolutions",
         "repo": "ogmios",
         "type": "github"
       }
@@ -31096,7 +31094,10 @@
           "nixpkgs-unstable"
         ],
         "npmlock2nix": "npmlock2nix",
-        "ogmios": "ogmios_2",
+        "ogmios": [
+          "ogmios-nixos",
+          "ogmios"
+        ],
         "ogmios-nixos": "ogmios-nixos",
         "plutip": "plutip"
       }

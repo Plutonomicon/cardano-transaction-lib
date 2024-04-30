@@ -47,14 +47,10 @@
       inputs = {
         hackage.follows = "hackage-nix";
         CHaP.follows = "CHaP";
-        ogmios.follows = "ogmios";
       };
     };
 
-    ogmios = {
-      url = "github:Fourierlabs/ogmios";
-      flake = false;
-    };
+    ogmios.follows = "ogmios-nixos/ogmios";
 
     kupo-nixos = {
       url = "github:Fourierlabs/kupo-nixos/add-conway";
