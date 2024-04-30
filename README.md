@@ -44,7 +44,6 @@ Please explore our documentation to discover how to use CTL, how to set up its r
   - [Testing on local testnets with Plutip](./doc/plutip-testing.md)
   - [End-to-end dApp testing with headless browsers](./doc/e2e-testing.md)
   - [Assertion utilities for testing](./doc/test-utils.md)
-- [CIP-25 NFT standard support](./doc/cip-25-nfts.md)
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)
 - [Ada staking support](./doc/staking.md)
