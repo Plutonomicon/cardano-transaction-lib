@@ -36,8 +36,8 @@
   "dependencies": {
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
-    "@mlabs-haskell/cardano-serialization-lib-gc-browser": "github:Fourierlabs/cardano-serialization-lib-gc#09bac050b5da0ff2473f6e7914f8d32a7d8d5376",
-    "@mlabs-haskell/cardano-serialization-lib-gc-nodejs": "github:Fourierlabs/cardano-serialization-lib-gc#09bac050b5da0ff2473f6e7914f8d32a7d8d5376",
+    "@mlabs-haskell/cardano-serialization-lib-gc-browser": "github:Fourierlabs/cardano-serialization-lib-gc#fcb15e03ffb30d3a63133a7c7a447b2a6d461b09",
+    "@mlabs-haskell/cardano-serialization-lib-gc-nodejs": "github:Fourierlabs/cardano-serialization-lib-gc#fcb15e03ffb30d3a63133a7c7a447b2a6d461b09",
     "@mlabs-haskell/csl-gc-wrapper": "^1.0.1",
     "@mlabs-haskell/json-bigint": "2.0.0",
     "@noble/secp256k1": "^1.7.0",

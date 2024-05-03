@@ -35,7 +35,7 @@ let
     # enables node-gyp on all packages
     sourceOverrides.buildRequirePatchShebangs = true;
     githubSourceHashMap = {
-      Fourierlabs.cardano-serialization-lib-gc."09bac050b5da0ff2473f6e7914f8d32a7d8d5376" = "sha256-ttYyG4RjvZyyzSs6zKdpWRrRxOpChGBGS0aNlKQOY2I=";
+      Fourierlabs.cardano-serialization-lib-gc."fcb15e03ffb30d3a63133a7c7a447b2a6d461b09" = "sha256-PvKW1oQm2qiblTyJ6u5pMu4MwU0ZN1RnDNJYJ5O/VxQ=";
     };
   };
 
