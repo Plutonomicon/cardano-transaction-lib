@@ -10,14 +10,15 @@ import Prelude
 import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PrivateKey as PrivateKey
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
 import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Helpers (liftedM, (<</>>))
+import Ctl.Internal.Helpers (liftedM, unsafeFromJust, (<</>>))
 import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.QueryM (ClusterSetup)
@@ -71,9 +72,7 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiConfirmAccess
   , namiSign
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpretWithConfig)
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
-import Ctl.Internal.Types.RawBytes (hexToRawBytes)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
   , keyWalletPrivatePaymentKey
@@ -81,6 +80,7 @@ import Ctl.Internal.Wallet.Key
   )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
+import Data.ByteArray (hexToByteArray)
 import Data.Either (Either(Left, Right), isLeft)
 import Data.Foldable (fold)
 import Data.HTTP.Method (Method(GET))
@@ -113,8 +113,8 @@ import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM, interpretWithConfig)
 import Node.Buffer (fromArrayBuffer)
 import Node.ChildProcess
   ( Exit(Normally, BySignal)
@@ -147,6 +147,8 @@ runE2ECommand = case _ of
     runtime <- readTestRuntime testOptions
     tests <- liftEffect $ readTests testOptions.tests
     noHeadless <- liftEffect $ readNoHeadless testOptions.noHeadless
+    passBrowserLogs <- liftEffect $ readPassBrowserLogs
+      testOptions.passBrowserLogs
     testTimeout <- liftEffect $ readTestTimeout testOptions.testTimeout
     portOptions <- liftEffect $ readPorts testOptions
     extraBrowserArgs <- liftEffect $ readExtraArgs testOptions.extraBrowserArgs
@@ -156,6 +158,7 @@ runE2ECommand = case _ of
         , testTimeout = testTimeout
         , tests = tests
         , extraBrowserArgs = extraBrowserArgs
+        , passBrowserLogs = passBrowserLogs
         }
     runE2ETests testOptions' runtime
   RunBrowser browserOptions -> do
@@ -224,8 +227,10 @@ buildPlutipConfig options =
 -- | fund it manually to get a usable base address.
 privateStakeKey :: PrivateStakeKey
 privateStakeKey = wrap $ unsafePartial $ fromJust
-  $ privateKeyFromBytes =<< hexToRawBytes
-      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+  $ PrivateKey.fromRawBytes =<< map wrap
+      ( hexToByteArray
+          "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
+      )
 
 -- | Constructs a test plan given an array of tests.
 testPlan
@@ -240,16 +245,19 @@ testPlan opts@{ tests } rt@{ wallets } =
         withBrowser opts.noHeadless opts.extraBrowserArgs rt Nothing \browser ->
           do
             withE2ETest true (wrap url) browser \{ page } -> do
-              subscribeToTestStatusUpdates page
+              subscribeToTestStatusUpdates opts.passBrowserLogs page
       -- Plutip in E2E tests
       { url, wallet: PlutipCluster } -> do
         let
+          amount = unsafeFromJust "testPlan: integer overflow" $ BigNum.mul
+            (BigNum.fromInt 2_000_000_000)
+            (BigNum.fromInt 100)
           distr = withStakeKey privateStakeKey
-            [ BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 100
+            [ amount
+            , amount
+            , amount
+            , amount
+            , amount
             ]
         -- TODO: don't connect to services in ContractEnv, just start them
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
@@ -269,7 +277,7 @@ testPlan opts@{ tests } rt@{ wallets } =
               \browser -> do
                 withE2ETest true (wrap url) browser \{ page } -> do
                   setClusterSetup page clusterSetup
-                  subscribeToTestStatusUpdates page
+                  subscribeToTestStatusUpdates opts.passBrowserLogs page
       -- E2E tests with a light wallet
       { url, wallet: WalletExtension wallet } -> do
         { password, extensionId } <- liftEffect
@@ -309,7 +317,7 @@ testPlan opts@{ tests } rt@{ wallets } =
                     res <- try aff
                     when (isLeft res) $ liftEffect $ k res
                 map fiberCanceler $ launchAff $ (try >=> k >>> liftEffect) $
-                  subscribeToBrowserEvents page
+                  subscribeToBrowserEvents opts.passBrowserLogs page
                     case _ of
                       ConfirmAccess -> rethrow someWallet.confirmAccess
                       Sign -> rethrow someWallet.sign
@@ -319,9 +327,9 @@ testPlan opts@{ tests } rt@{ wallets } =
                       Failure _ -> pure unit
   where
   -- A specialized version that does not deal with wallet automation
-  subscribeToTestStatusUpdates :: Toppokki.Page -> Aff Unit
-  subscribeToTestStatusUpdates page =
-    subscribeToBrowserEvents page
+  subscribeToTestStatusUpdates :: Boolean -> Toppokki.Page -> Aff Unit
+  subscribeToTestStatusUpdates passBrowserLogs page =
+    subscribeToBrowserEvents passBrowserLogs page
       case _ of
         Success -> pure unit
         Failure err -> throw err
@@ -360,6 +368,7 @@ readTestRuntime testOptions = do
             <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "kupoPort")
+            <<< delete (Proxy :: Proxy "passBrowserLogs")
         )
   readBrowserRuntime Nothing $ removeUnneeded testOptions
 
@@ -587,6 +596,16 @@ readNoHeadless false = do
     Nothing -> pure false
     Just str -> do
       liftMaybe (error $ "Failed to read E2E_NO_HEADLESS: " <> str) $
+        readBoolean str
+
+readPassBrowserLogs :: Boolean -> Effect Boolean
+readPassBrowserLogs true = pure true
+readPassBrowserLogs false = do
+  mbStr <- lookupEnv "E2E_PASS_BROWSER_LOGS"
+  case mbStr of
+    Nothing -> pure false
+    Just str -> do
+      liftMaybe (error $ "Failed to read E2E_PASS_BROWSER_LOGS: " <> str) $
         readBoolean str
 
 readBoolean :: String -> Maybe Boolean

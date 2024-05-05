@@ -4,11 +4,14 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Contract.Address
-  ( addressToBech32
-  )
+import Cardano.Types (BigNum, Value)
+import Cardano.Types.Address (toBech32) as Address
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.PublicKey as PublicKey
+import Cardano.Types.Value as Value
 import Contract.Config (ContractParams)
-import Contract.Hashing (publicKeyHash)
 import Contract.Log (logError', logTrace')
 import Contract.Monad
   ( Contract
@@ -27,7 +30,6 @@ import Contract.Transaction
   , submitTxFromConstraints
   )
 import Contract.Utxos (utxosAt)
-import Contract.Value (valueToCoin')
 import Contract.Wallet
   ( getWalletAddresses
   , getWalletBalance
@@ -38,7 +40,6 @@ import Contract.Wallet
 import Contract.Wallet.Key
   ( keyWalletPrivatePaymentKey
   , keyWalletPrivateStakeKey
-  , publicKeyFromPrivateKey
   )
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromTextEnvelope
@@ -50,14 +51,10 @@ import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
-import Ctl.Internal.Deserialization.Keys (freshPrivateKey)
-import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.Plutus.Types.Transaction (_amount, _output)
-import Ctl.Internal.Plutus.Types.Value (Value, lovelaceValueOf)
+import Ctl.Internal.Helpers (logWithLevel, unsafeFromJust)
+import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
-import Ctl.Internal.Serialization.Address (addressBech32)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( UtxoAmount
   , decodeWallets
@@ -82,7 +79,7 @@ import Data.Lens ((^.))
 import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), isNothing, maybe)
+import Data.Maybe (Maybe(Nothing, Just), isNothing, maybe)
 import Data.Newtype (over, unwrap, wrap)
 import Data.String (joinWith)
 import Data.String.Utils (startsWith) as String
@@ -105,11 +102,13 @@ import Effect.Ref as Ref
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Mote.Monad (mapTest)
+import Mote.TestPlanM (TestPlanM)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (mkdir, readTextFile, readdir, writeTextFile)
 import Node.FS.Sync (exists)
 import Node.Path (FilePath)
 import Node.Path (concat) as Path
+import Partial.Unsafe (unsafePartial)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Runs `ContractTest`s given a `ContractParams` value.
@@ -140,9 +139,8 @@ runContractTestsWithKeyDir params backup = do
               ( error
                   "Impossible happened: unable to get own address"
               ) =<< (getWalletAddresses <#> Array.head)
-          addressStr <- addressToBech32 address
-          balance <- getWalletBalance <#> fold
-          pure $ addressStr /\ balance
+          balance <- unsafePartial $ getWalletBalance <#> fold
+          pure $ Address.toBech32 address /\ balance
         let
           distrArray :: Array (Array UtxoAmount)
           distrArray = encodeDistribution distr
@@ -152,7 +150,7 @@ runContractTestsWithKeyDir params backup = do
         -- because it is expected that test wallets have thousands of ADA.
         let
           distrTotalAmount :: BigInt
-          distrTotalAmount = sum $ map sum distrArray
+          distrTotalAmount = sum $ map (sum <<< map BigNum.toBigInt) distrArray
 
           minAdaRoughEstimation :: BigInt
           minAdaRoughEstimation = BigInt.fromInt 1_000_000
@@ -165,21 +163,25 @@ runContractTestsWithKeyDir params backup = do
                 (sum (Array.length <$> distrArray))
 
         -- check if we have enough funds
-        when (valueToCoin' balance <= distrTotalAmount + feesToDistribute) do
-          liftEffect $ throw $
-            "The test engine cannot satisfy the requested ADA distribution "
-              <> "because there are not enough funds left. \n\n"
-              <> "Total required value is: "
-              <> showLovelace distrTotalAmount
-              <> " (estimated)\n"
-              <> "Total available value is: "
-              <> BigInt.toString (valueToCoin' balance)
-              <> "\nThe test suite is using this address: "
-              <> addressStr
-              <> "\nFund it to continue."
+        when
+          ( BigNum.toBigInt (unwrap $ Value.getCoin balance) <= distrTotalAmount
+              + feesToDistribute
+          )
+          do
+            liftEffect $ throw $
+              "The test engine cannot satisfy the requested ADA distribution "
+                <> "because there are not enough funds left. \n\n"
+                <> "Total required value is: "
+                <> showLovelace distrTotalAmount
+                <> " (estimated)\n"
+                <> "Total available value is: "
+                <> BigNum.toString (unwrap $ Value.getCoin balance)
+                <> "\nThe test suite is using this address: "
+                <> addressStr
+                <> "\nFund it to continue."
 
         -- generate wallets
-        privateKeys <- liftEffect $ for distrArray \_ -> freshPrivateKey
+        privateKeys <- liftEffect $ for distrArray \_ -> PrivateKey.generate
         wallets <-
           liftMaybe
             ( error
@@ -234,7 +236,7 @@ markAsInactive backup wallets = do
   flip parTraverse_ wallets \wallet -> do
     networkId <- asks _.networkId
     let
-      address = addressBech32 $ (unwrap wallet).address networkId
+      address = Address.toBech32 $ (unwrap wallet).address networkId
       inactiveFlagFile = Path.concat [ backup, address, "inactive" ]
     liftAff $ writeTextFile UTF8 inactiveFlagFile $
       "This address was marked as inactive. "
@@ -284,7 +286,7 @@ backupWallets backup env walletsArray =
   liftAff $ flip parTraverse_ walletsArray \wallet ->
     do
       let
-        address = addressBech32 $ (unwrap wallet).address env.networkId
+        address = Address.toBech32 $ (unwrap wallet).address env.networkId
         payment = keyWalletPrivatePaymentKey wallet
         mbStake = keyWalletPrivateStakeKey wallet
         folder = Path.concat [ backup, address ]
@@ -297,21 +299,27 @@ backupWallets backup env walletsArray =
 
 -- | Create a transaction that builds a specific UTxO distribution on the wallets.
 fundWallets
-  :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigInt
+  :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigNum
 fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   logTrace' "Funding wallets"
   let
     constraints = flip foldMap (Array.zip walletsArray distrArray)
       \(wallet /\ walletDistr) -> flip foldMap walletDistr
-        \value -> mustPayToKeyWallet wallet $ lovelaceValueOf value
+        \value -> mustPayToKeyWallet wallet $
+          Value.mkValue
+            (wrap value)
+            MultiAsset.empty
 
   txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
-  let fundTotal = Array.foldl (+) zero $ join distrArray
+  let
+    fundTotal =
+      Array.foldl (\x y -> unsafeFromJust "fundWallets" $ BigNum.add x y)
+        BigNum.zero $ join distrArray
   -- Use log so we can see, regardless of suppression
   info $ joinWith " "
     [ "Sent"
-    , showLovelace fundTotal
+    , showLovelace $ BigNum.toBigInt fundTotal
     , "to test wallets"
     ]
   pure fundTotal
@@ -354,7 +362,7 @@ returnFunds
   :: FilePath
   -> ContractEnv
   -> Array KeyWallet
-  -> Maybe BigInt
+  -> Maybe BigNum
   -> Boolean
   -> Aff Unit
 returnFunds backup env allWalletsArray mbFundTotal hasRun =
@@ -399,7 +407,9 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
 
         let
           (refundTotal :: BigInt) = Array.foldl
-            (\acc txorf -> acc + valueToCoin' (txorf ^. _output ^. _amount))
+            ( \acc txorf -> acc + BigNum.toBigInt
+                (unwrap $ Value.getCoin (txorf ^. _amount))
+            )
             zero
             (Array.fromFoldable $ Map.values utxos)
 
@@ -409,13 +419,13 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
           ] <> maybe []
             ( \fundTotal ->
                 [ "of"
-                , showLovelace fundTotal
+                , showLovelace $ BigNum.toBigInt fundTotal
                 , "from test wallets"
                 ]
             )
             mbFundTotal
         for_ mbFundTotal \fundTotal -> do
-          when (fundTotal == refundTotal && hasRun) do
+          when (BigNum.toBigInt fundTotal == refundTotal && hasRun) do
             info $ "The test below didn't spend any ADA. Perhaps it does not "
               <> "need any funds to succeed. Consider using `noWallet` to "
               <> "skip funds distribution step"
@@ -438,7 +448,7 @@ mustPayToKeyWallet
   -> TxConstraints
 mustPayToKeyWallet wallet value =
   let
-    convert = publicKeyHash <<< publicKeyFromPrivateKey
+    convert = PublicKey.hash <<< PrivateKey.toPublicKey
     payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
     mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
   in

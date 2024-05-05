@@ -1,4 +1,4 @@
-# Keydir backend
+# Running tests using a directory with private keys
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -7,6 +7,7 @@
   - [Generating private keys](#generating-private-keys)
   - [Funding your address](#funding-your-address)
   - [Setting up a directory for temporary keys](#setting-up-a-directory-for-temporary-keys)
+  - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -72,6 +73,10 @@ indefinitely. It is up to the user to decide when to delete the corresponding
 directories. We don't dispose of the keys automatically, as there may be some
 on-chain state that's uniquely tied to them, which the user might not want to
 lose access to.
+
+### See also
+
+- [Blockfrost-powered test suite](./blockfrost.md) for an example of how to use key-directory-based test suite with Blockfrost.
 
 [mote]: https://github.com/garyb/purescript-mote
 [cardano-handbook-keys-addresses]: https://developers.cardano.org/docs/stake-pool-course/handbook/keys-addresses

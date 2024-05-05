@@ -2,6 +2,19 @@ module Test.Ctl.CoinSelection (suite) where
 
 import Prelude
 
+import Cardano.AsCbor (decodeCbor)
+import Cardano.Types
+  ( Address
+  , MultiAsset
+  , ScriptHash
+  , TransactionOutput(TransactionOutput)
+  , Value
+  )
+import Cardano.Types.AssetName (AssetName, mkAssetName)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.Value (mkValue)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.BalanceTx.CoinSelection
   ( SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
@@ -9,31 +22,15 @@ import Ctl.Internal.BalanceTx.CoinSelection
   , performMultiAssetSelection
   )
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( CurrencySymbol
-  , NonAdaAsset
-  , Value
-  , mkCoin
-  , mkCurrencySymbol
-  , mkSingletonNonAdaAsset
-  , mkValue
-  )
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
 import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
-import Ctl.Internal.Hashing (blake2b224Hash)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Val as Val
+import Data.ByteArray (byteArrayFromAscii)
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)
 import Data.Map (fromFoldable, values) as Map
 import Data.Maybe (Maybe(Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for, for_)
 import Data.Tuple (Tuple(Tuple))
@@ -43,23 +40,23 @@ import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Exception (throw)
 import Effect.Unsafe (unsafePerformEffect)
-import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.CoinSelection.Arbitrary
-  ( ArbitraryAddress
-  , ArbitraryTransactionInput
+  ( ArbitraryTransactionInput
   , ArbitraryUtxoIndex
   )
 import Test.Ctl.CoinSelection.RoundRobin (suite) as RoundRobin
 import Test.Ctl.CoinSelection.SelectionState (suite) as SelectionState
 import Test.Ctl.CoinSelection.UtxoIndex (suite) as UtxoIndex
+import Test.Ctl.Internal.Hashing (blake2b224Hash)
 import Test.QuickCheck (class Testable, Result, assertEquals)
 import Test.QuickCheck (test) as QuickCheck
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Test.QuickCheck.Gen (Gen, randomSampleOne)
 import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.QuickCheck (quickCheck)
+import Test.Spec.QuickCheck (quickCheck')
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
@@ -69,7 +66,7 @@ suite =
     UtxoIndex.suite
     group "performMultiAssetSelection" do
       test "Performs a selection with zero outputs" do
-        quickCheck prop_performMultiAssetSelection_empty
+        quickCheck' 30 prop_performMultiAssetSelection_empty
       runSelectionTestWithFixture selFixture0
         "Selects only from the 'singletons' subset if possible"
       runSelectionTestWithFixture selFixture1
@@ -96,10 +93,12 @@ runSelectionTestWithFixture mkFixture testLabel =
       td <- liftEffect $ selTestDataFromFixture (mkFixture strategy)
       selectedUtxos <-
         _.selectedUtxos <<< unwrap <$>
-          performMultiAssetSelection td.strategy td.utxoIndex td.requiredValue
+          performMultiAssetSelection td.strategy td.utxoIndex
+            (Val.fromValue td.requiredValue)
       liftEffect $
         td.selectedValue `shouldEqual`
-          foldMap (_.amount <<< unwrap) (Map.values selectedUtxos)
+          unsafePartial
+            (foldMap (_.amount <<< unwrap) (Map.values selectedUtxos))
 
 showSelStrategy :: SelectionStrategy -> String
 showSelStrategy strategy =
@@ -134,28 +133,29 @@ type SelTestData =
   , selectedValue :: Value
   }
 
-assetClassFromFixture :: AssetFixture -> CurrencySymbol /\ TokenName
+assetClassFromFixture :: AssetFixture -> ScriptHash /\ AssetName
 assetClassFromFixture asset =
   currencySymbolFromAscii (show asset) /\ tokenNameFromAscii (show asset)
   where
-  currencySymbolFromAscii :: String -> CurrencySymbol
+  currencySymbolFromAscii :: String -> ScriptHash
   currencySymbolFromAscii str =
     unsafePartial fromJust $
-      mkCurrencySymbol =<< map blake2b224Hash (byteArrayFromAscii str)
+      decodeCbor <<< wrap =<< map blake2b224Hash (byteArrayFromAscii str)
 
-  tokenNameFromAscii :: String -> TokenName
+  tokenNameFromAscii :: String -> AssetName
   tokenNameFromAscii =
-    unsafePartial fromJust <<< (mkTokenName <=< byteArrayFromAscii)
+    unsafePartial fromJust <<< (mkAssetName <=< byteArrayFromAscii)
 
-assetFromFixture :: AssetFixture /\ Int -> NonAdaAsset
+assetFromFixture :: AssetFixture /\ Int -> MultiAsset
 assetFromFixture (assetFixture /\ quantity) =
-  mkSingletonNonAdaAsset currencySymbol tokenName (BigInt.fromInt quantity)
+  MultiAsset.singleton currencySymbol tokenName (BigNum.fromInt quantity)
   where
   currencySymbol /\ tokenName = assetClassFromFixture assetFixture
 
 valueFromFixture :: TokenBundleFixture -> Value
 valueFromFixture (coin /\ assets) =
-  mkValue (mkCoin coin) (foldMap assetFromFixture assets)
+  mkValue (wrap $ BigNum.fromInt coin)
+    (unsafePartial $ foldMap assetFromFixture assets)
 
 selTestDataFromFixture :: SelFixture -> Effect SelTestData
 selTestDataFromFixture selFixture = do
@@ -167,7 +167,8 @@ selTestDataFromFixture selFixture = do
     { strategy: selFixture.strategy
     , requiredValue: valueFromFixture selFixture.requiredValue
     , utxoIndex
-    , selectedValue: fold (valueFromFixture <$> selFixture.selectedUtxos)
+    , selectedValue: unsafePartial $ fold
+        (valueFromFixture <$> selFixture.selectedUtxos)
     }
   where
   txInputSample :: Effect TransactionInput
@@ -176,9 +177,9 @@ selTestDataFromFixture selFixture = do
 
   mkTxOutput :: Value -> Effect TransactionOutput
   mkTxOutput amount = do
-    address <- unwrap <$> randomSampleOne (arbitrary :: Gen ArbitraryAddress)
+    address <- randomSampleOne (arbitrary :: Gen Address)
     pure $ TransactionOutput
-      { address, amount, datum: NoOutputDatum, scriptRef: Nothing }
+      { address, amount, datum: Nothing, scriptRef: Nothing }
 
 --------------------------------------------------------------------------------
 

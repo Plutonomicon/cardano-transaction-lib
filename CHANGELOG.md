@@ -9,55 +9,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - [[Unreleased]](#unreleased)
   - [Added](#added)
+  - [Removed](#removed)
   - [Changed](#changed)
   - [Fixed](#fixed)
-  - [Removed](#removed)
-- [[v7.0.0]](#v700)
+- [[v8.0.0]](#v800)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Fixed](#fixed-1)
   - [Removed](#removed-1)
-- [[v6.0.0]](#v600)
+- [[v7.0.0]](#v700)
   - [Added](#added-2)
   - [Changed](#changed-2)
   - [Fixed](#fixed-2)
   - [Removed](#removed-2)
-- [[v5.0.0]](#v500)
+- [[v6.0.0]](#v600)
   - [Added](#added-3)
   - [Changed](#changed-3)
-  - [Removed](#removed-3)
   - [Fixed](#fixed-3)
-  - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed-4)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Removed](#removed-3)
+- [[v5.0.0]](#v500)
   - [Added](#added-4)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-5)
   - [Changed](#changed-4)
   - [Removed](#removed-4)
+  - [Fixed](#fixed-4)
+  - [Runtime Dependencies](#runtime-dependencies)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-5)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-5)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-6)
   - [Changed](#changed-5)
   - [Removed](#removed-5)
   - [Fixed](#fixed-6)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-7)
   - [Changed](#changed-6)
   - [Removed](#removed-6)
   - [Fixed](#fixed-7)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-8)
-  - [Removed](#removed-7)
   - [Changed](#changed-7)
+  - [Removed](#removed-7)
   - [Fixed](#fixed-8)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-9)
+  - [Removed](#removed-8)
+  - [Changed](#changed-8)
   - [Fixed](#fixed-9)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-10)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-11)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -66,15 +71,151 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
-### Changed
+### Removed
 
-- Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
+### Changed
 
 ### Fixed
 
+## [v8.0.0]
+
+In this version, we've refactored CTL and split it into multiple reusable sub-packages, most notably:
+
+- this package
+- `purescript-cardano-types` - (`Cardano.Types.*`) - domain types for Cardano ledger
+- `purescript-cardano-serialization-lib` - (`Cardano.Serialization.Lib.*`) - PureScript wrapper for CSL
+- `purescript-plutus-types` - (`Cardano.Plutus.*`) - Plutus-style domain types used only for `ToData`/`FromData` instances.
+
+See the [cardano-purescript repo](https://github.com/klntsky/cardano-purescript) for a complete list of new packages.
+
+These packages maintain their own public API, so the interfaces you should use are not necessarily namespaced under `Contract.*` anymore. E.g. `Cardano.Types.*` from `purescript-cardano-types` is public.
+
+Starting from this version, CTL does not use Plutus-domain types anymore. This change comes with some downsides (e.g. the need to provide NetworkId in `Address`es), but the benefit of not caring about conversions for basic functionality will hopefully be more noticeable. The only case when a conversion is needed is when the developer wants to use [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types), which is a package that offers `PlutusData` encodings compatible with Plutus. Its main purpose is to be used when there is a need to apply arguments to parametrized scripts.
+
+### Added
+
+- New purescript dependencies:
+  - [`purescript-bytearrays`](https://github.com/mlabs-haskell/purescript-bytearrays)
+  - [`purescript-cardano-hd-wallet`](https://github.com/mlabs-haskell/purescript-cardano-hd-wallet)
+  - [`purescript-cardano-message-signing`](https://github.com/mlabs-haskell/purescript-cardano-message-signing)
+  - [`purescript-cardano-plutus-data-schema`](https://github.com/mlabs-haskell/purescript-cardano-plutus-data-schema)
+  - [`purescript-cardano-serialization-lib`](https://github.com/mlabs-haskell/purescript-cardano-serialization-lib)
+  - [`purescript-cardano-types`](https://github.com/mlabs-haskell/purescript-cardano-types)
+- `Contract.Address.mkAddress` - a helper that automatically uses the correct `NetworkId` to construct an `Address`.
+- Sharing wallets between Plutip tests - see [the docs for this feature](./doc/plutip-testing.md#sharing-wallet-state-between-tests) ([#1585](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1585))
+  - `runPlutipTestPlan` is a new function that executes a `ContractTestPlan`.
+  - `sameWallets` is a new function that creates a `ContractTestPlan` from a `UtxoDistribution` and a `TestPlanM` of the same wallets running different `Contract`s.
+- new `onClusterStartup` hook that allows to get cluster startup parameters (private keys, `cardano-node` socket and config paths). See [`Test.Ctl.Plutip.Contract.ClusterParameters`](./test/Plutip/Contract/ClusterParameters.purs). ([#1610](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1610))
+
+
+### Changed
+
+- Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
+- Renamings for better conformity with CSL:
+  - `TokenName` renamed to `AssetName`
+  - `NonAdaAsset` renamed to `MultiAsset`
+  - `CurrencySymbol` renamed to `ScriptHash`
+- `Coin` now wraps BigNum instead of BigInt (in line with CSL)
+- `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via `Maybe` in `TransactionOutput`
+- `TransactionMetadatum` constructor naming change, in PS and in JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
+- `Contract.PlutusData.Redeemer` has been renamed to `RedeemerDatum` (to resolve naming conflict with `cardano-ledger`-style redeemer)
+- `Contract.PlutusData.Datum` has been deprecated, use `Cardano.Types.PlutusData`
+- `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
+
+### Fixed
+- Plutip cluster's Kupo instances don't share the same working folder anymore - ([#1570](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1570))
+- WebAssembly memory leaks (`csl-gc-wrapper` used to depend on unstable `wasm-bidngen` API [that got changed](https://github.com/mlabs-haskell/csl-gc-wrapper/commit/2dea38228b77f7c904aafef12eece7e5af195977)) ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1595))
+
 ### Removed
 
+- **[IMPORTANT]** Removed use of conditional code rewriting based on `BROWSER_RUNTIME` env variable during bundling ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1598)). This change simplifies the bundling process, but it requires a number of updates for all CTL-dependent projects:
+
+   * WebPack users should make this change to the webpack config:
+   ```diff
+       plugins: [
+   -      new webpack.DefinePlugin({
+   -        BROWSER_RUNTIME: isBrowser
+   -      }),
+   ```
+   * Esbuild users should make this change:
+   ```diff
+   const config = {
+     ...
+   -    define: {
+   -      BROWSER_RUNTIME: isBrowser ? "true" : '""'
+   -    },
+   ```
+   * All users should update the runtime dependencies:
+   ```diff
+   -    "@emurgo/cardano-message-signing-browser": "1.0.1",
+   -    "@emurgo/cardano-message-signing-nodejs": "1.0.1",
+   +    "@mlabs-haskell/cardano-message-signing": "1.0.1",
+   -    "apply-args-browser": "0.0.1",
+   -    "apply-args-nodejs": "0.0.1",
+   +    "@mlabs-haskell/uplc-apply-args": "1.0.0",
+   +    "isomorphic-ws": "^5.0.0",
+   -    "ws": "8.4.0",
+   +    "ws": "^8.16.0",
+   +    "web-encoding": "^1.1.5",
+   ```
+- NPM runtime dependencies:
+
+```diff
+     "bip39": "^3.1.0",
+-    "blakejs": "1.2.1",
+     "bufferutil": "4.0.5",
+-    "jssha": "3.2.0",
+     "puppeteer-core": "^15.3.2",
+     "reconnecting-webs
+```
+
+- `Contract.Address` utilities to work with `Address` - use `mkAddress` and machinery from `Cardano.Types.Address`
+- `Contract.RewardAddress` - use `Cardano.Types.RewardAddress`
+- `Contract.Transaction`:
+  - Removed newtypes for `Transaction`:
+     - `BalancedSignedTransaction`
+     - `FinalizedTransaction`
+- `Contract.Scripts`:
+  - `MintingPolicy` type. It was not used anywhere except of `mintingPolicy` lookup. Use `plutusMintingPolicy` and `nativeMintingPolicy` lookups instead.
+- `Contract.ScriptLookups`:
+  - synonyms for lookup functions that use `Maybe` have been removed: `mintingPolicyM`, `ownPaymentPubKeyHashM`, `ownStakePubKeyHashM`, `unspentOutputsM`, `validatorM`
+- `Contract.Credential` renamings:
+  - `PubKeyCredential` -> `PubKeyHashCredential`
+  - `ScriptCredential` -> `ScriptHashCredential`
 - `ModifyTx` error: made conversion functions total and removed the need to handle it
+- `Contract.CborBytes` utils:
+  - `cborBytesToByteArray`
+  - `cborBytesFromByteArray`
+  - `cborBytesFromAscii`
+  - `cborBytesToIntArray`
+  - `cborBytesFromIntArray`
+  - `cborBytesFromIntArrayUnsafe`
+  - `cborBytesToHex`
+  - `cborByteLength`
+  - `hexToCborBytes`
+  - `hexToCborBytesUnsafe`
+  - `rawBytesAsCborBytes`
+- `ToData`/`FromData` Instances for `purescript-noble-secp256k1` types (PS does not allow orphans)
+- `ToMetadata`/`FromMetadata` instance for `BigInt`: it was partial and unsafe
+- `Cardano.Types.BigNum.toInt'` method
+- `Contract.Address`:
+   - `scriptHashAddress` - use `Contract.Address.mkAddress`
+   - `payPubKeyHashBaseAddress` - use `Contract.Address.mkAddress`
+   - `payPubKeyHashEnterpriseAddress` - use `Contract.Address.mkAddress`
+- `Contract.Value`:
+   - `flattenNonAdaAssets` - use `Cardano.Types.Value.flatten`.
+- `Contract.PlutusData`:
+   - `Datum`: removed, use `Cardano.Types.PlutusData`
+   - `unitDatum`
+- `Contract.TextEnvelope`:
+   - `plutusScriptV1FromEnvelope` - use `plutusScriptFromEnvelope`
+- `Contract.Hashing`
+- `Contract.Transaction`:
+   - `TransactionOutputWithRefScript` - use `Cardano.Types.TransactionOutput`. It comes with refscript included.
+   - `getTxFinalFee`
+- `Contract.Numeric.NatRatio` - the module was not used in the library.
+- `Contract.AssocMap` - use `Cardano.Plutus.Types.Map` from [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types)
+- CIP-25 metadata machinery (we need to keep the API surface thin for CTL)
 
 ## [v7.0.0]
 

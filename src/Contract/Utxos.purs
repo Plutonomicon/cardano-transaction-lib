@@ -9,21 +9,13 @@ module Contract.Utxos
 
 import Prelude
 
+import Cardano.Types (Address, TransactionOutput, UtxoMap)
+import Cardano.Types (UtxoMap) as X
+import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Log (logWarn')
-import Contract.Monad (Contract, liftContractM, liftedE)
-import Contract.Prelude (for)
-import Control.Monad.Reader.Class (asks)
+import Contract.Monad (Contract, liftedE)
 import Ctl.Internal.BalanceTx.Sync (getControlledAddresses, isCip30Wallet)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Plutus.Conversion
-  ( fromPlutusAddress
-  , toPlutusTxOutput
-  , toPlutusUtxoMap
-  )
-import Ctl.Internal.Plutus.Types.Address (class PlutusAddress, getAddress)
-import Ctl.Internal.Plutus.Types.Transaction (TransactionOutput, UtxoMap)
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap) as X
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Maybe (Maybe)
 import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)
@@ -38,13 +30,9 @@ import Effect.Aff.Class (liftAff)
 -- | potential problems. This function will raise a warning in the logs if
 -- | wallet address is used.
 utxosAt
-  :: forall (address :: Type)
-   . PlutusAddress address
-  => address
+  :: Address
   -> Contract UtxoMap
-utxosAt addressAny = do
-  networkId <- asks _.networkId
-  let address = fromPlutusAddress networkId $ getAddress addressAny
+utxosAt address = do
   queryHandle <- getQueryHandle
   whenM isCip30Wallet do
     walletAddresses <- getControlledAddresses
@@ -56,9 +44,7 @@ utxosAt addressAny = do
           <> "that are available on wallet addresses are actually spendable. "
           <> "See the docs for UTxO locking in `doc/query-layers.md`. Using "
           <> "`getWalletUtxos` is a way to avoid the potential problems."
-  cardanoUtxoMap <- liftedE $ liftAff $ queryHandle.utxosAt address
-  liftContractM "utxosAt: failed to convert utxos"
-    $ toPlutusUtxoMap cardanoUtxoMap
+  liftedE $ liftAff $ queryHandle.utxosAt address
 
 -- | Queries for an utxo given a transaction input.
 -- | Returns `Nothing` if the output has already been spent.
@@ -67,6 +53,4 @@ getUtxo
   -> Contract (Maybe TransactionOutput)
 getUtxo oref = do
   queryHandle <- getQueryHandle
-  cardanoTxOutput <- liftedE $ liftAff $ queryHandle.getUtxoByOref oref
-  for cardanoTxOutput
-    (liftContractM "getUtxo: failed to convert tx output" <<< toPlutusTxOutput)
+  liftedE $ liftAff $ queryHandle.getUtxoByOref oref

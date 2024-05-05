@@ -14,6 +14,8 @@ module Ctl.Internal.Wallet.KeyFile
 import Prelude
 
 import Aeson (encodeAeson)
+import Cardano.Types.PrivateKey (PrivateKey)
+import Cardano.Types.PrivateKey as PrivateKey
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (catchError)
 import Ctl.Internal.Cardano.TextEnvelope
@@ -24,18 +26,14 @@ import Ctl.Internal.Cardano.TextEnvelope
       )
   , decodeTextEnvelope
   )
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Serialization.Keys (bytesFromPrivateKey)
-import Ctl.Internal.Serialization.Types (PrivateKey)
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Ctl.Internal.Types.RawBytes (rawBytesToHex)
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
+import Data.ByteArray (ByteArray, byteArrayToHex)
 import Data.Maybe (Maybe(Nothing))
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
@@ -66,25 +64,25 @@ privatePaymentKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivatePaymentKey
 privatePaymentKeyFromTextEnvelope (TextEnvelope envelope) = do
   -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == PaymentSigningKeyShelleyed25519) Nothing
-  PrivatePaymentKey <$> privateKeyFromBytes (wrap envelope.bytes)
+  PrivatePaymentKey <$> PrivateKey.fromRawBytes (wrap envelope.bytes)
 
 privateStakeKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivateStakeKey
 privateStakeKeyFromTextEnvelope (TextEnvelope envelope) = do
   -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == StakeSigningKeyShelleyed25519) Nothing
-  PrivateStakeKey <$> privateKeyFromBytes (wrap envelope.bytes)
+  PrivateStakeKey <$> PrivateKey.fromRawBytes (wrap envelope.bytes)
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
 privatePaymentKeyFromFile filePath = do
   bytes <- keyFromFile filePath PaymentSigningKeyShelleyed25519
   liftM (error "Unable to decode private payment key") $
-    PrivatePaymentKey <$> privateKeyFromBytes (wrap bytes)
+    PrivatePaymentKey <$> PrivateKey.fromRawBytes (wrap bytes)
 
 privateStakeKeyFromFile :: FilePath -> Aff PrivateStakeKey
 privateStakeKeyFromFile filePath = do
   bytes <- keyFromFile filePath StakeSigningKeyShelleyed25519
   liftM (error "Unable to decode private stake key") $
-    PrivateStakeKey <$> privateKeyFromBytes (wrap bytes)
+    PrivateStakeKey <$> PrivateKey.fromRawBytes (wrap bytes)
 
 -- | Write private payment key to file in cardano-cli envelope format
 privatePaymentKeyToFile :: FilePath -> PrivatePaymentKey -> Aff Unit
@@ -115,7 +113,8 @@ formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show
     }
 
 keyToCbor :: PrivateKey -> String
-keyToCbor = (magicPrefix <> _) <<< rawBytesToHex <<< bytesFromPrivateKey
+keyToCbor =
+  (magicPrefix <> _) <<< byteArrayToHex <<< unwrap <<< PrivateKey.toRawBytes
 
 magicPrefix :: String
 magicPrefix = "5820"

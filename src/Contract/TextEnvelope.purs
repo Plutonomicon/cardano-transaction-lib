@@ -12,6 +12,5 @@ import Ctl.Internal.Cardano.TextEnvelope
       , Other
       )
   , decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  , plutusScriptV2FromEnvelope
+  , plutusScriptFromEnvelope
   ) as X

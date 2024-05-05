@@ -23,4 +23,3 @@ getChainTip = do
 getProtocolParameters :: Contract ProtocolParameters
 getProtocolParameters =
   asks $ _.ledgerConstants >>> _.pparams
-

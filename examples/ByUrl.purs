@@ -30,6 +30,7 @@ import Contract.Config
   , testnetNamiConfig
   , testnetNuFiConfig
   )
+import Contract.Log (logInfo')
 import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
 import Ctl.Examples.AdditionalUtxos as AdditionalUtxos
@@ -162,6 +163,7 @@ wallets = Map.fromFoldable
   , "lode" /\ testnetLodeConfig /\ Nothing
   , "nufi" /\ testnetNuFiConfig /\ Nothing
   , "lace" /\ testnetLaceConfig /\ Nothing
+  , "nami-mainnet" /\ mainnetNamiConfig /\ Nothing
   , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
@@ -195,7 +197,7 @@ mkBlockfrostPreprodConfig apiKey =
     }
 
 examples :: Map E2ETestName (Contract Unit)
-examples = Map.fromFoldable
+examples = addSuccessLog <$> Map.fromFoldable
   [ "AdditionalUtxos" /\ AdditionalUtxos.contract false
   , "AlwaysMints" /\ AlwaysMints.contract
   , "NativeScriptMints" /\ NativeScriptMints.contract
@@ -227,3 +229,6 @@ examples = Map.fromFoldable
   , "ChangeGeneration1-3" /\
       ChangeGeneration.checkChangeOutputsDistribution 1 3 7
   ]
+
+addSuccessLog :: Contract Unit -> Contract Unit
+addSuccessLog contract = contract *> logInfo' "[CTL TEST SUCCESS]"

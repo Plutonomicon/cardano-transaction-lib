@@ -2,13 +2,14 @@ module Ctl.Examples.SignData (main, example, contract) where
 
 import Contract.Prelude
 
+import Cardano.Types (RawBytes)
+import Contract.Address (Address)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.Prim.ByteArray (RawBytes, rawBytesFromAscii)
 import Contract.Wallet (getChangeAddress, getRewardAddresses, signData)
-import Ctl.Internal.Serialization.Address (Address)
 import Data.Array (head) as Array
+import Data.ByteArray (byteArrayFromAscii)
 import Data.Maybe (fromJust)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Wallet.Cip30.SignData (checkCip30SignDataResponse)
@@ -33,7 +34,7 @@ contract = do
   testSignDataWithAddress "rewardAddress" rewardAddress
   where
   payload :: RawBytes
-  payload = unsafePartial fromJust $ rawBytesFromAscii "Hello world!"
+  payload = wrap $ unsafePartial fromJust $ byteArrayFromAscii "Hello world!"
 
   testSignDataWithAddress :: String -> Address -> Contract Unit
   testSignDataWithAddress addressLabel address = do

@@ -2,31 +2,19 @@ module Ctl.Internal.Contract.MinFee (calculateMinFee) where
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
-  , UtxoMap
-  , _body
-  , _collateral
-  , _inputs
-  )
-import Ctl.Internal.Cardano.Types.Value (Coin)
+import Cardano.Types (Coin, Ed25519KeyHash, Transaction, UtxoMap)
+import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
+import Cardano.Types.Credential (asPubKeyHash)
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Ctl.Internal.Helpers (liftM, liftedM)
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , addressPaymentCred
-  , addressStakeCred
-  , stakeCredentialToKeyHash
-  )
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash)
+import Ctl.Internal.Lens (_body, _collateral, _inputs)
 import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
 import Data.Either (hush)
-import Data.Lens (non)
 import Data.Lens.Getter ((^.))
 import Data.Map (keys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing))
@@ -37,7 +25,7 @@ import Data.Traversable (for)
 import Effect.Aff (error)
 import Effect.Aff.Class (liftAff)
 
--- | Calculate `min_fee` using CSL with protocol parameters from Ogmios.
+-- | Calculate the minimum transaction fee.
 calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
@@ -55,7 +43,7 @@ getSelfSigners tx additionalUtxos = do
     txInputs :: Set TransactionInput
     txInputs =
       Set.difference
-        (tx ^. _body <<< _inputs)
+        (Set.fromFoldable $ tx ^. _body <<< _inputs)
         (Map.keys additionalUtxos)
 
     additionalUtxosAddrs :: Set Address
@@ -71,7 +59,7 @@ getSelfSigners tx additionalUtxos = do
           Just utxo -> pure $ Just utxo
 
   let
-    collateralInputs = tx ^. _body <<< _collateral <<< non []
+    collateralInputs = tx ^. _body <<< _collateral
 
   (collateralAddresses :: Set Address) <-
     setFor (Set.fromFoldable collateralInputs) $ \txInput ->
@@ -97,13 +85,13 @@ getSelfSigners tx additionalUtxos = do
       liftM
         ( error $ "Could not extract payment credential from Address: " <> show
             addr
-        ) $ addressPaymentCred addr
-    pure $ stakeCredentialToKeyHash paymentCred
+        ) $ getPaymentCredential addr
+    pure $ asPubKeyHash $ unwrap paymentCred
 
   -- Extract stake pub key hashes from addresses
   let
     stakePkhs = Set.fromFoldable $
-      (stakeCredentialToKeyHash <=< addressStakeCred) `mapMaybe`
+      (asPubKeyHash <<< unwrap <=< getStakeCredential) `mapMaybe`
         Array.fromFoldable txOwnAddrs
 
   pure $ paymentPkhs <> stakePkhs

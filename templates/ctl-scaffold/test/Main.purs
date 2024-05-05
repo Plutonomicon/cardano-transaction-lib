@@ -4,6 +4,7 @@ module Test.Scaffold.Main (main, suite) where
 
 import Contract.Prelude
 
+import Contract.Numeric.BigNum as BigNum
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
   ( InitialUTxOs
@@ -21,7 +22,6 @@ import Effect.Aff
   , effectCanceler
   , launchAff
   )
-import JS.BigInt (fromInt) as BigInt
 import Mote (group, test)
 import Scaffold (contract)
 import Test.Spec.Runner (defaultConfig)
@@ -41,8 +41,8 @@ suite = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigNum.fromInt 5_000_000
+          , BigNum.fromInt 2_000_000_000
           ]
       withWallets distribution \wallet -> do
         withKeyWallet wallet do

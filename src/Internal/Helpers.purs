@@ -11,7 +11,6 @@ module Ctl.Internal.Helpers
   , bigIntToUInt
   , bugTrackerLink
   , concatPaths
-  , contentsProp
   , encodeMap
   , encodeTagged
   , encodeTagged'
@@ -28,22 +27,46 @@ module Ctl.Internal.Helpers
   , logWithLevel
   , maybeArrayMerge
   , mkErrorRecord
-  , notImplemented
   , showWithParens
-  , tagProp
   , uIntToBigInt
   , pprintTagSet
+  , eqOrd
+  , showFromBytes
+  , showFromCbor
+  , compareViaCslBytes
+  , decodeMap
+  , decodeTaggedNewtype
+  , unsafeFromJust
   ) where
 
 import Prelude
 
-import Aeson (class EncodeAeson, Aeson, encodeAeson, toString)
-import Control.Monad.Error.Class (class MonadError, throwError)
+import Aeson
+  ( class DecodeAeson
+  , class DecodeTupleAux
+  , class EncodeAeson
+  , Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , decodeAeson
+  , encodeAeson
+  , getField
+  , toString
+  )
+import Cardano.Serialization.Lib (class IsBytes, toBytes)
+import Cardano.Serialization.Lib.Internal (class IsCsl)
+import Control.Alt ((<|>))
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , throwError
+  )
 import Ctl.Internal.Helpers.Formatter (showTags)
 import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (ltraverse)
-import Data.Either (Either(Right), either)
+import Data.ByteArray (byteArrayToHex)
+import Data.Either (Either(Left, Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
@@ -57,21 +80,21 @@ import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
 import Data.Maybe.First (First(First))
 import Data.Maybe.Last (Last(Last))
 import Data.String (Pattern(Pattern), null, stripPrefix, stripSuffix)
-import Data.Traversable (traverse)
+import Data.Traversable (for, traverse)
 import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.Typelevel.Undefined (undefined)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
+import Effect.Unsafe (unsafePerformEffect)
+import Foreign.Object (Object)
 import Foreign.Object as Obj
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Partial.Unsafe (unsafePartial)
-import Prim.TypeError (class Warn, Text)
 
 bugTrackerLink :: String
 bugTrackerLink =
@@ -89,7 +112,7 @@ fromJustEff e = case _ of
 
 liftEither
   :: forall (a :: Type) (e :: Type) (m :: Type -> Type)
-   . MonadError e m
+   . MonadThrow e m
   => Either e a
   -> m a
 liftEither = either throwError pure
@@ -109,7 +132,7 @@ liftedM err mma = mma >>= maybe (throwError err) Right >>> liftEither
 -- | Given an error and a `Maybe` value, lift the context via `liftEither`.
 liftM
   :: forall (e :: Type) (m :: Type -> Type) (a :: Type)
-   . MonadError e m
+   . MonadThrow e m
   => e
   -> Maybe a
   -> m a
@@ -207,9 +230,6 @@ uIntToBigInt = unsafePartial fromJust <<< BigInt.fromString <<< UInt.toString
 bigIntToUInt :: BigInt -> Maybe UInt
 bigIntToUInt = UInt.fromString <<< BigInt.toString
 
-notImplemented :: forall a. Warn (Text "Function not implemented!") => a
-notImplemented = undefined
-
 -- | Log a message by printing it to the console, depending on the provided
 -- | `LogLevel`
 logWithLevel
@@ -264,19 +284,45 @@ encodeMap m =
   pairs :: Array (Aeson /\ Aeson)
   pairs = map (bimap encodeAeson encodeAeson) $ toUnfoldable m
 
-tagProp :: String
-tagProp = "tag"
+-- TODO: test with encodeMap
+decodeMap
+  :: forall (k :: Type) (v :: Type)
+   . DecodeAeson k
+  => Ord k
+  => DecodeAeson v
+  => DecodeTupleAux (k /\ v)
+  => Aeson
+  -> Either JsonDecodeError (Map k v)
+decodeMap aeson = do
+  decodeAsArray <|> decodeAsObject
+  where
+  decodeAsObject = do
+    props <- (decodeAeson aeson :: Either _ (Object v))
+    Map.fromFoldable <$> for (Obj.toUnfoldable props :: Array (String /\ v))
+      \(kString /\ v) -> do
+        k <- decodeAeson (encodeAeson kString)
+        pure $ k /\ v
+  decodeAsArray = do
+    Map.fromFoldable <$> (decodeAeson aeson :: Either _ (Array (k /\ v)))
 
-contentsProp :: String
-contentsProp = "contents"
+decodeTaggedNewtype
+  :: ∀ (a :: Type) (b :: Type)
+   . DecodeAeson a
+  => String
+  -> (a -> b)
+  -> Aeson
+  -> Either JsonDecodeError b
+decodeTaggedNewtype constrName constr = caseAesonObject
+  (Left $ TypeMismatch "Expected object")
+  (flip getField constrName >=> decodeAeson >>> map constr)
 
 -- | Args: tag value encoder
 -- | Encodes `value` using `encoder` as `{ "tag": *encoded tag*, "contents": *encoded value* }`
 encodeTagged :: forall a. String -> a -> (a -> Aeson) -> Aeson
 encodeTagged tag a encoder =
   encodeAeson $ Obj.fromFoldable
-    [ tagProp /\ encodeAeson tag
-    , contentsProp /\ encoder a
+    [ "tag" /\ encodeAeson tag
+    , "contents" /\ encoder a
     ]
 
 -- | A wrapper around `encodeTagged` function that uses
@@ -301,3 +347,40 @@ fromMaybeFlipped :: forall (a :: Type). Maybe a -> a -> a
 fromMaybeFlipped = flip fromMaybe
 
 infixl 5 fromMaybeFlipped as ??
+
+eqOrd :: forall a. Ord a => a -> a -> Boolean
+eqOrd a b = compare a b == EQ
+
+compareViaCslBytes
+  :: forall a b
+   . IsCsl a
+  => IsBytes a
+  => IsCsl b
+  => IsBytes b
+  => a
+  -> b
+  -> Ordering
+compareViaCslBytes a b =
+  compare (byteArrayToHex $ toBytes a) (byteArrayToHex $ toBytes b)
+
+showFromBytes :: forall a. IsCsl a => IsBytes a => String -> a -> String
+showFromBytes typeName a = "(" <> typeName
+  <> " $ unsafePartial $ fromJust $ fromBytes "
+  <> show (toBytes a)
+  <> ")"
+
+showFromCbor :: forall a. IsCsl a => IsBytes a => String -> a -> String
+showFromCbor typeName a = "(" <> typeName
+  <> " $ unsafePartial $ fromJust $ decodeCbor $ CborBytes $ "
+  <> show (toBytes a)
+  <> ")"
+
+unsafeFromJust :: forall a. String -> Maybe a -> a
+unsafeFromJust e a = case a of
+  Nothing ->
+    unsafePerformEffect $ throw $ "unsafeFromJust: impossible happened: "
+      <> e
+      <> " (please report as bug at "
+      <> bugTrackerLink
+      <> " )"
+  Just v -> v

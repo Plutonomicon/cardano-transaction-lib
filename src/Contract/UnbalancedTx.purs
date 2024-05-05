@@ -10,7 +10,7 @@ import Prelude
 
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (throwError)
-import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl) as PC
+import Ctl.Internal.ProcessConstraints as PC
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
   , explainMkUnbalancedTxError

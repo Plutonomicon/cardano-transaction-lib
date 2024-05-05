@@ -6,25 +6,17 @@ CTL can be imported as an additional dependency into a Purescript project built 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Caveats](#caveats)
-- [Using CTL's overlays](#using-ctls-overlays)
+- [Using CTL's Nix overlays](#using-ctls-nix-overlays)
 - [Upgrading CTL](#upgrading-ctl)
 - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Caveats
-
-The following caveats alway applies when using CTL from your project:
-
-1. Only bundling with Webpack is supported (this is due to our internal dependency on `cardano-serialization-lib` which uses WASM with top-level `await`; only Webpack is reliably capable of bundling this properly)
-2. The environment variable `BROWSER_RUNTIME` determines which version of `cardano-serialization-lib` is loaded by CTL, so you must use it as well (i.e. set it to `1` for the browser; leave it unset for NodeJS)
-
-## Using CTL's overlays
+## Using CTL's Nix overlays
 
 CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of your own project to use the same setup as we do, e.g. the same packages and PS builders:
 
-- `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), and run CTL contracts on a private testnet using Plutip (`runPlutipTest`).
+- `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack/esbuild (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), and run CTL contracts on a private testnet using Plutip (`runPlutipTest`).
 - `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, and `plutip-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
 
 We've split the overlays into two components to allow users to more easily choose which parts of CTL's Nix infrastructure they would like to directly consume. For example, some users do not require a pre-packaged runtime and would prefer to build it themselves with more control over its components (e.g. by directly using `ogmios` from their own `inputs`). Such users might still like to use our `purescript` overlay -- splitting the `overlays` allows us to support this. `overlays.runtime` also contains several haskell.nix packages which may cause issues with `hackage.nix` versions in your own project.
@@ -80,9 +72,9 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 - That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
 - If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
 
-4. **Update your webpack config**
+4. **Update your webpack/esbuild config**
 
-- Sometimes the WebPack configuration also comes with breaking changes. Common source of problems are changes to `resolve.fallback`, `plugins` and `experiments` fields of the WebPack config. Use `git diff old-revision new-revision webpack.config.js` in the root of a cloned CTL repo, or use `git blame`.
+- Sometimes the WebPack or esbuild configuration also comes with breaking changes. Use `git diff old-revision new-revision webpack.config.cjs` in the root of a cloned CTL repo, or use `git blame`.
 
 ## See also
 

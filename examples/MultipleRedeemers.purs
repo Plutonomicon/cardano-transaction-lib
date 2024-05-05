@@ -8,35 +8,29 @@ module Ctl.Examples.MultipleRedeemers
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
+import Contract.Address (mkAddress)
 import Contract.Monad (Contract)
 import Contract.PlutusData
   ( PlutusData(Integer)
-  , Redeemer(Redeemer)
+  , RedeemerDatum(RedeemerDatum)
   , toData
   )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( Validator(Validator)
-  , validatorHash
-  )
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.Scripts (Validator, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
-import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  )
-import Ctl.Examples.MintsMultipleTokens
-  ( mintingPolicyRdmrInt3
-  )
+import Ctl.Examples.Helpers (mkAssetName)
 import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
   ( mintAlwaysMintsV2ToTheScript
   )
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Data.List as List
 import Data.Map as Map
 import Data.Traversable (sequence)
@@ -45,10 +39,10 @@ import JS.BigInt as BigInt
 
 contract :: Contract Unit
 contract = do
-  tokenName <- mkTokenName "Token"
+  tokenName <- mkAssetName "Token"
   validator1 <- redeemerIs1Validator
   validator2 <- redeemerIs2Validator
-  mintingPolicy <- alwaysMintsPolicyV2
+  mintingPolicy <- alwaysMintsPolicyScriptV2
 
   -- Lock tokens on different script addresses
 
@@ -64,16 +58,16 @@ contract = do
     constraints =
       (mconcat $ fst <$> lcs) :: Constraints.TxConstraints
   txHash <- submitTxFromConstraints
-    (Lookups.mintingPolicy mintingPolicy <> lookups)
+    (Lookups.plutusMintingPolicy mintingPolicy <> lookups)
     constraints
   void $ awaitTxConfirmed txHash
 
 contractWithMintRedeemers :: Contract Unit
 contractWithMintRedeemers = do
-  tokenName <- mkTokenName "Token"
+  tokenName <- mkAssetName "Token"
   validator1 <- redeemerIs1Validator
-  mintingPolicy <- alwaysMintsPolicyV2
-  mp /\ cs <- mkCurrencySymbol mintingPolicyRdmrInt3
+  mintingPolicy <- alwaysMintsPolicyScriptV2
+  let cs = PlutusScript.hash mintingPolicy
 
   -- Lock tokens on script address
 
@@ -87,12 +81,13 @@ contractWithMintRedeemers = do
   let
     mintingConstraints =
       ( Constraints.mustMintValueWithRedeemer
-          (Redeemer $ Integer $ BigInt.fromInt 3)
-          (Value.singleton cs tokenName one)
+          (RedeemerDatum $ Integer $ BigInt.fromInt 3)
+          (Mint.singleton cs tokenName Int.one)
       )
   txHash <- submitTxFromConstraints
-    ( Lookups.mintingPolicy mintingPolicy <> Lookups.mintingPolicy mp <>
-        unlockingLookups
+    ( Lookups.plutusMintingPolicy mintingPolicy
+        <> Lookups.plutusMintingPolicy mintingPolicy
+        <> unlockingLookups
     )
     (unlockingConstraints <> mintingConstraints)
   void $ awaitTxConfirmed txHash
@@ -105,12 +100,12 @@ spendLockedByIntOutputParams
        )
 spendLockedByIntOutputParams (validator /\ redeemerVal) = do
   let vhash = validatorHash validator
-  utxo <- utxosAt (scriptHashAddress vhash Nothing)
+  utxo <- utxosAt =<< mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   constraints <- pure $ mconcat do
     input <- List.fromFoldable $ Map.keys utxo
     pure $
       ( Constraints.mustSpendScriptOutput input
-          $ Redeemer
+          $ RedeemerDatum
           $ toData
           $ Integer
           $ BigInt.fromInt redeemerVal
@@ -127,18 +122,18 @@ redeemerIs1Validator :: Contract Validator
 redeemerIs1Validator = do
   liftMaybe (error "Error decoding redeemerIs1Script") do
     envelope <- decodeTextEnvelope redeemerIs1Script
-    Validator <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 -- | checks whether redeemer is 2
 redeemerIs2Validator :: Contract Validator
 redeemerIs2Validator = do
   liftMaybe (error "Error decoding redeemerIs2Script") do
     envelope <- decodeTextEnvelope redeemerIs2Script
-    Validator <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 -- | checks whether redeemer is 3
 redeemerIs3Validator :: Contract Validator
 redeemerIs3Validator = do
   liftMaybe (error "Error decoding redeemerIs3Script") do
     envelope <- decodeTextEnvelope redeemerIs3Script
-    Validator <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope

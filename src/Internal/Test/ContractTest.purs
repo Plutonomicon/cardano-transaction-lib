@@ -1,17 +1,18 @@
 module Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
-  , withWallets
-  , noWallet
   , ContractTestHandler
   , ContractTestPlan(ContractTestPlan)
   , ContractTestPlanHandler
+  , noWallet
+  , sameWallets
+  , withWallets
   ) where
 
 import Prelude
 
 import Contract.Monad (Contract)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution (class UtxoDistribution)
+import Mote.TestPlanM (TestPlanM)
 
 -- | Represents a `Contract` test suite that depend on *some* wallet
 -- | `UtxoDistribution`.
@@ -42,6 +43,15 @@ withWallets distr tests = ContractTest \h -> h distr tests
 -- | Lift a `Contract` into `ContractTest`
 noWallet :: Contract Unit -> ContractTest
 noWallet = withWallets unit <<< const
+
+-- | Store a wallet `UtxoDistribution` and a `TestPlanM` that depend on those wallets
+sameWallets
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => distr
+  -> TestPlanM (wallets -> Contract Unit) Unit
+  -> ContractTestPlan
+sameWallets distr tests = ContractTestPlan \h -> h distr tests
 
 -- | A runner for a test suite that supports funds distribution.
 type ContractTestHandler :: Type -> Type -> Type -> Type

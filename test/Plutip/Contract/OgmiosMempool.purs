@@ -4,6 +4,7 @@ module Test.Ctl.Plutip.Contract.OgmiosMempool
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Backend.Ogmios.Mempool
   ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , acquireMempoolSnapshot
@@ -18,7 +19,6 @@ import Contract.Test.Mote (TestPlanM)
 import Contract.Transaction (awaitTxConfirmed)
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Data.Array (length)
-import JS.BigInt as BigInt
 import Mote (group, skip, test)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -28,8 +28,8 @@ suite = group "Ogmios mempool test" do
     let
       distribution :: InitialUTxOs
       distribution =
-        [ BigInt.fromInt 1000_000_000
-        , BigInt.fromInt 2000_000_000
+        [ BigNum.fromInt 1000_000_000
+        , BigNum.fromInt 2000_000_000
         ]
     withWallets distribution \alice -> do
       withKeyWallet alice do
@@ -38,8 +38,8 @@ suite = group "Ogmios mempool test" do
     let
       distribution :: InitialUTxOs
       distribution =
-        [ BigInt.fromInt 1000_000_000
-        , BigInt.fromInt 2000_000_000
+        [ BigNum.fromInt 1000_000_000
+        , BigNum.fromInt 2000_000_000
         ]
     withWallets distribution \alice -> do
       withKeyWallet alice do
@@ -57,8 +57,8 @@ suite = group "Ogmios mempool test" do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 1000_000_000
-          , BigInt.fromInt 2000_000_000
+          [ BigNum.fromInt 1000_000_000
+          , BigNum.fromInt 2000_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -78,8 +78,8 @@ suite = group "Ogmios mempool test" do
     let
       distribution :: InitialUTxOs
       distribution =
-        [ BigInt.fromInt 1000_000_000
-        , BigInt.fromInt 2000_000_000
+        [ BigNum.fromInt 1000_000_000
+        , BigNum.fromInt 2000_000_000
         ]
     withWallets distribution \alice -> do
       withKeyWallet alice do

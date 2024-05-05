@@ -1,12 +1,13 @@
 module Ctl.Internal.Plutip.Server
-  ( runPlutipContract
-  , withPlutipContractEnv
+  ( checkPlutipServer
+  , runPlutipContract
+  , runPlutipTestPlan
   , startPlutipCluster
-  , stopPlutipCluster
   , startPlutipServer
-  , checkPlutipServer
   , stopChildProcessWithPort
+  , stopPlutipCluster
   , testPlutipContracts
+  , withPlutipContractEnv
   ) where
 
 import Prelude
@@ -16,7 +17,9 @@ import Affjax (defaultRequest) as Affjax
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader as Header
 import Affjax.ResponseFormat as Affjax.ResponseFormat
-import Contract.Address (NetworkId(MainnetId))
+import Cardano.Types (NetworkId(MainnetId))
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
@@ -25,7 +28,6 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Ctl.Internal.Affjax (request) as Affjax
-import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
   , getLedgerConstants
@@ -56,6 +58,7 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils (tmpdir)
+import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , pprintClientError
@@ -65,7 +68,6 @@ import Ctl.Internal.Test.ContractTest
   , ContractTestPlan(ContractTestPlan)
   , ContractTestPlanHandler
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
   , InitialUTxODistribution
@@ -80,7 +82,7 @@ import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isLeft)
-import Data.Foldable (sum)
+import Data.Foldable (fold)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
@@ -107,13 +109,15 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error, message, throw)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
+import Mote.TestPlanM (TestPlanM)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.Path (FilePath, dirname)
+import Partial.Unsafe (unsafePartial)
+import Safe.Coerce (coerce)
 import Type.Prelude (Proxy(Proxy))
 
 -- | Run a single `Contract` in Plutip environment.
@@ -157,8 +161,18 @@ testPlutipContracts
   -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testPlutipContracts plutipCfg tp = do
+  plutipTestPlan <- lift $ execDistribution tp
+  runPlutipTestPlan plutipCfg plutipTestPlan
+
+-- | Run a `ContractTestPlan` in a (single) Plutip environment.
+-- | Supports wallet reuse - see docs on sharing wallet state between
+-- | wallets in `doc/plutip-testing.md`.
+runPlutipTestPlan
+  :: PlutipConfig
+  -> ContractTestPlan
+  -> TestPlanM (Aff Unit) Unit
+runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
   -- Modify tests to pluck out parts of a single combined distribution
-  ContractTestPlan runContractTestPlan <- lift $ execDistribution tp
   runContractTestPlan \distr tests -> do
     cleanupRef <- liftEffect $ Ref.new mempty
     -- Sets a single Mote bracket at the top level, it will be run for all
@@ -280,6 +294,14 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   tryWithReport (startKupo' response) "Could not start Kupo"
   { env, printLogs, clearLogs } <- mkContractEnv'
   wallets <- mkWallets' env ourKey response
+  void $ try $ liftEffect do
+    for_ env.hooks.onClusterStartup \clusterParamsCb -> do
+      clusterParamsCb
+        { privateKeys: response.privateKeys <#> unwrap
+        , nodeSocketPath: response.nodeSocketPath
+        , nodeConfigPath: response.nodeConfigPath
+        , privateKeysDirectory: response.keysDirectory
+        }
   pure
     { env
     , wallets
@@ -326,8 +348,8 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         encodeDistribution $
           ourInitialUtxos (encodeDistribution distr) /\
             distr
-    for_ distrArray $ traverse_ \n -> when (n < BigInt.fromInt 1_000_000) do
-      liftEffect $ throw $ "UTxO is too low: " <> BigInt.toString n <>
+    for_ distrArray $ traverse_ \n -> when (n < BigNum.fromInt 1_000_000) do
+      liftEffect $ throw $ "UTxO is too low: " <> BigNum.toString n <>
         ", must be at least 1_000_000 Lovelace"
     bracket
       (startPlutipCluster plutipCfg distrArray)
@@ -360,9 +382,9 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         wallets <-
           liftContractM
             "Impossible happened: could not decode wallets. Please report as bug"
-            $ decodeWallets distr (unwrap <$> response.privateKeys)
+            $ decodeWallets distr (coerce response.privateKeys)
         let walletsArray = keyWallets (Proxy :: Proxy distr) wallets
-        void $ waitNSlots one
+        void $ waitNSlots BigNum.one
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
 
@@ -486,12 +508,14 @@ startPlutipCluster cfg keysToGenerate = do
 ourInitialUtxos :: InitialUTxODistribution -> InitialUTxOs
 ourInitialUtxos utxoDistribution =
   let
-    total = Array.foldr (sum >>> add) zero utxoDistribution
+    total = Array.foldr (\e acc -> unsafePartial $ fold e # append acc)
+      BigNum.zero
+      utxoDistribution
   in
     [ -- Take the total value of the UTxOs and add some extra on top
       -- of it to cover the possible transaction fees. Also make sure
       -- we don't request a 0 ada UTxO
-      total + BigInt.fromInt 1_000_000_000
+      unsafePartial $ append total (BigNum.fromInt 1_000_000)
     ]
 
 stopPlutipCluster :: PlutipConfig -> Aff StopClusterResponse
@@ -545,8 +569,9 @@ startKupo
   -> Aff (ManagedProcess /\ String /\ OnSignalRef)
 startKupo cfg params = do
   tmpDir <- liftEffect tmpdir
+  randomStr <- liftEffect $ uniqueId ""
   let
-    workdir = tmpDir <</>> "kupo-db"
+    workdir = tmpDir <</>> randomStr <> "-kupo-db"
     testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
@@ -641,7 +666,7 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , logLevel: plutipCfg.logLevel
     , customLogger: customLogger
     , suppressLogs: plutipCfg.suppressLogs
-    , hooks: emptyHooks
+    , hooks: plutipCfg.hooks
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants

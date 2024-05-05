@@ -5,7 +5,6 @@ import Prelude
 import Contract.Config (testnetConfig)
 import Contract.Log (logWarn')
 import Contract.Monad (runContract)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
@@ -13,6 +12,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit

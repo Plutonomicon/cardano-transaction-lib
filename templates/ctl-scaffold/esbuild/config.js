@@ -7,9 +7,6 @@ export const buildOptions = ({ entryPoint, outfile }) => {
   const config = {
     entryPoints: [entryPoint],
     outfile: outfile,
-    define: {
-      BROWSER_RUNTIME: isBrowser ? "true" : '""',
-    },
     plugins: [
       wasmLoader({
         mode: "deferred",
@@ -24,8 +21,10 @@ export const buildOptions = ({ entryPoint, outfile }) => {
 
   // https://esbuild.github.io/api/#packages
   if (!isBrowser) {
+    // Keep dependencies outside of the bundle for nodejs
     config.packages = "external";
   } else {
+    // Provide browser polyfills for NodeJS modules
     config.plugins.push(
       polyfillNode({
         polyfills: {

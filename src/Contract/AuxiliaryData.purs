@@ -7,58 +7,56 @@ module Contract.AuxiliaryData
 
 import Prelude
 
-import Contract.Monad (Contract)
-import Ctl.Internal.Cardano.Types.Transaction
+import Cardano.Types
   ( AuxiliaryData(AuxiliaryData)
   , AuxiliaryDataHash
+  , GeneralTransactionMetadata
   , Transaction
   )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  ) as Tx
+import Cardano.Types.AuxiliaryData (hashAuxiliaryData)
+import Ctl.Internal.Lens (_auxiliaryData, _auxiliaryDataHash, _body) as Tx
 import Ctl.Internal.Metadata.MetadataType
   ( class MetadataType
   , toGeneralTxMetadata
   )
 import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
-import Ctl.Internal.Serialization.AuxiliaryData (hashAuxiliaryData)
-import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
-import Data.Lens (lens', (?~))
+import Data.Lens (lens', (.~), (?~))
 import Data.Lens.Getter (view)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Tuple (Tuple(Tuple))
-import Effect.Class (liftEffect)
 import Type.Proxy (Proxy(Proxy))
 
 setAuxiliaryData
   :: UnbalancedTx
   -> AuxiliaryData
-  -> Contract UnbalancedTx
-setAuxiliaryData tx auxData = liftEffect do
-  auxDataHash <- hashAuxiliaryData auxData
-  pure (tx # _auxiliaryData ?~ auxData # _auxiliaryDataHash ?~ auxDataHash)
+  -> UnbalancedTx
+setAuxiliaryData tx auxData =
+  let
+    auxDataHash = hashAuxiliaryData auxData
+  in
+    tx # _auxiliaryData .~ Just auxData
+      # _auxiliaryDataHash ?~ auxDataHash
 
 setGeneralTxMetadata
   :: UnbalancedTx
   -> GeneralTransactionMetadata
-  -> Contract UnbalancedTx
+  -> UnbalancedTx
 setGeneralTxMetadata tx generalMetadata =
   let
-    auxData = fromMaybe mempty (view _auxiliaryData tx)
+    auxData = view _auxiliaryData tx
   in
-    setAuxiliaryData tx (auxData # _metadata ?~ generalMetadata)
+    setAuxiliaryData tx
+      (fromMaybe mempty auxData # _metadata ?~ generalMetadata)
 
 setTxMetadata
   :: forall (m :: Type)
    . MetadataType m
   => UnbalancedTx
   -> m
-  -> Contract UnbalancedTx
+  -> UnbalancedTx
 setTxMetadata tx =
   setGeneralTxMetadata tx <<< toGeneralTxMetadata
 
@@ -71,7 +69,7 @@ _transaction = _Newtype <<< prop (Proxy :: Proxy "transaction")
 
 _auxiliaryData :: Lens' UnbalancedTx (Maybe AuxiliaryData)
 _auxiliaryData =
-  _transaction <<< Tx._auxiliaryData
+  _Newtype <<< prop (Proxy :: Proxy "transaction") <<< Tx._auxiliaryData
 
 _auxiliaryDataHash :: Lens' UnbalancedTx (Maybe AuxiliaryDataHash)
 _auxiliaryDataHash =

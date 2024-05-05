@@ -2,7 +2,6 @@
 module Contract.Monad
   ( module ExportAff
   , module ExportContract
-  , module ExportLogTag
   , liftContractAffM
   , liftContractE
   , liftContractE'
@@ -32,15 +31,6 @@ import Ctl.Internal.Contract.Monad
   , stopContractEnv
   ) as Contract
 import Data.Either (Either, either, hush)
-import Data.Log.Tag
-  ( TagSet
-  , booleanTag
-  , intTag
-  , jsDateTag
-  , numberTag
-  , tag
-  , tagSetTag
-  ) as ExportLogTag
 import Data.Maybe (Maybe, maybe)
 import Effect.Aff (Aff)
 import Effect.Aff (Aff, launchAff_) as ExportAff
@@ -124,4 +114,3 @@ liftedM str = (=<<) (liftContractM str)
 -- | and lifting into the `Contract` monad.
 throwContractError :: forall (e :: Type) (a :: Type). Show e => e -> Contract a
 throwContractError = liftEffect <<< throw <<< show
-

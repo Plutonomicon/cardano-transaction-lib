@@ -4,7 +4,12 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Test.Plutip (PlutipConfig, noWallet, testPlutipContracts)
+import Contract.Test.Plutip
+  ( PlutipConfig
+  , noWallet
+  , runPlutipTestPlan
+  , testPlutipContracts
+  )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Plutip.Server
@@ -15,8 +20,6 @@ import Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   )
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Test.TestPlanM as Utils
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -30,15 +33,18 @@ import Effect.Aff
   )
 import Mote (group, test)
 import Mote.Monad (mapTest)
+import Mote.TestPlanM (TestPlanM)
+import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
+import Test.Ctl.Plutip.Contract.ClusterParameters as ClusterParameters
 import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
-import Test.Ctl.Plutip.Contract.NetworkId as NetworkId
 import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Plutip.ExUnits as ExUnits
 import Test.Ctl.Plutip.Logging as Logging
+import Test.Ctl.Plutip.SameWallets as SameWallets
 import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldSatisfy)
@@ -63,11 +69,12 @@ main = interruptOnSignal SIGINT =<< launchAff do
           testPlutipContracts config $ do
             flip mapTest QueryM.AffInterface.suite
               (noWallet <<< wrapQueryM)
-            NetworkId.suite
             ChangeGeneration.suite
             Contract.suite
           UtxoDistribution.suite
           testPlutipContracts config OgmiosMempool.suite
+          runPlutipTestPlan config SameWallets.suite
+          ClusterParameters.runTest
 
 configWithMaxExUnits :: PlutipConfig
 configWithMaxExUnits = config

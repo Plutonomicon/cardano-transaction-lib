@@ -5,7 +5,10 @@ module Ctl.Examples.AdditionalUtxos
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Cardano.Types.PlutusScript as PlutusScript
+import Contract.Address (mkAddress)
 import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder)
 import Contract.BalanceTxConstraints (mustUseAdditionalUtxos) as BalancerConstraints
 import Contract.Config (ContractParams, testnetNamiConfig)
@@ -75,10 +78,9 @@ payToValidator vhash = do
   scriptRef <- liftEffect (NativeScriptRef <$> randomSampleOne arbitrary)
   let
     value :: Value
-    value = Value.lovelaceValueOf $ BigInt.fromInt 2_000_000
+    value = Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
 
-    datum :: Datum
-    datum = wrap $ Integer $ BigInt.fromInt 42
+    datum = Integer $ BigInt.fromInt 42
 
     constraints :: TxConstraints
     constraints =
@@ -95,12 +97,13 @@ payToValidator vhash = do
 
 spendFromValidator :: Validator -> UtxoMap -> Datum -> Contract Unit
 spendFromValidator validator additionalUtxos datum = do
+  addr <- mkAddress (wrap $ ScriptHashCredential $ PlutusScript.hash validator)
+    Nothing
   let
     scriptUtxos :: UtxoMap
     scriptUtxos =
       additionalUtxos # Map.filter \out ->
-        (unwrap (unwrap out).output).address
-          == scriptHashAddress (validatorHash validator) Nothing
+        (unwrap out).address == addr
 
     scriptOrefs :: Array TransactionInput
     scriptOrefs = Array.fromFoldable $ Map.keys scriptUtxos

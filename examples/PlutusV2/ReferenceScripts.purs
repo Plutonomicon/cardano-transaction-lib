@@ -6,9 +6,14 @@ module Ctl.Examples.PlutusV2.ReferenceScripts
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  )
+import Cardano.Types.BigNum as BigNum
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Credential (Credential(PubKeyCredential))
+import Contract.Credential (Credential(PubKeyHashCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (unitDatum, unitRedeemer)
@@ -19,7 +24,6 @@ import Contract.Transaction
   , TransactionHash
   , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , mkTxUnspentOut
   , submitTxFromConstraints
   )
 import Contract.TxConstraints
@@ -34,7 +38,6 @@ import Contract.Wallet (ownStakePubKeyHashes)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
 import Data.Map (toUnfoldable) as Map
-import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -43,6 +46,9 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
+-- NOTE: If you are looking for an example of the most common case of
+-- using reference scripts by referencing an output and not spending it,
+-- you likely need to look at the example in `ReferenceInputsAndScripts.purs`.
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceScripts"
@@ -52,7 +58,7 @@ contract = do
     vhash = validatorHash validator
 
     scriptRef :: ScriptRef
-    scriptRef = PlutusScriptRef (unwrap validator)
+    scriptRef = PlutusScriptRef validator
 
   logInfo' "Attempt to lock value"
   txId <- payWithScriptRefToAlwaysSucceeds vhash scriptRef
@@ -73,15 +79,15 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
         Nothing ->
           Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
             scriptRef
-            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+            (Value.lovelaceValueOf $ BigNum.fromInt 2_000_000)
         Just stakeKeyHash ->
           Constraints.mustPayToScriptAddressWithScriptRef
             vhash
-            (PubKeyCredential $ unwrap stakeKeyHash)
+            (PubKeyHashCredential $ unwrap stakeKeyHash)
             unitDatum
             DatumWitness
             scriptRef
-            (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+            (Value.lovelaceValueOf $ BigNum.fromInt 2_000_000)
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -93,20 +99,19 @@ spendFromAlwaysSucceeds vhash txId = do
   -- Send to own stake credential. This is used to test
   -- `mustPayToScriptAddressWithScriptRef`
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
-  let
-    scriptAddress =
-      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential $ vhash)
+    (wrap <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
 
-  txInput /\ txOutput <-
+  input /\ output <-
     liftContractM "Could not find unspent output locked at script address"
       $ find hasTransactionId (Map.toUnfoldable utxos :: Array _)
 
   let
     constraints :: TxConstraints
     constraints =
-      Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
-        (SpendInput $ mkTxUnspentOut txInput txOutput)
+      Constraints.mustSpendScriptOutputUsingScriptRef input unitRedeemer
+        (SpendInput $ TransactionUnspentOutput { input, output })
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty

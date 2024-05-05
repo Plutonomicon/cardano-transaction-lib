@@ -10,15 +10,14 @@ module Ctl.Examples.AwaitTxConfirmedWithTimeout
 
 import Contract.Prelude
 
+import Cardano.AsCbor (decodeCbor)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
-import Contract.Transaction
-  ( TransactionHash(TransactionHash)
-  , awaitTxConfirmedWithTimeout
-  )
+import Contract.Transaction (awaitTxConfirmedWithTimeout)
 import Control.Monad.Error.Class (try)
+import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -31,8 +30,9 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running AwaitTxConfirmedWithTimeout"
   let
-    fakeHash = TransactionHash $ hexToByteArrayUnsafe
-      "ffffffffffff55555555555555555555a1af1b7534b51e60fad3fe9c164313e8"
+    fakeHash = unsafePartial $ fromJust $ decodeCbor $ wrap $
+      hexToByteArrayUnsafe
+        "ffffffffffff55555555555555555555a1af1b7534b51e60fad3fe9c164313e8"
   result <- try $ awaitTxConfirmedWithTimeout (wrap 1.0) fakeHash
   case result of
     Left _ -> pure unit

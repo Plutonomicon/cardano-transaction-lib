@@ -7,7 +7,6 @@ import Ctl.Internal.Types.Rational
   ( class RationalComponent
   , Rational
   , denominator
-  , denominatorAsNat
   , numerator
   , recip
   , reduce

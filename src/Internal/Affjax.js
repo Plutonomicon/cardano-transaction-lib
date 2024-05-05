@@ -1,27 +1,17 @@
-/* global BROWSER_RUNTIME */
+export const driver = nodeDriver;
 
-export const driver = async () => {
-  if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-    return browserDriver;
-  } else {
-    return await nodeDriver();
-  }
-};
+// we rely on the bundler to inject polyfills for the browser
 
-const browserDriver = {
-  newXHR: function () {
-    return new XMLHttpRequest();
-  },
-  fixupUrl: function (url) {
-    return url || "/";
-  }
-};
+let nodeDriverCache = null;
 
 async function nodeDriver() {
+  if (nodeDriverCache !== null) {
+    return nodeDriverCache;
+  }
   const { default: XHR } = await import("xhr2");
   const { default: urllib } = await import("url");
 
-  return {
+  nodeDriverCache = {
     newXHR: function () {
       return new XHR();
     },
@@ -36,4 +26,6 @@ async function nodeDriver() {
       }
     }
   };
+
+  return nodeDriverCache;
 }

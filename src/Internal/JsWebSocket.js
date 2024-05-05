@@ -1,16 +1,7 @@
-/* global BROWSER_RUNTIME */
-
 import ReconnectingWebSocket from "reconnecting-websocket";
+import WebSocket from "isomorphic-ws";
 
-let OurWebSocket;
-if (typeof BROWSER_RUNTIME == "undefined" || !BROWSER_RUNTIME) {
-  const { default: WebSocket } = await import("ws");
-  OurWebSocket = WebSocket;
-} else {
-  OurWebSocket = WebSocket;
-}
-
-class NoPerMessageDeflateWebSocket extends OurWebSocket {
+class NoPerMessageDeflateWebSocket extends WebSocket {
   constructor(url, protocols, options) {
     options = options || {};
     options.perMessageDeflate = false;
@@ -21,14 +12,9 @@ class NoPerMessageDeflateWebSocket extends OurWebSocket {
 export function _mkWebSocket(logger) {
   return url => () => {
     try {
-      let ws;
-      if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-        ws = new ReconnectingWebSocket(url);
-      } else {
-        ws = new ReconnectingWebSocket(url, [], {
-          WebSocket: NoPerMessageDeflateWebSocket
-        });
-      }
+      const ws = new ReconnectingWebSocket(url, [], {
+        WebSocket: NoPerMessageDeflateWebSocket
+      });
       ws.finalizers = [];
       logger("Created a new WebSocket")();
       return ws;

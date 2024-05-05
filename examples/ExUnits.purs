@@ -2,23 +2,17 @@ module Ctl.Examples.ExUnits where
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Credential (Credential(PubKeyCredential))
+import Contract.Credential (Credential(PubKeyHashCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData
-  ( Redeemer(Redeemer)
-  , toData
-  , unitDatum
-  )
+import Contract.PlutusData (RedeemerDatum(RedeemerDatum), toData, unitDatum)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( Validator(Validator)
-  , ValidatorHash
-  , validatorHash
-  )
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , _input
@@ -68,14 +62,14 @@ payToExUnits vhash = do
           Constraints.mustPayToScript vhash unitDatum
             Constraints.DatumWitness
             $ Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
+            $ BigNum.fromInt 2_000_000
         Just stakeKeyHash ->
           Constraints.mustPayToScriptAddress vhash
-            (PubKeyCredential $ unwrap stakeKeyHash)
+            (PubKeyHashCredential $ unwrap stakeKeyHash)
             unitDatum
             Constraints.DatumWitness
             $ Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
+            $ BigNum.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -92,9 +86,9 @@ spendFromExUnits
 spendFromExUnits iters vhash validator txId = do
   -- Use own stake credential if available
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
-  let
-    scriptAddress =
-      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
+  scriptAddress <-
+    mkAddress (wrap $ ScriptHashCredential vhash)
+      (wrap <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
   txInput <-
     liftM
@@ -113,7 +107,7 @@ spendFromExUnits iters vhash validator txId = do
 
     constraints :: TxConstraints
     constraints =
-      Constraints.mustSpendScriptOutput txInput (Redeemer $ toData iters)
+      Constraints.mustSpendScriptOutput txInput (RedeemerDatum $ toData iters)
 
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
@@ -123,6 +117,6 @@ exUnitsScript :: Contract Validator
 exUnitsScript = do
   liftMaybe (error "Error decoding exUnits") do
     envelope <- decodeTextEnvelope exUnits
-    Validator <$> plutusScriptV2FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 foreign import exUnits :: String

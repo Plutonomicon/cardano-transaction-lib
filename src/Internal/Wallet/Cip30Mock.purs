@@ -12,39 +12,23 @@ module Ctl.Internal.Wallet.Cip30Mock
 
 import Prelude
 
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Types
+  ( Credential(PubKeyHashCredential)
+  , StakeCredential(StakeCredential)
+  )
+import Cardano.Types.Address (Address(RewardAddress))
+import Cardano.Types.NetworkId (NetworkId(MainnetId, TestnetId))
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.PublicKey as PublicKey
+import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (Promise, fromAff)
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Serialization
-  ( convertTransactionUnspentOutput
-  , convertValue
-  , publicKeyHash
-  , toBytes
-  )
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId(MainnetId, TestnetId)
-  )
-import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
-import Ctl.Internal.Serialization.WitnessSet (convertWitnessSet)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (cborBytesFromByteArray, cborBytesToHex)
-import Ctl.Internal.Types.PubKeyHash
-  ( PubKeyHash(PubKeyHash)
-  , StakePubKeyHash(StakePubKeyHash)
-  )
-import Ctl.Internal.Types.RewardAddress
-  ( rewardAddressToBytes
-  , stakePubKeyHashRewardAddress
-  )
 import Ctl.Internal.Wallet
   ( Wallet
   , WalletExtension
@@ -64,14 +48,13 @@ import Ctl.Internal.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Data.Array as Array
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (Fn2, mkFn2)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (unwrap, wrap)
-import Data.Traversable (traverse)
-import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -79,6 +62,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
+import Partial.Unsafe (unsafePartial)
 
 data WalletMock
   = MockFlint
@@ -161,15 +145,14 @@ mkCip30Mock pKey mSKey = do
     getCollateralUtxos utxos = do
       let
         pparams = unwrap env.ledgerConstants.pparams
-        coinsPerUtxoUnit = pparams.coinsPerUtxoUnit
+        coinsPerUtxoByte = pparams.coinsPerUtxoByte
         maxCollateralInputs = UInt.toInt $
           pparams.maxCollateralInputs
-      liftEffect $
-        (unwrap keyWallet).selectCollateral coinsPerUtxoUnit
-          maxCollateralInputs
-          utxos
-          <#> fold
-
+        mbCollateral = fold $
+          (unwrap keyWallet).selectCollateral coinsPerUtxoByte
+            maxCollateralInputs
+            utxos
+      pure mbCollateral
     ownUtxos = do
       let ownAddress = (unwrap keyWallet).address env.networkId
       liftMaybe (error "No UTxOs at address") <<< hush =<< do
@@ -178,19 +161,20 @@ mkCip30Mock pKey mSKey = do
     keyWallet = privateKeysToKeyWallet pKey mSKey
 
     addressHex =
-      byteArrayToHex $ unwrap $ toBytes
+      byteArrayToHex $ unwrap $ encodeCbor
         ((unwrap keyWallet).address env.networkId :: Address)
 
     mbRewardAddressHex = mSKey <#> \stakeKey ->
       let
-        stakePubKey = publicKeyFromPrivateKey (unwrap stakeKey)
-        stakePubKeyHash = publicKeyHash stakePubKey
-        rewardAddress = stakePubKeyHashRewardAddress env.networkId
-          $ StakePubKeyHash
-          $ PubKeyHash stakePubKeyHash
+        stakePubKey = PrivateKey.toPublicKey (unwrap stakeKey)
+        stakePubKeyHash = PublicKey.hash stakePubKey
+        rewardAddress = RewardAddress
+          { networkId: env.networkId
+          , stakeCredential:
+              StakeCredential $ PubKeyHashCredential stakePubKeyHash
+          }
       in
-        byteArrayToHex $ unwrap $ rewardAddressToBytes rewardAddress
-
+        byteArrayToHex $ unwrap $ encodeCbor rewardAddress
   pure $
     { getNetworkId: fromAff $ pure $
         case env.networkId of
@@ -202,27 +186,18 @@ mkCip30Mock pKey mSKey = do
         let
           collateralOutputs = collateralUtxos <#> unwrap >>> _.input
           -- filter out UTxOs that will be used as collateral
-          nonCollateralUtxos =
+          utxoMap =
             Map.filterKeys (not <<< flip Array.elem collateralOutputs) utxos
-        -- Convert to CSL representation and serialize
-        cslUtxos <- traverse (liftEffect <<< convertTransactionUnspentOutput)
-          $ Map.toUnfoldable nonCollateralUtxos <#> \(input /\ output) ->
-              TransactionUnspentOutput { input, output }
-        pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$> cslUtxos
+        pure $ byteArrayToHex <<< unwrap <<< encodeCbor <$>
+          TransactionUnspentOutput.fromUtxoMap utxoMap
     , getCollateral: fromAff do
         utxos <- ownUtxos
         collateralUtxos <- getCollateralUtxos utxos
-        cslUnspentOutput <- liftEffect $ traverse
-          convertTransactionUnspentOutput
-          collateralUtxos
-        pure $ (byteArrayToHex <<< unwrap <<< toBytes) <$>
-          cslUnspentOutput
-    , getBalance: fromAff do
+        pure $ byteArrayToHex <<< unwrap <<< encodeCbor <$> collateralUtxos
+    , getBalance: unsafePartial $ fromAff do
         utxos <- ownUtxos
-        value <- liftEffect $ convertValue $
-          (foldMap (_.amount <<< unwrap) <<< Map.values)
-            utxos
-        pure $ byteArrayToHex $ unwrap $ toBytes value
+        let value = foldMap (_.amount <<< unwrap) $ Map.values utxos
+        pure $ byteArrayToHex $ unwrap $ encodeCbor value
     , getUsedAddresses: fromAff do
         pure [ addressHex ]
     , getUnusedAddresses: fromAff $ pure []
@@ -234,18 +209,19 @@ mkCip30Mock pKey mSKey = do
         txBytes <- liftMaybe (error "Unable to convert CBOR") $ hexToByteArray
           str
         tx <- liftMaybe (error "Failed to decode Transaction CBOR")
-          $ hush
-          $ deserializeTransaction
-          $ cborBytesFromByteArray txBytes
+          $ decodeCbor
+          $ wrap txBytes
         witness <- (unwrap keyWallet).signTx tx
-        cslWitnessSet <- liftEffect $ convertWitnessSet witness
-        pure $ byteArrayToHex $ unwrap $ toBytes cslWitnessSet
+        pure $ byteArrayToHex $ unwrap $ encodeCbor witness
     , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
         msgBytes <- liftMaybe (error "Unable to convert CBOR") $
           hexToByteArray msg
         { key, signature } <- (unwrap keyWallet).signData env.networkId
           (wrap msgBytes)
-        pure { key: cborBytesToHex key, signature: cborBytesToHex signature }
+        pure
+          { key: byteArrayToHex $ unwrap key
+          , signature: byteArrayToHex $ unwrap signature
+          }
     }
 
 -- returns an action that removes the mock.

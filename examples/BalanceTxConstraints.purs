@@ -5,6 +5,11 @@ module Ctl.Examples.BalanceTxConstraints
 
 import Contract.Prelude
 
+import Cardano.Types (Asset(Asset), BigNum)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (Address)
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
@@ -38,22 +43,22 @@ import Contract.TxConstraints as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
-import Contract.Value (singleton, valueOf) as Value
+import Contract.Value (valueOf) as Value
 import Contract.Wallet
   ( KeyWallet
-  , getWalletAddressesWithNetworkTag
+  , getWalletAddresses
   , getWalletCollateral
   , ownPaymentPubKeyHashes
   , withKeyWallet
   )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
 import Data.Array (sort) as Array
 import Data.Map (fromFoldable, keys, member) as Map
 import Data.Set (findMin) as Set
-import JS.BigInt (BigInt, fromInt)
+import JS.BigInt as BigInt
 
 newtype ContractParams = ContractParams
   { aliceKeyWallet :: KeyWallet
@@ -87,13 +92,13 @@ assertChangeOutputsPartitionedCorrectly = assertionToCheck
         let
           values :: Array Value
           values =
-            changeOutputs <#> _.amount <<< unwrap <<< _.output <<< unwrap
+            changeOutputs <#> _.amount <<< unwrap
 
-          tokenQuantities :: Array BigInt
+          tokenQuantities :: Array BigNum
           tokenQuantities =
-            Array.sort $ values <#> \v -> Value.valueOf v cs tn
+            Array.sort $ values <#> \v -> Value.valueOf (Asset cs tn) v
 
-        tokenQuantities == map fromInt [ 3, 4, 4 ]
+        tokenQuantities == map BigNum.fromInt [ 3, 4, 4 ]
 
 -- | Checks that the utxo with the specified output reference
 -- | (`nonSpendableOref`) is not consumed during transaction balancing.
@@ -124,7 +129,7 @@ contract (ContractParams p) = do
   aliceAddress <-
     liftedM "Failed to get Alice's address"
       $ head
-      <$> (withKeyWallet p.aliceKeyWallet getWalletAddressesWithNetworkTag)
+      <$> (withKeyWallet p.aliceKeyWallet getWalletAddresses)
 
   alicePubKeyHash <-
     liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
@@ -137,7 +142,7 @@ contract (ContractParams p) = do
   bobAddress <-
     liftedM "Failed to get Bob's address"
       $ head
-      <$> (withKeyWallet p.bobKeyWallet getWalletAddressesWithNetworkTag)
+      <$> (withKeyWallet p.bobKeyWallet getWalletAddresses)
 
   bobsCollateralArray <- withKeyWallet p.bobKeyWallet do
     fold <$> getWalletCollateral
@@ -149,21 +154,22 @@ contract (ContractParams p) = do
   nonSpendableOref <-
     liftedM "Failed to get utxos at Alice's address"
       (Set.findMin <<< Map.keys <$> utxosAt aliceAddress)
-
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
-  tn <- Helpers.mkTokenName "The Token"
+  mp <- alwaysMintsPolicy
+  let cs = PlutusScript.hash mp
+  tn <- Helpers.mkAssetName "The Token"
   let
     constraints :: Constraints.TxConstraints
     constraints =
-      Constraints.mustMintValue (Value.singleton cs tn $ fromInt 11)
+      Constraints.mustMintValue (Mint.singleton cs tn $ Int.fromInt 11)
         <> foldMap Constraints.mustBeSignedBy [ alicePubKeyHash, bobPubKeyHash ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
     balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
     balanceTxConstraints =
-      BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity (fromInt 4)
+      BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity
+        (BigInt.fromInt 4)
         <> BalanceTxConstraints.mustUseUtxosAtAddress bobAddress
         <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
         <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
@@ -184,11 +190,11 @@ contract (ContractParams p) = do
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
 
-    let changeAddress = (unwrap bobAddress).address
+    let changeAddress = bobAddress
     pure
       { txHash
       , changeAddress
-      , nonSpendableAddress: (unwrap aliceAddress).address
+      , nonSpendableAddress: aliceAddress
       , mintedToken: cs /\ tn
       , nonSpendableOref
       }

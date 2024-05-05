@@ -48,8 +48,6 @@ CTL's primary user interface is its constraints and lookups API, modeled after t
 - [x] `mustIncludeDatum`
 - [x] `mustPayToPubKeyWithDatum`
 - [x] `mustPayToPubKeyAddressWithDatum`
-- [x] `mustProduceAtLeastTotal`. Also implies
-  - [x] `mustProduceAtLeast`
 - [x] `mustSatisfyAnyOf`
 - [x] `mustSpendAtLeastTotal`. Also implies
   - [x] `mustSpendAtLeast`
