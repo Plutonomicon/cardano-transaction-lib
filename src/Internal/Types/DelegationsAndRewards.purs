@@ -4,8 +4,8 @@ module Ctl.Internal.Types.DelegationsAndRewards
 
 import Data.Maybe
 
-import Ctl.Internal.Cardano.Types.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Cardano.Types.Value (Coin)
+import Cardano.Types.Coin (Coin)
+import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
 
 type DelegationsAndRewards =
   { rewards :: Maybe Coin

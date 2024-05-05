@@ -2,11 +2,11 @@ module Ctl.Examples.Schnorr (contract) where
 
 import Contract.Prelude
 
-import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
+import Cardano.Types (Credential(ScriptHashCredential))
+import Cardano.Types.Address (Address(EnterpriseAddress))
+import Contract.Address (getNetworkId)
 import Contract.Crypto.Secp256k1.Schnorr
-  ( SchnorrPublicKey
-  , SchnorrSignature
-  , deriveSchnorrSecp256k1PublicKey
+  ( deriveSchnorrSecp256k1PublicKey
   , signSchnorrSecp256k1
   )
 import Contract.Crypto.Secp256k1.Utils (randomSecp256k1PrivateKey)
@@ -16,14 +16,14 @@ import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( class ToData
   , PlutusData(Constr)
-  , Redeemer(Redeemer)
+  , RedeemerDatum(RedeemerDatum)
   , toData
   , unitDatum
   )
 import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(Validator), validatorHash)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.Scripts (Validator, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
@@ -33,7 +33,14 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Data.Map as Map
+import Data.Newtype (unwrap)
 import Data.Set as Set
+import Noble.Secp256k1.Schnorr
+  ( SchnorrPublicKey
+  , SchnorrSignature
+  , unSchnorrPublicKey
+  , unSchnorrSignature
+  )
 
 newtype SchnorrRedeemer = SchnorrRedeemer
   { msg :: ByteArray
@@ -46,7 +53,10 @@ derive instance Newtype SchnorrRedeemer _
 
 instance ToData SchnorrRedeemer where
   toData (SchnorrRedeemer { msg, sig, pk }) = Constr BigNum.zero
-    [ toData msg, toData sig, toData pk ]
+    [ toData $ unwrap msg
+    , toData $ unSchnorrSignature sig
+    , toData $ unSchnorrPublicKey pk
+    ]
 
 contract :: Contract Unit
 contract = do
@@ -58,7 +68,7 @@ prepTest = do
   validator <- liftContractM "Caonnot get validator" getValidator
   let
     valHash = validatorHash validator
-    val = Value.lovelaceValueOf one
+    val = Value.lovelaceValueOf $ BigNum.one
 
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
@@ -78,14 +88,15 @@ prepTest = do
 testVerification
   :: TransactionHash -> SchnorrRedeemer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
-  let red = Redeemer $ toData ecdsaRed
+  let red = RedeemerDatum $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
   let valHash = validatorHash validator
 
-  netId <- getNetworkId
-  valAddr <- liftContractM "cannot get validator address"
-    (validatorHashEnterpriseAddress netId valHash)
+  networkId <- getNetworkId
+  let
+    valAddr = EnterpriseAddress
+      { networkId, paymentCredential: wrap $ ScriptHashCredential valHash }
 
   scriptUtxos <- utxosAt valAddr
   txIn <- liftContractM "No UTxOs found at validator address"
@@ -124,8 +135,7 @@ testSchnorr txId = do
 
 getValidator :: Maybe Validator
 getValidator = do
-  Validator <$>
-    (plutusScriptV2FromEnvelope =<< decodeTextEnvelope validateSchnorrScript)
+  (plutusScriptFromEnvelope =<< decodeTextEnvelope validateSchnorrScript)
 
 validateSchnorrScript :: String
 validateSchnorrScript =

@@ -2,10 +2,12 @@ module Ctl.Examples.Utxos (main, example, contract) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
-  , StakePubKeyHash
-  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint (Mint)
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
+import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo, logInfo')
 import Contract.Monad
@@ -15,9 +17,8 @@ import Contract.Monad
   , liftedM
   , runContract
   )
-import Contract.PlutusData (Datum(Datum), PlutusData(Integer))
+import Contract.PlutusData (PlutusData(Integer))
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , awaitTxConfirmed
@@ -32,12 +33,13 @@ import Contract.Wallet
   , ownPaymentPubKeyHash
   , ownStakePubKeyHash
   )
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
 import Data.Array (head) as Array
 import Data.Log.Tag (tag)
 import Data.Map (toUnfoldable) as Map
 import JS.BigInt (fromInt) as BigInt
+import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
 
@@ -54,8 +56,7 @@ contract = do
   skh <- ownStakePubKeyHash
 
   datum <- liftEffect
-    $ Datum
-    <<< Integer
+    $ Integer
     <<< BigInt.fromInt
     <$> randomSampleOne arbitrary
 
@@ -66,32 +67,33 @@ contract = do
 
   oneShotMintingPolicy <- oneShotMintingPolicyScriptV2 oref
 
-  mp0 /\ cs0 <-
-    Helpers.mkCurrencySymbol
-      (pure $ PlutusMintingPolicy $ oneShotMintingPolicy)
-  tn0 <- Helpers.mkTokenName "CTLNFT"
+  let cs0 = PlutusScript.hash oneShotMintingPolicy
+  tn0 <- Helpers.mkAssetName "CTLNFT"
 
   let plutusScriptRef = PlutusScriptRef oneShotMintingPolicy
   nativeScriptRef <- liftEffect $ NativeScriptRef <$> randomSampleOne arbitrary
 
   let
     adaValue :: Value
-    adaValue = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
+    adaValue = Value.lovelaceValueOf (BigNum.fromInt 2_000_000)
 
-    mintValue :: Value
-    mintValue = Value.singleton cs0 tn0 one
+    mintValue :: Mint
+    mintValue = Mint.singleton cs0 tn0 (Int.fromInt one)
+
+    tokenValue = Value.singleton cs0 tn0 BigNum.one
 
     constraints :: Constraints.TxConstraints
     constraints = mconcat
       [ Constraints.mustMintValue mintValue
       , mustPayWithDatumAndScriptRef pkh skh datum DatumWitness plutusScriptRef
-          (mintValue <> adaValue)
+          (unsafePartial $ tokenValue <> adaValue)
       , mustPayWithDatumAndScriptRef pkh skh datum DatumInline nativeScriptRef
           adaValue
       ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp0 <> Lookups.unspentOutputs utxos
+    lookups = Lookups.plutusMintingPolicy oneShotMintingPolicy <>
+      Lookups.unspentOutputs utxos
 
   txHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txHash
@@ -108,7 +110,7 @@ mustPayWithDatumAndScriptRef
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Maybe StakePubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> ScriptRef
   -> Value

@@ -3,6 +3,7 @@ module Ctl.Internal.Test.E2E.Options
   , BrowserOptions
   , ExtensionOptions
   , NoHeadless_
+  , PassBrowserLogs_
   , Tests_
   , TestTimeout_
   , CommonOptions_
@@ -86,7 +87,8 @@ import Type.Row (type (+))
 
 -- | CLI options for E2E tests.
 type TestOptions = Record
-  ( NoHeadless_ + Tests_ + TestTimeout_ + ClusterPortsOptions_
+  ( NoHeadless_ + Tests_ + PassBrowserLogs_ + TestTimeout_
+      + ClusterPortsOptions_
       + CommonOptions_
       + ()
   )
@@ -101,6 +103,8 @@ type ClusterPortsOptions_ (r :: Row Type) =
 type ClusterPortsOptions = Record (ClusterPortsOptions_ ())
 
 type NoHeadless_ (r :: Row Type) = (noHeadless :: Boolean | r)
+
+type PassBrowserLogs_ (r :: Row Type) = (passBrowserLogs :: Boolean | r)
 
 type Tests_ (r :: Row Type) = (tests :: Array E2ETest | r)
 
@@ -292,6 +296,10 @@ testOptionsParser :: Parser TestOptions
 testOptionsParser = ado
   res <- browserOptionsParser
   tests <- testUrlsOptionParser
+  passBrowserLogs <- switch $ fold
+    [ long "pass-browser-logs"
+    , help "Pipe logs from the browser console to the test suite console"
+    ]
   noHeadless <- switch $ fold
     [ long "no-headless"
     , help "Show visible browser window"
@@ -306,7 +314,7 @@ testOptionsParser = ado
   (clusterPorts :: ClusterPortsOptions) <- clusterPortsOptionsParser
   in
     build (merge clusterPorts <<< merge res)
-      { noHeadless, tests, testTimeout }
+      { noHeadless, tests, testTimeout, passBrowserLogs }
 
 testParser :: ReadM E2ETest
 testParser = eitherReader \str ->

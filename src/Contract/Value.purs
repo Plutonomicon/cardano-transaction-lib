@@ -1,51 +1,47 @@
--- | A module that defines tokens in Cardano and helpers.
 module Contract.Value
-  ( module CurrencySymbol
-  , module Scripts
-  , module TokenName
-  , module Value
+  ( module X
+  , CurrencySymbol
+  , TokenName
   ) where
 
-import Ctl.Internal.Plutus.Types.CurrencySymbol
-  ( CurrencySymbol
-  , adaSymbol
-  , currencyMPSHash
-  , getCurrencySymbol
-  , mkCurrencySymbol
-  , mpsSymbol
-  , scriptHashAsCurrencySymbol
-  ) as CurrencySymbol
-import Ctl.Internal.Plutus.Types.Value
-  ( Coin(Coin)
-  , Value
+import Cardano.Types (AssetName, ScriptHash)
+import Cardano.Types.AssetName (AssetName(AssetName)) as X
+import Cardano.Types.Coin (Coin(Coin)) as X
+import Cardano.Types.ScriptHash (ScriptHash(ScriptHash)) as X
+import Cardano.Types.Value
+  ( Value(Value)
+  , add
+  , assetToValue
+  , checkBinRel
+  , checkPred
   , coinToValue
-  , flattenNonAdaAssets
-  , flattenValue
+  , empty
+  , fromCsl
   , geq
-  , getLovelace
-  , getValue
+  , getAssetQuantity
+  , getCoin
+  , getMultiAsset
   , gt
-  , isCoinZero
+  , isPositive
   , isZero
   , leq
   , lovelaceValueOf
   , lt
-  , negation
-  , scale
+  , minus
+  , mkValue
+  , pprintValue
   , singleton
-  , singleton'
-  , split
-  , symbols
+  , sum
+  , toCsl
   , unionWith
+  , valueAssetClasses
+  , valueAssets
   , valueOf
   , valueToCoin
-  , valueToCoin'
-  ) as Value
-import Ctl.Internal.Scripts (scriptCurrencySymbol) as Scripts
-import Ctl.Internal.Types.TokenName
-  ( TokenName
-  , adaToken
-  , getTokenName
-  , mkTokenName
-  , mkTokenNames
-  ) as TokenName
+  ) as X
+
+-- | Deprecated, use `Cardano.Types.ScriptHash`
+type CurrencySymbol = ScriptHash
+
+-- | Deprecated, use `Cardano.Types.AssetName`
+type TokenName = AssetName

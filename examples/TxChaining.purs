@@ -10,6 +10,7 @@ module Ctl.Examples.TxChaining
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
@@ -32,7 +33,6 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Array (head)
-import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -48,7 +48,7 @@ contract = do
     constraints :: TxConstraints
     constraints =
       Constraints.mustPayToPubKey pkh
-        (Value.lovelaceValueOf $ BigInt.fromInt 1_000_000)
+        (Value.lovelaceValueOf $ BigNum.fromInt 1_000_000)
 
     lookups0 :: Lookups.ScriptLookups
     lookups0 = mempty

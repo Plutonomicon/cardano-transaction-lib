@@ -6,8 +6,8 @@ module Ctl.Internal.Contract.Hooks
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
-import Ctl.Internal.Serialization.Types (PrivateKey)
+import Cardano.Types.PrivateKey (PrivateKey)
+import Cardano.Types.Transaction (Transaction)
 import Data.Maybe (Maybe(Nothing))
 import Effect (Effect)
 import Effect.Exception (Error)

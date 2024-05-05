@@ -19,17 +19,15 @@ module Contract.Config
   , defaultSynchronizationParams
   , strictSynchronizationParams
   , defaultTimeParams
-  , module Contract.Address
   , module Data.Log.Level
   , module Data.Log.Message
-  , module Ctl.Internal.Deserialization.Keys
   , module Ctl.Internal.ServerConfig
   , module Ctl.Internal.Wallet.Spec
   , module Ctl.Internal.Wallet.Key
   , module X
   ) where
 
-import Contract.Address (NetworkId(MainnetId, TestnetId))
+import Cardano.Types (NetworkId(MainnetId, TestnetId))
 import Ctl.Internal.BalanceTx.Sync
   ( disabledSynchronizationParams
   ) as X
@@ -59,7 +57,6 @@ import Ctl.Internal.Contract.QueryBackend
   , mkSelfHostedBlockfrostBackendParams
   ) as X
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
 import Ctl.Internal.ServerConfig
   ( Host
   , ServerConfig

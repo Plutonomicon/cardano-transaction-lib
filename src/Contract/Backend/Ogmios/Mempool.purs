@@ -14,11 +14,12 @@ module Contract.Backend.Ogmios.Mempool
 
 import Contract.Prelude
 
+import Cardano.AsCbor (decodeCbor)
+import Cardano.Types.Transaction (Transaction)
+import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
-import Ctl.Internal.Cardano.Types.Transaction (Transaction)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Deserialization.Transaction (deserializeTransaction)
 import Ctl.Internal.QueryM
   ( acquireMempoolSnapshot
   , mempoolSnapshotHasTx
@@ -30,11 +31,9 @@ import Ctl.Internal.QueryM.Ogmios
   ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
-  , TxHash
   ) as Ogmios
-import Ctl.Internal.Types.ByteArray (hexToByteArray)
-import Ctl.Internal.Types.Transaction (TransactionHash)
 import Data.Array as Array
+import Data.ByteArray (hexToByteArray)
 import Data.List (List(Cons))
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect.Exception (error)
@@ -48,8 +47,7 @@ acquireMempoolSnapshot = wrapQueryM QueryM.acquireMempoolSnapshot
 -- | Check to see if a TxHash is present in the current mempool snapshot.
 mempoolSnapshotHasTx
   :: Ogmios.MempoolSnapshotAcquired -> TransactionHash -> Contract Boolean
-mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms <<<
-  unwrap
+mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms
 
 -- | Get the first received TX in the current mempool snapshot. This function can
 -- | be recursively called to traverse the finger-tree of the mempool data set.
@@ -63,8 +61,7 @@ mempoolSnapshotNextTx mempoolAcquired = do
     byteArray <- liftMaybe (error "Failed to decode transaction")
       $ hexToByteArray raw
     liftMaybe (error "Failed to decode tx")
-      $ hush
-      $ deserializeTransaction
+      $ decodeCbor
       $ wrap byteArray
 
 -- | The acquired snapshot’s size (in bytes), number of transactions, and

@@ -44,7 +44,6 @@ module Ctl.Internal.QueryM.Ogmios
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   , TxEvaluationResult(TxEvaluationResult)
   , TxEvaluationR(TxEvaluationR)
-  , TxHash
   , HasTxR(HasTxR)
   , MaybeMempoolTransaction(MaybeMempoolTransaction)
   , acquireMempoolSnapshotCall
@@ -95,9 +94,28 @@ import Aeson
   , (.:)
   , (.:?)
   )
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
-import Ctl.Internal.Cardano.Types.NativeScript
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Serialization.Lib (fromBytes, ipv4_new)
+import Cardano.Types
+  ( Bech32String
+  , BigNum(BigNum)
+  , Language(PlutusV1, PlutusV2)
+  , RedeemerTag
+  , VRFKeyHash(VRFKeyHash)
+  )
+import Cardano.Types.AssetName (unAssetName)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum (fromBigInt, fromString) as BigNum
+import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.Coin (Coin(Coin))
+import Cardano.Types.CostModel (CostModel(CostModel))
+import Cardano.Types.Ed25519KeyHash (Ed25519KeyHash)
+import Cardano.Types.ExUnitPrices (ExUnitPrices(ExUnitPrices))
+import Cardano.Types.ExUnits (ExUnits(ExUnits))
+import Cardano.Types.Int as Cardano
+import Cardano.Types.Ipv4 (Ipv4(Ipv4))
+import Cardano.Types.Ipv6 (Ipv6)
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -107,34 +125,25 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
+import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.PoolMetadata (PoolMetadata(PoolMetadata))
+import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
+import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward)) as RedeemerTag
+import Cardano.Types.Relay
+  ( Relay(SingleHostAddr, SingleHostName, MultiHostName)
   )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( CostModel(CostModel)
-  , Costmdls(Costmdls)
-  , ExUnitPrices
-  , ExUnits
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , PoolPubKeyHash
-  , Relay(MultiHostName, SingleHostAddr, SingleHostName)
-  , SubCoin
-  , URL(URL)
-  , UnitInterval
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , Value
-  , getCurrencySymbol
-  , getLovelace
-  , getNonAdaAsset
-  , unwrapNonAdaAsset
-  , valueToCoin
-  )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
+import Cardano.Types.RewardAddress (RewardAddress)
+import Cardano.Types.RewardAddress as RewardAddress
+import Cardano.Types.ScriptHash (ScriptHash)
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
+import Cardano.Types.Slot (Slot(Slot))
+import Cardano.Types.TransactionHash (TransactionHash)
+import Cardano.Types.URL (URL(URL))
+import Cardano.Types.UnitInterval (UnitInterval(UnitInterval))
+import Cardano.Types.Value (Value, getMultiAsset, valueToCoin)
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
 import Ctl.Internal.QueryM.JsonRpc2
   ( class DecodeOgmios
@@ -145,50 +154,26 @@ import Ctl.Internal.QueryM.JsonRpc2
   , decodeResult
   , mkCallType
   )
-import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
-import Ctl.Internal.Types.ByteArray
-  ( ByteArray
-  , byteArrayFromIntArray
-  , byteArrayToHex
-  , hexToByteArray
-  )
-import Ctl.Internal.Types.CborBytes (CborBytes, cborBytesToHex)
-import Ctl.Internal.Types.Epoch (Epoch(Epoch))
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
   )
-import Ctl.Internal.Types.Int as Csl
-import Ctl.Internal.Types.Natural (Natural)
-import Ctl.Internal.Types.Natural (fromString) as Natural
 import Ctl.Internal.Types.ProtocolParameters
-  ( CoinsPerUtxoUnit(CoinsPerUtxoByte)
-  , ProtocolParameters(ProtocolParameters)
+  ( ProtocolParameters(ProtocolParameters)
   )
 import Ctl.Internal.Types.Rational (Rational, (%))
 import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag)
-import Ctl.Internal.Types.RedeemerTag (fromString) as RedeemerTag
-import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts
-  ( Language(PlutusV1, PlutusV2)
-  , PlutusScript(PlutusScript)
-  )
 import Ctl.Internal.Types.SystemStart
   ( SystemStart
   , sysStartFromOgmiosTimestamp
   , sysStartToOgmiosTimestamp
   )
-import Ctl.Internal.Types.TokenName (getTokenName)
-import Ctl.Internal.Types.VRFKeyHash (VRFKeyHash(VRFKeyHash))
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, length, replicate) as Array
 import Data.Bifunctor (lmap)
+import Data.ByteArray (byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
@@ -211,7 +196,6 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
@@ -260,7 +244,7 @@ queryDelegationsAndRewards = mkOgmiosCallType
       }
   }
 
-type OgmiosAddress = String
+type OgmiosAddress = Bech32String
 
 --------------------------------------------------------------------------------
 -- Local Tx Submission Protocol
@@ -269,11 +253,11 @@ type OgmiosAddress = String
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
-submitTxCall :: JsonRpc2Call (TxHash /\ CborBytes) SubmitTxR
+submitTxCall :: JsonRpc2Call (TransactionHash /\ CborBytes) SubmitTxR
 submitTxCall = mkOgmiosCallType
   { method: "submitTransaction"
   , params: \(_ /\ cbor) ->
-      { transaction: { cbor: cborBytesToHex cbor }
+      { transaction: { cbor: byteArrayToHex $ unwrap cbor }
       }
   }
 
@@ -283,7 +267,7 @@ evaluateTxCall :: JsonRpc2Call (CborBytes /\ AdditionalUtxoSet) TxEvaluationR
 evaluateTxCall = mkOgmiosCallType
   { method: "evaluateTransaction"
   , params: \(cbor /\ utxoqr) ->
-      { transaction: { cbor: cborBytesToHex cbor }
+      { transaction: { cbor: byteArrayToHex $ unwrap cbor }
       , additionalUtxo: utxoqr
       }
   }
@@ -298,7 +282,7 @@ acquireMempoolSnapshotCall =
   mkOgmiosCallTypeNoArgs "acquireMempool"
 
 mempoolSnapshotHasTxCall
-  :: MempoolSnapshotAcquired -> JsonRpc2Call TxHash HasTxR
+  :: MempoolSnapshotAcquired -> JsonRpc2Call TransactionHash HasTxR
 mempoolSnapshotHasTxCall _ = mkOgmiosCallType
   { method: "hasTransaction"
   , params: { id: _ }
@@ -366,9 +350,9 @@ instance DecodeOgmios MempoolSnapshotAcquired where
 -- | The acquired snapshot’s size (in bytes), number of transactions, and capacity
 -- | (in bytes).
 newtype MempoolSizeAndCapacity = MempoolSizeAndCapacity
-  { capacity :: Int
-  , currentSize :: Int
-  , numberOfTxs :: Int
+  { capacity :: Prim.Int
+  , currentSize :: Prim.Int
+  , numberOfTxs :: Prim.Int
   }
 
 derive instance Generic MempoolSizeAndCapacity _
@@ -439,20 +423,19 @@ instance DecodeOgmios ReleasedMempool where
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
 submitSuccessPartialResp
-  :: TxHash -> { result :: { transaction :: { id :: TxHash } } }
+  :: TransactionHash
+  -> { result :: { transaction :: { id :: TransactionHash } } }
 submitSuccessPartialResp txHash =
   { "result": { "transaction": { "id": txHash } } }
 
 data SubmitTxR
-  = SubmitTxSuccess TxHash
+  = SubmitTxSuccess TransactionHash
   | SubmitFail OgmiosError
 
 derive instance Generic SubmitTxR _
 
 instance Show SubmitTxR where
   show = genericShow
-
-type TxHash = ByteArray
 
 instance DecodeOgmios SubmitTxR where
   decodeOgmios = decodeErrorOrResult
@@ -472,11 +455,11 @@ instance DecodeOgmios SubmitTxR where
         Left $ TypeMismatch
           "Expected error code in a range [3000, 3999]"
 
-    decodeTxHash :: Aeson -> Either JsonDecodeError TxHash
-    decodeTxHash = aesonObject $ \o ->
-      ( getField o "transaction" >>= flip getField "id" >>= hexToByteArray
-          >>> maybe (Left $ TypeMismatch "Expected hexstring") pure
-      )
+    decodeTxHash :: Aeson -> Either JsonDecodeError TransactionHash
+    decodeTxHash = aesonObject \o -> do
+      txHashHex <- getField o "transaction" >>= flip getField "id"
+      note (TypeMismatch "Expected hexstring of TransactionHash") $
+        hexToByteArray txHashHex >>= fromBytes >>> map wrap
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
@@ -500,7 +483,7 @@ instance DecodeOgmios OgmiosSystemStart where
   decodeOgmios = decodeResult decodeAeson
 
 ---------------- CURRENT EPOCH QUERY RESPONSE & PARSING
-newtype CurrentEpoch = CurrentEpoch BigInt
+newtype CurrentEpoch = CurrentEpoch BigNum
 
 derive instance Generic CurrentEpoch _
 derive instance Newtype CurrentEpoch _
@@ -664,7 +647,8 @@ decodePoolParameters objParams = do
   pledge <- objParams .: "pledge" >>= aesonObject (\obj -> obj .: "lovelace")
   cost <- objParams .: "cost" >>= aesonObject (\obj -> obj .: "lovelace")
   margin <- decodeUnitInterval =<< objParams .: "margin"
-  rewardAccount <- objParams .: "rewardAccount"
+  rewardAccount <- objParams .: "rewardAccount" >>=
+    RewardAddress.fromBech32 >>> note (TypeMismatch "RewardAddress")
   poolOwners <- objParams .: "owners"
   relayArr <- objParams .: "relays"
   relays <- for relayArr decodeRelay
@@ -684,8 +668,7 @@ decodeVRFKeyHash :: Aeson -> Either JsonDecodeError VRFKeyHash
 decodeVRFKeyHash = aesonString $ \vrfKeyhashHex -> do
   vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
     vrfKeyhashHex
-  note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes
-    (wrap vrfKeyhashBytes)
+  note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes vrfKeyhashBytes
 
 decodeUnitInterval :: Aeson -> Either JsonDecodeError UnitInterval
 decodeUnitInterval aeson = do
@@ -694,7 +677,7 @@ decodeUnitInterval aeson = do
     [ num, den ] -> do
       numerator <- note (TypeMismatch "BigNum") $ BigNum.fromString num
       denominator <- note (TypeMismatch "BigNum") $ BigNum.fromString den
-      pure
+      pure $ UnitInterval
         { numerator
         , denominator
         }
@@ -707,7 +690,8 @@ decodeIpv4 aeson = do
     bs@[ _, _, _, _ ] -> do
       ints <- for bs $
         note (TypeMismatch "Ipv4") <<< Int.fromString
-      Ipv4 <$> note (TypeMismatch "Ipv4") (byteArrayFromIntArray ints)
+      Ipv4 <<< ipv4_new <$> note (TypeMismatch "Ipv4")
+        (byteArrayFromIntArray ints)
     _ -> Left $ TypeMismatch "Ipv4"
 
 decodeIpv6 :: Aeson -> Either JsonDecodeError Ipv6
@@ -735,7 +719,7 @@ parseIpv6String str = do
     padded = String.replaceAll (Pattern " ") (Replacement "0") $ fold $
       partsFixed
         <#> StringUtils.padStart 4
-  Ipv6 <$> hexToByteArray padded
+  decodeCbor <<< wrap =<< hexToByteArray padded
 
 decodeRelay :: Aeson -> Either JsonDecodeError Relay
 decodeRelay aeson = do
@@ -758,20 +742,20 @@ decodeRelay aeson = do
 decodePoolMetadata :: Aeson -> Either JsonDecodeError PoolMetadata
 decodePoolMetadata aeson = do
   obj <- decodeAeson aeson
-  hash <- obj .: "hash" >>= note (TypeMismatch "PoolMetadataHash")
-    <<< map PoolMetadataHash
-    <<< hexToByteArray
+  hash <- obj .: "hash" >>=
+    (hexToByteArray >>> map wrap >=> decodeCbor) >>>
+      note (TypeMismatch "PoolMetadataHash")
   url <- obj .: "url" <#> URL
   pure $ PoolMetadata { hash, url }
 
 ---------------- TX EVALUATION QUERY RESPONSE & PARSING
 
-type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: Natural }
+type RedeemerPointer = { redeemerTag :: RedeemerTag, redeemerIndex :: UInt }
 
 showRedeemerPointer :: RedeemerPointer -> String
 showRedeemerPointer ptr = show ptr.redeemerTag <> ":" <> show ptr.redeemerIndex
 
-type ExecutionUnits = { memory :: Natural, steps :: Natural }
+type ExecutionUnits = { memory :: BigNum, steps :: BigNum }
 
 newtype TxEvaluationR = TxEvaluationR
   (Either TxEvaluationFailure TxEvaluationResult)
@@ -807,7 +791,7 @@ instance DecodeAeson TxEvaluationResult where
     decodeRdmrPtrExUnitsItem elem = do
       res
         :: { validator :: String
-           , budget :: { memory :: Natural, cpu :: Natural }
+           , budget :: { memory :: BigNum, cpu :: BigNum }
            } <- decodeAeson elem
       redeemerPtr <- decodeRedeemerPointer res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
@@ -822,14 +806,22 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
   case split (Pattern ":") redeemerPtrRaw of
     [ tagRaw, indexRaw ] ->
       { redeemerTag: _, redeemerIndex: _ }
-        <$> RedeemerTag.fromString tagRaw
-        <*> Natural.fromString indexRaw
+        <$> redeemerTagFromString tagRaw
+        <*> UInt.fromString indexRaw
     _ -> Nothing
+
+redeemerTagFromString :: String -> Maybe RedeemerTag
+redeemerTagFromString = case _ of
+  "spend" -> Just RedeemerTag.Spend
+  "mint" -> Just RedeemerTag.Mint
+  "certificate" -> Just RedeemerTag.Cert
+  "withdrawal" -> Just RedeemerTag.Reward
+  _ -> Nothing
 
 type OgmiosDatum = String
 type OgmiosScript = String
 type OgmiosTxId = String
-type OgmiosTxIn = { txId :: OgmiosTxId, index :: Int }
+type OgmiosTxIn = { txId :: OgmiosTxId, index :: Prim.Int }
 
 -- | Reason a script failed.
 --
@@ -889,7 +881,7 @@ instance DecodeAeson ScriptFailure where
       3013 -> do
         res
           :: { unsuitableOutputReference ::
-                 { transaction :: { id :: String }, index :: Int }
+                 { transaction :: { id :: String }, index :: Prim.Int }
              } <- decodeAeson errorData
         pure $ NonScriptInputReferencedByRedeemer
           { index: res.unsuitableOutputReference.index
@@ -906,7 +898,7 @@ instance DecodeAeson ScriptFailure where
       3117 -> do
         res
           :: { unknownOutputReferences ::
-                 Array { transaction :: { id :: String }, index :: Int }
+                 Array { transaction :: { id :: String }, index :: Prim.Int }
              } <- decodeAeson errorData
         pure $ UnknownInputReferencedByRedeemer $
           map (\x -> { index: x.index, txId: x.transaction.id })
@@ -985,18 +977,18 @@ instance DecodeAeson PParamRational where
     err :: JsonDecodeError
     err = TypeMismatch "PParamRaional"
 
-rationalToSubcoin :: PParamRational -> Maybe SubCoin
+rationalToSubcoin :: PParamRational -> Maybe UnitInterval
 rationalToSubcoin (PParamRational rat) = do
   numerator <- BigNum.fromBigInt $ Rational.numerator rat
   denominator <- BigNum.fromBigInt $ Rational.denominator rat
-  pure { numerator, denominator }
+  pure $ UnitInterval { numerator, denominator }
 
 -- | A type that corresponds to Ogmios response.
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
   , "minFeeConstant" ::
       { "lovelace" :: UInt }
-  , "minUtxoDepositCoefficient" :: BigInt
+  , "minUtxoDepositCoefficient" :: BigNum
   , "maxBlockBodySize" ::
       { "bytes" :: UInt }
   , "maxBlockHeaderSize" ::
@@ -1006,10 +998,10 @@ type ProtocolParametersRaw =
   , "maxValueSize" ::
       { "bytes" :: UInt }
   , "stakeCredentialDeposit" ::
-      { "lovelace" :: BigInt }
+      { "lovelace" :: BigNum }
   , "stakePoolDeposit" ::
-      { "lovelace" :: BigInt }
-  , "stakePoolRetirementEpochBound" :: BigInt
+      { "lovelace" :: BigNum }
+  , "stakePoolRetirementEpochBound" :: UInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
@@ -1019,22 +1011,22 @@ type ProtocolParametersRaw =
       , "minor" :: UInt
       }
   , "minStakePoolCost" ::
-      { "lovelace" :: BigInt }
+      { "lovelace" :: BigNum }
   , "plutusCostModels" ::
-      { "plutus:v1" :: Array Csl.Int
-      , "plutus:v2" :: Maybe (Array Csl.Int)
+      { "plutus:v1" :: Array Cardano.Int
+      , "plutus:v2" :: Maybe (Array Cardano.Int)
       }
   , "scriptExecutionPrices" ::
       { "memory" :: PParamRational
       , "cpu" :: PParamRational
       }
   , "maxExecutionUnitsPerTransaction" ::
-      { "memory" :: BigInt
-      , "cpu" :: BigInt
+      { "memory" :: BigNum
+      , "cpu" :: BigNum
       }
   , "maxExecutionUnitsPerBlock" ::
-      { "memory" :: BigInt
-      , "cpu" :: BigInt
+      { "memory" :: BigNum
+      , "cpu" :: BigNum
       }
   , "collateralPercentage" :: UInt
   , "maxCollateralInputs" :: UInt
@@ -1057,28 +1049,26 @@ instance DecodeAeson OgmiosProtocolParameters where
       { protocolVersion: ps.version.major /\ ps.version.minor
       -- The following two parameters were removed from Babbage
       , decentralization: zero
-      , extraPraosEntropy: Nothing
       , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
       , maxBlockBodySize: ps.maxBlockBodySize.bytes
       , maxTxSize: ps.maxTransactionSize.bytes
       , txFeeFixed: ps.minFeeConstant.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.lovelace
-      , stakePoolDeposit: Coin ps.stakePoolDeposit.lovelace
-      , minPoolCost: Coin ps.minStakePoolCost.lovelace
-      , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
+      , stakeAddressDeposit: wrap ps.stakeCredentialDeposit.lovelace
+      , stakePoolDeposit: wrap ps.stakePoolDeposit.lovelace
+      , minPoolCost: wrap ps.minStakePoolCost.lovelace
+      , poolRetireMaxEpoch: wrap ps.stakePoolRetirementEpochBound
       , stakePoolTargetNum: ps.desiredNumberOfStakePools
       , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoUnit: CoinsPerUtxoByte (Coin ps.minUtxoDepositCoefficient)
-      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
+      , coinsPerUtxoByte: wrap ps.minUtxoDepositCoefficient
+      , costModels: Map.fromFoldable $ catMaybes
           [ pure
               ( PlutusV1 /\ CostModel
                   ps.plutusCostModels."plutus:v1"
               )
-          , (PlutusV2 /\ _) <<< CostModel <$>
-              ps.plutusCostModels."plutus:v2"
+          , (PlutusV2 /\ _) <<< CostModel <$> ps.plutusCostModels."plutus:v2"
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
@@ -1089,12 +1079,12 @@ instance DecodeAeson OgmiosProtocolParameters where
       }
     where
     decodeExUnits
-      :: { memory :: BigInt, cpu :: BigInt } -> ExUnits
-    decodeExUnits { memory, cpu } = { mem: memory, steps: cpu }
+      :: { memory :: BigNum, cpu :: BigNum } -> ExUnits
+    decodeExUnits { memory, cpu } = ExUnits { mem: memory, steps: cpu }
 
     decodePrices
       :: ProtocolParametersRaw -> Either JsonDecodeError ExUnitPrices
-    decodePrices ps = note (TypeMismatch "ExUnitPrices") do
+    decodePrices ps = note (TypeMismatch "ExUnitPrices") $ ExUnitPrices <$> do
       memPrice <- rationalToSubcoin ps.scriptExecutionPrices.memory
       stepPrice <- rationalToSubcoin ps.scriptExecutionPrices.cpu
       pure { memPrice, stepPrice } -- ExUnits
@@ -1220,10 +1210,16 @@ instance EncodeAeson AdditionalUtxoSet where
         -- NOTE: We omit the cbor argument.
         , "json": (encodeNativeScript s)
         }
-    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV1))) =
-      encodeAeson { "language": "plutus:v1", "cbor": byteArrayToHex s }
-    encodeScriptRef (PlutusScriptRef (PlutusScript (s /\ PlutusV2))) =
-      encodeAeson { "language": "plutus:v2", "cbor": byteArrayToHex s }
+    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (_ /\ PlutusV1)))) =
+      encodeAeson
+        { "language": "plutus:v1"
+        , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
+        }
+    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (_ /\ PlutusV2)))) =
+      encodeAeson
+        { "language": "plutus:v2"
+        , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
+        }
 
     encodeValue :: Value -> Aeson
     encodeValue value = encodeMap $ map encodeMap $ Map.union adaPart nonAdaPart
@@ -1231,14 +1227,14 @@ instance EncodeAeson AdditionalUtxoSet where
       adaPart = Map.fromFoldable
         [ ( "ada" /\
               ( Map.fromFoldable
-                  [ ("lovelace" /\ (value # valueToCoin # getLovelace)) ]
+                  [ ("lovelace" /\ (value # valueToCoin # unwrap)) ]
               )
           )
         ]
-      nonAdaPart = mapKeys (byteArrayToHex <<< getCurrencySymbol)
-        $ map (mapKeys (byteArrayToHex <<< getTokenName))
-        $ unwrapNonAdaAsset
-        $ getNonAdaAsset value
+      nonAdaPart = mapKeys (byteArrayToHex <<< unwrap <<< encodeCbor)
+        $ map (mapKeys (byteArrayToHex <<< unAssetName))
+        $ unwrap
+        $ getMultiAsset value
 
       mapKeys :: forall k1 k2 a. Ord k2 => (k1 -> k2) -> Map k1 a -> Map k2 a
       mapKeys f = (Map.toUnfoldable :: Map k1 a -> Array (k1 /\ a)) >>> foldl

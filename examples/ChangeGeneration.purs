@@ -2,11 +2,11 @@ module Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution) where
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.BalanceTxConstraints (mustSendChangeWithDatum)
 import Contract.Monad (Contract)
 import Contract.PlutusData
-  ( Datum(Datum)
-  , OutputDatum(OutputDatum)
+  ( OutputDatum(OutputDatum)
   , PlutusData(Integer)
   , unitDatum
   )
@@ -27,9 +27,8 @@ import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Data.Array (fold, length, replicate, take, zip)
-import Data.Lens (to, (^.))
+import Data.Lens ((^.))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap)
 import Data.Tuple (Tuple(Tuple))
 import JS.BigInt (fromInt) as BigInt
 import Test.Spec.Assertions (shouldEqual)
@@ -45,7 +44,7 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
     validator <- AlwaysSucceeds.alwaysSucceedsScript
     let
       vhash = validatorHash validator
-      value = Value.lovelaceValueOf $ BigInt.fromInt 1000001
+      value = Value.lovelaceValueOf $ BigNum.fromInt 1000001
 
       constraintsToSelf :: TxConstraints
       constraintsToSelf = fold <<< take outputsToSelf <<< fold
@@ -67,11 +66,11 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
     unbalancedTx <- mkUnbalancedTx lookups constraints
     balancedTx <- balanceTxWithConstraints unbalancedTx
       -- just to check that attaching datums works
-      ( mustSendChangeWithDatum $ OutputDatum $ Datum $ Integer $ BigInt.fromInt
+      ( mustSendChangeWithDatum $ OutputDatum $ Integer $ BigInt.fromInt
           1000
       )
     balancedSignedTx <- signTransaction balancedTx
-    let outputs = balancedTx ^. to unwrap <<< _body <<< _outputs
+    let outputs = balancedTx ^. _body <<< _outputs
     length outputs `shouldEqual` expectedOutputs
     txHash <- submit balancedSignedTx
     awaitTxConfirmed txHash

@@ -2,6 +2,8 @@ module Ctl.Examples.PlutusV2.ReferenceInputs (contract, example, main) where
 
 import Contract.Prelude
 
+import Cardano.Types (Transaction)
+import Cardano.Types.BigNum as BigNum
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -20,8 +22,7 @@ import Contract.Test.Assert
   , runChecks
   )
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , TransactionInput
+  ( TransactionInput
   , _body
   , _referenceInputs
   , awaitTxConfirmed
@@ -39,11 +40,9 @@ import Contract.Wallet
   )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
-import Data.Array (head) as Array
+import Data.Array (elem, head) as Array
 import Data.Lens.Getter ((^.))
 import Data.Map (member, toUnfoldable) as Map
-import Data.Set (member) as Set
-import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -69,7 +68,7 @@ contract = do
     constraints = mconcat
       [ Constraints.mustReferenceOutput oref
       , Helpers.mustPayToPubKeyStakeAddress pkh skh
-          (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+          (Value.lovelaceValueOf $ BigNum.fromInt 2_000_000)
       ]
 
     lookups :: Lookups.ScriptLookups
@@ -87,7 +86,7 @@ contract = do
 
 type ContractResult =
   { referenceInput :: TransactionInput
-  , balancedSignedTx :: BalancedSignedTransaction
+  , balancedSignedTx :: Transaction
   }
 
 assertTxContainsReferenceInput :: ContractCheck ContractResult
@@ -99,8 +98,8 @@ assertTxContainsReferenceInput =
         assertionFailure = CustomFailure
           "Could not find given input in `referenceInputs`"
       assertContract assertionFailure do
-        Set.member referenceInput
-          (unwrap balancedSignedTx ^. _body <<< _referenceInputs)
+        Array.elem referenceInput
+          (balancedSignedTx ^. _body <<< _referenceInputs)
 
 assertReferenceInputNotSpent :: ContractCheck ContractResult
 assertReferenceInputNotSpent = assertionToCheck "A reference input UTxO"

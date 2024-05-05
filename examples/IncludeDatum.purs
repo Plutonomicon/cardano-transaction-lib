@@ -12,14 +12,16 @@ module Ctl.Examples.IncludeDatum
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types (Credential(ScriptHashCredential))
+import Cardano.Types.BigNum as BigNum
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import Contract.PlutusData (Datum(Datum), PlutusData(Integer), unitRedeemer)
+import Contract.PlutusData (PlutusData(Integer), unitRedeemer)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , _input
@@ -52,8 +54,8 @@ example cfg = launchAff_ do
     logInfo' "Tx submitted successfully, Try to spend locked values"
     spendFromIncludeDatum vhash validator txId
 
-datum :: Datum
-datum = Datum $ Integer $ BigInt.fromInt 42
+datum :: PlutusData
+datum = Integer $ BigInt.fromInt 42
 
 payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
 payToIncludeDatum vhash =
@@ -62,7 +64,7 @@ payToIncludeDatum vhash =
     constraints =
       ( Constraints.mustPayToScript vhash datum Constraints.DatumWitness
           $ Value.lovelaceValueOf
-          $ BigInt.fromInt 2_000_000
+          $ BigNum.fromInt 2_000_000
       )
         <> Constraints.mustIncludeDatum datum
 
@@ -77,7 +79,7 @@ spendFromIncludeDatum
   -> TransactionHash
   -> Contract Unit
 spendFromIncludeDatum vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash Nothing
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
   txInput <- liftContractM "no locked output at address"
     (view _input <$> head (lookupTxHash txId utxos))
@@ -99,7 +101,7 @@ only42Script :: Contract Validator
 only42Script = do
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum
-    Validator <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 includeDatum :: String
 includeDatum =

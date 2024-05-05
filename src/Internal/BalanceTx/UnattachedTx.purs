@@ -5,10 +5,12 @@ module Ctl.Internal.BalanceTx.UnattachedTx
   , EvaluatedTx
   , indexTx
   , _transaction
+  , _redeemers
   ) where
 
 import Prelude
 
+import Cardano.Types (PlutusData, Redeemer, Transaction)
 import Ctl.Internal.BalanceTx.RedeemerIndex
   ( IndexedRedeemer
   , UnindexedRedeemer
@@ -16,8 +18,6 @@ import Ctl.Internal.BalanceTx.RedeemerIndex
   , indexRedeemers
   , mkRedeemersContext
   )
-import Ctl.Internal.Cardano.Types.Transaction (Redeemer, Transaction)
-import Ctl.Internal.Types.Datum (Datum)
 import Data.Either (Either)
 import Data.Lens (Lens')
 import Data.Lens.Record (prop)
@@ -25,7 +25,7 @@ import Type.Proxy (Proxy(Proxy))
 
 type UnattachedTx redeemer =
   { transaction :: Transaction
-  , datums :: Array Datum
+  , datums :: Array PlutusData
   , redeemers :: Array redeemer
   }
 
@@ -50,3 +50,7 @@ indexTx { transaction, datums, redeemers } = do
 _transaction
   :: forall (redeemer :: Type). Lens' (UnattachedTx redeemer) Transaction
 _transaction = prop (Proxy :: Proxy "transaction")
+
+_redeemers
+  :: forall (redeemer :: Type). Lens' (UnattachedTx redeemer) (Array redeemer)
+_redeemers = prop (Proxy :: Proxy "redeemers")

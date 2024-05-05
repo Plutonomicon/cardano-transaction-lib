@@ -6,11 +6,16 @@ module Ctl.Examples.SendsToken (main, example, contract) where
 
 import Contract.Prelude
 
+import Cardano.Types (PlutusScript)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint (Mint)
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
@@ -21,11 +26,7 @@ import Contract.Value (Value)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  , mustPayToPubKeyStakeAddress
-  ) as Helpers
+import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 
 main :: Effect Unit
@@ -47,13 +48,13 @@ contract = do
 
 mintToken :: Contract TransactionHash
 mintToken = do
-  mp /\ value <- tokenValue
+  mp /\ mint /\ _value <- tokenValue
   let
     constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustMintValue value
+    constraints = Constraints.mustMintValue mint
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
   submitTxFromConstraints lookups constraints
 
@@ -61,7 +62,7 @@ sendToken :: Contract TransactionHash
 sendToken = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- join <<< head <$> ownStakePubKeyHashes
-  _ /\ value <- tokenValue
+  _ /\ _mint /\ value <- tokenValue
   let
     constraints :: Constraints.TxConstraints
     constraints = Helpers.mustPayToPubKeyStakeAddress pkh skh value
@@ -71,8 +72,10 @@ sendToken = do
 
   submitTxFromConstraints lookups constraints
 
-tokenValue :: Contract (MintingPolicy /\ Value)
+tokenValue :: Contract (PlutusScript /\ Mint /\ Value)
 tokenValue = do
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
-  tn <- Helpers.mkTokenName "TheToken"
-  pure $ mp /\ Value.singleton cs tn one
+  mp <- alwaysMintsPolicy
+  let cs = PlutusScript.hash mp
+  tn <- Helpers.mkAssetName "TheToken"
+  pure $ mp /\ Mint.singleton cs tn (Int.fromInt 1) /\ Value.singleton cs tn
+    (BigNum.fromInt 1)

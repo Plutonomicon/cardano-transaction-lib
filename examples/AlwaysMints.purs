@@ -11,17 +11,18 @@ module Ctl.Examples.AlwaysMints
 
 import Contract.Prelude
 
+import Cardano.Types (PlutusScript)
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Value as Value
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
-import JS.BigInt as BigInt
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -29,16 +30,17 @@ main = example testnetNamiConfig
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysMints"
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
-  tn <- Helpers.mkTokenName "TheToken"
+  mp <- alwaysMintsPolicy
+  let cs = PlutusScript.hash mp
+  tn <- Helpers.mkAssetName "TheToken"
   let
     constraints :: Constraints.TxConstraints
     constraints = Constraints.mustMintValue
-      $ Value.singleton cs tn
-      $ BigInt.fromInt 100
+      $ Mint.singleton cs tn
+      $ Int.fromInt 100
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints
 
@@ -51,11 +53,10 @@ example cfg = launchAff_ $ do
 
 foreign import alwaysMints :: String
 
-alwaysMintsPolicyMaybe :: Maybe MintingPolicy
-alwaysMintsPolicyMaybe = do
-  PlutusMintingPolicy <$>
-    (plutusScriptV1FromEnvelope =<< decodeTextEnvelope alwaysMints)
+alwaysMintsPolicyMaybe :: Maybe PlutusScript
+alwaysMintsPolicyMaybe =
+  plutusScriptFromEnvelope =<< decodeTextEnvelope alwaysMints
 
-alwaysMintsPolicy :: Contract MintingPolicy
+alwaysMintsPolicy :: Contract PlutusScript
 alwaysMintsPolicy =
   liftContractM "Error decoding alwaysMintsPolicy" alwaysMintsPolicyMaybe

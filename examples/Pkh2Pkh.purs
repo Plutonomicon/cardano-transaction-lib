@@ -5,6 +5,7 @@ module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -17,7 +18,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Data.Array (head)
-import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -33,7 +33,7 @@ contract = do
     constraints :: Constraints.TxConstraints
     constraints = Constraints.mustPayToPubKeyAddress pkh skh
       $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+      $ BigNum.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty

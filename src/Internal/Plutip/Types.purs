@@ -30,24 +30,24 @@ import Aeson
   , toStringifiedNumbersJson
   , (.:)
   )
+import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.RawBytes (RawBytes(RawBytes))
 import Ctl.Internal.Contract.Hooks (Hooks)
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.Serialization.Types (PrivateKey)
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
-import Ctl.Internal.Types.ByteArray (hexToByteArray)
-import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
+import Data.ByteArray (hexToByteArray)
 import Data.Either (Either(Left), note)
 import Data.Generic.Rep (class Generic)
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
-import Partial.Unsafe (unsafePartial)
 
 -- | A config that is used to run tests on Plutip clusters.
 -- | Note that the test suite starts the services on the specified ports.
@@ -94,7 +94,8 @@ instance EncodeAeson ClusterStartupRequest where
     ) = encodeAeson
     { keysToGenerate
     , epochSize
-    , slotLength: unsafePartial $ fromJust $ finiteNumber slotLength
+    , slotLength: unsafeFromJust "instance EncodeAeson ClusterStartupRequest" $
+        finiteNumber slotLength
     , maxTxSize
     , raiseExUnitsToMax
     }
@@ -111,7 +112,8 @@ instance DecodeAeson PrivateKeyResponse where
   decodeAeson json = do
     cborStr <- decodeAeson json
     cborBytes <- note err $ hexToByteArray cborStr
-    PrivateKeyResponse <$> note err (privateKeyFromBytes (RawBytes cborBytes))
+    PrivateKeyResponse <$> note err
+      (PrivateKey.fromRawBytes (RawBytes cborBytes))
     where
     err :: JsonDecodeError
     err = TypeMismatch "PrivateKey"

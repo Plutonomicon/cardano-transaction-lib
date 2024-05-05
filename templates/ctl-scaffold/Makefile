@@ -58,9 +58,6 @@ webpack-serve: spago-build create-bundle-entrypoint create-html-entrypoint
 		--port ${serve-port} \
 		-o dist/ --env entry=./dist/entrypoint.js
 
-run-build:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
-
 check-format:
 	@purs-tidy check ${ps-sources}
 	@prettier --loglevel warn -c ${js-sources}

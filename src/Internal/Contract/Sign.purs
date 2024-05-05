@@ -4,19 +4,13 @@ module Ctl.Internal.Contract.Sign
 
 import Prelude
 
+import Cardano.Types (Transaction)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncWalletWithTxInputs)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
-  , _body
-  , _inputs
-  , _witnessSet
-  )
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.Wallet (withWallet)
-import Ctl.Internal.Wallet
-  ( Wallet(GenericCip30, KeyWallet)
-  )
+import Ctl.Internal.Lens (_body, _inputs, _witnessSet)
+import Ctl.Internal.Wallet (Wallet(GenericCip30, KeyWallet))
 import Data.Array (fromFoldable)
 import Data.Lens ((<>~))
 import Data.Lens.Getter ((^.))
@@ -26,6 +20,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (try)
 
+-- | Signs a transaction with potential failure.
 signTransaction
   :: Transaction -> Contract Transaction
 signTransaction tx = do

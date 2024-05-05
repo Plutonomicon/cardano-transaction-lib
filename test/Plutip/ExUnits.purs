@@ -5,16 +5,17 @@ module Test.Ctl.Plutip.ExUnits
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Log (logInfo')
 import Contract.Scripts (validatorHash)
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Contract.Transaction (awaitTxConfirmed)
 import Ctl.Examples.ExUnits as ExUnits
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Data.Either (isLeft)
 import Effect.Aff (try)
 import JS.BigInt as BigInt
 import Mote (test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Spec.Assertions (shouldSatisfy)
 
 mkSuite :: Int -> TestPlanM ContractTest Unit
@@ -24,8 +25,8 @@ mkSuite n = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 500_000_000
-          , BigInt.fromInt 500_000_000
+          [ BigNum.fromInt 500_000_000
+          , BigNum.fromInt 500_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do
@@ -44,8 +45,8 @@ mkFailingSuite n = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 500_000_000
-          , BigInt.fromInt 500_000_000
+          [ BigNum.fromInt 500_000_000
+          , BigNum.fromInt 500_000_000
           ]
       withWallets distribution \alice -> do
         withKeyWallet alice do

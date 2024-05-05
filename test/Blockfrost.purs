@@ -2,11 +2,14 @@ module Test.Ctl.Blockfrost (main, testPlan) where
 
 import Prelude
 
+import Cardano.AsCbor (decodeCbor)
+import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Types (ScriptHash)
+import Cardano.Types.BigNum as BigNum
 import Contract.Config (blockfrostPublicPreviewServerConfig)
 import Contract.Metadata
   ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum(Text, MetadataMap)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
+  , TransactionMetadatum(Text, Map)
   )
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
@@ -21,7 +24,6 @@ import Contract.Transaction
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
 import Ctl.Internal.Helpers (liftedM)
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashFromBytes)
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
@@ -39,7 +41,6 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
 import Effect.Class.Console (log)
-import JS.BigInt as BigInt
 import Mote (group, test)
 import Node.Process (argv)
 import Partial.Unsafe (unsafePartial)
@@ -64,10 +65,11 @@ testPlan :: BlockfrostBackend -> TestPlanM (Aff Unit) Unit
 testPlan backend = group "Blockfrost" do
   let
     mkDatumHash :: String -> DataHash
-    mkDatumHash = wrap <<< hexToByteArrayUnsafe
+    mkDatumHash s = unsafePartial $ fromJust $ decodeCbor $ wrap $
+      hexToByteArrayUnsafe s
 
     mkStringHash :: String -> ScriptHash
-    mkStringHash s = unsafePartial $ fromJust $ scriptHashFromBytes $
+    mkStringHash s = unsafePartial $ fromJust $ decodeCbor $ wrap $
       hexToByteArrayUnsafe s
 
   test "getDatumByHash - not found" do
@@ -125,8 +127,7 @@ fixtureHash = case _ of
 
 fixture1 :: Fixture
 fixture1 = TxWithMetadata
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "7a2aff2b7f92f6f8ec3fb2135301c7bfc36fea1489a3ca37fd6066f3155c46ff"
+  { hash: txHash2
   , metadata:
       GeneralTransactionMetadata $ Map.fromFoldable $
         [ 30 /\ "5"
@@ -185,13 +186,12 @@ fixture1 = TxWithMetadata
         , 77 /\
             "4e5205e5df368030e9f814c2258c01f50c62375c55b07fbcc076c181::02"
         ] <#> \(label /\ text) ->
-          TransactionMetadatumLabel (BigInt.fromInt label) /\ Text text
+          BigNum.fromInt label /\ Text text
   }
 
 fixture2 :: Fixture
 fixture2 = TxWithMetadata
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "d499729695be63b4c6affb2412899a7f16390d54d97f78f51d796a5cef424126"
+  { hash: txHash1
   , metadata:
       GeneralTransactionMetadata $ Map.fromFoldable $
         [ 674 /\
@@ -202,19 +202,26 @@ fixture2 = TxWithMetadata
             , "Timestamp" /\ "1672173001"
             ]
         ] <#> \(label /\ metamap) ->
-          TransactionMetadatumLabel
-            (BigInt.fromInt label) /\ MetadataMap
+          BigNum.fromInt label /\ Map
             (Map.fromFoldable $ metamap <#> \(k /\ v) -> Text k /\ Text v)
   }
 
+txHash1 :: TransactionHash
+txHash1 = TransactionHash $ unsafePartial $ fromJust $ fromBytes $
+  hexToByteArrayUnsafe
+    "d499729695be63b4c6affb2412899a7f16390d54d97f78f51d796a5cef424126"
+
+txHash2 :: TransactionHash
+txHash2 = TransactionHash $ unsafePartial $ fromJust $ fromBytes $
+  hexToByteArrayUnsafe
+    "7b458500ef7783e16dab5d9f9f282505182c316ccf3ecf75d0472f95ab31eeaa"
+
 fixture3 :: Fixture
 fixture3 = TxWithNoMetadata
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "7b458500ef7783e16dab5d9f9f282505182c316ccf3ecf75d0472f95ab31eeaa"
+  { hash: txHash2
   }
 
 fixture4 :: Fixture
 fixture4 = UnconfirmedTx
-  { hash: TransactionHash $ hexToByteArrayUnsafe
-      "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  { hash: txHash2
   }

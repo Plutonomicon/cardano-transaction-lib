@@ -9,28 +9,19 @@ module Contract.Wallet
   , getWalletUtxos
   , getWalletCollateral
   , getWalletAddress
-  , getWalletAddresses
-  , getWalletAddressWithNetworkTag
-  , getWalletAddressesWithNetworkTag
   , module X
   ) where
 
 import Prelude
 
-import Contract.Address
-  ( Address
-  , AddressWithNetworkTag
-  , PaymentPubKeyHash
-  , StakePubKeyHash
-  )
+import Cardano.Types (Address, StakePubKeyHash, UtxoMap, Value)
+import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.Value as Value
 import Contract.Config (PrivatePaymentKey, PrivateStakeKey)
 import Contract.Log (logTrace')
-import Contract.Monad (Contract, liftContractM, liftedM)
+import Contract.Monad (Contract)
 import Contract.Sync (syncBackendWithWallet, withoutSync)
-import Contract.Transaction (TransactionUnspentOutput)
-import Contract.Utxos (UtxoMap)
-import Contract.Value (Value)
-import Contract.Value as Value
 import Contract.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Reader (asks, local)
@@ -39,24 +30,19 @@ import Ctl.Internal.Contract.Wallet
   , getRewardAddresses
   , getUnusedAddresses
   , getWallet
+  , getWalletAddresses
   , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
   , signData
   ) as X
-import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Contract.Wallet
-  ( ownPaymentPubKeyHashes
+  ( getWalletAddresses
+  , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
   )
+import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Contract.Wallet as Contract
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes) as X
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Plutus.Conversion
-  ( toPlutusAddress
-  , toPlutusTxUnspentOutput
-  , toPlutusUtxoMap
-  )
-import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddressWithNetworkTag)
 import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet
   ( Wallet(KeyWallet, GenericCip30)
@@ -102,12 +88,12 @@ import Ctl.Internal.Wallet.Spec
       )
   ) as X
 import Data.Array (head)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.Foldable (fold, foldr)
+import Data.Foldable (fold)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just), fromMaybe)
 import Data.Newtype (unwrap)
-import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
 import Effect.Exception (error)
 import Prim.TypeError (class Warn, Text)
@@ -139,7 +125,7 @@ mkKeyWalletFromPrivateKeys
 mkKeyWalletFromPrivateKeys payment mbStake = privateKeysToKeyWallet payment
   mbStake
 
--- | Get an `Address` of the browser wallet.
+-- | Get the first `Address` of the wallet.
 getWalletAddress
   :: Warn
        ( Text
@@ -147,39 +133,6 @@ getWalletAddress
        )
   => Contract (Maybe Address)
 getWalletAddress = head <$> getWalletAddresses
-
--- | Get all the `Address`es of the browser wallet.
-getWalletAddresses :: Contract (Array Address)
-getWalletAddresses = do
-  addresses <- Contract.getWalletAddresses
-  traverse
-    ( liftM
-        (error "getWalletAddresses: failed to deserialize `Address`")
-        <<< toPlutusAddress
-    )
-    addresses
-
--- | Get an `AddressWithNetworkTag` of the browser wallet.
-getWalletAddressWithNetworkTag
-  :: Warn
-       ( Text
-           "This function returns only one `AddressWithNetworkTag` even in case multiple `AddressWithNetworkTag` are available. Use `getWalletAddressesWithNetworkTag` instead"
-       )
-  => Contract (Maybe AddressWithNetworkTag)
-getWalletAddressWithNetworkTag = head <$> getWalletAddressesWithNetworkTag
-
--- | Get all the `AddressWithNetworkTag`s of the browser wallet discarding errors.
-getWalletAddressesWithNetworkTag :: Contract (Array AddressWithNetworkTag)
-getWalletAddressesWithNetworkTag = do
-  addresses <- Contract.getWalletAddresses
-  traverse
-    ( liftM
-        ( error
-            "getWalletAddressesWithNetworkTag: failed to deserialize `Address`"
-        )
-        <<< toPlutusAddressWithNetworkTag
-    )
-    addresses
 
 -- | Gets a wallet `PaymentPubKeyHash` via `getWalletAddresses`.
 ownPaymentPubKeyHash
@@ -215,10 +168,7 @@ getWalletUtxos = do
           >>> _.beforeCip30Methods
     )
     syncBackendWithWallet
-  mCardanoUtxos <- Wallet.getWalletUtxos
-  for mCardanoUtxos $
-    liftContractM "getWalletUtxos: unable to deserialize UTxOs" <<<
-      toPlutusUtxoMap
+  Wallet.getWalletUtxos
 
 getWalletBalance
   :: Contract (Maybe Value)
@@ -231,13 +181,16 @@ getWalletBalance = do
     )
     syncBackendWithWallet
   let
-    getUtxoValue = unwrap >>> _.output >>> unwrap >>> _.amount
-    sumValues = foldr (Value.unionWith add) mempty
+    getUtxoValue = unwrap >>> _.amount
   -- include both spendable UTxOs and collateral
   utxos <- getWalletUtxos <#> fromMaybe Map.empty
   collateralUtxos <- withoutSync getWalletCollateral <#> fold >>> toUtxoMap
   let allUtxos = Map.union utxos collateralUtxos
-  pure $ pure $ sumValues $ map getUtxoValue $ Map.values allUtxos
+  let
+    mbValueSum = Value.sum $ map getUtxoValue $ Array.fromFoldable $ Map.values
+      allUtxos
+  pure <$> liftM (error "getWalletBalance: overflow when summing `Value`s")
+    mbValueSum
   where
   toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
@@ -259,9 +212,4 @@ getWalletCollateral = do
         )
     )
     syncBackendWithWallet
-  mtxUnspentOutput <- Contract.getWalletCollateral
-  for mtxUnspentOutput $ traverse $
-    liftedM
-      "getWalletCollateral: failed to deserialize TransactionUnspentOutput"
-      <<< pure
-      <<< toPlutusTxUnspentOutput
+  Contract.getWalletCollateral

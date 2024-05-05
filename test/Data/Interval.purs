@@ -3,6 +3,15 @@ module Test.Ctl.Data.Interval (suite) where
 
 import Prelude
 
+import Cardano.Plutus.DataSchema
+  ( class HasPlutusSchema
+  , type (:+)
+  , type (:=)
+  , type (@@)
+  , I
+  , PNil
+  , Z
+  )
 import Contract.PlutusData
   ( class FromData
   , class ToData
@@ -13,16 +22,6 @@ import Contract.PlutusData
   )
 import Contract.Prelude (Aff, liftEffect)
 import Contract.Time (always, never)
-import Ctl.Internal.Plutus.Types.DataSchema
-  ( class HasPlutusSchema
-  , type (:+)
-  , type (:=)
-  , type (@@)
-  , I
-  , PNil
-  )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.TypeLevel.Nat (Z)
 import Ctl.Internal.Types.Interval
   ( Extended(NegInf, Finite, PosInf)
   , Interval(EmptyInterval, StartAt, EndAt, AlwaysInterval, FiniteInterval)
@@ -39,6 +38,7 @@ import Data.Show.Generic (genericShow)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.QuickCheck (Result, arbitrary, quickCheck, (===))
 import Test.QuickCheck.Gen (Gen)
 import Test.Spec.Assertions (shouldEqual)

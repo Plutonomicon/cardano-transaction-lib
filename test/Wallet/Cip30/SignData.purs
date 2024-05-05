@@ -7,31 +7,28 @@ module Test.Ctl.Wallet.Cip30.SignData
 
 import Prelude
 
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.Deserialization.Keys (privateKeyFromBytes)
-import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
-import Ctl.Internal.Serialization.Address
+import Cardano.AsCbor (encodeCbor)
+import Cardano.MessageSigning (signData)
+import Cardano.Types
   ( Address
-  , NetworkId(MainnetId)
-  , intToNetworkId
+  , CborBytes
+  , PrivateKey(PrivateKey)
+  , PublicKey
+  , RawBytes
   )
-import Ctl.Internal.Serialization.Keys
-  ( bytesFromPublicKey
-  , publicKeyFromPrivateKey
-  )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Serialization.Types (PrivateKey, PublicKey)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.ByteArray (byteArrayFromIntArrayUnsafe)
-import Ctl.Internal.Types.CborBytes (CborBytes)
-import Ctl.Internal.Types.RawBytes (RawBytes)
+import Cardano.Types.NetworkId (NetworkId(MainnetId))
+import Cardano.Types.NetworkId as NetworkId
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.PublicKey as PublicKey
+import Contract.Keys (publicKeyFromBytes)
+import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Wallet.Cip30 (DataSignature)
-import Ctl.Internal.Wallet.Cip30.SignData (signData)
 import Ctl.Internal.Wallet.Key
   ( PrivatePaymentKey
   , PrivateStakeKey
   , privateKeysToAddress
   )
+import Data.ByteArray (byteArrayFromIntArrayUnsafe)
 import Data.Maybe (Maybe(Just), fromJust, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Traversable (traverse_)
@@ -39,6 +36,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Utils (assertTrue, errMaybe)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -73,17 +71,18 @@ testCip30SignData { privateKey, privateStakeKey, payload, networkId } = do
       (unwrap <$> privateStakeKey)
       (unwrap networkId)
 
-  dataSignature <- liftEffect $ signData privatePaymentKey address payload
+  dataSignature <- liftEffect $ signData (privatePaymentKey) address
+    payload
   { coseKey } <- checkCip30SignDataResponse address dataSignature
 
   assertTrue "COSE_Key's x (-2) header must be set to public key bytes"
-    (getCoseKeyHeaderX coseKey == Just (bytesFromPublicKey publicPaymentKey))
+    (getCoseKeyHeaderX coseKey == Just (PublicKey.toRawBytes publicPaymentKey))
   where
   privatePaymentKey :: PrivateKey
-  privatePaymentKey = unwrap $ unwrap $ privateKey
+  privatePaymentKey = unwrap $ unwrap privateKey
 
   publicPaymentKey :: PublicKey
-  publicPaymentKey = publicKeyFromPrivateKey privatePaymentKey
+  publicPaymentKey = PrivateKey.toPublicKey privatePaymentKey
 
 checkCip30SignDataResponse
   :: Address -> DataSignature -> Aff DeserializedDataSignature
@@ -104,7 +103,7 @@ checkCip30SignDataResponse address { key, signature } = do
 
     assertTrue "COSE_Sign1's \"address\" header must be set to address bytes"
       ( getCoseSign1ProtectedHeaderAddress coseSign1
-          == Just (toBytes address)
+          == Just (encodeCbor address)
       )
 
   checkCoseKeyHeaders :: COSEKey -> Aff Unit
@@ -129,7 +128,7 @@ checkCip30SignDataResponse address { key, signature } = do
   checkVerification coseSign1 coseKey = do
     publicKey <-
       errMaybe "COSE_Key's x (-2) header must be set to public key bytes"
-        $ getCoseKeyHeaderX coseKey >>= fromBytes <<< wrap <<< unwrap
+        $ getCoseKeyHeaderX coseKey >>= publicKeyFromBytes
     sigStructBytes <- getSignedData coseSign1
     assertTrue "Signature verification failed"
       =<< verifySignature coseSign1 publicKey sigStructBytes
@@ -161,7 +160,8 @@ derive instance Newtype ArbitraryPrivateKey _
 
 instance Arbitrary ArbitraryPrivateKey where
   arbitrary =
-    wrap <<< unsafePartial fromJust <<< privateKeyFromBytes <$> privateKeyBytes
+    wrap <<< unsafePartial fromJust <$>
+      (PrivateKey.fromRawBytes <$> privateKeyBytes)
     where
     privateKeyBytes :: Gen RawBytes
     privateKeyBytes =
@@ -173,7 +173,7 @@ derive instance Newtype ArbitraryNetworkId _
 
 instance Arbitrary ArbitraryNetworkId where
   arbitrary =
-    wrap <<< fromMaybe MainnetId <<< intToNetworkId <$> chooseInt 0 1
+    wrap <<< fromMaybe MainnetId <<< NetworkId.fromInt <$> chooseInt 0 1
 
 --------------------------------------------------------------------------------
 -- FFI

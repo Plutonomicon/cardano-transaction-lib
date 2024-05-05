@@ -3,7 +3,10 @@ module Test.Ctl.Plutip.Contract.Assert (suite) where
 
 import Prelude
 
+import Cardano.Types (ExUnits(ExUnits))
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Monad (liftedM)
+import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(Integer))
 import Contract.Test (ContractTest)
 import Contract.Test.Assert
@@ -20,8 +23,8 @@ import Contract.Wallet
   )
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.ContractTestUtils as ContractTestUtils
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName)
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.Helpers (mkAssetName)
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Data.Array (head)
 import Data.Either (isLeft, isRight)
 import Data.Newtype (wrap)
@@ -30,7 +33,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import JS.BigInt as BigInt
 import Mote (group, test)
-import Test.Ctl.Fixtures (cip25MetadataFixture1)
+import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
@@ -39,7 +42,7 @@ suite = do
     let
       initialUtxos :: InitialUTxOs
       initialUtxos =
-        [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+        [ BigNum.fromInt 2_000_000_000, BigNum.fromInt 2_000_000_000 ]
 
       distribution :: InitialUTxOs /\ InitialUTxOs
       distribution = initialUtxos /\ initialUtxos
@@ -51,20 +54,21 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
 
-        tn <- mkTokenName "TheToken"
+        let cs = PlutusScript.hash mintingPolicy
+
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <- ContractTestUtils.mkChecks params
@@ -80,29 +84,33 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
 
-        tn <- mkTokenName "TheToken"
+        let cs = PlutusScript.hash mintingPolicy
+
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <- ContractTestUtils.mkChecks params
-            { tokensToMint = cs /\ tn /\ (one + one) /\ unit }
+            { tokensToMint = cs /\ tn
+                /\ (unsafePartial $ BigNum.one <> BigNum.one)
+                /\ unit
+            }
           eiResult /\ failures <- collectAssertionFailures checks $ lift do
             ContractTestUtils.mkContract params
           eiResult `shouldSatisfy` isRight
           printContractAssertionFailures failures `shouldEqual`
-            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Unexpected token delta (TokenName (hexToRawBytesUnsafe \"546865546f6b656e\")) at address Sender Expected: 2, Actual: 1"
+            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Unexpected token delta (mkAssetName (hexToByteArrayUnsafe \"546865546f6b656e\")) at address Sender Expected: 2, Actual: 1"
 
     test "ExUnits limit reached" do
 
@@ -111,26 +119,28 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
 
-        tn <- mkTokenName "TheToken"
+        let cs = PlutusScript.hash mintingPolicy
+
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <- ContractTestUtils.mkChecks params <#>
             ( _ <>
                 [ checkExUnitsNotExceed
-                    { mem: BigInt.fromInt 800, steps: BigInt.fromInt 16110 }
+                    $ ExUnits
+                        { mem: BigNum.fromInt 800, steps: BigNum.fromInt 16110 }
                 ]
             )
           eiResult /\ failures <- collectAssertionFailures checks $ lift do
@@ -146,28 +156,32 @@ suite = do
           head <$> withKeyWallet bob ownPaymentPubKeyHashes
         receiverSkh <- join <<< head <$> withKeyWallet bob ownStakePubKeyHashes
 
-        mintingPolicy /\ cs <- mkCurrencySymbol alwaysMintsPolicyV2
+        mintingPolicy <- alwaysMintsPolicyScriptV2
 
-        tn <- mkTokenName "TheToken"
+        let cs = PlutusScript.hash mintingPolicy
+
+        tn <- mkAssetName "TheToken"
 
         withKeyWallet alice do
           let
             params =
               { receiverPkh
               , receiverSkh
-              , adaToSend: BigInt.fromInt 5_000_000
+              , adaToSend: wrap $ BigNum.fromInt 5_000_000
               , mintingPolicy
-              , tokensToMint: cs /\ tn /\ one /\ unit
-              , datumToAttach: wrap $ Integer $ BigInt.fromInt 42
-              , txMetadata: cip25MetadataFixture1
+              , tokensToMint: cs /\ tn /\ BigNum.one /\ unit
+              , datumToAttach: Integer $ BigInt.fromInt 42
               }
 
           checks <-
             ContractTestUtils.mkChecks params
-              { tokensToMint = cs /\ tn /\ (one + one) /\ unit } <#>
+              { tokensToMint = cs /\ tn
+                  /\ (unsafePartial $ BigNum.one <> BigNum.one)
+                  /\ unit
+              } <#>
               ( _ <>
-                  [ checkExUnitsNotExceed
-                      { mem: BigInt.fromInt 800, steps: BigInt.fromInt 16110 }
+                  [ checkExUnitsNotExceed $ ExUnits
+                      { mem: BigNum.fromInt 800, steps: BigNum.fromInt 16110 }
                   ]
               )
 
@@ -176,4 +190,4 @@ suite = do
 
           eiResult `shouldSatisfy` isLeft
           printContractAssertionFailures failures `shouldEqual`
-            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Error while trying to get expected value: Unable to estimate expected loss in wallet\n\n    2. Unexpected token delta (TokenName (hexToRawBytesUnsafe \"546865546f6b656e\")) at address Sender Expected: 2, Actual: 1 \n\n    3. ExUnits limit exceeded:  Expected: { mem: 800, steps: 16110 }, Actual: { mem: 800, steps: 161100 } \n\nThe following `Contract` checks have been skipped due to an exception: \n\n    1. Sender's output has a datum\n\n    2. Output has a reference script\n\n    3. Contains CIP-25 metadata"
+            "In addition to the error above, the following `Contract` assertions have failed:\n\n    1. Error while trying to get expected value: Unable to estimate expected loss in wallet\n\n    2. Unexpected token delta (mkAssetName (hexToByteArrayUnsafe \"546865546f6b656e\")) at address Sender Expected: 2, Actual: 1 \n\n    3. ExUnits limit exceeded:  Expected: { mem: 800, steps: 16110 }, Actual: { mem: 800, steps: 161100 } \n\nThe following `Contract` checks have been skipped due to an exception: \n\n    1. Sender's output has a datum\n\n    2. Output has a reference script"

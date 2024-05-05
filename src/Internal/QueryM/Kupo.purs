@@ -24,6 +24,32 @@ import Aeson
 import Affjax (Error, Response, defaultRequest) as Affjax
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types
+  ( Address
+  , BigNum
+  , DataHash
+  , GeneralTransactionMetadata
+  , MultiAsset
+  , PlutusData
+  , ScriptHash
+  , Slot
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , UtxoMap
+  , Value
+  )
+import Cardano.Types.Address as Address
+import Cardano.Types.AssetName (mkAssetName)
+import Cardano.Types.BigNum (toString) as BigNum
+import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
+import Cardano.Types.Value as Value
 import Contract.Log (logTrace')
 import Control.Alt ((<|>))
 import Control.Bind (bindFlipped)
@@ -32,20 +58,6 @@ import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Affjax (request) as Affjax
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  , UtxoMap
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( NonAdaAsset
-  , Value
-  , mkCurrencySymbol
-  , mkSingletonNonAdaAsset
-  , mkValue
-  )
 import Ctl.Internal.Contract.QueryHandle.Error
   ( GetTxMetadataError
       ( GetTxMetadataClientError
@@ -53,43 +65,15 @@ import Ctl.Internal.Contract.QueryHandle.Error
       , GetTxMetadataMetadataEmptyOrMissingError
       )
   )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.Deserialization.NativeScript (decodeNativeScript)
-import Ctl.Internal.Deserialization.PlutusData (deserializeData)
-import Ctl.Internal.Deserialization.Transaction
-  ( convertGeneralTransactionMetadata
-  )
 import Ctl.Internal.QueryM (QueryM, handleAffjaxResponse)
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , Slot
-  , addressBech32
-  , addressFromBech32
-  )
-import Ctl.Internal.Serialization.Hash (ScriptHash, scriptHashToBytes)
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString)
-import Ctl.Internal.Types.BigNum (toString) as BigNum
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (CborBytes, hexToCborBytes)
-import Ctl.Internal.Types.Datum (DataHash(DataHash), Datum)
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
-import Ctl.Internal.Types.RawBytes (rawBytesToHex)
-import Ctl.Internal.Types.Scripts (plutusV1Script, plutusV2Script)
-import Ctl.Internal.Types.TokenName (mkTokenName)
-import Ctl.Internal.Types.Transaction
-  ( TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  )
-import Ctl.Internal.Types.TransactionMetadata (GeneralTransactionMetadata)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (Either(Left, Right), note)
-import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Lens (_Right, to, (^?))
@@ -108,7 +92,6 @@ import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (liftAff)
 import Foreign.Object (Object)
 import Foreign.Object (toUnfoldable) as Object
-import JS.BigInt (BigInt)
 
 --------------------------------------------------------------------------------
 -- Requests
@@ -116,7 +99,7 @@ import JS.BigInt (BigInt)
 
 utxosAt :: Address -> QueryM (Either ClientError UtxoMap)
 utxosAt address = runExceptT do
-  let endpoint = "/matches/" <> addressBech32 address <> "?unspent"
+  let endpoint = "/matches/" <> Address.toBech32 address <> "?unspent"
   kupoUtxoMap <- ExceptT $ handleAffjaxResponse <$> kupoGetRequest endpoint
   ExceptT $ resolveKupoUtxoMap kupoUtxoMap
 
@@ -128,15 +111,16 @@ getUtxoByOref oref = runExceptT do
   pure $ Map.lookup oref utxoMap
   where
   endpoint :: String
-  endpoint = "/matches/" <> outputIndex <> "@" <> txHashHex <> "?unspent"
+  endpoint = "/matches/" <> outputIndex <> "@" <> txHashToHex txHash <>
+    "?unspent"
     where
     TransactionInput { transactionId: txHash, index } = oref
 
     outputIndex :: String
     outputIndex = UInt.toString index
 
-    txHashHex :: String
-    txHashHex = byteArrayToHex (unwrap txHash)
+txHashToHex :: TransactionHash -> String
+txHashToHex txHash = byteArrayToHex (toBytes $ unwrap txHash)
 
 -- | Specialized function to get addresses only, without resolving script
 -- | references. Used internally.
@@ -149,21 +133,18 @@ getOutputAddressesByTxHash txHash = runExceptT do
     unwrap >>> _.address
   where
   endpoint :: String
-  endpoint = "/matches/*@" <> txHashHex <> "?unspent"
-    where
-    txHashHex :: String
-    txHashHex = byteArrayToHex (unwrap txHash)
+  endpoint = "/matches/*@" <> txHashToHex txHash <> "?unspent"
 
-getDatumByHash :: DataHash -> QueryM (Either ClientError (Maybe Datum))
-getDatumByHash (DataHash dataHashBytes) = do
-  let endpoint = "/datums/" <> byteArrayToHex dataHashBytes
+getDatumByHash :: DataHash -> QueryM (Either ClientError (Maybe PlutusData))
+getDatumByHash dataHash = do
+  let endpoint = "/datums/" <> byteArrayToHex (unwrap $ encodeCbor dataHash)
   kupoGetRequest endpoint
     <#> map unwrapKupoDatum <<< handleAffjaxResponse
 
 getScriptByHash :: ScriptHash -> QueryM (Either ClientError (Maybe ScriptRef))
 getScriptByHash scriptHash = do
   let
-    endpoint = "/scripts/" <> rawBytesToHex (scriptHashToBytes scriptHash)
+    endpoint = "/scripts/" <> byteArrayToHex (unwrap (encodeCbor scriptHash))
   kupoGetRequest endpoint
     <#> map unwrapKupoScriptRef <<< handleAffjaxResponse
 
@@ -175,7 +156,7 @@ isTxConfirmed txHash = do
   do
     -- we don't add `?unspent`, because we only care about existence of UTxOs,
     -- possibly they can be consumed
-    let endpoint = "/matches/*@" <> byteArrayToHex (unwrap txHash)
+    let endpoint = "/matches/*@" <> txHashToHex txHash
     -- Do this clumsy special case logging. It's better than sending it silently
     logTrace' $ "sending kupo request: " <> endpoint
   liftAff $ isTxConfirmedAff config txHash
@@ -183,8 +164,8 @@ isTxConfirmed txHash = do
 -- Exported due to Ogmios requiring confirmations at a websocket level
 isTxConfirmedAff
   :: ServerConfig -> TransactionHash -> Aff (Either ClientError (Maybe Slot))
-isTxConfirmedAff config (TransactionHash txHash) = runExceptT do
-  let endpoint = "/matches/*@" <> byteArrayToHex txHash
+isTxConfirmedAff config txHash = runExceptT do
+  let endpoint = "/matches/*@" <> txHashToHex txHash
   utxos <- ExceptT $ handleAffjaxResponse <$> kupoGetRequestAff config endpoint
   -- Take the first utxo's slot to give the transactions slot
   pure $ uncons utxos <#> _.head >>> unwrapKupoUtxoSlot
@@ -199,7 +180,7 @@ getTxMetadata txHash = runExceptT do
       let
         endpoint = "/metadata/" <> BigNum.toString (unwrap slot)
           <> "?transaction_id="
-          <> byteArrayToHex (unwrap txHash)
+          <> txHashToHex txHash
       kupoMetadata <- ExceptT $
         lmap GetTxMetadataClientError <<< handleAffjaxResponse <$>
           kupoGetRequest
@@ -256,7 +237,9 @@ instance DecodeAeson KupoTransactionOutput where
     decodeAddress obj =
       getField obj "address" >>= \x ->
         note (TypeMismatch "Expected bech32 or base16 encoded Shelley address")
-          (addressFromBech32 x <|> (fromBytes =<< hexToCborBytes x))
+          ( Address.fromBech32 x <|>
+              (decodeCbor <<< wrap =<< hexToByteArray x)
+          )
 
     decodeDatumHash
       :: Object Aeson
@@ -274,11 +257,15 @@ instance DecodeAeson KupoTransactionOutput where
         assets <-
           getFieldOptional obj "assets"
             <#> fromMaybe mempty <<< map (Object.toUnfoldable :: _ -> Array _)
-        mkValue coins <<< fold <$> traverse decodeNonAdaAsset assets
+        multiAsset <-
+          note (TypeMismatch "MultiAsset") <<< MultiAsset.sum =<< traverse
+            decodeMultiAsset
+            assets
+        pure $ Value.mkValue coins multiAsset
       where
-      decodeNonAdaAsset
-        :: (String /\ BigInt) -> Either JsonDecodeError NonAdaAsset
-      decodeNonAdaAsset (assetString /\ assetQuantity) =
+      decodeMultiAsset
+        :: (String /\ BigNum) -> Either JsonDecodeError MultiAsset
+      decodeMultiAsset (assetString /\ assetQuantity) =
         let
           csString /\ tnString =
             case String.indexOf (String.Pattern ".") assetString of
@@ -288,14 +275,14 @@ instance DecodeAeson KupoTransactionOutput where
                 String.splitAt ix assetString
                   # \{ before, after } -> before /\ String.drop 1 after
         in
-          mkSingletonNonAdaAsset
+          MultiAsset.singleton
             <$>
-              ( note (assetStringTypeMismatch "CurrencySymbol" csString)
-                  (mkCurrencySymbol =<< hexToByteArray csString)
+              ( note (assetStringTypeMismatch "ScriptHash" csString)
+                  (decodeCbor <<< wrap =<< hexToByteArray csString)
               )
             <*>
-              ( note (assetStringTypeMismatch "TokenName" tnString)
-                  (mkTokenName =<< hexToByteArray tnString)
+              ( note (assetStringTypeMismatch "AssetName" tnString)
+                  (mkAssetName =<< hexToByteArray tnString)
               )
             <*> pure assetQuantity
         where
@@ -331,9 +318,12 @@ instance DecodeAeson KupoUtxoMap where
 
     decodeTxHash :: Object Aeson -> Either JsonDecodeError TransactionHash
     decodeTxHash =
-      flip getField "transaction_id" >=> hexToByteArray >>> case _ of
-        Nothing -> Left (TypeMismatch "Expected hexstring")
-        Just txHashBytes -> pure (TransactionHash txHashBytes)
+      flip getField "transaction_id"
+        >=> hexToByteArray >>> note (TypeMismatch "Expected hexstring")
+        >=> fromBytes
+          >>> note (TypeMismatch "Expected TransactionHash")
+          >>>
+            map TransactionHash
 
 resolveKupoUtxoMap :: KupoUtxoMap -> QueryM (Either ClientError UtxoMap)
 resolveKupoUtxoMap (KupoUtxoMap kupoUtxoMap) =
@@ -345,19 +335,19 @@ resolveKupoTxOutput (KupoTransactionOutput kupoTxOutput@{ address, amount }) =
   runExceptT $
     mkTxOutput <$> ExceptT resolveDatum <*> ExceptT resolveScriptRef
   where
-  mkTxOutput :: OutputDatum -> Maybe ScriptRef -> TransactionOutput
+  mkTxOutput :: Maybe OutputDatum -> Maybe ScriptRef -> TransactionOutput
   mkTxOutput datum scriptRef =
     TransactionOutput { address, amount, datum, scriptRef }
 
-  resolveDatum :: QueryM (Either ClientError OutputDatum)
+  resolveDatum :: QueryM (Either ClientError (Maybe OutputDatum))
   resolveDatum =
     case kupoTxOutput.datumHash of
-      Nothing -> pure $ Right NoOutputDatum
+      Nothing -> pure $ Right Nothing
       Just (datumHash /\ DatumHash) ->
-        pure $ Right $ OutputDatumHash datumHash
+        pure $ Right $ Just $ OutputDatumHash datumHash
       Just (datumHash /\ InlineDatum) -> runExceptT do
         datum <- ExceptT $ getDatumByHash datumHash
-        except $ OutputDatum <$> flip note datum
+        except $ pure <<< OutputDatum <$> flip note datum
           (ClientOtherError "Kupo: Failed to resolve inline datum")
 
   resolveScriptRef :: QueryM (Either ClientError (Maybe ScriptRef))
@@ -373,11 +363,11 @@ resolveKupoTxOutput (KupoTransactionOutput kupoTxOutput@{ address, amount }) =
 -- `getDatumByHash` response parsing
 --------------------------------------------------------------------------------
 
-newtype KupoDatum = KupoDatum (Maybe Datum)
+newtype KupoDatum = KupoDatum (Maybe PlutusData)
 
 derive instance Newtype KupoDatum _
 
-unwrapKupoDatum :: KupoDatum -> Maybe Datum
+unwrapKupoDatum :: KupoDatum -> Maybe PlutusData
 unwrapKupoDatum = unwrap
 
 instance DecodeAeson KupoDatum where
@@ -385,7 +375,7 @@ instance DecodeAeson KupoDatum where
     | isNull aeson = pure $ KupoDatum Nothing
     | otherwise =
         aesonObject (flip getFieldOptional "datum") aeson
-          >>= pure <<< KupoDatum <<< bindFlipped deserializeData
+          >>= pure <<< KupoDatum <<< bindFlipped decodeCbor
 
 --------------------------------------------------------------------------------
 -- `getScriptByHash` response parsing
@@ -424,11 +414,14 @@ instance DecodeAeson KupoScriptRef where
           KupoScriptRef <<< Just <$>
             case language of
               NativeScript ->
-                NativeScriptRef <$> decodeNativeScript scriptBytes
+                NativeScriptRef <$>
+                  note (TypeMismatch "NativeScript") (decodeCbor scriptBytes)
               PlutusV1Script ->
-                pure $ PlutusScriptRef $ plutusV1Script scriptBytes
+                pure $ PlutusScriptRef $ PlutusScript.plutusV1Script $ wrap $
+                  unwrap scriptBytes
               PlutusV2Script ->
-                pure $ PlutusScriptRef $ plutusV2Script scriptBytes
+                pure $ PlutusScriptRef $ PlutusScript.plutusV2Script $ wrap $
+                  unwrap scriptBytes
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing
@@ -466,9 +459,9 @@ instance Show KupoMetadata where
 instance DecodeAeson KupoMetadata where
   decodeAeson = decodeAeson >=> case _ of
     [ { raw: cbor } :: { raw :: CborBytes } ] -> do
-      metadata <- flip note (fromBytes cbor) $
-        TypeMismatch "Hexadecimal encoded Metadata"
-      pure $ KupoMetadata $ Just $ convertGeneralTransactionMetadata metadata
+      metadata <- note (TypeMismatch "Hexadecimal encoded Metadata") $
+        decodeCbor cbor
+      pure $ KupoMetadata $ Just $ metadata
     [] -> Right $ KupoMetadata Nothing
     _ -> Left $ TypeMismatch "Singleton or Empty Array"
 

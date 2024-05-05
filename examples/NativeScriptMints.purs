@@ -4,32 +4,23 @@ module Ctl.Examples.NativeScriptMints (main, example, contract, pkhPolicy) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
-  )
+import Cardano.Types (BigNum)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.NativeScript as NativeScript
+import Contract.Address (PaymentPubKeyHash)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(NativeMintingPolicy)
-  , NativeScript(ScriptPubkey)
-  )
+import Contract.Scripts (NativeScript(ScriptPubkey))
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
-import Contract.Wallet
-  ( ownPaymentPubKeyHashes
-  , ownStakePubKeyHashes
-  )
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  , mustPayToPubKeyStakeAddress
-  ) as Helpers
+import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
+import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
-import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 
 main :: Effect Unit
@@ -41,27 +32,28 @@ contract = do
 
   pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeyHashes
 
-  mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
-  tn <- Helpers.mkTokenName "NSToken"
+  let mp = pkhPolicy pkh
+  let cs = NativeScript.hash mp
+  tn <- Helpers.mkAssetName "NSToken"
 
   let
     constraints :: Constraints.TxConstraints
     constraints =
       Constraints.mustMintCurrencyUsingNativeScript
-        (nsPolicy pkh)
-        tn $ BigInt.fromInt 100
+        (pkhPolicy pkh)
+        tn $ Int.fromInt 100
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.nativeMintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints
 
   awaitTxConfirmed txId
   logInfo' "Minted successfully"
 
-  toSelfContract cs tn $ BigInt.fromInt 50
+  toSelfContract cs tn $ BigNum.fromInt 50
 
-toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract Unit
+toSelfContract :: CurrencySymbol -> TokenName -> BigNum -> Contract Unit
 toSelfContract cs tn amount = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- join <<< head <$> ownStakePubKeyHashes
@@ -84,8 +76,5 @@ example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 
-nsPolicy :: PaymentPubKeyHash -> NativeScript
-nsPolicy = ScriptPubkey <<< unwrap <<< unwrap
-
-pkhPolicy :: PaymentPubKeyHash -> MintingPolicy
-pkhPolicy = NativeMintingPolicy <<< nsPolicy
+pkhPolicy :: PaymentPubKeyHash -> NativeScript
+pkhPolicy = ScriptPubkey <<< unwrap

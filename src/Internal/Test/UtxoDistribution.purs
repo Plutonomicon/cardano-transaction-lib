@@ -14,18 +14,23 @@ module Ctl.Internal.Test.UtxoDistribution
 
 import Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
+import Cardano.Types
+  ( BigNum
+  , Credential(PubKeyHashCredential)
+  , PaymentCredential(PaymentCredential)
+  , PaymentPubKeyHash
   , StakePubKeyHash
-  , getNetworkId
-  , payPubKeyHashEnterpriseAddress
+  , TransactionOutput(TransactionOutput)
   )
-import Contract.Monad (Contract, liftContractM, liftedM)
+import Cardano.Types.Address (Address(EnterpriseAddress))
+import Cardano.Types.PrivateKey (PrivateKey)
+import Cardano.Types.UtxoMap (UtxoMap)
+import Contract.Address (getNetworkId)
+import Contract.Monad (Contract, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , awaitTxConfirmed
+  ( awaitTxConfirmed
   , balanceTx
   , signTransaction
   , submit
@@ -43,8 +48,6 @@ import Contract.Wallet
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey(PrivatePaymentKey)
@@ -63,11 +66,10 @@ import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import JS.BigInt (BigInt)
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces
-type UtxoAmount = BigInt
+type UtxoAmount = BigNum
 
 -- | A list of UTxOs for a single wallet
 type InitialUTxOs = Array UtxoAmount
@@ -209,6 +211,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       lookups :: Lookups.ScriptLookups
       lookups = Lookups.unspentOutputs ourUtxos
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
+        <> Lookups.ownPaymentPubKeyHash ourPkh
 
       constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh
@@ -237,9 +240,8 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     Constraints.mustBeSignedBy payPkh
       <> Constraints.mustBeSignedBy (wrap $ unwrap stakePkh)
       <> foldMapWithIndex
-        ( \input (TransactionOutputWithRefScript { output }) ->
-            Constraints.mustPayToPubKeyAddress payPkh stakePkh
-              (unwrap output).amount
+        ( \input (TransactionOutput { amount }) ->
+            Constraints.mustPayToPubKeyAddress payPkh stakePkh amount
               <> Constraints.mustSpendPubKeyOutput input
         )
         utxos
@@ -255,9 +257,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
         payPkh <- liftedM "Could not get payment pubkeyhash" $
           head <$> ownPaymentPubKeyHashes
         networkId <- getNetworkId
-        addr <- liftContractM "Could not get wallet address" $
-          payPubKeyHashEnterpriseAddress networkId payPkh
-        utxos' <- utxosAt addr
+        utxos' <- utxosAt $ EnterpriseAddress
+          { networkId
+          , paymentCredential: PaymentCredential $ PubKeyHashCredential $ unwrap
+              payPkh
+          }
         pure $ { utxos: utxos', payPkh, stakePkh, wallet } : walletsInfo
 
 withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey

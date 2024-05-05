@@ -2,6 +2,7 @@ module Test.Ctl.Plutip.Contract.ClusterParameters (mkSuite, runTest) where
 
 import Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Test (ContractTest, InitialUTxOs, withWallets)
 import Contract.Test.Mote (TestPlanM)
 import Contract.Test.Plutip (testPlutipContracts)
@@ -13,7 +14,6 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
 import Mote (group, test)
 import Test.Ctl.Plutip.Common (config)
 import Test.Spec.Assertions (shouldEqual)
@@ -41,7 +41,7 @@ mkSuite ref = do
     let
       initialUtxos :: InitialUTxOs
       initialUtxos =
-        [ BigInt.fromInt 2_000_000_000, BigInt.fromInt 2_000_000_000 ]
+        [ BigNum.fromInt 2_000_000_000, BigNum.fromInt 2_000_000_000 ]
 
       distribution :: InitialUTxOs /\ InitialUTxOs
       distribution = initialUtxos /\ initialUtxos

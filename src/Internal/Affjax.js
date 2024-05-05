@@ -2,11 +2,16 @@ export const driver = nodeDriver;
 
 // we rely on the bundler to inject polyfills for the browser
 
+let nodeDriverCache = null;
+
 async function nodeDriver() {
+  if (nodeDriverCache !== null) {
+    return nodeDriverCache;
+  }
   const { default: XHR } = await import("xhr2");
   const { default: urllib } = await import("url");
 
-  return {
+  nodeDriverCache = {
     newXHR: function () {
       return new XHR();
     },
@@ -21,4 +26,6 @@ async function nodeDriver() {
       }
     }
   };
+
+  return nodeDriverCache;
 }

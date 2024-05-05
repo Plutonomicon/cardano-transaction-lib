@@ -13,23 +13,20 @@ module Ctl.Examples.PlutusV2.InlineDatum
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
+import Cardano.Types (Credential(ScriptHashCredential))
+import Cardano.Types.BigNum as BigNum
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData
-  ( Datum(Datum)
-  , PlutusData(Integer)
-  , Redeemer(Redeemer)
-  )
+import Contract.PlutusData (PlutusData(Integer), RedeemerDatum(RedeemerDatum))
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (Validator(Validator), ValidatorHash, validatorHash)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( OutputDatum(OutputDatum)
   , TransactionHash
   , TransactionInput(TransactionInput)
-  , TransactionOutputWithRefScript(TransactionOutputWithRefScript)
   , awaitTxConfirmed
   , submitTxFromConstraints
   )
@@ -64,15 +61,12 @@ plutusData = Integer $ BigInt.fromInt 31415927
 payToCheckDatumIsInline :: ValidatorHash -> Contract TransactionHash
 payToCheckDatumIsInline vhash = do
   let
-    datum :: Datum
-    datum = Datum plutusData
-
     constraints :: TxConstraints
     constraints =
-      Constraints.mustPayToScript vhash datum
+      Constraints.mustPayToScript vhash plutusData
         Constraints.DatumInline
         $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+        $ BigNum.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -85,7 +79,7 @@ spendFromCheckDatumIsInline
   -> TransactionHash
   -> Contract Unit
 spendFromCheckDatumIsInline vhash validator txId = do
-  let scriptAddress = scriptHashAddress vhash Nothing
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
   txInput <-
     liftM
@@ -98,8 +92,8 @@ spendFromCheckDatumIsInline vhash validator txId = do
       )
       (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
   let
-    redeemer :: Redeemer
-    redeemer = Redeemer plutusData
+    redeemer :: RedeemerDatum
+    redeemer = RedeemerDatum plutusData
 
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.validator validator
@@ -121,15 +115,13 @@ spendFromCheckDatumIsInline vhash validator txId = do
 payToCheckDatumIsInlineWrong :: ValidatorHash -> Contract TransactionHash
 payToCheckDatumIsInlineWrong vhash = do
   let
-    datum :: Datum
-    datum = Datum plutusData
 
     constraints :: TxConstraints
     constraints =
-      Constraints.mustPayToScript vhash datum
+      Constraints.mustPayToScript vhash plutusData
         Constraints.DatumWitness
         $ Value.lovelaceValueOf
-        $ BigInt.fromInt 2_000_000
+        $ BigNum.fromInt 2_000_000
 
     lookups :: Lookups.ScriptLookups
     lookups = mempty
@@ -141,19 +133,18 @@ readFromCheckDatumIsInline
   -> TransactionHash
   -> Contract Unit
 readFromCheckDatumIsInline vhash txId = do
-  let scriptAddress = scriptHashAddress vhash Nothing
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
-  TransactionOutputWithRefScript { output } <-
-    liftM
-      ( error
-          ( "The id "
-              <> show txId
-              <> " does not have output locked at: "
-              <> show scriptAddress
-          )
-      )
-      (snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
-  (unwrap output).datum `shouldEqual` OutputDatum (Datum plutusData)
+  output <- liftM
+    ( error
+        ( "The id "
+            <> show txId
+            <> " does not have output locked at: "
+            <> show scriptAddress
+        )
+    )
+    (snd <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
+  (unwrap output).datum `shouldEqual` Just (OutputDatum plutusData)
   logInfo' "Successfully read inline datum."
 
   where
@@ -165,6 +156,6 @@ checkDatumIsInlineScript :: Contract Validator
 checkDatumIsInlineScript = do
   liftMaybe (error "Error decoding checkDatumIsInline") do
     envelope <- decodeTextEnvelope checkDatumIsInline
-    Validator <$> plutusScriptV2FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 foreign import checkDatumIsInline :: String

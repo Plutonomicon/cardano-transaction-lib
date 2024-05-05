@@ -5,10 +5,10 @@ module Test.Ctl.CslGc
 import Prelude
 
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 
 foreign import testExternalMemLeakImpl
   :: CslGcTestConfig -> Effect (Promise Unit)

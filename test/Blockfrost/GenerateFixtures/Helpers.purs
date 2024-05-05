@@ -24,7 +24,6 @@ import Ctl.Internal.Contract.QueryBackend
   , defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   )
-import Ctl.Internal.Hashing (md5HashHex)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String (take) as String
 import Effect.Exception (throw)
@@ -33,6 +32,7 @@ import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (exists)
 import Node.Path (concat)
 import Node.Process (lookupEnv)
+import Test.Ctl.Internal.Hashing (md5HashHex)
 
 blockfrostBackend :: Effect BlockfrostBackend
 blockfrostBackend = do

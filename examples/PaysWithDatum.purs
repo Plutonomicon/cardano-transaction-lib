@@ -8,16 +8,15 @@ module Ctl.Examples.PaysWithDatum (contract, example, main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( Address
-  )
+import Cardano.Types (TransactionOutput)
+import Cardano.Types.BigNum as BigNum
+import Contract.Address (Address)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.PlutusData
   ( DataHash
-  , Datum(Datum)
   , OutputDatum(OutputDatum, OutputDatumHash)
   , PlutusData(Integer)
   )
@@ -33,7 +32,6 @@ import Contract.Test.Assert
   )
 import Contract.Transaction
   ( TransactionHash
-  , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , submitTxFromConstraints
   )
@@ -54,7 +52,7 @@ import JS.BigInt (fromInt) as BigInt
 type ContractResult =
   { address :: Address
   , txHash :: TransactionHash
-  , datum :: Datum
+  , datum :: PlutusData
   , datumHash :: DataHash
   }
 
@@ -73,11 +71,11 @@ contract = do
   address <- liftedM "Could not get own address" (head <$> getWalletAddresses)
 
   let
-    datum = Datum $ Integer $ BigInt.fromInt 42
+    datum = Integer $ BigInt.fromInt 42
     datumHash' = datumHash datum
 
     value :: Value
-    value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
+    value = Value.lovelaceValueOf (BigNum.fromInt 2_000_000)
 
     constraints :: Constraints.TxConstraints
     constraints =
@@ -126,6 +124,6 @@ assertTxCreatesOutputWithDatumHash = assertionToCheck
           hasOutputWithOutputDatum (OutputDatumHash datumHash) outputs
 
 hasOutputWithOutputDatum
-  :: OutputDatum -> Array TransactionOutputWithRefScript -> Boolean
+  :: OutputDatum -> Array TransactionOutput -> Boolean
 hasOutputWithOutputDatum datum =
-  any (eq datum <<< _.datum <<< unwrap <<< _.output <<< unwrap)
+  any (eq (Just datum) <<< _.datum <<< unwrap)

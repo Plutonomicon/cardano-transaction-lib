@@ -6,35 +6,41 @@ module Ctl.Examples.KeyWallet.MintsAndSendsToken (main) where
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Log (logInfo')
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value as Value
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
+import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = runKeyWalletContract_ \pkh lovelace unlock -> do
   logInfo' "Running Examples.KeyWallet.MintsAndSendsToken"
 
-  mp /\ cs <- Helpers.mkCurrencySymbol alwaysMintsPolicy
-  tn <- Helpers.mkTokenName "TheToken"
+  mp <- alwaysMintsPolicy
+  let cs = PlutusScript.hash mp
+  tn <- Helpers.mkAssetName "TheToken"
 
   let
     constraints :: Constraints.TxConstraints
     constraints = mconcat
-      [ Constraints.mustMintValue (Value.singleton cs tn one)
+      [ Constraints.mustMintValue (Mint.singleton cs tn Int.one)
       , Constraints.mustPayToPubKey pkh
-          (Value.lovelaceValueOf lovelace <> Value.singleton cs tn one)
+          ( unsafePartial $ Value.lovelaceValueOf lovelace <> Value.singleton cs
+              tn
+              BigNum.one
+          )
       ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
 
   txId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed txId

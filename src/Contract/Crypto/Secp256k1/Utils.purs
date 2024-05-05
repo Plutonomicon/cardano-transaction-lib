@@ -9,7 +9,7 @@ module Contract.Crypto.Secp256k1.Utils
 import Prelude
 
 import Contract.Crypto.Secp256k1 (Secp256k1PrivateKey)
-import Ctl.Internal.Types.ByteArray (ByteArray)
+import Data.ByteArray (ByteArray)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect (Effect)
@@ -25,7 +25,7 @@ randomSecp256k1PrivateKey = wrap <$> Utils.randomPrivateKey
 -- | Hash a byte array using sha256, for use with `signEcdsaSecp256k1`
 -- | and `verifyEcdsaSecp256k1Signature`.
 hashMessageSha256 :: ByteArray -> Aff MessageHash
-hashMessageSha256 = unwrap >>> sha256
+hashMessageSha256 = sha256
 
 -- | Deterministically derive a private key given an array of bytes.
 -- | Array size must be between 40 and 1024 bytes.
@@ -38,7 +38,7 @@ deriveSecp256k1PrivateKey = unwrap >>> hashToPrivateKey >>> map wrap
 -- | Attempt to convert a byte array containing a byte-representation of a
 -- | private key to a private key. Invalid values will be rejected.
 mkSecp256k1PrivateKey :: ByteArray -> Maybe Secp256k1PrivateKey
-mkSecp256k1PrivateKey = unwrap >>> ECDSA.mkPrivateKey >>> map wrap
+mkSecp256k1PrivateKey = ECDSA.mkPrivateKey >>> map wrap
 
 unSecp256k1PrivateKey :: Secp256k1PrivateKey -> ByteArray
-unSecp256k1PrivateKey = wrap <<< ECDSA.unPrivateKey <<< unwrap
+unSecp256k1PrivateKey = ECDSA.unPrivateKey <<< unwrap

@@ -5,29 +5,24 @@ module Test.Ctl.Plutip.Staking
 
 import Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , getNetworkId
+import Cardano.AsCbor (decodeCbor)
+import Cardano.Types (PoolParams(PoolParams), UnitInterval(UnitInterval))
+import Cardano.Types.Credential
+  ( Credential(ScriptHashCredential, PubKeyHashCredential)
   )
+import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types.PlutusScript as PlutusScript
+import Contract.Address (getNetworkId)
 import Contract.Backend.Ogmios (getPoolParameters)
-import Contract.Credential (Credential(ScriptCredential))
-import Contract.Hashing (plutusScriptStakeValidatorHash, publicKeyHash)
+import Contract.Hashing (publicKeyHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedM)
-import Contract.Numeric.BigNum as BigNum
+import Contract.Numeric.BigNum (fromInt, toBigInt) as BigNum
 import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
-import Contract.RewardAddress (stakePubKeyHashRewardAddress)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( NativeScript(ScriptPubkey, ScriptAny)
-  , NativeScriptHash(NativeScriptHash)
-  , NativeScriptStakeValidator(NativeScriptStakeValidator)
-  , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
-  , ValidatorHash(ValidatorHash)
-  , nativeScriptStakeValidatorHash
-  )
+import Contract.Scripts (NativeScript(ScriptPubkey, ScriptAny))
 import Contract.Staking
   ( getPoolIds
   , getPubKeyHashDelegationsAndRewards
@@ -43,7 +38,6 @@ import Contract.Transaction
   , balanceTx
   , mkPoolPubKeyHash
   , signTransaction
-  , vrfKeyHashFromBytes
   )
 import Contract.TxConstraints
   ( DatumPresence(DatumWitness)
@@ -72,12 +66,13 @@ import Contract.Wallet
   )
 import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
+import Ctl.Examples.Helpers (submitAndLog)
 import Ctl.Examples.IncludeDatum (only42Script)
 import Data.Array (head, (!!))
 import Data.Array as Array
 import Data.Foldable (for_)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (unwrap)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple (Tuple(Tuple))
@@ -95,12 +90,9 @@ import Effect.Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
-import JS.BigInt as BigInt
 import Mote (group, skip, test)
-import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Plutip.Common (config) as Common
 import Test.Ctl.Plutip.Common (privateStakeKey)
-import Test.Ctl.Plutip.Utils (submitAndLog)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
@@ -137,8 +129,8 @@ suite = do
       test "PubKey" do
         let
           distribution = withStakeKey privateStakeKey
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            [ BigNum.fromInt 1_000_000_000
+            , BigNum.fromInt 2_000_000_000
             ]
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
@@ -177,8 +169,8 @@ suite = do
       test "PlutusScript" do
         let
           distribution = withStakeKey privateStakeKey
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            [ BigNum.fromInt 1_000_000_000
+            , BigNum.fromInt 2_000_000_000
             ]
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
@@ -187,13 +179,11 @@ suite = do
               <*>
                 liftedM "Failed to get Stake PKH"
                   (join <<< head <$> ownStakePubKeyHashes)
-          validator1 <- alwaysSucceedsScript <#> unwrap >>>
-            PlutusScriptStakeValidator
-          validator2 <- only42Script <#> unwrap >>>
-            PlutusScriptStakeValidator
+          validator1 <- alwaysSucceedsScript
+          validator2 <- only42Script
           let
-            validatorHash1 = plutusScriptStakeValidatorHash validator1
-            validatorHash2 = plutusScriptStakeValidatorHash validator2
+            validatorHash1 = PlutusScript.hash validator1
+            validatorHash2 = PlutusScript.hash validator2
 
           -- Register
           do
@@ -229,8 +219,8 @@ suite = do
       test "NativeScript" do
         let
           distribution = withStakeKey privateStakeKey
-            [ BigInt.fromInt 1_000_000_000
-            , BigInt.fromInt 2_000_000_000
+            [ BigNum.fromInt 1_000_000_000
+            , BigNum.fromInt 2_000_000_000
             ]
         runPlutipContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
@@ -241,10 +231,8 @@ suite = do
                   (join <<< head <$> ownStakePubKeyHashes)
           let
             nativeScript = ScriptAny
-              [ ScriptPubkey $ unwrap $ unwrap alicePkh ]
-            validator = NativeScriptStakeValidator nativeScript
-            stakeValidatorHash =
-              nativeScriptStakeValidatorHash validator
+              [ ScriptPubkey $ unwrap alicePkh ]
+            stakeValidatorHash = NativeScript.hash nativeScript
 
           -- Register
           do
@@ -262,7 +250,7 @@ suite = do
           -- Deregister stake key
           do
             let
-              constraints = mustDeregisterStakeNativeScript validator
+              constraints = mustDeregisterStakeNativeScript nativeScript
 
               lookups :: Lookups.ScriptLookups
               lookups =
@@ -275,8 +263,8 @@ suite = do
     test "Pool registration & retirement" do
       let
         distribution = withStakeKey privateStakeKey
-          [ BigInt.fromInt 1_000_000_000
-          , BigInt.fromInt 2_000_000_000
+          [ BigNum.fromInt 1_000_000_000
+          , BigNum.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice -> withKeyWallet alice do
         alicePkh /\ aliceStakePkh <- Tuple
@@ -309,26 +297,26 @@ suite = do
           vrfKeyHash <- liftM (error "Unable to decode VRFKeyHash") do
             hexToByteArray
               "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-              >>= vrfKeyHashFromBytes
+              >>= wrap >>> decodeCbor
           let
-            rewardAccount = stakePubKeyHashRewardAddress networkId aliceStakePkh
+            rewardAccount =
+              { networkId
+              , stakeCredential: wrap $ PubKeyHashCredential $ unwrap
+                  aliceStakePkh
+              }
 
-            poolParams =
+            poolParams = PoolParams
               { operator: poolOperator
               , vrfKeyhash: vrfKeyHash -- needed to prove that the pool won the lottery
-              , pledge: unsafePartial $ fromJust $ BigNum.fromBigInt $
-                  BigInt.fromInt 1
-              , cost: unsafePartial $ fromJust $ BigNum.fromBigInt $
-                  BigInt.fromInt 1
-              , margin:
-                  { numerator: unsafePartial $ fromJust $ BigNum.fromBigInt $
-                      BigInt.fromInt 1
-                  , denominator: unsafePartial $ fromJust $ BigNum.fromBigInt $
-                      BigInt.fromInt 1
+              , pledge: BigNum.fromInt 1
+              , cost: BigNum.fromInt 1
+              , margin: UnitInterval
+                  { numerator: BigNum.fromInt 1
+                  , denominator: BigNum.fromInt 1
                   }
               , rewardAccount
               , poolOwners:
-                  [ PaymentPubKeyHash $ publicKeyHash $
+                  [ publicKeyHash $
                       publicKeyFromPrivateKey
                         (unwrap privateStakeKey)
                   ]
@@ -394,8 +382,8 @@ suite = do
       do
         let
           distribution = withStakeKey privateStakeKey
-            [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+            [ BigNum.fromInt 1_000_000_000
+            , BigNum.fromInt 2_000_000_000
             ]
         runPlutipContract config distribution \alice ->
           withKeyWallet alice do
@@ -403,22 +391,20 @@ suite = do
               <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
               <*> liftedM "Failed to get Stake PKH"
                 (join <<< head <$> ownStakePubKeyHashes)
-            validator <- alwaysSucceedsScript <#> unwrap >>>
-              PlutusScriptStakeValidator
+            validator <- alwaysSucceedsScript
             let
-              stakeValidatorHash = plutusScriptStakeValidatorHash validator
-              validatorHash = ValidatorHash $ unwrap stakeValidatorHash
+              validatorHash = PlutusScript.hash validator
 
             -- Lock funds on the stake script
             do
               let
                 constraints =
                   mustPayToScriptAddress validatorHash
-                    (ScriptCredential validatorHash)
+                    (ScriptHashCredential validatorHash)
                     unitDatum
                     DatumWitness
                     $ lovelaceValueOf
-                    $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
+                    $ BigNum.fromInt 1_000_000_000
 
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
@@ -430,7 +416,7 @@ suite = do
             do
               let
                 constraints =
-                  mustRegisterStakeScript stakeValidatorHash
+                  mustRegisterStakeScript validatorHash
 
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
@@ -460,10 +446,11 @@ suite = do
               -- timeout for tests.
               waitUntilRewards = do
                 mbDelegationsAndRewards <-
-                  getValidatorHashDelegationsAndRewards stakeValidatorHash
+                  getValidatorHashDelegationsAndRewards validatorHash
                 case mbDelegationsAndRewards of
-                  Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
-                    pure dels
+                  Just dels@{ rewards }
+                    | BigNum.toBigInt <<< unwrap <$> rewards > Just zero ->
+                        pure dels
                   _ -> do
                     liftAff $ delay $ Milliseconds 5000.0
                     waitUntilRewards
@@ -492,7 +479,7 @@ suite = do
             -- (usually) significantly longer.
             do
               { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
-                getValidatorHashDelegationsAndRewards stakeValidatorHash
+                getValidatorHashDelegationsAndRewards validatorHash
               rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
 
     skip $ test
@@ -500,12 +487,12 @@ suite = do
       do
         let
           distribution =
-            [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-            , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+            [ BigNum.fromInt 1_000_000_000
+            , BigNum.fromInt 2_000_000_000
             ] /\
               withStakeKey privateStakeKey
-                [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-                , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+                [ BigNum.fromInt 1_000_000_000
+                , BigNum.fromInt 2_000_000_000
                 ]
         runPlutipContract config distribution \(alice /\ bob) -> do
           bobPkh /\ bobStakePkh <- withKeyWallet bob do
@@ -515,10 +502,8 @@ suite = do
                 (join <<< head <$> ownStakePubKeyHashes)
           let
             nativeScript = ScriptAny
-              [ ScriptPubkey $ unwrap $ unwrap bobStakePkh ]
-            validator = NativeScriptStakeValidator nativeScript
-            stakeValidatorHash =
-              nativeScriptStakeValidatorHash validator
+              [ ScriptPubkey $ unwrap bobStakePkh ]
+            scriptHash = NativeScript.hash nativeScript
 
           -- Alice
           withKeyWallet alice do
@@ -528,12 +513,10 @@ suite = do
               let
                 constraints =
                   mustPayToNativeScriptAddress
-                    (NativeScriptHash $ unwrap stakeValidatorHash)
-                    ( ScriptCredential $ ValidatorHash $ unwrap
-                        stakeValidatorHash
-                    )
+                    scriptHash
+                    (ScriptHashCredential scriptHash)
                     $ lovelaceValueOf
-                    $ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 100
+                    $ BigNum.fromInt 1_000_000_000
 
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
@@ -545,7 +528,7 @@ suite = do
             do
               let
                 constraints =
-                  mustRegisterStakeScript stakeValidatorHash
+                  mustRegisterStakeScript scriptHash
 
                 lookups :: Lookups.ScriptLookups
                 lookups = mempty
@@ -564,7 +547,7 @@ suite = do
             do
               let
                 constraints =
-                  mustDelegateStakeNativeScript validator poolId
+                  mustDelegateStakeNativeScript nativeScript poolId
 
                 lookups :: Lookups.ScriptLookups
                 lookups =
@@ -579,10 +562,11 @@ suite = do
               -- timeout for tests.
               waitUntilRewards = do
                 mbDelegationsAndRewards <-
-                  getValidatorHashDelegationsAndRewards stakeValidatorHash
+                  getValidatorHashDelegationsAndRewards scriptHash
                 case mbDelegationsAndRewards of
-                  Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
-                    pure dels
+                  Just dels@{ rewards }
+                    | BigNum.toBigInt <<< unwrap <$> rewards > Just zero ->
+                        pure dels
                   _ -> do
                     liftAff $ delay $ Milliseconds 5000.0
                     waitUntilRewards
@@ -594,7 +578,7 @@ suite = do
             do
               let
                 constraints =
-                  mustWithdrawStakeNativeScript validator
+                  mustWithdrawStakeNativeScript nativeScript
 
                 lookups :: Lookups.ScriptLookups
                 lookups =
@@ -611,14 +595,14 @@ suite = do
             -- (usually) significantly longer.
             do
               { rewards: rewardsAfter } <- liftedM "Unable to get rewards" $
-                getValidatorHashDelegationsAndRewards stakeValidatorHash
+                getValidatorHashDelegationsAndRewards scriptHash
               rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
 
     skip $ test "PubKey: delegate to existing pool & withdraw rewards" do
       let
         distribution = withStakeKey privateStakeKey
-          [ BigInt.fromInt 1_000_000_000 * BigInt.fromInt 1_000
-          , BigInt.fromInt 2_000_000_000 * BigInt.fromInt 1_000
+          [ BigNum.fromInt 1_000_000_000
+          , BigNum.fromInt 2_000_000_000
           ]
       runPlutipContract config distribution \alice ->
         withKeyWallet alice do
@@ -661,10 +645,11 @@ suite = do
             -- timeout for tests.
             waitUntilRewards = do
               mbDelegationsAndRewards <-
-                getPubKeyHashDelegationsAndRewards aliceStakePkh
+                getPubKeyHashDelegationsAndRewards $ unwrap aliceStakePkh
               case mbDelegationsAndRewards of
-                Just dels@{ rewards } | unwrap <$> rewards > Just zero ->
-                  pure dels
+                Just dels@{ rewards }
+                  | BigNum.toBigInt <<< unwrap <$> rewards > Just zero ->
+                      pure dels
                 _ -> do
                   liftAff $ delay $ Milliseconds 5000.0
                   waitUntilRewards
@@ -697,7 +682,8 @@ suite = do
           do
             { rewards: rewardsAfter } <-
               liftedM "Unable to get rewards"
-                $ getPubKeyHashDelegationsAndRewards aliceStakePkh
+                $ getPubKeyHashDelegationsAndRewards
+                $ unwrap aliceStakePkh
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
   where
   config =

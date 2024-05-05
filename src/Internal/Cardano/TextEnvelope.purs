@@ -8,24 +8,17 @@ module Ctl.Internal.Cardano.TextEnvelope
       , Other
       )
   , decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  , plutusScriptV2FromEnvelope
+  , plutusScriptFromEnvelope
   ) where
 
 import Prelude
 
-import Aeson
-  ( class DecodeAeson
-  , decodeAeson
-  , parseJsonStringToAeson
-  )
-import Ctl.Internal.Types.ByteArray (ByteArray, hexToByteArray)
+import Aeson (class DecodeAeson, decodeAeson, parseJsonStringToAeson)
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.PlutusScript as PlutusScript
+import Control.Alt ((<|>))
 import Ctl.Internal.Types.Cbor (toByteArray)
-import Ctl.Internal.Types.Scripts
-  ( PlutusScript
-  , plutusV1Script
-  , plutusV2Script
-  )
+import Data.ByteArray (ByteArray, hexToByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (class Newtype, wrap)
@@ -35,7 +28,7 @@ data TextEnvelopeType
   | PlutusScriptV2
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
-  | Other String -- TextEnvelope we can parse from String, but cannot use now
+  | Other String
 
 derive instance Eq TextEnvelopeType
 
@@ -89,21 +82,14 @@ decodeTextEnvelope json = do
   pure $ wrap { type_, description, bytes: ba }
 
 plutusScriptFromEnvelope
-  :: TextEnvelopeType
-  -> (ByteArray -> PlutusScript)
-  -> TextEnvelope
-  -> Maybe PlutusScript
-plutusScriptFromEnvelope type_ bytesToScript (TextEnvelope envelope) = do
-  -- Check TextEnvelope type match to desirable
-  unless (envelope.type_ == type_) Nothing
-  pure $ bytesToScript envelope.bytes
-
-plutusScriptV1FromEnvelope
   :: TextEnvelope -> Maybe PlutusScript
-plutusScriptV1FromEnvelope envelope = do
-  plutusScriptFromEnvelope PlutusScriptV1 plutusV1Script envelope
+plutusScriptFromEnvelope (TextEnvelope envelope) =
+  plutusScriptV1FromEnvelope <|> plutusScriptV2FromEnvelope
+  where
+  plutusScriptV1FromEnvelope = do
+    unless (envelope.type_ == PlutusScriptV1) Nothing
+    pure $ PlutusScript.plutusV1Script $ wrap envelope.bytes
 
-plutusScriptV2FromEnvelope
-  :: TextEnvelope -> Maybe PlutusScript
-plutusScriptV2FromEnvelope envelope =
-  plutusScriptFromEnvelope PlutusScriptV2 plutusV2Script envelope
+  plutusScriptV2FromEnvelope = do
+    unless (envelope.type_ == PlutusScriptV2) Nothing
+    pure $ PlutusScript.plutusV2Script $ wrap envelope.bytes

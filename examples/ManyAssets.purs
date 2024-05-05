@@ -8,6 +8,9 @@ module Ctl.Examples.ManyAssets
 
 import Contract.Prelude
 
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -20,10 +23,9 @@ import Contract.Monad
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
-import Contract.Value (singleton) as Value
 import Contract.Wallet (getWalletUtxos)
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyV2)
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Data.Array (head, range) as Array
 import Data.Map (toUnfoldable) as Map
 
@@ -48,18 +50,21 @@ mkContractWithAssertions exampleName = do
     liftContractM "Utxo set is empty"
       (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
 
-  mp /\ cs <- Helpers.mkCurrencySymbol (alwaysMintsPolicyV2)
-  tns <- for (Array.range 0 600) \i -> Helpers.mkTokenName $ "CTLNFT" <> show i
+  mp <- alwaysMintsPolicyScriptV2
+  let cs = PlutusScript.hash mp
+  tns <- for (Array.range 0 600) \i -> Helpers.mkAssetName $ "CTLNFT" <> show i
 
   let
     constraints :: Constraints.TxConstraints
     constraints =
       fold
-        (tns <#> \tn -> Constraints.mustMintValue (Value.singleton cs tn one))
+        ( tns <#> \tn -> Constraints.mustMintValue
+            (Mint.singleton cs tn $ Int.fromInt one)
+        )
         <> Constraints.mustSpendPubKeyOutput oref
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
+    lookups = Lookups.plutusMintingPolicy mp
       <> Lookups.unspentOutputs utxos
 
   txHash <- submitTxFromConstraints lookups constraints

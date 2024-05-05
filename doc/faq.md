@@ -8,6 +8,7 @@ This document lists common problems encountered by CTL users and developers.
 
 - [Bundling-related](#bundling-related)
   - [Q: `lib.something` is not a function, why?](#q-libsomething-is-not-a-function-why)
+  - [Q: `Module parse failed: 'import' and 'export' may appear only with 'sourceType: module'` error?](#q-module-parse-failed-import-and-export-may-appear-only-with-sourcetype-module-error)
   - [Q: I see `spago: Error: Remote host not found`, why?](#q-i-see-spago-error-remote-host-not-found-why)
   - [Q: I see `WebAssembly module is included in initial chunk.` error, why?](#q-i-see-webassembly-module-is-included-in-initial-chunk-error-why)
   - [Q: I see `Cannot use 'import.meta' outside a module` error in the browser, why?](#q-i-see-cannot-use-importmeta-outside-a-module-error-in-the-browser-why)
@@ -38,6 +39,10 @@ This document lists common problems encountered by CTL users and developers.
 This is probably because npm is used directly. This is something users have reported when using `npm install` instead of having Nix manage the node dependencies (done automatically with `nix develop`, but if you have `node_modules` present in the working directory it will shadow the ones from the Nix store).
 
 You can prevent `npm` from ever installing to local `node_modules` by enabling the `packageLockOnly` flag in the `shell` argument to `purescriptProject`. When enabled, `npm i` will always act as if the `--package-lock-only` flag has been passed. This is not enabled by default, but we recommend enabling it.
+
+### Q: `Module parse failed: 'import' and 'export' may appear only with 'sourceType: module'` error?
+
+Make sure you've specified `"type": "module"` in your project's `package.json`.
 
 ### Q: I see `spago: Error: Remote host not found`, why?
 

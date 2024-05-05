@@ -22,6 +22,12 @@ module Ctl.Internal.Wallet.Spec
 
 import Prelude
 
+import Cardano.Wallet.HD
+  ( bip32ToPrivateKey
+  , cip1852AccountFromMnemonic
+  , derivePaymentKey
+  , deriveStakeKey
+  )
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Wallet
   ( Wallet(KeyWallet)
@@ -37,12 +43,6 @@ import Ctl.Internal.Wallet
       )
   , mkKeyWallet
   , mkWalletAff
-  )
-import Ctl.Internal.Wallet.Bip32
-  ( bip32ToPrivateKey
-  , cip1852AccountFromMnemonic
-  , derivePaymentKey
-  , deriveStakeKey
   )
 import Ctl.Internal.Wallet.Key
   ( KeyWallet
@@ -167,7 +167,8 @@ mkKeyWalletFromMnemonic phrase { accountIndex, addressIndex } stakeKeyPresence =
     let
       paymentKey = derivePaymentKey account addressIndex # bip32ToPrivateKey
       mbStakeKeySpec = case stakeKeyPresence of
-        WithStakeKey -> Just $ PrivateStakeKey $ deriveStakeKey account #
-          bip32ToPrivateKey
+        WithStakeKey -> Just $ PrivateStakeKey $
+          deriveStakeKey account #
+            bip32ToPrivateKey
         WithoutStakeKey -> Nothing
     pure $ privateKeysToKeyWallet (PrivatePaymentKey paymentKey) mbStakeKeySpec

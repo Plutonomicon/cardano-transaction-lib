@@ -22,35 +22,34 @@ module Ctl.Internal.BalanceTx.RedeemerIndex
 import Prelude
 
 import Aeson (class EncodeAeson, encodeAeson)
-import Ctl.Internal.Cardano.Types.Transaction
+import Cardano.Types
   ( Certificate
   , Redeemer(Redeemer)
+  , RewardAddress
+  , ScriptHash
   , Transaction(Transaction)
-  , TxBody(TxBody)
-  , _redeemers
-  , _witnessSet
+  , TransactionBody(TransactionBody)
   )
-import Ctl.Internal.Cardano.Types.Value (currencyMPSHash, unwrapNonAdaAsset)
-import Ctl.Internal.Types.PlutusData (PlutusData)
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
-import Ctl.Internal.Types.RewardAddress (RewardAddress)
-import Ctl.Internal.Types.Scripts (MintingPolicyHash)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.ExUnits as ExUnits
+import Cardano.Types.PlutusData (PlutusData)
+import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward))
+import Cardano.Types.TransactionInput (TransactionInput)
+import Ctl.Internal.Lens (_redeemers, _witnessSet)
 import Data.Array (findIndex)
 import Data.Either (Either, note)
-import Data.Foldable (fold)
 import Data.Generic.Rep (class Generic)
 import Data.Lens ((.~))
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), fromMaybe)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Maybe (Maybe, fromMaybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
 import Data.Traversable (for)
-import JS.BigInt as BigInt
 
 attachRedeemers :: Array Redeemer -> Transaction -> Transaction
-attachRedeemers redeemers = _witnessSet <<< _redeemers .~ Just redeemers
+attachRedeemers redeemers =
+  _witnessSet <<< _redeemers .~ redeemers
 
 attachIndexedRedeemers :: Array IndexedRedeemer -> Transaction -> Transaction
 attachIndexedRedeemers = attachRedeemers <<< map indexedRedeemerToRedeemer
@@ -83,15 +82,15 @@ unindexedRedeemerToRedeemer (UnindexedRedeemer { datum, purpose }) =
   Redeemer
     { tag: redeemerPurposeToRedeemerTag purpose
     , "data": datum
-    , index: zero
-    , exUnits: zero
+    , index: BigNum.zero
+    , exUnits: ExUnits.empty
     }
 
 -- | A redeemer with an index, but without `ExUnits`
 newtype IndexedRedeemer = IndexedRedeemer
   { tag :: RedeemerTag
   , datum :: PlutusData
-  , index :: Int
+  , index :: Prim.Int
   }
 
 derive instance Generic IndexedRedeemer _
@@ -107,9 +106,9 @@ indexedRedeemerToRedeemer :: IndexedRedeemer -> Redeemer
 indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
   Redeemer
     { tag
-    , index: BigInt.fromInt index
+    , index: BigNum.fromInt index
     , data: datum
-    , exUnits: { mem: zero, steps: zero }
+    , exUnits: ExUnits.empty
     }
 
 -- | Contains a value redeemer corresponds to, different for each possible
@@ -118,7 +117,7 @@ indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
 -- | is valid for the transaction.
 data RedeemerPurpose
   = ForSpend TransactionInput
-  | ForMint MintingPolicyHash
+  | ForMint ScriptHash
   | ForReward RewardAddress
   | ForCert Certificate
 
@@ -138,23 +137,22 @@ instance Show RedeemerPurpose where
 -- | Contains parts of a transaction that are important when indexing redeemers
 type RedeemersContext =
   { inputs :: Array TransactionInput
-  , mintingPolicyHashes :: Array MintingPolicyHash
+  , mintingPolicyHashes :: Array ScriptHash
   , rewardAddresses :: Array RewardAddress
   , certs :: Array Certificate
   }
 
 mkRedeemersContext :: Transaction -> RedeemersContext
 mkRedeemersContext
-  (Transaction { body: TxBody { inputs, mint, withdrawals, certs } }) =
-  { inputs: Set.toUnfoldable inputs
-  , mintingPolicyHashes: Set.toUnfoldable (Map.keys mintedAssets) <#>
-      currencyMPSHash
-  , rewardAddresses: Set.toUnfoldable $ Map.keys $ fromMaybe Map.empty
-      withdrawals
-  , certs: fold certs
+  (Transaction { body: TransactionBody { inputs, mint, withdrawals, certs } }) =
+  { inputs: Set.toUnfoldable $ Set.fromFoldable inputs
+  , mintingPolicyHashes:
+      Set.toUnfoldable $ Map.keys $ unwrap $ fromMaybe
+        (wrap Map.empty)
+        mint
+  , rewardAddresses: Set.toUnfoldable $ Map.keys $ withdrawals
+  , certs
   }
-  where
-  mintedAssets = fromMaybe Map.empty (map unwrapNonAdaAsset $ map unwrap mint)
 
 indexRedeemers
   :: RedeemersContext

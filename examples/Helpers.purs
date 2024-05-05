@@ -1,6 +1,5 @@
 module Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
+  ( mkAssetName
   , mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
   , mustPayToPubKeyStakeAddressWithScriptRef
@@ -9,35 +8,27 @@ module Ctl.Examples.Helpers
 
 import Contract.Prelude
 
-import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
+import Cardano.Types
+  ( AssetName
+  , PaymentPubKeyHash
+  , PlutusData
+  , ScriptRef
+  , StakePubKeyHash
+  , Transaction
+  , Value
+  )
+import Cardano.Types.AssetName as AssetName
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
-import Contract.PlutusData (Datum)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.Scripts (MintingPolicy)
-import Contract.Transaction
-  ( BalancedSignedTransaction
-  , ScriptRef
-  , awaitTxConfirmed
-  , submit
-  )
+import Contract.Transaction (awaitTxConfirmed, submit)
 import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName, Value)
-import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
 
-mkCurrencySymbol
-  :: Contract MintingPolicy
-  -> Contract (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  let cs = Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
-
-mkTokenName :: String -> Contract TokenName
-mkTokenName =
+mkAssetName :: String -> Contract AssetName
+mkAssetName =
   liftContractM "Cannot make token name"
-    <<< (Value.mkTokenName <=< byteArrayFromAscii)
+    <<< (AssetName.mkAssetName <=< byteArrayFromAscii)
 
 mustPayToPubKeyStakeAddress
   :: forall (i :: Type) (o :: Type)
@@ -54,7 +45,7 @@ mustPayToPubKeyStakeAddressWithDatum
   :: forall (i :: Type) (o :: Type)
    . PaymentPubKeyHash
   -> Maybe StakePubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> Value
   -> Constraints.TxConstraints
@@ -76,7 +67,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
   Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef
 
 submitAndLog
-  :: BalancedSignedTransaction -> Contract Unit
+  :: Transaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId

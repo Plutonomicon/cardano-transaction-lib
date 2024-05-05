@@ -6,42 +6,43 @@ module Ctl.Internal.BalanceTx.Collateral
 
 import Prelude
 
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except)
+import Cardano.Types
+  ( BigNum
+  , Coin
+  , MultiAsset
+  , Transaction
+  , TransactionOutput
+  , TransactionUnspentOutput
+  )
+import Cardano.Types.Address (Address)
+import Cardano.Types.BigNum (add, max, maxValue, sub, zero) as BigNum
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.Value (getMultiAsset, mkValue, valueToCoin) as Value
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral) as X
 import Ctl.Internal.BalanceTx.Error
-  ( BalanceTxError(CollateralReturnError, CollateralReturnMinAdaValueCalcError)
+  ( BalanceTxError(NumericOverflowError, CollateralReturnError)
   )
 import Ctl.Internal.BalanceTx.Types (BalanceTxM, askCoinsPerUtxoUnit)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction
-  , TransactionOutput
-  , _body
+import Ctl.Internal.Lens
+  ( _body
   , _collateral
   , _collateralReturn
   , _totalCollateral
   )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Cardano.Types.Value (Coin, NonAdaAsset)
-import Ctl.Internal.Cardano.Types.Value (getNonAdaAsset, mkValue, valueToCoin') as Value
-import Ctl.Internal.Serialization.Address (Address)
-import Ctl.Internal.Types.BigNum (maxValue, toBigInt) as BigNum
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum))
-import Data.Either (Either(Left, Right), note)
-import Data.Foldable (foldMap, foldl)
+import Data.Either (Either(Left, Right))
+import Data.Foldable (foldl)
+import Data.Lens ((.~))
 import Data.Lens.Setter ((?~))
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
-import Data.Ord.Max (Max(Max))
-import Effect.Class (liftEffect)
-import JS.BigInt (BigInt)
 
 addTxCollateral :: Array TransactionUnspentOutput -> Transaction -> Transaction
 addTxCollateral collateral transaction =
-  transaction # _body <<< _collateral ?~
+  transaction # _body <<< _collateral .~
     map (_.input <<< unwrap) collateral
 
 --------------------------------------------------------------------------------
@@ -59,33 +60,33 @@ addTxCollateralReturn
   -> Transaction
   -> Address
   -> BalanceTxM Transaction
-addTxCollateralReturn collateral transaction ownAddress =
-  let
-    collAdaValue :: BigInt
-    collAdaValue = foldl adaValue' zero collateral
-
-    collNonAdaAsset :: NonAdaAsset
-    collNonAdaAsset = foldMap nonAdaAsset collateral
-  in
-    case collAdaValue <= minRequiredCollateral && collNonAdaAsset == mempty of
-      true ->
-        pure transaction
-      false ->
-        setTxCollateralReturn collAdaValue collNonAdaAsset
+addTxCollateralReturn collateral transaction ownAddress = do
+  let maybeAdd acc n = BigNum.add (unwrap $ adaValue n) =<< acc
+  collAdaValue <- throwOnOverflow $ foldl maybeAdd (Just BigNum.zero) collateral
+  collMultiAsset <- throwOnOverflow $ MultiAsset.sum $ nonAdaAsset <$>
+    collateral
+  case
+    collAdaValue <= unwrap minRequiredCollateral && collMultiAsset ==
+      MultiAsset.empty
+    of
+    true ->
+      pure transaction
+    false ->
+      setTxCollateralReturn collAdaValue collMultiAsset
   where
   setTxCollateralReturn
-    :: BigInt
-    -> NonAdaAsset
+    :: BigNum
+    -> MultiAsset
     -> BalanceTxM Transaction
-  setTxCollateralReturn collAdaValue collNonAdaAsset = do
+  setTxCollateralReturn collAdaValue collMultiAsset = do
     let
       maxBigNumAdaValue :: Coin
-      maxBigNumAdaValue = wrap (BigNum.toBigInt BigNum.maxValue)
+      maxBigNumAdaValue = wrap BigNum.maxValue
 
       collReturnOutputRec =
         { address: ownAddress
-        , amount: Value.mkValue maxBigNumAdaValue collNonAdaAsset
-        , datum: NoOutputDatum
+        , amount: Value.mkValue maxBigNumAdaValue collMultiAsset
+        , datum: Nothing
         , scriptRef: Nothing
         }
 
@@ -94,30 +95,22 @@ addTxCollateralReturn collateral transaction ownAddress =
     -- Calculate the required min ada value for the collateral return output:
     minAdaValue <- do
       let returnAsTxOut = wrap collReturnOutputRec
-      ExceptT $
-        liftEffect (utxoMinAdaValue coinsPerUtxoUnit returnAsTxOut)
-          <#> note
-            ( CollateralReturnMinAdaValueCalcError coinsPerUtxoUnit
-                returnAsTxOut
-            )
-
+      pure $ utxoMinAdaValue coinsPerUtxoUnit returnAsTxOut
+    -- Determine the actual ada value of the collateral return output:
+    collReturnAda <- throwOnOverflow do
+      remaining <- BigNum.sub collAdaValue (unwrap minRequiredCollateral)
+      pure $ BigNum.max remaining minAdaValue
     let
-      -- Determine the actual ada value of the collateral return output:
-      collReturnAda :: BigInt
-      collReturnAda = unwrap $
-        Max (collAdaValue - minRequiredCollateral) <> Max minAdaValue
-
       -- Build the final collateral return output:
       collReturnOutput :: TransactionOutput
       collReturnOutput = wrap $
         collReturnOutputRec
-          { amount = Value.mkValue (wrap collReturnAda) collNonAdaAsset }
+          { amount = Value.mkValue (wrap collReturnAda) collMultiAsset }
 
-      totalCollateral :: BigInt
-      totalCollateral = collAdaValue - collReturnAda
+    totalCollateral <- throwOnOverflow $ BigNum.sub collAdaValue collReturnAda
 
     except $
-      case totalCollateral > zero of
+      case totalCollateral > BigNum.zero of
         true ->
           -- Set collateral return and total collateral:
           Right $
@@ -129,13 +122,15 @@ addTxCollateralReturn collateral transaction ownAddress =
 -- Helpers
 --------------------------------------------------------------------------------
 
-adaValue :: TransactionUnspentOutput -> BigInt
+adaValue :: TransactionUnspentOutput -> Coin
 adaValue =
-  Value.valueToCoin' <<< _.amount <<< unwrap <<< _.output <<< unwrap
+  Value.valueToCoin <<< _.amount <<< unwrap <<< _.output <<< unwrap
 
-adaValue' :: BigInt -> TransactionUnspentOutput -> BigInt
-adaValue' init = add init <<< adaValue
-
-nonAdaAsset :: TransactionUnspentOutput -> NonAdaAsset
+nonAdaAsset :: TransactionUnspentOutput -> MultiAsset
 nonAdaAsset =
-  Value.getNonAdaAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
+  Value.getMultiAsset <<< _.amount <<< unwrap <<< _.output <<< unwrap
+
+throwOnOverflow :: forall a. Maybe a -> BalanceTxM a
+throwOnOverflow = case _ of
+  Nothing -> throwError (NumericOverflowError Nothing)
+  Just a -> pure a
