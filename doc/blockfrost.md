@@ -210,4 +210,5 @@ This function is never used for constraints resolution, the only way to make it 
 
 ## See also
 
+- [key-directory test suite](./keydir.md) that is used under the hood by `executeContractTestsWithBlockfrost`. This test machinery can be used with any runtime backend, not just Blockfrost.
 - [Testing utilities for CTL](./test-utils.md).

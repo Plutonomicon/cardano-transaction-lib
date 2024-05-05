@@ -9,60 +9,75 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - [[Unreleased]](#unreleased)
   - [Added](#added)
+  - [Removed](#removed)
   - [Changed](#changed)
   - [Fixed](#fixed)
-  - [Removed](#removed)
-- [[v7.0.0]](#v700)
+- [[v8.0.0]](#v800)
   - [Added](#added-1)
   - [Changed](#changed-1)
   - [Fixed](#fixed-1)
   - [Removed](#removed-1)
-- [[v6.0.0]](#v600)
+- [[v7.0.0]](#v700)
   - [Added](#added-2)
   - [Changed](#changed-2)
   - [Fixed](#fixed-2)
   - [Removed](#removed-2)
-- [[v5.0.0]](#v500)
+- [[v6.0.0]](#v600)
   - [Added](#added-3)
   - [Changed](#changed-3)
-  - [Removed](#removed-3)
   - [Fixed](#fixed-3)
-  - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed-4)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Removed](#removed-3)
+- [[v5.0.0]](#v500)
   - [Added](#added-4)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-5)
   - [Changed](#changed-4)
   - [Removed](#removed-4)
+  - [Fixed](#fixed-4)
+  - [Runtime Dependencies](#runtime-dependencies)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-5)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-5)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-6)
   - [Changed](#changed-5)
   - [Removed](#removed-5)
   - [Fixed](#fixed-6)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-7)
   - [Changed](#changed-6)
   - [Removed](#removed-6)
   - [Fixed](#fixed-7)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-8)
-  - [Removed](#removed-7)
   - [Changed](#changed-7)
+  - [Removed](#removed-7)
   - [Fixed](#fixed-8)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-9)
+  - [Removed](#removed-8)
+  - [Changed](#changed-8)
   - [Fixed](#fixed-9)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-10)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-11)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## [Unreleased]
+
+### Added
+
+### Removed
+
+### Changed
+
+### Fixed
+
+## [v8.0.0]
 
 In this version, we've refactored CTL and split it into multiple reusable sub-packages, most notably:
 
@@ -200,6 +215,7 @@ Starting from this version, CTL does not use Plutus-domain types anymore. This c
    - `getTxFinalFee`
 - `Contract.Numeric.NatRatio` - the module was not used in the library.
 - `Contract.AssocMap` - use `Cardano.Plutus.Types.Map` from [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types)
+- CIP-25 metadata machinery (we need to keep the API surface thin for CTL)
 
 ## [v7.0.0]
 
