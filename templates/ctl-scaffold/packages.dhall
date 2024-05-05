@@ -316,7 +316,7 @@ let additions =
           , "tuples"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-plutus-types"
-        , version = "143902b37e218d843b9da473553ecf50686934cb"
+        , version = "v1.0.1"
         }
       , cardano-types =
         { dependencies =
@@ -362,7 +362,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "v1.0.0"
+        , version = "v1.0.1"
         }
       , cardano-message-signing =
         { dependencies =

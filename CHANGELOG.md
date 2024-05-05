@@ -75,7 +75,7 @@ See the [cardano-purescript repo](https://github.com/klntsky/cardano-purescript)
 
 These packages maintain their own public API, so the interfaces you should use are not necessarily namespaced under `Contract.*` anymore. E.g. `Cardano.Types.*` from `purescript-cardano-types` is public.
 
-Starting from this version, CTL does not use Plutus-domain types anymore. There are no more Plutus domain <-> Cardano domain conversion functions. This change comes with some downsides (e.g. the need to provide NetworkId in `Address`es), but the benefit of not caring about conversions for basic functionality will hopefully be more noticeable.
+Starting from this version, CTL does not use Plutus-domain types anymore. This change comes with some downsides (e.g. the need to provide NetworkId in `Address`es), but the benefit of not caring about conversions for basic functionality will hopefully be more noticeable. The only case when a conversion is needed is when the developer wants to use [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types), which is a package that offers `PlutusData` encodings compatible with Plutus. Its main purpose is to be used when there is a need to apply arguments to parametrized scripts.
 
 ### Added
 

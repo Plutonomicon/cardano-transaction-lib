@@ -259,11 +259,11 @@ let
 
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
-        version = "v1.0.0";
+        version = "v1.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-types";
-          rev = "effe2d08e66d54b3d4f695ea06130f1d8bdb2cdb";
-          sha256 = "1bqflb6yvyq1jn07zjs5zdsxw1ar84s1dsw96lb6v8g8gn42y14g";
+          rev = "715d4b2dcf8b29cb45001209ee562f758a513261";
+          sha256 = "1xcrdmpwd3qcdiyjfrj0z2dh56l4z1s97r25b6nhlqwmwz7qz19z";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1171,11 +1171,11 @@ let
 
     "plutus-types" = pkgs.stdenv.mkDerivation {
         name = "plutus-types";
-        version = "143902b37e218d843b9da473553ecf50686934cb";
+        version = "v1.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-plutus-types";
-          rev = "143902b37e218d843b9da473553ecf50686934cb";
-          sha256 = "116avsdgw6w392ip89lgcjcpqqznsr0h0s0gq335wakvpa6q45yf";
+          rev = "dfec05e2dee79ee8dafad3d698906966ea6628bb";
+          sha256 = "0milz16kdl1pd0i6b8ibxpacdd2r7p6n96gl1g6h41v9bccs69p9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
