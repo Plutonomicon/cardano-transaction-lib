@@ -35,7 +35,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustWithdrawStakeNativeScript
       , MustWithdrawStakePubKey
       )
-  , TxConstraints(TxConstraints)
+  , TxConstraints
   , mustBeSignedBy
   , mustDelegateStakeNativeScript
   , mustDelegateStakePlutusScript
@@ -83,7 +83,6 @@ module Ctl.Internal.Types.TxConstraints
   , mustWithdrawStakeNativeScript
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
-  , singleton
   , utxoWithScriptRef
   ) where
 
@@ -119,6 +118,8 @@ import Data.Foldable (class Foldable)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (singleton) as Map
+import Data.Array (singleton) as X
+import Data.Array (singleton)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
@@ -247,27 +248,11 @@ instance Show OutputConstraint where
   show = genericShow
 
 -- | Restrictions placed on the allocation of funds to outputs of transactions.
-newtype TxConstraints = TxConstraints
-  { constraints :: Array TxConstraint
-  }
-
-derive instance Generic TxConstraints _
-derive instance Newtype TxConstraints _
-derive newtype instance Eq TxConstraints
--- Array concatenation allowing duplicates like Plutus
-derive newtype instance Semigroup TxConstraints
-derive newtype instance Monoid TxConstraints
-
-instance Show TxConstraints where
-  show = genericShow
+type TxConstraints = Array TxConstraint
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
-
-singleton
-  :: TxConstraint -> TxConstraints
-singleton a = over TxConstraints _ { constraints = Array.singleton a } mempty
 
 -- | `mustValidateIn r` requires the transaction's time range to be contained
 -- |  in `r`.
@@ -421,8 +406,7 @@ mustPayToScriptWithScriptRef vh dt dtp scriptRef vl =
 -- | Note that the provided reference script does *not* necessarily need to
 -- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptAddressWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . ScriptHash
+  :: ScriptHash
   -> Credential
   -> PlutusData
   -> DatumPresence
@@ -434,16 +418,14 @@ mustPayToScriptAddressWithScriptRef vh credential dt dtp scriptRef vl =
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . ScriptHash
+  :: ScriptHash
   -> Value
   -> TxConstraints
 mustPayToNativeScript nsHash vl =
   singleton (MustPayToNativeScript nsHash Nothing vl)
 
 mustPayToNativeScriptAddress
-  :: forall (i :: Type) (o :: Type)
-   . ScriptHash
+  :: ScriptHash
   -> Credential
   -> Value
   -> TxConstraints
@@ -458,8 +440,7 @@ mustMintValue = mustMintValueWithRedeemer RedeemerDatum.unit
 -- | Mint the given `Value` by accessing non-Ada assets.
 -- | The amount to mint must not be zero.
 mustMintValueWithRedeemer
-  :: forall (i :: Type) (o :: Type)
-   . RedeemerDatum
+  :: RedeemerDatum
   -> Mint
   -> TxConstraints
 mustMintValueWithRedeemer redeemer =
@@ -481,8 +462,7 @@ mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph RedeemerDatum.unit
 
 mustMintCurrencyUsingNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: NativeScript
   -> AssetName
   -> Int.Int
   -> TxConstraints
@@ -578,16 +558,14 @@ mustRegisterStakeScript
 mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
 
 mustDeregisterStakePlutusScript
-  :: forall (i :: Type) (o :: Type)
-   . PlutusScript
+  :: PlutusScript
   -> RedeemerDatum
   -> TxConstraints
 mustDeregisterStakePlutusScript sv = singleton <<<
   MustDeregisterStakePlutusScript sv
 
 mustDeregisterStakeNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: NativeScript
   -> TxConstraints
 mustDeregisterStakeNativeScript = singleton <<< MustDeregisterStakeNativeScript
 
@@ -596,23 +574,20 @@ mustRegisterPool
 mustRegisterPool = singleton <<< MustRegisterPool
 
 mustRetirePool
-  :: forall (i :: Type) (o :: Type)
-   . PoolPubKeyHash
+  :: PoolPubKeyHash
   -> Epoch
   -> TxConstraints
 mustRetirePool poolPubKeyHash = singleton <<< MustRetirePool poolPubKeyHash
 
 mustDelegateStakePubKey
-  :: forall (i :: Type) (o :: Type)
-   . StakePubKeyHash
+  :: StakePubKeyHash
   -> PoolPubKeyHash
   -> TxConstraints
 mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
   ppkh
 
 mustDelegateStakePlutusScript
-  :: forall (i :: Type) (o :: Type)
-   . PlutusScript
+  :: PlutusScript
   -> RedeemerDatum
   -> PoolPubKeyHash
   -> TxConstraints
@@ -620,8 +595,7 @@ mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
   MustDelegateStakePlutusScript sv redeemer ppkh
 
 mustDelegateStakeNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: NativeScript
   -> PoolPubKeyHash
   -> TxConstraints
 mustDelegateStakeNativeScript sv ppkh =
@@ -632,16 +606,14 @@ mustWithdrawStakePubKey
 mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
 
 mustWithdrawStakePlutusScript
-  :: forall (i :: Type) (o :: Type)
-   . PlutusScript
+  :: PlutusScript
   -> RedeemerDatum
   -> TxConstraints
 mustWithdrawStakePlutusScript validator redeemer =
   singleton $ MustWithdrawStakePlutusScript validator redeemer
 
 mustWithdrawStakeNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: NativeScript
   -> TxConstraints
 mustWithdrawStakeNativeScript =
   singleton <<< MustWithdrawStakeNativeScript
@@ -651,13 +623,12 @@ mustWithdrawStakeNativeScript =
 -- | `mustSatisfyaAnyOf` is just a way to define a chain of try-catch expressions
 -- | in a declarative manner. It does not do any analysis of the constraints' semantics.
 mustSatisfyAnyOf
-  :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
+  :: forall (f :: Type -> Type)
    . Foldable f
   => f (TxConstraints)
   -> TxConstraints
 mustSatisfyAnyOf =
   Array.fromFoldable
-    >>> map (_.constraints <<< unwrap)
     >>> MustSatisfyAnyOf
     >>> singleton
 

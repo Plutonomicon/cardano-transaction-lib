@@ -166,7 +166,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustValidateIn
       , MustIncludeDatum
       )
-  , TxConstraints(TxConstraints)
+  , TxConstraints
   , utxoWithScriptRef
   )
 import Ctl.Internal.Types.Val as Val
@@ -207,8 +207,7 @@ import Prelude (join) as Bind
 processLookupsAndConstraints
   :: TxConstraints
   -> ConstraintsM (Either MkUnbalancedTxError Unit)
-processLookupsAndConstraints
-  (TxConstraints { constraints }) = runExceptT do
+processLookupsAndConstraints constraints = runExceptT do
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
   -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
   lookups <- use _lookups <#> unwrap

@@ -68,10 +68,9 @@ import Ctl.Internal.Types.TxConstraints
   , mustBeSignedBy
   , mustPayToPubKeyAddress
   , mustSpendPubKeyOutput
-  , singleton
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
-import Data.Array (catMaybes)
+import Data.Array (catMaybes, singleton)
 import Data.Array as Array
 import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, sum)
