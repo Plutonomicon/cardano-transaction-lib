@@ -1,168 +1,70 @@
 module Ctl.Internal.UseConstraints where
 
-import Data.Lens
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
 import Cardano.Types
-  ( Certificate
-      ( StakeDelegation
-      , PoolRetirement
-      , PoolRegistration
-      , StakeDeregistration
-      , StakeRegistration
-      )
-  , DataHash
+  ( DataHash
   , NetworkId
   , PlutusData
   , PlutusScript
-  , ScriptHash
-  , ScriptRef(NativeScriptRef, PlutusScriptRef)
-  , StakeCredential(StakeCredential)
+  , StakeCredential
   , Transaction
   , TransactionInput
-  , TransactionOutput(TransactionOutput)
-  , TransactionUnspentOutput(TransactionUnspentOutput)
-  , TransactionWitnessSet(TransactionWitnessSet)
-  , Value(Value)
+  , TransactionUnspentOutput
   )
-import Cardano.Types.Address
-  ( Address(BaseAddress, EnterpriseAddress)
-  , getPaymentCredential
-  )
-import Cardano.Types.Coin as Coin
-import Cardano.Types.CostModel (CostModel(..))
-import Cardano.Types.Credential
-  ( Credential(PubKeyHashCredential, ScriptHashCredential)
-  , asScriptHash
-  )
+import Cardano.Types.Address (getPaymentCredential)
+import Cardano.Types.Certificate (Certificate(..))
+import Cardano.Types.Coin (Coin)
+import Cardano.Types.CostModel (CostModel)
 import Cardano.Types.Credential as Credential
-import Cardano.Types.DataHash (hashPlutusData)
-import Cardano.Types.DataHash as Datum
 import Cardano.Types.DataHash as PlutusData
-import Cardano.Types.Int as Int
 import Cardano.Types.Language (Language)
-import Cardano.Types.Mint as Mint
-import Cardano.Types.MultiAsset as MultiAsset
-import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types.NativeScript (NativeScript)
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
-import Cardano.Types.PlutusScript as PlutusScript
-import Cardano.Types.Transaction as Transaction
-import Cardano.Types.TransactionBody (TransactionBody(..))
+import Cardano.Types.TransactionBody (TransactionBody)
 import Contract.Constraints
   ( Constraint(..)
   , Constraints
+  , CredentialWitness(..)
   , DatumWitness(..)
+  , OutputWitness(..)
   , RefInputAction(..)
   , ScriptWitness(..)
-  , SpendWitness(..)
   )
-import Contract.Log (logWarn')
-import Control.Monad (unless)
-import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (Except)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
-import Control.Monad.State (StateT(..))
-import Control.Monad.State.Trans (get, gets, put, runStateT)
-import Control.Monad.Trans.Class (lift)
+import Control.Monad.State (StateT)
+import Control.Monad.State.Trans (gets)
 import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
+  ( RedeemerPurpose(ForSpend, ForCert)
   , UnindexedRedeemer(UnindexedRedeemer)
-  , unindexedRedeemerToRedeemer
   )
-import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
-import Ctl.Internal.Helpers (liftEither, liftM, unsafeFromJust)
 import Ctl.Internal.Lens
   ( _address
   , _body
   , _certs
   , _datum
   , _inputs
-  , _isValid
-  , _mint
   , _nativeScripts
-  , _networkId
   , _output
-  , _outputs
   , _plutusData
   , _plutusScripts
   , _referenceInputs
   , _requiredSigners
-  , _scriptDataHash
   , _withdrawals
   , _witnessSet
   )
-import Ctl.Internal.ProcessConstraints.Error
-  ( MkUnbalancedTxError
-      ( CannotSatisfyAny
-      , CannotWithdrawRewardsNativeScript
-      , CannotWithdrawRewardsPlutusScript
-      , CannotWithdrawRewardsPubKey
-      , DatumWrongHash
-      , CannotMintZero
-      , ExpectedPlutusScriptGotNativeScript
-      , CannotFindDatum
-      , CannotQueryDatum
-      , CannotGetValidatorHashFromAddress
-      , TxOutRefWrongType
-      , CannotConvertPOSIXTimeRange
-      , NumericOverflow
-      , WrongRefScriptHash
-      , ValidatorHashNotFound
-      , MintingPolicyNotFound
-      , DatumNotFound
-      , TxOutRefNotFound
-      , CannotSolveTimeConstraints
-      , OwnPubKeyAndStakeKeyMissing
-      )
-  )
-import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
-import Ctl.Internal.QueryM.Pools
-  ( getPubKeyHashDelegationsAndRewards
-  , getValidatorHashDelegationsAndRewards
-  )
-import Ctl.Internal.Service.Error (ClientError, pprintClientError)
-import Ctl.Internal.Transaction
-  ( attachDatum
-  , attachNativeScript
-  , attachPlutusScript
-  , setScriptDataHash
-  )
-import Ctl.Internal.Types.Interval
-  ( POSIXTimeRange
-  , always
-  , intersection
-  , isEmpty
-  , posixTimeRangeToTransactionValidity
-  )
-import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Val as Val
-import Data.Array (cons, nub, partition, toUnfoldable, zip)
-import Data.Array (mapMaybe, singleton, (:)) as Array
-import Data.Bifunctor (lmap)
+import Data.Array (nub)
 import Data.ByteArray (byteArrayToHex)
-import Data.Either (Either(Left, Right), either, hush, isRight, note)
-import Data.Foldable (foldM)
-import Data.Lens (Lens', (%=), (%~), (.=), (.~), (<>=))
-import Data.Lens.Getter (to, use)
-import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens (Lens', (%=), (<>=), (^.))
 import Data.Lens.Record (prop)
-import Data.List (List(Nil, Cons))
-import Data.Map (Map, empty, fromFoldable, lookup, union)
+import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe, isJust, maybe)
-import Data.Newtype (over, unwrap, wrap)
+import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Data.Newtype (unwrap, wrap)
 import Data.Set as Set
-import Data.Traversable (for, traverse_)
-import Data.Tuple.Nested (type (/\), (/\))
-import Effect (Effect)
-import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
-import Effect.Exception (throw)
-import Partial.Unsafe (unsafePartial)
-import Prelude (join) as Bind
+import Data.Traversable (traverse_)
 import Type.Proxy (Proxy(..))
 
 type Context =
@@ -170,6 +72,7 @@ type Context =
   , costModels :: Map Language CostModel
   , redeemers :: Array UnindexedRedeemer
   , datums :: Array PlutusData
+  , networkId :: NetworkId
   }
 
 _transaction
@@ -184,21 +87,33 @@ _datums
   :: Lens' Context (Array PlutusData)
 _datums = prop (Proxy :: Proxy "datums")
 
-data ExpectedOutputType = ScriptHashOutput | PubKeyHashOutput
+data ExpectedWitnessType = ScriptHashWitness | PubKeyHashWitness
+
+explainExpectedWitnessType :: ExpectedWitnessType -> String
+explainExpectedWitnessType ScriptHashWitness = "ScriptHash"
+explainExpectedWitnessType PubKeyHashWitness = "PubKeyHash"
+
+data CredentialAction = StakeCert | Withdrawal | Minting
+
+explainCredentialAction :: CredentialAction -> String
+explainCredentialAction StakeCert = "This stake certificate"
+explainCredentialAction Withdrawal = "This stake rewards withdrawal"
+explainCredentialAction Minting = "This mint"
 
 data TxBuildError
   = WrongSpendWitnessType TransactionUnspentOutput
-  | QueryError ClientError
   | DatumHashLookupError DataHash
   | IncorrectDatumHash TransactionUnspentOutput PlutusData DataHash
-  | WrongOutputType ExpectedOutputType TransactionUnspentOutput
+  | WrongOutputType ExpectedWitnessType TransactionUnspentOutput
+  | WrongStakeCredentialType CredentialAction ExpectedWitnessType
+      StakeCredential
+  | DatumWitnessNotProvided TransactionUnspentOutput
+  | UnneededDatumWitness TransactionUnspentOutput DatumWitness
 
 explainTxBuildError :: TxBuildError -> String
 explainTxBuildError (WrongSpendWitnessType utxo) =
-  "SpendWitness is incompatible with the given output. The output does not contain a datum: "
+  "`OutputWitness` is incompatible with the given output. The output does not contain a datum: "
     <> show utxo
-explainTxBuildError (QueryError clientError) =
-  "Query error: " <> pprintClientError clientError
 explainTxBuildError (DatumHashLookupError dataHash) =
   "The UTxO you are trying to spend contains a datum hash. You didn't provide a `DatumWitness` value corresponding to this hash, so CTL tried to look it up, using a database of datums observed on-chain. This lookup failed. Datum hash: "
     <> show dataHash
@@ -211,9 +126,29 @@ explainTxBuildError (IncorrectDatumHash utxo datum datumHash) =
     <> byteArrayToHex (unwrap $ encodeCbor datumHash)
     <> "\n  UTxO: "
     <> show utxo
+explainTxBuildError (WrongOutputType ScriptHashWitness utxo) =
+  "The UTxO you provided requires a Script witness to unlock. UTxO: " <> show
+    utxo
+explainTxBuildError (WrongOutputType PubKeyHashWitness utxo) =
+  "The UTxO you provided requires a PubKeyHash witness to unlock. UTxO: " <>
+    show utxo
+explainTxBuildError
+  (WrongStakeCredentialType operation expWitnessType stakeCredential) =
+  explainCredentialAction operation <> " requires a "
+    <> explainExpectedWitnessType expWitnessType
+    <> " witness: "
+    <> show stakeCredential
+explainTxBuildError (DatumWitnessNotProvided utxo) =
+  "The UTxO you are trying to spend contains a datum hash. A matching `DatumWitness` is required. Use `getDatumByHash`. UTxO: "
+    <> show utxo
+explainTxBuildError (UnneededDatumWitness utxo witness) =
+  "You've provided an optional `DatumWitness`, but the output you are spending already contains an inline datum (not just a datum hash). You should omit the provided datum witness. You provided: "
+    <> show witness
+    <> " for the UTxO: "
+    <> show utxo
 explainTxBuildError _ = "TODO"
 
-type M a = StateT Context (ExceptT TxBuildError Contract) a
+type M a = StateT Context (Except TxBuildError) a
 
 processConstraints :: Constraints -> M Unit
 processConstraints = traverse_ processConstraint
@@ -224,48 +159,121 @@ processConstraint = case _ of
     _transaction <<< _body <<< _inputs
       %= pushUnique (unwrap utxo).input
     useSpendWitness utxo spendWitness
+  RegisterStake stakeCredential -> do
+    _transaction <<< _body <<< _certs %= pushUnique
+      (StakeRegistration stakeCredential)
+  IssueCertificate cert witness -> do
+    useCertificateWitness cert witness
+  WithdrawStake stakeCredential amount witness -> do
+    useWithdrawRewardsWitness stakeCredential amount witness
   RequireSignature ppkh -> do
     _transaction <<< _body <<< _requiredSigners <>=
       [ wrap $ unwrap $ unwrap ppkh ]
-  _ -> pure unit
+  RegisterPool poolParams -> do
+    _transaction <<< _body <<< _certs %= pushUnique
+      (PoolRegistration poolParams)
+  RetirePool poolKeyHash epoch -> do
+    _transaction <<< _body <<< _certs %= pushUnique
+      (PoolRetirement { poolKeyHash, epoch })
 
-assertOutputType :: ExpectedOutputType -> TransactionUnspentOutput -> M Unit
+assertOutputType :: ExpectedWitnessType -> TransactionUnspentOutput -> M Unit
 assertOutputType outputType utxo = do
   let
     mbCredential =
       (getPaymentCredential (utxo ^. _output <<< _address) <#> unwrap)
         >>= case outputType of
-          ScriptHashOutput -> Credential.asScriptHash >>> void
-          PubKeyHashOutput -> Credential.asPubKeyHash >>> void
+          ScriptHashWitness -> Credential.asScriptHash >>> void
+          PubKeyHashWitness -> Credential.asPubKeyHash >>> void
   unless (isJust mbCredential) do
     throwError $ WrongOutputType outputType utxo
 
+assertStakeCredentialType
+  :: CredentialAction -> ExpectedWitnessType -> StakeCredential -> M Unit
+assertStakeCredentialType action expectedType credential = do
+  let
+    mbCredential =
+      case expectedType of
+        ScriptHashWitness ->
+          void $ Credential.asScriptHash $ unwrap credential
+        PubKeyHashWitness ->
+          void $ Credential.asPubKeyHash $ unwrap credential
+  unless (isJust mbCredential) do
+    throwError $ WrongStakeCredentialType action expectedType credential
+
+useCertificateWitness :: Certificate -> CredentialWitness -> M Unit
+useCertificateWitness cert witness = do
+  _transaction <<< _body <<< _certs %= pushUnique cert
+  case cert of
+    StakeDeregistration stakeCredential -> do
+      useCertificateCredentialWitness cert witness
+      useCredentialWitness StakeCert stakeCredential witness
+    StakeDelegation stakeCredential _ -> do
+      useCertificateCredentialWitness cert witness
+      useCredentialWitness StakeCert stakeCredential witness
+    StakeRegistration _ -> pure unit
+    PoolRegistration _ -> pure unit
+    PoolRetirement _ -> pure unit
+    GenesisKeyDelegation _ -> pure unit
+    MoveInstantaneousRewardsCert _ -> pure unit
+
+useCertificateCredentialWitness :: Certificate -> CredentialWitness -> M Unit
+useCertificateCredentialWitness cert witness = do
+  case witness of
+    PubKeyCredential -> pure unit
+    NativeScriptCredential _nsWitness -> pure unit
+    PlutusScriptCredential _plutusScriptWitness redeemerDatum -> do
+      -- attach the redeemer
+      let
+        uiRedeemer = UnindexedRedeemer
+          { purpose: ForCert cert
+          , datum: unwrap redeemerDatum
+          }
+      _redeemers %= pushUnique uiRedeemer
+
+useCredentialWitness
+  :: CredentialAction -> StakeCredential -> CredentialWitness -> M Unit
+useCredentialWitness credentialAction stakeCredential witness = do
+  case witness of
+    PubKeyCredential -> do
+      assertStakeCredentialType credentialAction PubKeyHashWitness
+        stakeCredential
+    NativeScriptCredential nsWitness -> do
+      assertStakeCredentialType credentialAction ScriptHashWitness
+        stakeCredential
+      useNativeScriptWitness nsWitness
+    PlutusScriptCredential plutusScriptWitness _ -> do
+      assertStakeCredentialType credentialAction ScriptHashWitness
+        stakeCredential
+      usePlutusScriptWitness plutusScriptWitness
+
+useWithdrawRewardsWitness
+  :: StakeCredential -> Coin -> CredentialWitness -> M Unit
+useWithdrawRewardsWitness stakeCredential amount witness = do
+  useCredentialWitness Withdrawal stakeCredential witness
+  networkId <- gets _.networkId
+  let
+    rewardAddress =
+      { networkId
+      , stakeCredential
+      }
+  _transaction <<< _body <<< _withdrawals %=
+    Map.insert rewardAddress amount
+  pure unit
+
 -- | Tries to modify the transaction to make it consume a given output.
 -- | Uses a `SpendWitness` to try to satisfy spending requirements.
-useSpendWitness :: TransactionUnspentOutput -> SpendWitness -> M Unit
+useSpendWitness :: TransactionUnspentOutput -> OutputWitness -> M Unit
 useSpendWitness utxo = case _ of
   PubKeyOutput -> do
-    assertOutputType PubKeyHashOutput utxo
+    assertOutputType PubKeyHashWitness utxo
   NativeScriptOutput nsWitness -> do
-    assertOutputType ScriptHashOutput utxo
+    assertOutputType ScriptHashWitness utxo
     -- attach the script
-    case nsWitness of
-      ScriptValue ns -> do
-        _transaction <<< _witnessSet <<< _nativeScripts
-          %= pushUnique ns
-      ScriptReference refInput refInputAction -> do
-        _transaction <<< _body <<< refInputActionToLens refInputAction
-          %= pushUnique refInput
+    useNativeScriptWitness nsWitness
   PlutusScriptOutput plutusScriptWitness redeemerDatum mbDatumWitness -> do
-    assertOutputType ScriptHashOutput utxo
+    assertOutputType ScriptHashWitness utxo
     -- attach the script
-    case plutusScriptWitness of
-      ScriptValue ps -> do
-        _transaction <<< _witnessSet <<< _plutusScripts
-          %= pushUnique ps
-      ScriptReference input action -> do
-        _transaction <<< _body <<< refInputActionToLens action
-          %= pushUnique input
+    usePlutusScriptWitness plutusScriptWitness
     -- attach the datum
     useDatumWitnessForUtxo utxo mbDatumWitness
     -- attach the redeemer
@@ -276,31 +284,46 @@ useSpendWitness utxo = case _ of
         }
     _redeemers %= pushUnique uiRedeemer
 
+usePlutusScriptWitness :: ScriptWitness PlutusScript -> M Unit
+usePlutusScriptWitness =
+  case _ of
+    ScriptValue ps -> do
+      _transaction <<< _witnessSet <<< _plutusScripts
+        %= pushUnique ps
+    ScriptReference input action -> do
+      _transaction <<< _body <<< refInputActionToLens action
+        %= pushUnique input
+
+useNativeScriptWitness :: ScriptWitness NativeScript -> M Unit
+useNativeScriptWitness =
+  case _ of
+    ScriptValue ns -> do
+      _transaction <<< _witnessSet <<< _nativeScripts
+        %= pushUnique ns
+    ScriptReference refInput refInputAction -> do
+      _transaction <<< _body <<< refInputActionToLens refInputAction
+        %= pushUnique refInput
+
 -- | Tries to modify the transaction state to make it consume a given script output.
 -- | Uses a `DatumWitness` if the UTxO datum is provided as a hash.
 useDatumWitnessForUtxo
   :: TransactionUnspentOutput -> Maybe DatumWitness -> M Unit
-useDatumWitnessForUtxo utxo datumWitness = do
+useDatumWitnessForUtxo utxo mbDatumWitness = do
   case utxo ^. _output <<< _datum of
     -- script outputs must have a datum
     Nothing -> throwError $ WrongSpendWitnessType utxo
     -- if the datum is inline, we don't need to attach it as witness
-    Just (OutputDatum providedDatum) -> do
-      when (isJust datumWitness) do
-        logWarn' $
-          "You've provided an optional `DatumWitness` in `PlutusScriptWitness`, but the output you are spending already contains an inline datum (not just a datum hash). You can omit the provided datum witness. You provided: "
-            <> show providedDatum
+    Just (OutputDatum _providedDatum) -> do
+      case mbDatumWitness of
+        Just datumWitness ->
+          throwError $ UnneededDatumWitness utxo datumWitness
+        Nothing -> pure unit
     -- if the datum is provided as hash,
     Just (OutputDatumHash datumHash) ->
-      case datumWitness of
+      case mbDatumWitness of
         -- if the datum witness was not provided, look the datum up
         Nothing -> do
-          queryHandle <- lift $ lift $ getQueryHandle
-          mbDatum <- liftEither =<< lmap QueryError <$> do
-            liftAff $ queryHandle.getDatumByHash datumHash
-          datum <- liftM (DatumHashLookupError datumHash) mbDatum
-          _datums %= pushUnique datum
-          _transaction <<< _witnessSet <<< _plutusData %= pushUnique datum
+          throwError $ DatumWitnessNotProvided utxo
         -- if the datum was provided, check it's hash. if it matches the one
         -- specified in the output, use that datum.
         Just (DatumValue providedDatum)
