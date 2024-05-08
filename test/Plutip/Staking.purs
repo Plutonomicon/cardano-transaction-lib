@@ -7,10 +7,12 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Types (PoolParams(PoolParams), UnitInterval(UnitInterval))
+import Cardano.Types.BigInt as BigInt
 import Cardano.Types.Credential
   ( Credential(ScriptHashCredential, PubKeyHashCredential)
   )
 import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types.PlutusData (PlutusData(Integer))
 import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (getNetworkId)
 import Contract.Backend.Ogmios (getPoolParameters)
@@ -22,7 +24,7 @@ import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (NativeScript(ScriptPubkey, ScriptAny))
+import Contract.Scripts (NativeScript(ScriptPubkey, ScriptAny), applyArgs)
 import Contract.Staking
   ( getPoolIds
   , getPubKeyHashDelegationsAndRewards
@@ -70,6 +72,7 @@ import Ctl.Examples.Helpers (submitAndLog)
 import Ctl.Examples.IncludeDatum (only42Script)
 import Data.Array (head, (!!))
 import Data.Array as Array
+import Data.Either (hush)
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
@@ -180,7 +183,10 @@ suite = do
                 liftedM "Failed to get Stake PKH"
                   (join <<< head <$> ownStakePubKeyHashes)
           validator1 <- alwaysSucceedsScript
-          validator2 <- only42Script
+          validator2 <- do
+            only42 <- only42Script
+            liftM (error "failed to apply args") do
+              applyArgs only42 [ Integer $ BigInt.fromInt 42 ] # hush
           let
             validatorHash1 = PlutusScript.hash validator1
             validatorHash2 = PlutusScript.hash validator2
