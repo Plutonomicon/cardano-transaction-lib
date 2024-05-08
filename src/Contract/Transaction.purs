@@ -120,6 +120,7 @@ import Ctl.Internal.Lens
   , _inputs
   , _isValid
   , _mint
+  , _nativeScripts
   , _networkId
   , _output
   , _outputs

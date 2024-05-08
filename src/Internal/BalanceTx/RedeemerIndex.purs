@@ -64,6 +64,7 @@ newtype UnindexedRedeemer = UnindexedRedeemer
 derive instance Generic UnindexedRedeemer _
 derive instance Newtype UnindexedRedeemer _
 derive newtype instance Eq UnindexedRedeemer
+derive newtype instance Ord UnindexedRedeemer
 derive newtype instance EncodeAeson UnindexedRedeemer
 
 instance Show UnindexedRedeemer where
@@ -123,6 +124,7 @@ data RedeemerPurpose
 
 derive instance Generic RedeemerPurpose _
 derive instance Eq RedeemerPurpose
+derive instance Ord RedeemerPurpose
 
 instance EncodeAeson RedeemerPurpose where
   encodeAeson = case _ of
