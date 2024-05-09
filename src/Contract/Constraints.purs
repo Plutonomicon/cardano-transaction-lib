@@ -2,6 +2,7 @@ module Contract.Constraints where
 
 import Prelude
 
+import Cardano.Types (Slot)
 import Cardano.Types.Certificate (Certificate)
 import Cardano.Types.Coin (Coin)
 import Cardano.Types.Epoch (Epoch)
@@ -14,6 +15,7 @@ import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
 import Cardano.Types.StakeCredential (StakeCredential)
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
 import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionOutput (TransactionOutput)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
 import Data.Generic.Rep (class Generic)
@@ -22,14 +24,20 @@ import Data.Show.Generic (genericShow)
 
 type Constraints = Array Constraint
 
+-- TODO: consider using Maybe for witnesses
 data Constraint
   = SpendOutput TransactionUnspentOutput OutputWitness
+  | PayTo TransactionOutput
   | RegisterStake StakeCredential
   | IssueCertificate Certificate CredentialWitness
   | WithdrawStake StakeCredential Coin CredentialWitness
   | RequireSignature PaymentPubKeyHash
   | RegisterPool PoolParams
   | RetirePool PoolPubKeyHash Epoch
+  | IncludeDatum PlutusData
+  | SetTTL (Maybe Slot)
+  | SetValidityStartInterval (Maybe Slot)
+  | SetIsValid Boolean
 
 derive instance Generic Constraint _
 instance Show Constraint where

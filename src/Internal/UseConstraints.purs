@@ -46,18 +46,22 @@ import Ctl.Internal.Lens
   , _certs
   , _datum
   , _inputs
+  , _isValid
   , _nativeScripts
   , _output
+  , _outputs
   , _plutusData
   , _plutusScripts
   , _referenceInputs
   , _requiredSigners
+  , _ttl
+  , _validityStartInterval
   , _withdrawals
   , _witnessSet
   )
 import Data.Array (nub)
 import Data.ByteArray (byteArrayToHex)
-import Data.Lens (Lens', (%=), (<>=), (^.))
+import Data.Lens (Lens', (%=), (.=), (<>=), (^.))
 import Data.Lens.Record (prop)
 import Data.Map (Map)
 import Data.Map as Map
@@ -159,6 +163,11 @@ processConstraint = case _ of
     _transaction <<< _body <<< _inputs
       %= pushUnique (unwrap utxo).input
     useSpendWitness utxo spendWitness
+  PayTo utxo -> do
+    _transaction <<< _body <<< _outputs
+      -- intentionally not using pushUnique: we can
+      -- create multiple outputs of the same shape
+      %= flip append [ utxo ]
   RegisterStake stakeCredential -> do
     _transaction <<< _body <<< _certs %= pushUnique
       (StakeRegistration stakeCredential)
@@ -175,6 +184,16 @@ processConstraint = case _ of
   RetirePool poolKeyHash epoch -> do
     _transaction <<< _body <<< _certs %= pushUnique
       (PoolRetirement { poolKeyHash, epoch })
+  IncludeDatum datum -> do
+    _datums %= pushUnique datum
+    _transaction <<< _witnessSet <<< _plutusData
+      %= pushUnique datum
+  SetTTL slot -> do
+    _transaction <<< _body <<< _ttl .= slot
+  SetValidityStartInterval slot -> do
+    _transaction <<< _body <<< _validityStartInterval .= slot
+  SetIsValid isValid -> do
+    _transaction <<< _isValid .= isValid
 
 assertOutputType :: ExpectedWitnessType -> TransactionUnspentOutput -> M Unit
 assertOutputType outputType utxo = do
