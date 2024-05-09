@@ -32,17 +32,10 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
+    cardano-node.url = "github:input-output-hk/cardano-node/8.1.2";
 
     ogmios-nixos = {
       url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        cardano-node.follows = "cardano-node";
-        ogmios-src.follows = "ogmios";
-      };
     };
 
     ogmios = {
@@ -78,14 +71,6 @@
     # Plutip server related inputs
     plutip = {
       url = "github:mlabs-haskell/plutip?ref=gergely/version-bump";
-      # TODO(bladyjoker): Why are we overriding inputs here?
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        hackage-nix.follows = "hackage-nix";
-        cardano-node.follows = "cardano-node";
-      };
     };
 
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
