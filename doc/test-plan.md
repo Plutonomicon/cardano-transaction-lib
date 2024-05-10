@@ -207,7 +207,7 @@ Although such parsers are included implicitly in the example contracts defined a
   - Success is defined as a parse returning a `Just` or `Right` value, depending on the parser
     - Due to the large number and semi-random nature of our test fixtures, we do not require comparing parsed values to an expected result
   - If possible, we should validate a parser against a component's _own_ test fixtures
-    - See `Test.Ogmios.GenerateFixtures` for an example of this approach, which uses Ogmios' generated test vectors for our own testing
+    - See `Test.Ctl.Ogmios.GenerateFixtures` for an example of this approach, which uses Ogmios' generated test vectors for our own testing
 - **Integration tests**
   - These tests are run against a full runtime and make real requests to different components
   - These are intended to augment the unit tests described above and are a step below our full example contracts

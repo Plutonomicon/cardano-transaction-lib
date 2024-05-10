@@ -81,7 +81,7 @@ loadOgmiosFixture query hash = do
     [ "fixtures", "test", "ogmios", query <> "-" <> hash <> ".json" ]
 
 -- To update the eraSummaries and systemStart fixtures, run
--- `spago run --main Test.Ogmios.GenerateFixtures`
+-- `spago run --main Test.Ctl.Ogmios.GenerateFixtures`
 -- and take the hashes from the result and insert them here. Make sure the
 -- newly generated fixtures are stored in source control, i.e. git.
 
