@@ -49,8 +49,8 @@ import Ctl.Examples.PlutusV2.AlwaysSucceeds as AlwaysSucceedsV2
 import Ctl.Examples.PlutusV2.OneShotMinting as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs as ReferenceInputsV2
 import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts as ReferenceInputsAndScriptsV2
-import Ctl.Examples.PlutusV3.AlwaysSucceeds as AlwaysSucceedsV3
 import Ctl.Examples.PlutusV3.AlwaysMints as AlwaysMintsV3
+import Ctl.Examples.PlutusV3.AlwaysSucceeds as AlwaysSucceedsV3
 import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken as SendsToken
 import Ctl.Examples.SignData as SignData

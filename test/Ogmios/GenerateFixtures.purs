@@ -112,7 +112,6 @@ mkQuery' method = mkQueryWithArgs' method {}
 sanitiseMethod :: String -> String
 sanitiseMethod = replace (Pattern "/") (Replacement "-")
 
-
 -- | To execute `spago run --main Test.Ctl.Ogmios.GenerateFixtures`
 main :: Effect Unit
 main =
