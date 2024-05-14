@@ -22,6 +22,6 @@ alwaysSucceedsV3 =
 {
     "type": "PlutusScriptV3",
     "description": "",
-    "cborHex": "484701010022280001"
+    "cborHex": "454401010061"
 }
 """
