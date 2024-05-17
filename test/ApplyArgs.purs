@@ -2,23 +2,20 @@ module Test.Ctl.ApplyArgs (main, suite, contract) where
 
 import Contract.Prelude
 
+import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(List, Map, Bytes, Constr), toData)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Scripts (PlutusScript)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  , plutusScriptV2FromEnvelope
-  )
-import Control.Monad.Error.Class (class MonadError)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope, plutusScriptV2FromEnvelope, plutusScriptV3FromEnvelope)
+import Control.Monad.Error.Class (class MonadError, class MonadThrow, liftMaybe)
 import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Cardano.TextEnvelope (TextEnvelope)
 import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.List.Lazy (replicate)
 import Data.Profunctor.Choice (left)
-import Effect.Aff (Error, error, throwError)
+import Effect.Aff (Error, error)
 import Foreign.Object (Object)
 import Foreign.Object as Object
 import JS.BigInt (fromInt)
@@ -159,7 +156,38 @@ scriptSources =
     "cborHex": "5655010000333222220051200120014c0103d879800001"
 }
 """
-
+    , "always-succeeds-v3" /\
+        """
+{
+    "cborHex": "454401010061",
+    "description": "always-succeeds",
+    "type": "PlutusScriptV3"
+}
+"""
+    , "always-succeeds-v3-no-args" /\
+        """
+{
+    "type": "PlutusScriptV3",
+    "description": "",
+    "cborHex": "454401010061"
+}
+"""
+    , "always-succeeds-v3-unit" /\
+        """
+{
+    "type": "PlutusScriptV3",
+    "description": "",
+    "cborHex": "5845584301010022225329328001919192999ab9a3370e90000010c0004c011241035054310035573c0046aae74004dd5002c60011300149010350543500119319ab9c00180001"
+}
+"""
+    , "always-succeeds-v3-big-arg" /\
+        """
+{
+    "type": "PlutusScriptV3",
+    "description": "",
+    "cborHex": "59015859015501010032323232222259593232325333573466e1d200000218020a999ab9a3370e90010010c02854ccd5cd19b874801000860102a666ae68cdc3a400c004300215333573466e1d200800218000a999ab9a3370e900500109919191999199111401c0120070028008cc004030d5d0802998008071aba1004232230023758002601e446666aae7c004a00050033004357420053003357440048001998008058059aba100233300175a01a6ae84d5d10011119118011bab001300f2233335573e0025000232801c004c018d55ce800cc014d55cf000a60086ae8800c6ae8400a0006ae88004d5d100089804a481035054310035573c0046aae74004dd500246005180146005222218004600518012300089803249035054350011919192999ab9a3370e90000010c0004c015241035054310035573c0046aae74004dd5000919319ab9c00180010009191800800911980198010010009"
+}
+"""
     , "check-datum-is-inline" /\
         """
 {
@@ -271,6 +299,10 @@ contract = do
   traverse_ (uncurry $ compareApplied (v2 scriptSources)) $ Tuple
     <$> v2ScriptPaths
     <*> params
+  traverse_ (uncurry $ compareApplied (v3 scriptSources)) $ Tuple
+    <$> v3ScriptPaths
+    <*> params
+  logInfo' "success"
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = group "Applying params to scripts test" $ do
@@ -315,6 +347,11 @@ v2ScriptPaths =
   [ "always-succeeds-v2"
   , "one-shot-minting-v2"
   , "check-datum-is-inline"
+  ]
+
+v3ScriptPaths :: Array String
+v3ScriptPaths =
+  [ "always-succeeds-v3"
   ]
 
 params :: Array (Tuple (Array PlutusData) String)
@@ -366,16 +403,23 @@ v2
   -> m PlutusScript
 v2 scripts name = lookupAux plutusScriptV2FromEnvelope scripts name
 
-lookupAux
+v3
   :: forall (m :: Type -> Type)
    . MonadError Error m
+  => Object String
+  -> String
+  -> m PlutusScript
+v3 scripts name = lookupAux plutusScriptV3FromEnvelope scripts name
+
+lookupAux
+  :: forall (m :: Type -> Type)
+   . MonadThrow Error m
   => (TextEnvelope -> Maybe PlutusScript)
   -> Object String
   -> String
   -> m PlutusScript
-lookupAux decodeScript scripts name =
-  maybe (throwError $ error $ "Can't find the script with name " <> name) pure
-    $ do
-        txt <- Object.lookup name scripts
-        envelope <- decodeTextEnvelope txt
-        decodeScript envelope
+lookupAux decodeScript scripts name = do
+  let error_ msg = error $ msg <> name
+  (txt :: String) <- liftMaybe (error_ "Can't find the script with name ") $ Object.lookup name scripts
+  envelope <- liftMaybe (error_ "Can't decode envelope for script ") $ decodeTextEnvelope txt
+  liftMaybe (error_ "Can't decode script ") $ decodeScript envelope
