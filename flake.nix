@@ -130,10 +130,13 @@
             fi
             if [ ! -z $command ]
             then
-              echo "$path"
-              json=$(cat "$path")
-              md5=($(md5sum <<< "$json"))
-              printf "%s" "$json" > "ogmios/$command-$md5.json"
+              if [ -s $path ]
+              then
+                echo "$path"
+                json=$(cat "$path")
+                md5=($(md5sum <<< "$json"))
+                printf "%s" "$json" > "ogmios/$command-$md5.json"
+              fi
             fi
           }
           export -f on_file
@@ -203,6 +206,8 @@
             docs = project.buildPursDocs {
               packageName = projectName;
             };
+
+            ogmiosFixtures = buildOgmiosFixtures pkgs;
           };
 
           checks = {
