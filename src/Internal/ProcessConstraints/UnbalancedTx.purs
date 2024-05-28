@@ -4,7 +4,6 @@ module Ctl.Internal.ProcessConstraints.UnbalancedTx
 
 import Prelude hiding (join)
 
-import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.Transaction (Transaction)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionOutput (TransactionOutput)
@@ -19,8 +18,6 @@ import Data.Show.Generic (genericShow)
 newtype UnbalancedTx = UnbalancedTx
   { transaction :: Transaction -- the unbalanced tx created
   , usedUtxos :: Map TransactionInput TransactionOutput
-  , datums ::
-      Array PlutusData -- the array of ordered datums that require attaching
   , redeemers :: Array UnindexedRedeemer
   }
 

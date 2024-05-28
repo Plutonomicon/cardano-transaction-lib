@@ -905,10 +905,9 @@ mkUnbalancedTxImpl
   -> Contract (Either MkUnbalancedTxError UnbalancedTx)
 mkUnbalancedTxImpl scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ transaction, datums, redeemers, usedUtxos } ->
+    \{ transaction, redeemers, usedUtxos } ->
       wrap
         { transaction: stripRedeemers $ stripScriptDataHash transaction
-        , datums
         , redeemers
         , usedUtxos
         }
