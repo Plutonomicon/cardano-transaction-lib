@@ -25,7 +25,6 @@ import Type.Proxy (Proxy(Proxy))
 
 type UnattachedTx redeemer =
   { transaction :: Transaction
-  , datums :: Array PlutusData
   , redeemers :: Array redeemer
   }
 
@@ -39,11 +38,10 @@ type IndexedTx = UnattachedTx IndexedRedeemer
 type EvaluatedTx = UnattachedTx Redeemer
 
 indexTx :: UnindexedTx -> Either UnindexedRedeemer IndexedTx
-indexTx { transaction, datums, redeemers } = do
+indexTx { transaction, redeemers } = do
   redeemers' <- indexRedeemers (mkRedeemersContext transaction) redeemers
   pure
     { transaction: attachIndexedRedeemers redeemers' transaction
-    , datums
     , redeemers: redeemers'
     }
 

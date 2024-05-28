@@ -191,18 +191,13 @@ finalizeTransaction tx utxos = do
 
 reattachDatumsAndFakeRedeemers :: IndexedTx -> Transaction
 reattachDatumsAndFakeRedeemers
-  { transaction, datums, redeemers } =
+  { transaction, redeemers } =
   reattachDatumsAndRedeemers
-    { transaction, datums, redeemers: indexedRedeemerToRedeemer <$> redeemers }
+    { transaction, redeemers: indexedRedeemerToRedeemer <$> redeemers }
 
 reattachDatumsAndRedeemers :: EvaluatedTx -> Transaction
 reattachDatumsAndRedeemers
-  ({ transaction, datums, redeemers }) =
-  let
-    transaction' = attachRedeemers redeemers transaction
-  in
-    transaction'
-      # _witnessSet <<< _plutusData .~ datums
+  ({ transaction, redeemers }) = attachRedeemers redeemers transaction
 
 updateTxExecutionUnits
   :: IndexedTx

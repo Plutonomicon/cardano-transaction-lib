@@ -298,12 +298,11 @@ unUnbalancedTx
 unUnbalancedTx
   ( UnbalancedTx
       { transaction
-      , datums
       , redeemers
       , usedUtxos
       }
   ) =
-  { transaction, datums, redeemers } /\ usedUtxos
+  { transaction, redeemers } /\ usedUtxos
 
 -- | Attempts to balance an `UnbalancedTx` using the specified
 -- | balancer constraints.

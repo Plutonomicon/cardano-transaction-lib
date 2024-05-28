@@ -907,7 +907,7 @@ mkUnbalancedTxImpl scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
     \{ transaction, datums, redeemers, usedUtxos } ->
       wrap
-        { transaction: stripDatumsRedeemers $ stripScriptDataHash transaction
+        { transaction: stripRedeemers $ stripScriptDataHash transaction
         , datums
         , redeemers
         , usedUtxos
@@ -917,7 +917,7 @@ mkUnbalancedTxImpl scriptLookups txConstraints =
   stripScriptDataHash =
     _body <<< _scriptDataHash .~ Nothing
 
-  stripDatumsRedeemers :: Transaction -> Transaction
-  stripDatumsRedeemers = _witnessSet %~
+  stripRedeemers :: Transaction -> Transaction
+  stripRedeemers = _witnessSet %~
     over TransactionWitnessSet
-      _ { plutusData = [], redeemers = [] }
+      _ { redeemers = [] }
