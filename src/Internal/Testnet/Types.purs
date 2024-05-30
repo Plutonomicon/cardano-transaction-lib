@@ -4,11 +4,13 @@ module Internal.Testnet.Types
   , LoggingFormat (..)
   , OptionalStartupParams
   , defaultOptionalStartupParams
+  , defaultStartupParams
   ) where
 
 
 import Contract.Prelude
 import Data.Time.Duration (Milliseconds, Seconds)
+import Record as Record
 
 data Era
   = Byron
@@ -48,6 +50,10 @@ type CardanoTestnetStartupParams =
   { testnetMagic :: Int
   | OptionalStartupParams
   }
+
+defaultStartupParams :: {testnetMagic :: Int} -> CardanoTestnetStartupParams
+defaultStartupParams necessaryParams =
+  defaultOptionalStartupParams `Record.union` necessaryParams
 
 defaultOptionalStartupParams :: Record OptionalStartupParams 
 defaultOptionalStartupParams =
