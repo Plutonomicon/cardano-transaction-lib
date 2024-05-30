@@ -18,21 +18,34 @@ data Era
   | Alonzo
   | Babbage
 
+instance Show Era where
+  show = case _ of
+    Byron -> "byron_era"
+    Shelley -> "shelley_era"
+    Allegra -> "allegra_era"
+    Mary -> "mary_era"
+    Alonzo -> "alonzo_era"
+    Babbage -> "babbage_era"
+
 data LoggingFormat = LogAsJson | LogAsText
+instance Show LoggingFormat where
+  show = case _ of
+    LogAsJson -> "json" 
+    LogAsText -> "text"
 
 type OptionalStartupParams =
   ( numPoolNodes :: Maybe Int
   , era :: Maybe Era
   , epochLength :: Maybe Milliseconds
   , slotLength :: Maybe Seconds
+  , activeSlotsCoeff :: Maybe Number
+  , enableP2p :: Maybe Boolean
+  , nodeLoggingFormat :: Maybe LoggingFormat
   )
 
 -- | Command line params for the cardano-testnet executable
 type CardanoTestnetStartupParams =
   { testnetMagic :: Int
-  , activeSlotsCoeff :: Number
-  , enableP2p :: Boolean
-  , nodeLoggingFormat :: LoggingFormat
   | OptionalStartupParams
   }
 
@@ -42,4 +55,7 @@ defaultOptionalStartupParams =
   , era: Nothing
   , epochLength: Nothing
   , slotLength: Nothing
+  , activeSlotsCoeff: Nothing
+  , enableP2p: Nothing
+  , nodeLoggingFormat: Nothing
   }
