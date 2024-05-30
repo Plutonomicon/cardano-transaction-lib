@@ -11,6 +11,8 @@ module Ctl.Internal.Plutip.Spawn
   , cleanupTmpDir
   , cleanupOnSigint
   , removeOnSignal
+  , waitForSignal
+  , _rmdirSync
   ) where
 
 import Prelude
@@ -130,6 +132,12 @@ foreign import removeOnSignal :: OnSignalRef -> Effect Unit
 
 onSignal :: Signal -> Effect Unit -> Effect OnSignalRef
 onSignal sig = onSignalImpl (Signal.toString sig)
+
+-- | Just as onSignal, but Aff.
+waitForSignal :: Signal -> Aff Unit
+waitForSignal signal = makeAff \cont -> ado
+  onSignalRef <- onSignal signal $ cont $ pure unit
+  in Canceler \_ -> liftEffect $ removeOnSignal onSignalRef
 
 cleanupOnSigint :: FilePath -> FilePath -> Effect OnSignalRef
 cleanupOnSigint workingDir testClusterDir = do
