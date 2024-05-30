@@ -32,7 +32,39 @@ import Node.ChildProcess (defaultSpawnOptions)
 -- |       If you wish to only set up Testnet once, ensure all tests that are passed
 -- |       to `testTestnetContracts` are wrapped in a single group.
 testTestnetContracts
-  :: TestnetConfig
+  :: PlutipConfig
   -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
-testTestnetContracts testnetCfg tp = do
+testTestnetContracts testnetCfg tp = unsafeThrow "sdfsd"
+
+checkTestnet :: PlutipConfig -> Aff Unit
+checkTestnet cfg = unsafeThrow "checkTestnet"
+
+-- | Start the plutip cluster, initializing the state with the given
+-- | UTxO distribution. Also initializes an extra payment key (aka
+-- | `ourKey`) with some UTxOs for use with further plutip
+-- | setup. `ourKey` has funds proportional to the total amount of the
+-- | UTxOs in the passed distribution, so it can be used to handle
+-- | transaction fees.
+startTestnet
+  :: PlutipConfig
+  -> InitialUTxODistribution
+  -> Aff (ManagedProcess /\ PrivatePaymentKey /\ ClusterStartupParameters)
+startTestnet = unsafeThrow "startTestnet"
+
+stopTestnet :: PlutipConfig -> Aff StopClusterResponse
+stopTestnet cfg = unsafeThrow "stopTestnet"
+
+-- | Kill a process and wait for it to stop listening on a specific port.
+stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
+stopChildProcessWithPort = unsafeThrow "stopChildProcessWithPort"
+
+-- | Run a `ContractTestPlan` in a (single) Testnet environment.
+-- | Supports wallet reuse - see docs on sharing wallet state between
+-- | wallets in `doc/plutip-testing.md`.
+runTestnetTestPlan
+  :: PlutipConfig
+  -> ContractTestPlan
+  -> TestPlanM (Aff Unit) Unit
+runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = unsafeThrow "runTestnetTestPlan"
+
