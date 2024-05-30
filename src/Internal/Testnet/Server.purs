@@ -64,13 +64,15 @@ runTestnetTestPlan
 runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = unsafeThrow "runTestnetTestPlan"
 
 -- | Runs cardano-testnet executable with provided params.
-startCardanoTestnet
-  :: CardanoTestnetStartupParams
+spawnCardanoTestnet ::
+  CardanoTestnetStartupParams
+  -> { workdir :: FilePath }
   -> Aff ManagedProcess
-startCardanoTestnet params = spawn
+spawnCardanoTestnet params {workdir} = do
+  spawn
     "cardano-testnet"
     options
-    defaultSpawnOptions
+    (defaultSpawnOptions {cwd = Just workdir})
     Nothing
  where
     flag :: String -> String
