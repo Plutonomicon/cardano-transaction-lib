@@ -49,7 +49,7 @@ startTestnet
   :: PlutipConfig
   -> InitialUTxODistribution
   -> Aff (ManagedProcess /\ PrivatePaymentKey /\ ClusterStartupParameters)
-startTestnet = unsafeThrow "startTestnet"
+startTestnet _ = unsafeThrow "startTestnet"
 
 stopTestnet :: PlutipConfig -> Aff StopClusterResponse
 stopTestnet cfg = unsafeThrow "stopTestnet"
