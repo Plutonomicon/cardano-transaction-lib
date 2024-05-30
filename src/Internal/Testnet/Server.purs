@@ -68,3 +68,27 @@ runTestnetTestPlan
   -> TestPlanM (Aff Unit) Unit
 runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = unsafeThrow "runTestnetTestPlan"
 
+startCardanoTestnet
+  :: CardanoTestnetStartupParams
+  -> Aff ManagedProcess
+startCardanoTestnet params = spawn
+    "cardano-testnet"
+    options
+    defaultSpawnOptions
+    Nothing
+ where
+    flag :: String -> String
+    flag name = "--" <> name
+    option :: forall a. Show a => String -> a -> String
+    option name value = flag name <> " " <> show value
+    options :: Array String
+    options = catMaybes
+      [ Just $ option "testnet-magic" params.testnetMagic
+      , flag <<< show <$> params.era
+      , option "active-slots-coeff" <$> params.activeSlotsCoeff
+      , option "enable-p2p" <$> params.enableP2p
+      , option "node-logging-format" <$> params.nodeLoggingFormat
+      , option "num-pool-nodes" <$> params.numPoolNodes
+      , option "epoch-length" <$> params.epochLength
+      , option "slot-length" <$> params.slotLength
+      ]
