@@ -68,6 +68,7 @@ runTestnetTestPlan
   -> TestPlanM (Aff Unit) Unit
 runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = unsafeThrow "runTestnetTestPlan"
 
+-- | Runs cardano-testnet executable with provided params.
 startCardanoTestnet
   :: CardanoTestnetStartupParams
   -> Aff ManagedProcess
