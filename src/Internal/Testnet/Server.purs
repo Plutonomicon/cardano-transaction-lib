@@ -2,7 +2,6 @@ module Ctl.Internal.Testnet.Server
   ( checkTestnet
   , runTestnetTestPlan
   , startTestnet
-  , stopChildProcessWithPort
   , stopTestnet
   , testTestnetContracts
   )
@@ -54,10 +53,6 @@ startTestnet = unsafeThrow "startTestnet"
 
 stopTestnet :: PlutipConfig -> Aff StopClusterResponse
 stopTestnet cfg = unsafeThrow "stopTestnet"
-
--- | Kill a process and wait for it to stop listening on a specific port.
-stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
-stopChildProcessWithPort = unsafeThrow "stopChildProcessWithPort"
 
 -- | Run a `ContractTestPlan` in a (single) Testnet environment.
 -- | Supports wallet reuse - see docs on sharing wallet state between
