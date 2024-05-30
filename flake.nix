@@ -95,6 +95,7 @@
     { self
     , nixpkgs
     , cardano-configurations
+    , cardano-node
     , ...
     }@inputs:
     let
@@ -190,6 +191,7 @@
                 nodePackages.eslint
                 nodePackages.prettier
                 blockfrost-backend-ryo
+                cardano-node.packages.${system}.cardano-testnet
               ];
             };
           };
