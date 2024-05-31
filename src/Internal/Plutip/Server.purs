@@ -57,7 +57,7 @@ import Ctl.Internal.Plutip.Types
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
-import Ctl.Internal.Plutip.Utils (tmpdir)
+import Ctl.Internal.Plutip.Utils (tmpdir, runCleanup)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
@@ -91,7 +91,7 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
+import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -202,11 +202,6 @@ runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
     Mote.bracket { before, after } $ flip mapTest act \t -> do
       result <- liftEffect $ Ref.read resultRef >>= liftEither
       t result
-
-runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
-runCleanup cleanupRef = do
-  cleanups <- liftEffect $ Ref.read cleanupRef
-  sequence_ (try <$> cleanups)
 
 -- Similar to `catchError` but preserves the error
 whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
