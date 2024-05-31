@@ -2,6 +2,7 @@ module Ctl.Internal.Plutip.Server
   ( checkPlutipServer
   , runPlutipContract
   , runPlutipTestPlan
+  , startOgmios
   , startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
@@ -57,8 +58,9 @@ import Ctl.Internal.Plutip.Types
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
-import Ctl.Internal.Plutip.Utils (tmpdir, runCleanup)
+import Ctl.Internal.Plutip.Utils (runCleanup, tmpdir)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , pprintClientError
@@ -538,7 +540,14 @@ stopPlutipCluster cfg = do
             body
   either (liftEffect <<< throw <<< show) pure res
 
-startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
+startOgmios
+  :: forall r r'
+   . { ogmiosConfig :: ServerConfig | r }
+  -> { nodeSocketPath :: FilePath
+     , nodeConfigPath :: FilePath
+     | r'
+     }
+  -> Aff ManagedProcess
 startOgmios cfg params = do
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
