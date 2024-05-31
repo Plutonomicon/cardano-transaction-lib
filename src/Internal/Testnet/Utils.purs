@@ -6,7 +6,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Utils (EventSource, onLine, waitForEvent)
+import Ctl.Internal.Plutip.Utils (EventSource, narrowEventSource, waitForEvent)
 import Data.Monoid.Alternate (Alternate(..))
 import Data.String (Pattern(..), stripPrefix)
 import Effect.Aff (Fiber, forkAff)
@@ -14,7 +14,6 @@ import Effect.Exception (Error, error)
 import Internal.Testnet.Types (Event(..), StartupFailure(..), TestnetPaths)
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
-import Node.Stream (Readable)
 
 parseEvent :: String -> Maybe Event
 parseEvent = case _ of
@@ -45,8 +44,8 @@ waitFor source f = flip tailRecM unit \_ -> do
     Just a -> Done a
     Nothing -> Loop unit
 
-onTestnetEvent :: forall a. Readable a -> Effect (EventSource Event)
-onTestnetEvent = flip onLine parseEvent
+onTestnetEvent :: EventSource String -> Effect (EventSource Event)
+onTestnetEvent = narrowEventSource parseEvent
 
 toAbsolutePaths :: { workdir :: FilePath } -> TestnetPaths -> TestnetPaths
 toAbsolutePaths { workdir } { testnetDirectory, nodeSocketPath, nodeConfigPath } =
