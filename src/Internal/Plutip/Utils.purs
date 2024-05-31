@@ -6,13 +6,14 @@ module Ctl.Internal.Plutip.Utils
   , handleLines
   , EventSource(EventSource)
   , onLine
+  , makeEventSource
+  , narrowEventSource
   , waitForEvent
   ) where
 
 import Contract.Prelude
 
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
-import Data.Map (Map)
 import Data.Map as Map
 import Effect (Effect)
 import Effect.Aff (try)
@@ -83,7 +84,32 @@ onLine
    . Readable a
   -> (String -> Maybe b)
   -> Effect (EventSource b)
-onLine readable filterLine = do
+onLine readable =
+  map _.eventSource <<< makeEventSource \cont -> do
+    interface <- RL.createInterface readable mempty
+    flip RL.setLineHandler interface cont
+
+-- | Create an event source based on another event source, but
+-- with smaller variety of events.
+narrowEventSource
+  :: forall a b
+   . (a -> Maybe b)
+  -> EventSource a
+  -> Effect (EventSource b)
+narrowEventSource filter (EventSource { subscribe }) = do
+  { eventSource: EventSource source@{ cancel }
+  , outcome: { unsubscribe }
+  } <- flip makeEventSource filter \registerHandler ->
+    subscribe $ registerHandler <<< _.event
+  pure $ EventSource source
+    { cancel = cancel *> unsubscribe }
+
+makeEventSource
+  :: forall a b c
+   . ((a -> Effect Unit) -> Effect c)
+  -> (a -> Maybe b)
+  -> Effect { eventSource :: EventSource b, outcome :: c }
+makeEventSource subscribeOnEvents filter = do
   { isCanceled: getIsCanceled, cancel } <- makeCanceler
   handlers <- Ref.new $ Map.fromFoldable []
   let
@@ -94,15 +120,17 @@ onLine readable filterLine = do
         handlers
       pure { unsubscribe }
 
-  interface <- RL.createInterface readable mempty
-  flip RL.setLineHandler interface \line ->
-    case filterLine line of
-      Just a -> do
+  outcome <- subscribeOnEvents \a ->
+    case filter a of
+      Just b -> do
         isCanceled <- getIsCanceled
         unless isCanceled do
-          Ref.read handlers >>= traverse_ (_ $ a)
+          Ref.read handlers >>= traverse_ (_ $ b)
       Nothing -> pure unit
-  pure $ EventSource { cancel, subscribe }
+  pure
+    { eventSource: EventSource { cancel, subscribe }
+    , outcome
+    }
 
 makeCanceler :: Effect { cancel :: Effect Unit, isCanceled :: Effect Boolean }
 makeCanceler = do
