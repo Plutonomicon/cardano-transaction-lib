@@ -1,15 +1,19 @@
 module Internal.Testnet.Types
   ( CardanoTestnetStartupParams
-  , Era (..)
-  , LoggingFormat (..)
+  , Era(..)
+  , LoggingFormat(..)
+  , TestnetPaths
+  , Event(..)
+  , StartupFailure(..)
   , OptionalStartupParams
   , defaultOptionalStartupParams
   , defaultStartupParams
   ) where
 
-
 import Contract.Prelude
+
 import Data.Time.Duration (Milliseconds, Seconds)
+import Node.Path (FilePath)
 import Record as Record
 
 data Era
@@ -19,6 +23,26 @@ data Era
   | Mary
   | Alonzo
   | Babbage
+
+data StartupFailure
+  = SpawnFailed
+  | InitializationFailed
+
+derive instance Eq StartupFailure
+derive instance Generic StartupFailure _
+instance Show StartupFailure where
+  show = genericShow
+
+data Event
+  = Ready
+  | Finished
+  | Failed
+  | StartupFailed StartupFailure
+
+derive instance Eq Event
+derive instance Generic Event _
+instance Show Event where
+  show = genericShow
 
 instance Show Era where
   show = case _ of
@@ -30,9 +54,10 @@ instance Show Era where
     Babbage -> "babbage_era"
 
 data LoggingFormat = LogAsJson | LogAsText
+
 instance Show LoggingFormat where
   show = case _ of
-    LogAsJson -> "json" 
+    LogAsJson -> "json"
     LogAsText -> "text"
 
 type OptionalStartupParams =
@@ -51,11 +76,11 @@ type CardanoTestnetStartupParams =
   | OptionalStartupParams
   }
 
-defaultStartupParams :: {testnetMagic :: Int} -> CardanoTestnetStartupParams
+defaultStartupParams :: { testnetMagic :: Int } -> CardanoTestnetStartupParams
 defaultStartupParams necessaryParams =
   defaultOptionalStartupParams `Record.union` necessaryParams
 
-defaultOptionalStartupParams :: Record OptionalStartupParams 
+defaultOptionalStartupParams :: Record OptionalStartupParams
 defaultOptionalStartupParams =
   { numPoolNodes: Nothing
   , era: Nothing
@@ -64,4 +89,10 @@ defaultOptionalStartupParams =
   , activeSlotsCoeff: Nothing
   , enableP2p: Nothing
   , nodeLoggingFormat: Nothing
+  }
+
+type TestnetPaths =
+  { testnetDirectory :: FilePath
+  , nodeConfigPath :: FilePath
+  , nodeSocketPath :: FilePath
   }
