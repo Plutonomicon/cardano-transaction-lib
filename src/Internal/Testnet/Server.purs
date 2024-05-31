@@ -10,30 +10,32 @@ module Ctl.Internal.Testnet.Server
 
 import Prelude
 
-import Contract.Prelude (liftEffect)
+import Contract.Prelude (Effect, either, liftEffect, log, traverse)
 import Contract.Test.Mote (TestPlanM)
+import Control.Monad.Error.Class (catchError)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), _rmdirSync, spawn, waitForSignal)
+import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), _rmdirSync, spawn)
 import Ctl.Internal.Plutip.Types (ClusterStartupParameters, PlutipConfig, StopClusterResponse)
-import Ctl.Internal.Plutip.Utils (mkDirIfNotExists, tmpdir)
+import Ctl.Internal.Plutip.Utils (mkDirIfNotExists, tmpdir, waitForLine)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Test.ContractTest (ContractTest, ContractTestPlan(ContractTestPlan))
 import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
-import Data.Array (catMaybes)
+import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Posix.Signal (Signal(..))
 import Data.Tuple.Nested (type (/\))
-import Effect.Aff (Aff, forkAff)
+import Effect.Aff (Aff, try)
+import Effect.Exception (message)
 import Effect.Exception.Unsafe (unsafeThrow)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
 import Internal.Testnet.Types (CardanoTestnetStartupParams)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (appendTextFile)
-import Node.FS.Sync as FS
 import Node.Path (FilePath)
-import Node.ReadLine as RL
+import Node.Process (lookupEnv)
 
 -- | Run several `Contract`s in tests in a (single) Testnet environment (cardano-testnet, kupo, etc.).
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
@@ -80,6 +82,7 @@ spawnCardanoTestnet ::
   -> { workdir :: FilePath }
   -> Aff ManagedProcess
 spawnCardanoTestnet params {workdir} = do
+  log $ show {options}  
   spawn
     "cardano-testnet"
     options
@@ -88,40 +91,90 @@ spawnCardanoTestnet params {workdir} = do
   where
     flag :: String -> String
     flag name = "--" <> name
-    option :: forall a. Show a => String -> a -> String
-    option name value = flag name <> " " <> show value
+    option :: forall a. Show a => String -> a -> Array String
+    option name value = [flag name, show value]
+    moption  :: forall a. Show a => String -> Maybe a -> Array String
+    moption name value = option name =<< Array.fromFoldable value
     options :: Array String
-    options = catMaybes
-      [ Just $ option "testnet-magic" params.testnetMagic
-      , flag <<< show <$> params.era
-      , option "active-slots-coeff" <$> params.activeSlotsCoeff
-      , option "enable-p2p" <$> params.enableP2p
-      , option "node-logging-format" <$> params.nodeLoggingFormat
-      , option "num-pool-nodes" <$> params.numPoolNodes
-      , option "epoch-length" <$> params.epochLength
-      , option "slot-length" <$> params.slotLength
+    options = join
+      [ ["cardano"]
+      , option "testnet-magic" params.testnetMagic
+      , Array.fromFoldable $ flag <<< show <$> params.era
+      , moption "active-slots-coeff" params.activeSlotsCoeff
+      , moption "enable-p2p" params.enableP2p
+      , moption "node-logging-format" params.nodeLoggingFormat
+      , moption "num-pool-nodes" params.numPoolNodes
+      , moption "epoch-length" params.epochLength
+      , moption "slot-length" params.slotLength
       ]
 
 startCardanoTestnet
   :: CardanoTestnetStartupParams
+  -> Ref (Array (Aff Unit))
   -> Aff { process :: ManagedProcess, workdir :: FilePath }
-startCardanoTestnet params = do
+startCardanoTestnet params cleanupRef = do
+  
   tmp <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
-    workdir = tmp <</>> randomStr <> "-cardano-testnet-instance" 
+    workdir = tmp <</>> "cardano-testnet-instance-" <> randomStr
   liftEffect $ mkDirIfNotExists workdir
-  -- clean up on SIGINT
-  _ <- forkAff do
-    waitForSignal SIGINT
-    liftEffect $ _rmdirSync workdir
 
-  process@(ManagedProcess _ child _) <- spawnCardanoTestnet params {workdir} 
+  -- clean up on SIGINT
+  shouldCleanup <- liftEffect $ lookupEnv "TESTNET_CLEANUP_WORKDIR" <#> case _ of
+    Just "0" -> false
+    _ -> true
+  when shouldCleanup
+    $ liftEffect
+    $ addCleanup cleanupRef 
+    $ liftEffect do
+      log "Cleaning up workidr"
+      _rmdirSync workdir
+
+  process <- spawnCardanoTestnet params {workdir} 
 
   -- forward node's stdout
-  do
-    interface <- liftEffect $ RL.createInterface (Node.ChildProcess.stdout child) mempty
-    liftEffect $ flip RL.setLineHandler interface
-      \str -> appendTextFile UTF8 (workdir <</>> "log") $ "[cardano-testnet]: " <> str
+  liftEffect $ redirectLogging
+    { stdout:
+      { logFile: Just $ workdir <</>> "cardano-testnet-stdout.log"
+      , handleLine: log <<< append "[cardano-node-stdout]"
+      }
+    , stderr:
+      { logFile: Just $ workdir <</>> "cardano-testnet-stderr.log"
+      , handleLine: log <<< append "[cardano-node-stderr]"
+      }
+    }
+    process
 
   pure {process, workdir}
+
+redirectLogging ::
+  { stderr ::
+    { logFile :: Maybe FilePath
+    , handleLine :: String -> Effect Unit
+    }
+  , stdout ::
+    { logFile :: Maybe FilePath
+    , handleLine :: String -> Effect Unit
+    }
+  } ->
+  ManagedProcess ->
+  Effect Unit
+redirectLogging {stderr,stdout} (ManagedProcess _ child _) = do
+    _ <- redirect stdout (Node.ChildProcess.stdout child)
+    _ <- redirect stderr (Node.ChildProcess.stderr child)
+    pure unit
+  where
+    redirect {handleLine, logFile} readable = waitForLine readable \str ->
+      flip catchError (message >>> append "redirectLogging: callback error: " >>> log)
+        $ void do
+          handleLine str
+          traverse (flip (appendTextFile UTF8) $ str <> "\n") logFile
+
+addCleanup :: Ref (Array (Aff Unit)) -> Aff Unit -> Effect Unit
+addCleanup = map void <<< flip (Ref.modify <<< Array.cons <<< reportError)
+  where
+    reportError action = do
+      try action >>= either
+        (log <<< append "[addCleanup][error]: " <<< message)
+        (const $ pure unit)
