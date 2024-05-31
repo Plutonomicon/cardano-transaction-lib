@@ -29,13 +29,14 @@ import Effect.Exception (message)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
+import Foreign.Object as Object
 import Internal.Testnet.Types (CardanoTestnetStartupParams)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (appendTextFile)
 import Node.Path (FilePath)
-import Node.Process (lookupEnv)
+import Node.Process as Node.Process
 
 -- | Run several `Contract`s in tests in a (single) Testnet environment (cardano-testnet, kupo, etc.).
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
@@ -82,11 +83,11 @@ spawnCardanoTestnet ::
   -> { workdir :: FilePath }
   -> Aff ManagedProcess
 spawnCardanoTestnet params {workdir} = do
-  log $ show {options}  
+  env <- Object.insert "TMPDIR" workdir <$> liftEffect Node.Process.getEnv
   spawn
     "cardano-testnet"
     options
-    (defaultSpawnOptions {cwd = Just workdir})
+    (defaultSpawnOptions {cwd = Just workdir, env = Just env })
     Nothing
   where
     flag :: String -> String
@@ -121,7 +122,7 @@ startCardanoTestnet params cleanupRef = do
   liftEffect $ mkDirIfNotExists workdir
 
   -- clean up on SIGINT
-  shouldCleanup <- liftEffect $ lookupEnv "TESTNET_CLEANUP_WORKDIR" <#> case _ of
+  shouldCleanup <- liftEffect $ Node.Process.lookupEnv "TESTNET_CLEANUP_WORKDIR" <#> case _ of
     Just "0" -> false
     _ -> true
   when shouldCleanup
