@@ -23,7 +23,8 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils
-  ( mkDirIfNotExists
+  ( EventSource
+  , mkDirIfNotExists
   , onLine
   , tmpdir
   , waitForEvent
@@ -80,6 +81,11 @@ testTestnetContracts testnetCfg tp = unsafeThrow "sdfsd"
 checkTestnet :: PlutipConfig -> Aff Unit
 checkTestnet cfg = unsafeThrow "checkTestnet"
 
+type Channels a =
+  { stderr :: EventSource a
+  , stdout :: EventSource a
+  }
+
 -- | Start the plutip cluster, initializing the state with the given
 -- | UTxO distribution. Also initializes an extra payment key (aka
 -- | `ourKey`) with some UTxOs for use with further plutip
@@ -93,44 +99,62 @@ startTestnetCluster
      , kupoConfig :: ServerConfig
      }
   -> Aff
-       { ogmios :: ManagedProcess
-       , testnet :: ManagedProcess
+       { ogmios ::
+           { process :: ManagedProcess
+           , channels :: Channels String
+           }
+       , testnet ::
+           { process :: ManagedProcess
+           , channels :: Channels String
+           }
        , paths :: TestnetPaths
        }
 startTestnetCluster startupParams cleanupRef cfg = do
-  { process: process@(ManagedProcess _ testnetProcess _)
+  { testnet
+  , channels
   , workdir
   } <- startCardanoTestnet startupParams cleanupRef
-  source <- liftEffect
-    $ onTestnetEvent
-    $ Node.ChildProcess.stdout testnetProcess
+  source <- liftEffect $ onTestnetEvent channels.stdout
+
+  -- it will crash right here if testnet process will die
   waitFor source case _ of
     Ready -> Just unit
     _ -> Nothing
-  paths <- liftEffect
-    $
-      map (toAbsolutePaths { workdir })
-        <<< liftEither
-        =<< findTestnetPaths { workdir }
-  ogmios <- after
-    (startOgmios cfg paths)
-    \(ManagedProcess _ ogmiosProcess _) ->
-      liftEffect
-        $ addCleanup cleanupRef
-        $ liftEffect
-        $ Node.ChildProcess.kill SIGINT ogmiosProcess
-  redirectLogging
-    { stderr:
-        { logFile: Just $ workdir <</>> "ogmios-stderr.log"
-        , handleLine: append "[ogmios][error]: " >>> log
-        }
-    , stdout:
-        { logFile: Just $ workdir <</>> "ogmios-stdout.log"
-        , handleLine: append "[ogmios]: " >>> log
-        }
+
+  paths <-
+    map (toAbsolutePaths { workdir })
+      <<< liftEither
+      =<< liftEffect (findTestnetPaths { workdir })
+
+  ogmios <- startOgmios' { paths, workdir }
+
+  pure
+    { paths
+    , ogmios: ogmios
+    , testnet: { process: testnet, channels }
     }
-    ogmios
-  pure { paths, ogmios, testnet: process }
+  where
+  startOgmios' { paths, workdir } = do
+    ogmios <- after
+      (startOgmios cfg paths)
+      \(ManagedProcess _ ogmiosProcess _) ->
+        liftEffect
+          $ addCleanup cleanupRef
+          $ liftEffect
+          $ Node.ChildProcess.kill SIGINT ogmiosProcess
+
+    ogmiosChannels <- liftEffect $ getChannels ogmios
+    redirectLogging
+      ogmiosChannels.stderr
+      { logFile: Just $ workdir <</>> "ogmios-stderr.log"
+      , handleLine: append "[ogmios][error]: " >>> log
+      }
+    redirectLogging
+      ogmiosChannels.stdout
+      { logFile: Just $ workdir <</>> "ogmios-stdout.log"
+      , handleLine: append "[ogmios]: " >>> log
+      }
+    pure { process: ogmios, channels: ogmiosChannels }
 
 startTestnet
   :: PlutipConfig
@@ -191,7 +215,11 @@ startCardanoTestnet
   :: CardanoTestnetStartupParams
   -> Ref (Array (Aff Unit))
   -> Aff
-       { process :: ManagedProcess
+       { testnet :: ManagedProcess
+       , channels ::
+           { stderr :: EventSource String
+           , stdout :: EventSource String
+           }
        , workdir :: FilePath
        }
 startCardanoTestnet params cleanupRef = do
@@ -214,51 +242,50 @@ startCardanoTestnet params cleanupRef = do
         log "Cleaning up workidr"
         _rmdirSync workdir
 
-  process <- spawnCardanoTestnet params { workdir }
+  testnet <- spawnCardanoTestnet params { workdir }
+  channels <- liftEffect $ getChannels testnet
 
   -- forward node's stdout
-  redirectLogging
-    { stdout:
-        { logFile: Just $ workdir <</>> "cardano-testnet-stdout.log"
-        , handleLine: log <<< append "[cardano-node-stdout]"
-        }
-    , stderr:
-        { logFile: Just $ workdir <</>> "cardano-testnet-stderr.log"
-        , handleLine: log <<< append "[cardano-node-stderr]"
-        }
+  redirectLogging channels.stdout
+    { logFile: Just $ workdir <</>> "cardano-testnet-stdout.log"
+    , handleLine: log <<< append "[cardano-node-stdout]"
     }
-    process
+  redirectLogging channels.stderr
+    { logFile: Just $ workdir <</>> "cardano-testnet-stderr.log"
+    , handleLine: log <<< append "[cardano-node-stderr]"
+    }
 
-  pure { process, workdir }
+  pure { testnet, workdir, channels }
+
+getChannels
+  :: ManagedProcess
+  -> Effect
+       { stderr :: EventSource String
+       , stdout :: EventSource String
+       }
+getChannels (ManagedProcess _ process _) = ado
+  stdout <- onLine (Node.ChildProcess.stdout process) Just
+  stderr <- onLine (Node.ChildProcess.stderr process) Just
+  in { stdout, stderr }
 
 redirectLogging
-  :: { stderr ::
-         { logFile :: Maybe FilePath
-         , handleLine :: String -> Effect Unit
-         }
-     , stdout ::
-         { logFile :: Maybe FilePath
-         , handleLine :: String -> Effect Unit
-         }
+  :: forall a
+   . Show a
+  => EventSource a
+  -> { logFile :: Maybe FilePath
+     , handleLine :: a -> Effect Unit
      }
-  -> ManagedProcess
   -> Aff Unit
-redirectLogging { stderr, stdout } (ManagedProcess _ child _) = do
-  _ <- redirect stdout (Node.ChildProcess.stdout child)
-  _ <- redirect stderr (Node.ChildProcess.stderr child)
-  pure unit
+redirectLogging events { handleLine, logFile } =
+  void $ forkAff $ flip tailRecM unit \_ -> do
+    line <- waitForEvent events
+    liftEffect $ logErrors $ void do
+      handleLine line
+      traverse (flip (appendTextFile UTF8) $ show line <> "\n") logFile
+    pure $ Loop unit
   where
   logErrors = flip catchError
-    (message >>> append "redirectLogging: callback error: " >>> log)
-  redirect { handleLine, logFile } readable = do
-    events <- liftEffect $ onLine readable Just
-    _ <- forkAff $ flip tailRecM unit \_ -> do
-      line <- waitForEvent events
-      liftEffect $ logErrors $ void do
-        handleLine line
-        traverse (flip (appendTextFile UTF8) $ line <> "\n") logFile
-      pure $ Loop unit
-    pure unit
+    $ message >>> append "redirectLogging: callback error: " >>> log
 
 addCleanup :: Ref (Array (Aff Unit)) -> Aff Unit -> Effect Unit
 addCleanup = map void <<< flip (Ref.modify <<< Array.cons <<< reportError)
