@@ -7,13 +7,28 @@ import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Utils (EventSource, narrowEventSource, waitForEvent)
-import Data.Monoid.Alternate (Alternate(..))
-import Data.String (Pattern(..), stripPrefix)
+import Data.String (Pattern(..), contains)
+import Data.String as String
 import Effect.Aff (Fiber, forkAff)
 import Effect.Exception (Error, error)
 import Internal.Testnet.Types (Event(..), StartupFailure(..), TestnetPaths)
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
+
+parseTestnetDirectory :: { tmpdir :: FilePath } -> String -> Maybe FilePath
+parseTestnetDirectory { tmpdir } =
+  map (String.takeWhile $ not <<< isFolderSeparator)
+    <<< String.stripPrefix (Pattern $ tmpdir <> "/")
+    <<< String.dropWhile (not <<< isFolderSeparator)
+  where
+  isFolderSeparator = eq $ String.codePointFromChar '/'
+
+tellsIt'sLocation :: { tmpdir :: FilePath } -> String -> Maybe FilePath
+tellsIt'sLocation tmpdir src
+  | contains (Pattern "stake-pools.json") src
+  , contains (Pattern "      ━━━━ File:") src =
+      parseTestnetDirectory tmpdir src
+  | otherwise = Nothing
 
 parseEvent :: String -> Maybe Event
 parseEvent = case _ of
@@ -47,33 +62,25 @@ waitFor source f = flip tailRecM unit \_ -> do
 onTestnetEvent :: EventSource String -> Effect (EventSource Event)
 onTestnetEvent = narrowEventSource parseEvent
 
-toAbsolutePaths :: { workdir :: FilePath } -> TestnetPaths -> TestnetPaths
-toAbsolutePaths { workdir } { testnetDirectory, nodeSocketPath, nodeConfigPath } =
-  { testnetDirectory: testnetAbsPath
-  , nodeSocketPath: testnetAbsPath <</>> nodeSocketPath
-  , nodeConfigPath: testnetAbsPath <</>> nodeConfigPath
+toAbsolutePaths :: TestnetPaths -> TestnetPaths
+toAbsolutePaths { testnetDirectory, nodeSocketPath, nodeConfigPath } =
+  { testnetDirectory
+  , nodeSocketPath: testnetDirectory <</>> nodeSocketPath
+  , nodeConfigPath: testnetDirectory <</>> nodeConfigPath
   }
-  where
-  testnetAbsPath = workdir <</>> testnetDirectory
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
 findTestnetPaths { workdir } = runExceptT do
-  paths <- lift $ Node.FS.readdir workdir
   let
-    parseTestnetDir src =
-      src <$ stripPrefix (Pattern "testnet-test-") src
-
-  testnetDirectory <- liftEither
-    $ note (error "Can't find testnet-test subdirectory")
-    $ unwrap
-    $ foldMap (Alternate <<< parseTestnetDir) paths
-  let
-    absTestnetDir = workdir <</>> testnetDirectory
     nodeConfigPath = "configuration.yaml"
     nodeSocketPath = "socket/node-spo1"
-  configPathExists <- lift $ Node.FS.exists $ absTestnetDir <</>> nodeConfigPath
-  socketPathExists <- lift $ Node.FS.exists $ absTestnetDir <</>> nodeSocketPath
+  workdirExists <- lift $ Node.FS.exists $ workdir
+  configPathExists <- lift $ Node.FS.exists $ workdir <</>> nodeConfigPath
+  socketPathExists <- lift $ Node.FS.exists $ workdir <</>> nodeSocketPath
+  unless workdirExists do
+    throwError $ error $
+      "cardano-testnet working directory not found."
   unless configPathExists do
     throwError $ error $
       "'configuration.yaml' not found in cardano-testnet working directory."
@@ -81,7 +88,7 @@ findTestnetPaths { workdir } = runExceptT do
     throwError $ error $
       "'socket/node-spo1' not found in cardano-testnet working directory."
   pure
-    { testnetDirectory
+    { testnetDirectory: workdir
     , nodeConfigPath
     , nodeSocketPath
     }
