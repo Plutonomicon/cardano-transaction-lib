@@ -10,7 +10,8 @@ module Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   , testPlutipContracts
   , withPlutipContractEnv
-  , mkClusterContractEnv
+  , makeNaiveClusterContractEnv
+  , makeClusterContractEnv
   , mkLogging
   ) where
 
@@ -296,7 +297,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     "Could not start Plutip cluster"
   tryWithReport (startOgmios' response) "Could not start Ogmios"
   tryWithReport (startKupo' response) "Could not start Kupo"
-  { env, printLogs, clearLogs } <- mkContractEnv'
+  { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef plutipCfg
   wallets <- mkWallets' env ourKey response
   void $ try $ liftEffect do
     for_ env.hooks.onClusterStartup \clusterParamsCb -> do
@@ -379,19 +380,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         void $ waitNSlots BigNum.one
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
-  mkContractEnv' = do
-    { updatedConfig
-    , logger
-    , customLogger
-    , printLogs
-    , clearLogs
-    } <- liftEffect $ mkLogging plutipCfg
-    cleanupBracket
-      cleanupRef
-      (mkClusterContractEnv updatedConfig logger customLogger)
-      stopContractEnv
-      $ pure
-      <<< { env: _, printLogs, clearLogs }
 
 -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
 -- later.
@@ -668,6 +656,13 @@ stopChildProcessWithPort port childProcess = do
       unless isAvailable do
         liftEffect $ throw "retry"
 
+type ClusterConfig r =
+  ( ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
+  , hooks :: Hooks
+  | LogParams r
+  )
+
 -- | TODO: Replace original log params with the row type
 type LogParams r =
   ( logLevel :: LogLevel
@@ -676,17 +671,13 @@ type LogParams r =
   | r
   )
 
-mkClusterContractEnv
+makeNaiveClusterContractEnv
   :: forall r
-   . { ogmiosConfig :: ServerConfig
-     , kupoConfig :: ServerConfig
-     , hooks :: Hooks
-     | LogParams r
-     }
+   . Record (ClusterConfig r)
   -> Logger
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Aff ContractEnv
-mkClusterContractEnv cfg logger customLogger = do
+makeNaiveClusterContractEnv cfg logger customLogger = do
   usedTxOuts <- newUsedTxOuts
   backend <- buildBackend logger $ mkCtlBackendParams
     { ogmiosConfig: cfg.ogmiosConfig
@@ -712,6 +703,30 @@ mkClusterContractEnv cfg logger customLogger = do
     , synchronizationParams: defaultSynchronizationParams
     , knownTxs: { backend: backendKnownTxs }
     }
+
+-- | Makes cluster ContractEnv with configured logs suppression and cleanup scheduled.
+makeClusterContractEnv
+  :: forall r
+   . Ref (Array (Aff Unit))
+  -> Record (ClusterConfig r)
+  -> Aff
+       { env :: ContractEnv
+       , clearLogs :: Aff Unit
+       , printLogs :: Aff Unit
+       }
+makeClusterContractEnv cleanupRef cfg = do
+  { updatedConfig
+  , logger
+  , customLogger
+  , printLogs
+  , clearLogs
+  } <- liftEffect $ mkLogging cfg
+  cleanupBracket
+    cleanupRef
+    (makeNaiveClusterContractEnv updatedConfig logger customLogger)
+    stopContractEnv
+    $ pure
+    <<< { env: _, printLogs, clearLogs }
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
