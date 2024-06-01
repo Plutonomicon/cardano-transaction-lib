@@ -3,6 +3,7 @@ module Ctl.Internal.Plutip.Server
   , runPlutipContract
   , runPlutipTestPlan
   , startOgmios
+  , startKupo
   , startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
@@ -42,10 +43,7 @@ import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
-  , OnSignalRef
-  , cleanupOnSigint
-  , cleanupTmpDir
-  , removeOnSignal
+  , _rmdirSync
   , spawn
   , stop
   )
@@ -58,7 +56,13 @@ import Ctl.Internal.Plutip.Types
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
-import Ctl.Internal.Plutip.Utils (runCleanup, tmpdir)
+import Ctl.Internal.Plutip.Utils
+  ( addCleanup
+  , after
+  , runCleanup
+  , suppressAndLogErrors
+  , tmpdir
+  )
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Service.Error
@@ -117,7 +121,7 @@ import Mote.Monad (MoteT(MoteT), mapTest)
 import Mote.TestPlanM (TestPlanM)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath, dirname)
+import Node.Path (FilePath)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Type.Prelude (Proxy(Proxy))
@@ -355,17 +359,15 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
-    bracket (startOgmios plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.ogmiosConfig.port)
-      (const $ pure unit)
+    void
+      $ after (startOgmios plutipCfg response)
+      $ stopChildProcessWithPort plutipCfg.ogmiosConfig.port
 
   startKupo' :: ClusterStartupParameters -> Aff Unit
   startKupo' response =
-    bracket (startKupo plutipCfg response)
-      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
-      \(process /\ workdir /\ _) -> do
-        liftEffect $ cleanupTmpDir process workdir
-        pure unit
+    void
+      $ after (startKupo plutipCfg response cleanupRef)
+      $ fst >>> stopChildProcessWithPort plutipCfg.kupoConfig.port
 
   mkWallets'
     :: ContractEnv
@@ -568,22 +570,33 @@ startOgmios cfg params = do
     ]
 
 startKupo
-  :: PlutipConfig
-  -> ClusterStartupParameters
-  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
-startKupo cfg params = do
+  :: forall r r'
+   . { kupoConfig :: ServerConfig | r }
+  -> { nodeSocketPath :: FilePath
+     , nodeConfigPath :: FilePath
+     | r'
+     }
+  -> Ref (Array (Aff Unit))
+  -> Aff (ManagedProcess /\ String)
+startKupo cfg params cleanupRef = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workdir = tmpDir <</>> randomStr <> "-kupo-db"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
-  childProcess <- spawnKupoProcess workdir
-  -- here we also set the SIGINT handler for the whole process
-  sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
-  pure (childProcess /\ workdir /\ sig)
+  childProcess <-
+    after
+      (spawnKupoProcess workdir)
+      -- set up cleanup
+      $ const
+      $ liftEffect
+      $ addCleanup cleanupRef
+      $ liftEffect
+      $ suppressAndLogErrors do
+          _rmdirSync workdir
+  pure (childProcess /\ workdir)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
   spawnKupoProcess workdir =
@@ -636,17 +649,6 @@ stopChildProcessWithPort port childProcess = do
       isAvailable <- isPortAvailable port
       unless isAvailable do
         liftEffect $ throw "retry"
-
-stopChildProcessWithPortAndRemoveOnSignal
-  :: UInt -> (ManagedProcess /\ String /\ OnSignalRef) -> Aff Unit
-stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
-  stop $ childProcess
-  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
-    \_ -> do
-      isAvailable <- isPortAvailable port
-      unless isAvailable do
-        liftEffect $ throw "retry"
-  liftEffect $ removeOnSignal sig
 
 mkClusterContractEnv
   :: PlutipConfig
