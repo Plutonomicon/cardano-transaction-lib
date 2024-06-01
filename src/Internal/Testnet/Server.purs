@@ -156,7 +156,7 @@ startTestnetCluster startupParams cleanupRef cfg = do
           { logFile: workdir <</>> "ogmios-stdout.log"
           , toString: identity
           }
-      , handleLine: append "[ogmios]: " >>> log
+      , handleLine: const $ pure unit
       }
     pure { process: ogmios, channels: ogmiosChannels }
 
