@@ -9,15 +9,22 @@ module Ctl.Internal.Plutip.Utils
   , makeEventSource
   , narrowEventSource
   , waitForEvent
+  , addCleanup
+  , after
+  , suppressAndLogErrors
   ) where
 
 import Contract.Prelude
 
+import Control.Monad.Error.Class (class MonadError, catchError)
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Data.Array as Array
 import Data.Map as Map
 import Effect (Effect)
 import Effect.Aff (try)
 import Effect.Aff as Aff
+import Effect.Class (class MonadEffect)
+import Effect.Exception (Error, message)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Node.FS.Sync as FS
@@ -29,6 +36,12 @@ import Node.Stream (Readable)
 -- TODO: remove this function when PS bindings for os.tmpdir are available.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/726
 foreign import tmpdir :: Effect String
+
+suppressAndLogErrors
+  :: forall a m. MonadEffect m => MonadError Error m => m Unit -> m Unit
+suppressAndLogErrors = flip catchError $ message
+  >>> append "An error occured and suppressed: "
+  >>> log
 
 mkDirIfNotExists :: FilePath -> Effect Unit
 mkDirIfNotExists dirName = do
@@ -145,3 +158,15 @@ cleanupOnExit cleanupRef = Aff.forkAff do
   waitForBeforeExit
   log "Running cleanup on beforeExit"
   runCleanup cleanupRef
+
+addCleanup :: Ref (Array (Aff Unit)) -> Aff Unit -> Effect Unit
+addCleanup = map void <<< flip (Ref.modify <<< Array.cons <<< reportError)
+  where
+  reportError action = do
+    try action >>= either
+      (log <<< append "[addCleanup][error]: " <<< message)
+      (const $ pure unit)
+
+-- | Just as a bracket but without the body.
+after :: forall a. Aff a -> (a -> Aff Unit) -> Aff a
+after first second = Aff.bracket first second pure
