@@ -13,6 +13,7 @@ module Ctl.Internal.Plutip.Server
   , makeNaiveClusterContractEnv
   , makeClusterContractEnv
   , mkLogging
+  , checkPortsAreFree
   ) where
 
 import Contract.Prelude
@@ -432,15 +433,17 @@ mkLogging cfg
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
-configCheck cfg = do
-  let
-    services :: Array (UInt /\ String)
-    services =
-      [ cfg.port /\ "plutip-server"
-      , cfg.ogmiosConfig.port /\ "ogmios"
-      , cfg.kupoConfig.port /\ "kupo"
-      ]
-  occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
+configCheck cfg =
+  checkPortsAreFree
+    [ { port: cfg.port, service: "plutip-server" }
+    , { port: cfg.ogmiosConfig.port, service: "ogmios" }
+    , { port: cfg.kupoConfig.port, service: "kupo" }
+    ]
+
+-- | Throw an exception if any of the given ports is occupied.
+checkPortsAreFree :: Array { port :: UInt, service :: String } -> Aff Unit
+checkPortsAreFree ports = do
+  occupiedServices <- Array.catMaybes <$> for ports \{ port, service } -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
     liftEffect $ throw
