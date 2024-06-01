@@ -10,6 +10,7 @@ module Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   , testPlutipContracts
   , withPlutipContractEnv
+  , mkClusterContractEnv
   ) where
 
 import Prelude
@@ -23,7 +24,7 @@ import Cardano.Types (NetworkId(MainnetId))
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
 import Contract.Chain (waitNSlots)
-import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
+import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
 import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.State (State, execState, modify_)
@@ -650,29 +651,42 @@ stopChildProcessWithPort port childProcess = do
       unless isAvailable do
         liftEffect $ throw "retry"
 
+-- | TODO: Replace original log params with the row type
+type LogParams r =
+  ( logLevel :: LogLevel
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+  , suppressLogs :: Boolean
+  | r
+  )
+
 mkClusterContractEnv
-  :: PlutipConfig
+  :: forall r
+   . { ogmiosConfig :: ServerConfig
+     , kupoConfig :: ServerConfig
+     , hooks :: Hooks
+     | LogParams r
+     }
   -> Logger
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Aff ContractEnv
-mkClusterContractEnv plutipCfg logger customLogger = do
+mkClusterContractEnv cfg logger customLogger = do
   usedTxOuts <- newUsedTxOuts
   backend <- buildBackend logger $ mkCtlBackendParams
-    { ogmiosConfig: plutipCfg.ogmiosConfig
-    , kupoConfig: plutipCfg.kupoConfig
+    { ogmiosConfig: cfg.ogmiosConfig
+    , kupoConfig: cfg.kupoConfig
     }
   ledgerConstants <- getLedgerConstants
-    plutipCfg { customLogger = customLogger }
+    cfg { customLogger = customLogger }
     backend
   backendKnownTxs <- liftEffect $ Ref.new Set.empty
   pure
     { backend
-    , handle: mkQueryHandle plutipCfg backend
+    , handle: mkQueryHandle cfg backend
     , networkId: MainnetId
-    , logLevel: plutipCfg.logLevel
+    , logLevel: cfg.logLevel
     , customLogger: customLogger
-    , suppressLogs: plutipCfg.suppressLogs
-    , hooks: plutipCfg.hooks
+    , suppressLogs: cfg.suppressLogs
+    , hooks: cfg.hooks
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants
