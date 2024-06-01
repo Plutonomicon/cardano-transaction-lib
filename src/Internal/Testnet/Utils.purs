@@ -2,16 +2,28 @@ module Ctl.Internal.Testnet.Utils where
 
 import Contract.Prelude
 
-import Control.Monad.Error.Class (throwError)
+import Control.Monad.Error.Class
+  ( liftMaybe
+  , throwError
+  )
 import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Utils (EventSource, narrowEventSource, waitForEvent)
+import Data.Array as Array
 import Data.String (Pattern(..), contains)
 import Data.String as String
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect.Aff (Fiber, forkAff)
 import Effect.Exception (Error, error)
-import Internal.Testnet.Types (Event(..), StartupFailure(..), TestnetPaths)
+import Internal.Testnet.Types
+  ( Event(..)
+  , StartupFailure(..)
+  , TestnetPaths
+  , TestnetRuntime
+  )
+import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 
@@ -62,22 +74,33 @@ waitFor source f = flip tailRecM unit \_ -> do
 onTestnetEvent :: EventSource String -> Effect (EventSource Event)
 onTestnetEvent = narrowEventSource parseEvent
 
-toAbsolutePaths :: TestnetPaths -> TestnetPaths
-toAbsolutePaths { testnetDirectory, nodeSocketPath, nodeConfigPath } =
-  { testnetDirectory
-  , nodeSocketPath: testnetDirectory <</>> nodeSocketPath
-  , nodeConfigPath: testnetDirectory <</>> nodeConfigPath
-  }
+getRuntime :: TestnetPaths -> Effect TestnetRuntime
+getRuntime paths = do
+  nodePorts <- traverse (getNodePort <<< { nodeDir: _ }) paths.nodeDirs
+  pure { nodePorts }
+
+getNodePort :: { nodeDir :: FilePath } -> Effect UInt
+getNodePort { nodeDir } =
+  liftMaybe (error $ "Failed to parse port at " <> nodeDir <</>> "/port")
+    <<< UInt.fromString
+    =<< Node.FS.readTextFile UTF8 (nodeDir <</>> "/port")
+
+findNodeDirs :: { workdir :: FilePath } -> Effect (Array FilePath)
+findNodeDirs { workdir } = do
+  subdirs <- Node.FS.readdir workdir
+  pure $ flip Array.mapMaybe subdirs \dirname ->
+    workdir <</>> dirname <$ String.stripPrefix (Pattern "node-spo") dirname
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
 findTestnetPaths { workdir } = runExceptT do
+  nodeDirs <- lift $ findNodeDirs { workdir }
   let
-    nodeConfigPath = "configuration.yaml"
-    nodeSocketPath = "socket/node-spo1"
-  workdirExists <- lift $ Node.FS.exists $ workdir
-  configPathExists <- lift $ Node.FS.exists $ workdir <</>> nodeConfigPath
-  socketPathExists <- lift $ Node.FS.exists $ workdir <</>> nodeSocketPath
+    nodeConfigPath = workdir <</>> "configuration.yaml"
+    nodeSocketPath = workdir <</>> "socket/node-spo1"
+  workdirExists <- lift $ Node.FS.exists workdir
+  configPathExists <- lift $ Node.FS.exists nodeConfigPath
+  socketPathExists <- lift $ Node.FS.exists nodeSocketPath
   unless workdirExists do
     throwError $ error $
       "cardano-testnet working directory not found."
@@ -91,4 +114,5 @@ findTestnetPaths { workdir } = runExceptT do
     { testnetDirectory: workdir
     , nodeConfigPath
     , nodeSocketPath
+    , nodeDirs
     }

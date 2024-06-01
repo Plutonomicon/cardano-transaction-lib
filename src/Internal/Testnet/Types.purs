@@ -6,6 +6,7 @@ module Internal.Testnet.Types
   , Event(..)
   , StartupFailure(..)
   , OptionalStartupParams
+  , TestnetRuntime
   , defaultOptionalStartupParams
   , defaultStartupParams
   ) where
@@ -13,6 +14,7 @@ module Internal.Testnet.Types
 import Contract.Prelude
 
 import Data.Time.Duration (Milliseconds, Seconds)
+import Data.UInt (UInt)
 import Node.Path (FilePath)
 import Record as Record
 
@@ -95,4 +97,9 @@ type TestnetPaths =
   { testnetDirectory :: FilePath
   , nodeConfigPath :: FilePath
   , nodeSocketPath :: FilePath
+  , nodeDirs :: Array FilePath
+  }
+
+type TestnetRuntime =
+  { nodePorts :: Array UInt
   }
