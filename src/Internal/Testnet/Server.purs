@@ -14,8 +14,16 @@ import Contract.Test.Mote (TestPlanM)
 import Control.Monad.Error.Class (catchError)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Server (startOgmios)
-import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), _rmdirSync, spawn)
+import Ctl.Internal.Plutip.Server
+  ( startKupo
+  , startOgmios
+  )
+import Ctl.Internal.Plutip.Spawn
+  ( ManagedProcess(..)
+  , _rmdirSync
+  , killProcessWithPort
+  , spawn
+  )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
   , PlutipConfig
@@ -23,6 +31,8 @@ import Ctl.Internal.Plutip.Types
   )
 import Ctl.Internal.Plutip.Utils
   ( EventSource(..)
+  , addCleanup
+  , after
   , narrowEventSource
   , onLine
   , tmpdir
@@ -35,10 +45,11 @@ import Ctl.Internal.Test.ContractTest
   )
 import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
 import Ctl.Internal.Testnet.Utils
-  ( findTestnetPaths
+  ( findNodeDirs
+  , findTestnetPaths
+  , getNodePort
   , onTestnetEvent
   , tellsIt'sLocation
-  , toAbsolutePaths
   , waitFor
   )
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
@@ -46,12 +57,12 @@ import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Posix.Signal (Signal(..))
 import Data.Tuple.Nested (type (/\))
-import Effect.Aff (Aff, forkAff, try)
+import Data.UInt (UInt)
+import Effect.Aff (Aff)
 import Effect.Aff as Aff
 import Effect.Exception (message)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Effect.Ref (Ref)
-import Effect.Ref as Ref
 import Internal.Testnet.Types
   ( CardanoTestnetStartupParams
   , Event(..)
@@ -101,6 +112,11 @@ startTestnetCluster
            { process :: ManagedProcess
            , channels :: Channels String
            }
+       , kupo ::
+           { process :: ManagedProcess
+           , channels :: Channels String
+           , workdir :: FilePath
+           }
        , testnet ::
            { process :: ManagedProcess
            , channels :: Channels String
@@ -119,19 +135,38 @@ startTestnetCluster startupParams cleanupRef cfg = do
     Ready -> Just unit
     _ -> Nothing
 
-  paths <-
-    map toAbsolutePaths
-      <<< liftEither
-      =<< liftEffect (findTestnetPaths { workdir: workdirAbsolute })
+  paths <- liftEither
+    =<< liftEffect (findTestnetPaths { workdir: workdirAbsolute })
 
   ogmios <- startOgmios' { paths, workdir: workdirAbsolute }
+  kupo <- startKupo' { paths, workdir: workdirAbsolute }
 
   pure
     { paths
-    , ogmios: ogmios
+    , ogmios
+    , kupo
     , testnet: { process: testnet, channels }
     }
   where
+  startKupo' { paths, workdir } = do
+    kupo /\ kupoWorkdir <- after
+      (startKupo cfg paths cleanupRef)
+      \(ManagedProcess _ kupoProcess _ /\ _) ->
+        liftEffect
+          $ addCleanup cleanupRef
+          $ liftEffect
+          $ Node.ChildProcess.kill SIGINT kupoProcess
+    kupoChannels <- liftEffect $ getChannels kupo
+    redirectChannels
+      kupoChannels
+      { stderrTo:
+          { log: workdir <</>> "kupo.stderr.log"
+          , console: Just "[kupo][error]: "
+          }
+      , stdoutTo: { log: workdir <</>> "kupo.stdout.log", console: Nothing }
+      }
+    pure { process: kupo, workdir: kupoWorkdir, channels: kupoChannels }
+
   startOgmios' { paths, workdir } = do
     ogmios <- after
       (startOgmios cfg paths)
@@ -142,21 +177,13 @@ startTestnetCluster startupParams cleanupRef cfg = do
           $ Node.ChildProcess.kill SIGINT ogmiosProcess
 
     ogmiosChannels <- liftEffect $ getChannels ogmios
-    redirectLogging
-      ogmiosChannels.stderr
-      { storeLogs: Just
-          { logFile: workdir <</>> "ogmios-stderr.log"
-          , toString: identity
+    redirectChannels
+      ogmiosChannels
+      { stderrTo:
+          { log: workdir <</>> "ogmios.stderr.log"
+          , console: Just "[ogmios][error]: "
           }
-      , handleLine: append "[ogmios][error]: " >>> log
-      }
-    redirectLogging
-      ogmiosChannels.stdout
-      { storeLogs: Just
-          { logFile: workdir <</>> "ogmios-stdout.log"
-          , toString: identity
-          }
-      , handleLine: const $ pure unit
+      , stdoutTo: { log: workdir <</>> "ogmios.stdout.log", console: Nothing }
       }
     pure { process: ogmios, channels: ogmiosChannels }
 
@@ -223,6 +250,7 @@ startCardanoTestnet
            , stdout :: EventSource String
            }
        , workdirAbsolute :: FilePath
+       , nodes :: Array { dir :: FilePath, port :: UInt }
        }
 startCardanoTestnet params cleanupRef = do
 
@@ -239,6 +267,17 @@ startCardanoTestnet params cleanupRef = do
     log $ "Found workdir: " <> workdir
     liftEffect cancel
     pure $ tmp <</>> workdir
+
+  -- cardano-testnet doesn't kill cardano-nodes it spawns, so we do it ourselves
+  nodes <- liftEffect do
+    nodeDirs <- findNodeDirs { workdir: workdirAbsolute }
+    for nodeDirs \nodeDir -> do
+      port <- getNodePort { nodeDir }
+      pure { dir: nodeDir, port }
+  for_ nodes \{ port } -> do
+    liftEffect
+      $ addCleanup cleanupRef
+      $ killProcessWithPort port
 
   -- clean up on SIGINT
   do
@@ -257,20 +296,20 @@ startCardanoTestnet params cleanupRef = do
   -- forward node's stdout
   redirectLogging channels.stdout
     { storeLogs: Just
-        { logFile: workdirAbsolute <</>> "cardano-testnet-stdout.log"
+        { logFile: workdirAbsolute <</>> "cardano-testnet.stdout.log"
         , toString: identity
         }
-    , handleLine: log <<< append "[cardano-node-stdout]"
+    , handleLine: log <<< append "[cardano-testnet][info]"
     }
   redirectLogging channels.stderr
     { storeLogs: Just
-        { logFile: workdirAbsolute <</>> "cardano-testnet-stderr.log"
+        { logFile: workdirAbsolute <</>> "cardano-testnet.stderr.log"
         , toString: identity
         }
-    , handleLine: log <<< append "[cardano-node-stderr]"
+    , handleLine: log <<< append "[cardano-testnet][error]"
     }
 
-  pure { testnet, workdirAbsolute, channels }
+  pure { testnet, workdirAbsolute, channels, nodes }
 
 getChannels
   :: ManagedProcess
@@ -282,6 +321,36 @@ getChannels (ManagedProcess _ process _) = ado
   stdout <- onLine (Node.ChildProcess.stdout process) Just
   stderr <- onLine (Node.ChildProcess.stderr process) Just
   in { stdout, stderr }
+
+redirectChannels
+  :: { stderr :: EventSource String
+     , stdout :: EventSource String
+     }
+  -> { stderrTo :: { log :: FilePath, console :: Maybe String }
+     , stdoutTo :: { log :: FilePath, console :: Maybe String }
+     }
+  -> Aff Unit
+redirectChannels { stderr, stdout } { stderrTo, stdoutTo } = do
+  redirectLogging
+    stderr
+    { storeLogs: Just
+        { logFile: stderrTo.log
+        , toString: identity
+        }
+    , handleLine: case stderrTo.console of
+        Nothing -> const $ pure unit
+        Just prefix -> append prefix >>> log
+    }
+  redirectLogging
+    stdout
+    { storeLogs: Just
+        { logFile: stdoutTo.log
+        , toString: identity
+        }
+    , handleLine: case stdoutTo.console of
+        Nothing -> const $ pure unit
+        Just prefix -> append prefix >>> log
+    }
 
 redirectLogging
   :: forall a
@@ -295,7 +364,7 @@ redirectLogging
      }
   -> Aff Unit
 redirectLogging events { handleLine, storeLogs } =
-  void $ forkAff $ flip tailRecM unit \_ -> do
+  void $ Aff.forkAff $ flip tailRecM unit \_ -> do
     line <- waitForEvent events
     liftEffect $ logErrors $ void do
       handleLine line
@@ -307,15 +376,3 @@ redirectLogging events { handleLine, storeLogs } =
     $ message
     >>> append "redirectLogging: callback error: "
     >>> log
-
-addCleanup :: Ref (Array (Aff Unit)) -> Aff Unit -> Effect Unit
-addCleanup = map void <<< flip (Ref.modify <<< Array.cons <<< reportError)
-  where
-  reportError action = do
-    try action >>= either
-      (log <<< append "[addCleanup][error]: " <<< message)
-      (const $ pure unit)
-
--- | Just as a bracket but without the body.
-after :: forall a. Aff a -> (a -> Aff Unit) -> Aff a
-after first second = Aff.bracket first second pure
