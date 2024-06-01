@@ -11,9 +11,10 @@ module Ctl.Internal.Plutip.Server
   , testPlutipContracts
   , withPlutipContractEnv
   , mkClusterContractEnv
+  , mkLogging
   ) where
 
-import Prelude
+import Contract.Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax (defaultRequest) as Affjax
@@ -26,7 +27,7 @@ import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
 import Contract.Chain (waitNSlots)
 import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
-import Control.Monad.Error.Class (liftEither, throwError)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
@@ -153,8 +154,9 @@ withPlutipContractEnv plutipCfg distr cont = do
   Aff.bracket
     (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
     (const $ runCleanup cleanupRef)
-    $ liftEither >=> \{ env, wallets, printLogs } ->
-        whenError printLogs (cont env wallets)
+    $ liftEither
+    >=> \{ env, wallets, printLogs } ->
+      whenError printLogs (cont env wallets)
 
 -- | Run several `Contract`s in tests in a (single) Plutip environment (plutip-server and cluster, kupo, etc.).
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
@@ -322,23 +324,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       Left err -> throwError $ error $ prefix <> ": " <> message err
       Right result' -> pure result'
 
-  -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
-  -- later.
-  bracket
-    :: forall (a :: Type) (b :: Type)
-     . Aff a
-    -> (a -> Aff Unit)
-    -> (a -> Aff b)
-    -> Aff b
-  bracket before after action = do
-    Aff.bracket
-      before
-      (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
-      action
-
   startPlutipServer' :: Aff Unit
   startPlutipServer' =
-    bracket (startPlutipServer plutipCfg)
+    cleanupBracket
+      cleanupRef
+      (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port)
       (const $ checkPlutipServer plutipCfg)
 
@@ -349,11 +339,12 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       distrArray =
         encodeDistribution $
           ourInitialUtxos (encodeDistribution distr) /\
-            distr
+          distr
     for_ distrArray $ traverse_ \n -> when (n < BigNum.fromInt 1_000_000) do
       liftEffect $ throw $ "UTxO is too low: " <> BigNum.toString n <>
         ", must be at least 1_000_000 Lovelace"
-    bracket
+    cleanupBracket
+      cleanupRef
       (startPlutipCluster plutipCfg distrArray)
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
@@ -368,7 +359,8 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
   startKupo' response =
     void
       $ after (startKupo plutipCfg response cleanupRef)
-      $ fst >>> stopChildProcessWithPort plutipCfg.kupoConfig.port
+      $ fst
+      >>> stopChildProcessWithPort plutipCfg.kupoConfig.port
 
   mkWallets'
     :: ContractEnv
@@ -387,46 +379,68 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         void $ waitNSlots BigNum.one
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
-
-  mkContractEnv'
-    :: Aff
-         { env :: ContractEnv
-         , printLogs :: Aff Unit
-         , clearLogs :: Aff Unit
-         }
-  mkContractEnv' | plutipCfg.suppressLogs = do
-    -- if logs should be suppressed, setup the machinery and continue with
-    -- the bracket
-    { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
-      liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
-    let
-      configLogger = Just $ map liftEffect <<< addLogEntry
-
-    bracket
-      ( mkClusterContractEnv
-          plutipCfg { customLogger = configLogger }
-          suppressedLogger
-          configLogger
-      )
+  mkContractEnv' = do
+    { updatedConfig
+    , logger
+    , customLogger
+    , printLogs
+    , clearLogs
+    } <- liftEffect $ mkLogging plutipCfg
+    cleanupBracket
+      cleanupRef
+      (mkClusterContractEnv updatedConfig logger customLogger)
       stopContractEnv
-      \env -> pure
-        { env
+      $ pure
+      <<< { env: _, printLogs, clearLogs }
+
+-- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
+-- later.
+cleanupBracket
+  :: forall (a :: Type) (b :: Type)
+   . Ref (Array (Aff Unit))
+  -> Aff a
+  -> (a -> Aff Unit)
+  -> (a -> Aff b)
+  -> Aff b
+cleanupBracket cleanupRef before after action = do
+  Aff.bracket
+    before
+    (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
+    action
+
+mkLogging
+  :: forall r
+   . Record (LogParams r)
+  -> Effect
+       { updatedConfig :: Record (LogParams r)
+       , logger :: Logger
+       , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+       , printLogs :: Aff Unit
+       , clearLogs :: Aff Unit
+       }
+mkLogging cfg
+  | cfg.suppressLogs = ado
+      -- if logs should be suppressed, setup the machinery and continue with
+      -- the bracket
+      { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
+        setupLogs cfg.logLevel cfg.customLogger
+      let
+        configLogger = Just $ map liftEffect <<< addLogEntry
+      in
+        { updatedConfig: cfg { customLogger = configLogger }
+        , logger: suppressedLogger
+        , customLogger: configLogger
         , printLogs: liftEffect printLogs
         , clearLogs: liftEffect clearLogs
         }
-  mkContractEnv' =
-    -- otherwise, proceed with the env setup and provide a normal logger
-    bracket
-      ( mkClusterContractEnv plutipCfg
-          (mkLogger plutipCfg.logLevel plutipCfg.customLogger)
-          plutipCfg.customLogger
-      )
-      stopContractEnv
-      \env -> pure
-        { env
-        , printLogs: pure unit
-        , clearLogs: pure unit
-        }
+  | otherwise = pure
+      -- otherwise, proceed with the env setup and provide a normal logger
+      { updatedConfig: cfg
+      , logger: mkLogger cfg.logLevel cfg.customLogger
+      , customLogger: cfg.customLogger
+      , printLogs: pure unit
+      , clearLogs: pure unit
+      }
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
@@ -441,9 +455,11 @@ configCheck cfg = do
   occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
-    liftEffect $ throw $
-      "Unable to run the following services, because the ports are occupied:\
-      \\n" <> foldMap printServiceEntry occupiedServices
+    liftEffect $ throw
+      $
+        "Unable to run the following services, because the ports are occupied:\
+        \\n"
+      <> foldMap printServiceEntry occupiedServices
   where
   printServiceEntry :: UInt /\ String -> String
   printServiceEntry (port /\ service) =
@@ -493,8 +509,9 @@ startPlutipCluster cfg keysToGenerate = do
   either (liftEffect <<< throw <<< pprintClientError) pure res >>=
     case _ of
       ClusterStartupFailure reason -> do
-        liftEffect $ throw $
-          "Failed to start up cluster. Reason: " <> show reason
+        liftEffect $ throw
+          $ "Failed to start up cluster. Reason: "
+          <> show reason
       ClusterStartupSuccess response@{ privateKeys } ->
         case Array.uncons privateKeys of
           Nothing ->
@@ -555,7 +572,7 @@ startOgmios cfg params = do
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
     $ String.indexOf (Pattern "networkParameters")
-        >>> maybe NoOp (const Success)
+    >>> maybe NoOp (const Success)
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
