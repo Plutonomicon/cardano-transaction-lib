@@ -12,25 +12,37 @@ module Ctl.Internal.Plutip.Spawn
   , cleanupOnSigint
   , removeOnSignal
   , waitForSignal
+  , killProcessWithPort
   , _rmdirSync
   ) where
 
 import Prelude
 
+import Contract.Prelude (maybe)
 import Control.Monad.Error.Class (throwError)
+import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
 import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.Posix.Signal as Signal
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect (Effect)
 import Effect.AVar (AVar)
 import Effect.AVar (empty, tryPut) as AVar
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
 import Effect.Aff.AVar (isEmpty, read, status) as AVar
+import Effect.Aff.Retry
+  ( RetryPolicy
+  , constantDelay
+  , limitRetriesByCumulativeDelay
+  , recovering
+  )
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error)
+import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Node.ChildProcess
   ( ChildProcess
@@ -39,6 +51,7 @@ import Node.ChildProcess
   , stdout
   )
 import Node.ChildProcess as ChildProcess
+import Node.ChildProcess as Node.ChildProcess
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
 
 -- | Carry along an `AVar` which resolves when the process closes.
@@ -145,6 +158,27 @@ cleanupOnSigint workingDir testClusterDir = do
     _rmdirSync workingDir
     _rmdirSync testClusterDir
   pure sig
+
+killByPort :: UInt -> Effect Unit
+killByPort port =
+  void $ Node.ChildProcess.exec
+    ("fuser -k " <> show (UInt.toInt port) <> "/tcp")
+    Node.ChildProcess.defaultExecOptions
+    \{ error } -> maybe (pure unit) throwError error
+
+-- | Kill a process and wait for it to stop listening on a specific port.
+killProcessWithPort :: UInt -> Aff Unit
+killProcessWithPort port = do
+  liftEffect $ killByPort port
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
+
+defaultRetryPolicy :: RetryPolicy
+defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+  constantDelay (Milliseconds 100.0)
 
 cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit
 cleanupTmpDir (ManagedProcess _ child _) workingDir = do
