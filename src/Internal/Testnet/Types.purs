@@ -5,14 +5,18 @@ module Internal.Testnet.Types
   , TestnetPaths
   , Event(..)
   , StartupFailure(..)
+  , KupmiosConfig
   , OptionalStartupParams
   , TestnetRuntime
+  , TestnetClusterConfig
+  , LogParams
   , defaultOptionalStartupParams
   , defaultStartupParams
   ) where
 
 import Contract.Prelude
 
+import Contract.Config as Config
 import Data.Time.Duration (Milliseconds, Seconds)
 import Data.UInt (UInt)
 import Node.Path (FilePath)
@@ -100,6 +104,25 @@ type TestnetPaths =
   , nodeDirs :: Array FilePath
   }
 
-type TestnetRuntime =
-  { nodePorts :: Array UInt
-  }
+type TestnetClusterConfig r =
+  ( hooks :: Config.Hooks
+  | KupmiosConfig (LogParams r)
+  )
+
+type LogParams r =
+  ( logLevel :: LogLevel
+  , customLogger :: Maybe (LogLevel -> Config.Message -> Aff Unit)
+  , suppressLogs :: Boolean
+  | r
+  )
+
+type KupmiosConfig r =
+  ( kupoConfig :: Config.ServerConfig
+  , ogmiosConfig :: Config.ServerConfig
+  | r
+  )
+
+type TestnetRuntime r =
+  ( nodePorts :: Array UInt
+  | KupmiosConfig r
+  )
