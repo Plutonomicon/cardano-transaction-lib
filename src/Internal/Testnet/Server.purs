@@ -23,6 +23,7 @@ import Ctl.Internal.Plutip.Spawn
   , _rmdirSync
   , killProcessWithPort
   , spawn
+  , stop
   )
 import Ctl.Internal.Plutip.Types
   ( ClusterStartupParameters
@@ -32,9 +33,9 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Plutip.Utils
   ( EventSource(..)
   , addCleanup
-  , after
   , narrowEventSource
   , onLine
+  , scheduleCleanup
   , tmpdir
   , waitForEvent
   )
@@ -55,7 +56,6 @@ import Ctl.Internal.Testnet.Utils
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
 import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Posix.Signal (Signal(..))
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
 import Effect.Aff (Aff)
@@ -149,13 +149,12 @@ startTestnetCluster startupParams cleanupRef cfg = do
     }
   where
   startKupo' { paths, workdir } = do
-    kupo /\ kupoWorkdir <- after
-      (startKupo cfg paths cleanupRef)
-      \(ManagedProcess _ kupoProcess _ /\ _) ->
-        liftEffect
-          $ addCleanup cleanupRef
-          $ liftEffect
-          $ Node.ChildProcess.kill SIGINT kupoProcess
+    kupo /\ kupoWorkdir <-
+      scheduleCleanup
+        cleanupRef
+        (startKupo cfg paths cleanupRef)
+        $ fst
+        >>> stop
     kupoChannels <- liftEffect $ getChannels kupo
     redirectChannels
       kupoChannels
@@ -168,13 +167,10 @@ startTestnetCluster startupParams cleanupRef cfg = do
     pure { process: kupo, workdir: kupoWorkdir, channels: kupoChannels }
 
   startOgmios' { paths, workdir } = do
-    ogmios <- after
+    ogmios <- scheduleCleanup
+      cleanupRef
       (startOgmios cfg paths)
-      \(ManagedProcess _ ogmiosProcess _) ->
-        liftEffect
-          $ addCleanup cleanupRef
-          $ liftEffect
-          $ Node.ChildProcess.kill SIGINT ogmiosProcess
+      stop
 
     ogmiosChannels <- liftEffect $ getChannels ogmios
     redirectChannels

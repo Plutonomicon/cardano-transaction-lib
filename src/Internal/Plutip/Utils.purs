@@ -10,6 +10,7 @@ module Ctl.Internal.Plutip.Utils
   , narrowEventSource
   , waitForEvent
   , addCleanup
+  , scheduleCleanup
   , after
   , suppressAndLogErrors
   ) where
@@ -166,6 +167,15 @@ addCleanup = map void <<< flip (Ref.modify <<< Array.cons <<< reportError)
     try action >>= either
       (log <<< append "[addCleanup][error]: " <<< message)
       (const $ pure unit)
+
+scheduleCleanup
+  :: forall a
+   . Ref (Array (Aff Unit))
+  -> Aff a
+  -> (a -> Aff Unit)
+  -> Aff a
+scheduleCleanup cleanupRef create cleanup =
+  after create $ liftEffect <<< addCleanup cleanupRef <<< cleanup
 
 -- | Just as a bracket but without the body.
 after :: forall a. Aff a -> (a -> Aff Unit) -> Aff a
