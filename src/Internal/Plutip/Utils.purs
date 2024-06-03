@@ -15,12 +15,26 @@ module Ctl.Internal.Plutip.Utils
   , whenError
   , suppressAndLogErrors
   , tryAndLogErrors
+  , waitForBeforeExit
   , waitForClose
+  , waitForError
+  , waitForExit
+  , waitForUncaughtException
+  , waitUntil
   ) where
 
 import Contract.Prelude
 
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (class MonadError, catchError, throwError)
+import Control.Monad.Rec.Class
+  ( Step(..)
+  , tailRecM
+  )
+import Control.Parallel
+  ( parallel
+  , sequential
+  )
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess(..)
   , OnSignalRef
@@ -31,12 +45,13 @@ import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Data.Array as Array
 import Data.Map as Map
 import Data.Posix.Signal (Signal(..))
+import Data.Time.Duration (Milliseconds)
 import Effect (Effect)
 import Effect.Aff (try)
 import Effect.Aff as Aff
-import Effect.Aff.AVar as AVar
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error, error, message)
+import Effect.Random (randomInt)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Node.ChildProcess as Node.ChildProcess
@@ -56,9 +71,21 @@ foreign import setLineHandler
 foreign import setCloseHandler
   :: RL.Interface -> Effect Unit -> Effect OnSignalRef
 
+foreign import setErrorHandler
+  :: RL.Interface -> (Error -> Effect Unit) -> Effect OnSignalRef
+
+foreign import onBeforeExit
+  :: Effect Unit -> Effect OnSignalRef
+
+foreign import onExit
+  :: (Int -> Effect Unit) -> Effect OnSignalRef
+
+foreign import onUncaughtException
+  :: (Error -> Effect Unit) -> Effect OnSignalRef
+
 suppressAndLogErrors
   :: forall m. MonadEffect m => MonadError Error m => String -> m Unit -> m Unit
-suppressAndLogErrors location = flip catchError $ show
+suppressAndLogErrors location = flip catchError $ message
   >>> append ("An error occured and suppressed at " <> location <> ": ")
   >>> log
 
@@ -70,33 +97,25 @@ waitForClose (ManagedProcess _ child _) = do
     $ flip RL.createInterface mempty
     $ Node.ChildProcess.stdout child
   Aff.makeAff \cont -> do
-    onCloseRef <- setCloseHandler interface $ cont $ Right unit
+    { cancel } <- withOneShotHandler \{ justOnce } ->
+      setCloseHandler interface $ justOnce $ cont $ Right unit
     pure $ Aff.Canceler \err -> liftEffect do
-      removeOnSignal onCloseRef
+      cancel
       cont $ Left $ appendErrorMessage "waitForClose has been canceled" err
 
-simpleAffCanceler
-  :: forall a
-   . (Either Error a -> Effect Unit)
-  -> Effect
-       { canceler :: Aff.Canceler
-       , cancel :: Error -> Effect Unit
-       , isCanceled :: Effect Boolean
-       , ifNotCanceled :: a -> Effect Unit
-       }
-simpleAffCanceler cont = do
-  { cancel, isCanceled } <- makeCanceler
-  let
-    onCancel = \err -> do
+-- | Waits until processe's stdout closes.
+-- Assuming this means that process is closed as well. 
+waitForError :: ManagedProcess -> Aff Error
+waitForError (ManagedProcess _ child _) = do
+  interface <- liftEffect
+    $ flip RL.createInterface mempty
+    $ Node.ChildProcess.stdout child
+  Aff.makeAff \cont -> do
+    { cancel } <- withOneShotHandler \{ justOnce } ->
+      setErrorHandler interface \err -> justOnce $ cont $ Right err
+    pure $ Aff.Canceler \err -> liftEffect do
       cancel
-      cont $ Left err
-  pure
-    { canceler: Aff.Canceler $ onCancel >>> liftEffect
-    , isCanceled
-    , ifNotCanceled: \a ->
-        isCanceled >>= flip unless (cont $ Right a)
-    , cancel: onCancel
-    }
+      cont $ Left $ appendErrorMessage "waitForClose has been canceled" err
 
 tryAndLogErrors
   :: forall a m
@@ -119,14 +138,76 @@ mkDirIfNotExists dirName = do
 
 runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
 runCleanup cleanupRef = do
-  cleanups <- liftEffect $ Ref.read cleanupRef
-  sequence_ $ suppressAndLogErrors "runCleanup" <$> cleanups
+  log "Cleaning up"
+  cleanups <- liftEffect do
+    cleanups <- Ref.read cleanupRef
+    Ref.write [] cleanupRef
+    pure cleanups
+  if null cleanups then log "No cleanup needed"
+  else do
+    sequence_ $ suppressAndLogErrors "runCleanup" <$> cleanups
+    log "Cleanup finished"
 
 waitForBeforeExit :: Aff Unit
 waitForBeforeExit = Aff.makeAff \cont -> do
-  { canceler, ifNotCanceled } <- simpleAffCanceler cont
-  Process.onBeforeExit $ ifNotCanceled unit
-  pure canceler
+  { cancel } <- withOneShotHandler \{ justOnce } -> onBeforeExit $ justOnce do
+    log "ON BEFORE EXIT"
+    cont $ Right unit
+  pure $ Aff.Canceler \err -> liftEffect do
+    cancel
+    suppressAndLogErrors "waitForBeforeExit" $ cont $ Left err
+
+-- | Specifically for nodejs handlers:
+-- Makes sure that the callback is called at most once, and unregistering it
+-- on cancelation and on the first call.
+withOneShotHandler
+  :: ({ justOnce :: Effect Unit -> Effect Unit } -> Effect OnSignalRef)
+  -> Effect { cancel :: Effect Unit }
+withOneShotHandler with = do
+  removeHandler <- Ref.new mempty
+  isClosedRef <- Ref.new false
+  let
+    cancel = do
+      join $ Ref.read removeHandler
+      Ref.write true isClosedRef
+  handle <- with
+    { justOnce: \oneShotHandler -> do
+        -- otherwise it may be triggered multiple times, for unknown reason
+        Ref.read isClosedRef >>= flip unless do
+          cancel
+          oneShotHandler
+    }
+  Ref.write (removeOnSignal handle) removeHandler
+  pure { cancel }
+
+waitForUncaughtException :: Aff Error
+waitForUncaughtException = Aff.makeAff \cont -> do
+  n <- randomInt 0 100
+  { cancel } <- withOneShotHandler \{ justOnce } ->
+    onUncaughtException \err -> justOnce do
+      log $ "ON UNCAUGHT EXCEPTION " <> show n
+      cont $ Right err
+  pure $ Aff.Canceler \err -> liftEffect do
+    cancel
+    suppressAndLogErrors "waitForUncaughtException" $ cont $ Left err
+
+waitUntil :: forall a. Milliseconds -> Aff (Maybe a) -> Aff a
+waitUntil checkingInterval fa = flip tailRecM unit \_ ->
+  fa >>= case _ of
+    Nothing -> do
+      Aff.delay checkingInterval
+      pure $ Loop unit
+    Just x -> pure $ Done x
+
+waitForExit :: Aff Int
+waitForExit = Aff.makeAff \cont -> do
+  { cancel } <- withOneShotHandler \{ justOnce } -> onExit \exitcode -> justOnce
+    do
+      log "ON EXIT"
+      cont $ Right exitcode
+  pure $ Aff.Canceler \err -> liftEffect do
+    cancel
+    suppressAndLogErrors "waitForExit" $ cont $ Left err
 
 newtype EventSource b = EventSource
   { subscribe ::
@@ -165,25 +246,28 @@ onLine
 onLine readable =
   map _.eventSource <<< makeEventSource \{ handle: mainHandler } -> do
     interface <- RL.createInterface readable mempty
+    handlers <- Ref.new []
     lineHandler <- setLineHandler interface \x -> do
       void
         $ suppressAndLogErrors "onLine:setLineHandler"
         $ mainHandler
         $ Right x
     let
-      cancel = do
-        removeOnSignal lineHandler
+      cancel = \err -> do
+        Ref.read handlers >>= traverse_ (try <<< removeOnSignal)
         void
           $ suppressAndLogErrors "onLine:cancel"
           $ mainHandler
-          $ Left
-          $ error "Line event source has been closed."
-    closeHandler <- setCloseHandler interface cancel
+          $ Left err
+    closeHandler <- setCloseHandler interface
+      $ cancel
+      $ error "Line event source has been closed."
+    errorHandler <- setErrorHandler interface cancel
+    Ref.write [ lineHandler, closeHandler, errorHandler ] handlers
     pure
       { outcome: unit
       , unsubscribe: do
-          removeOnSignal closeHandler
-          cancel
+          cancel $ error "Unsubscribed from line event."
       }
 
 -- | Create an event source based on another event source, but
@@ -259,35 +343,45 @@ makeEventSource subscribeOnEvents filter = annotateError "make event source" do
     , outcome
     }
 
-makeCanceler :: Effect { cancel :: Effect Unit, isCanceled :: Effect Boolean }
-makeCanceler = do
-  isCanceledRef <- Ref.new false
-  let
-    cancel = Ref.write false isCanceledRef
-    isCanceled = Ref.read isCanceledRef
-  pure { isCanceled, cancel }
-
 cleanupOnExit
   :: Ref (Array (Aff Unit))
-  -> Aff
-       { onBeforeExit :: Aff.Fiber Unit
-       , onSigint :: Aff.Fiber Unit
-       }
+  -> Aff { fiber :: Aff.Fiber Unit }
 cleanupOnExit cleanupRef = do
-  triggered <- AVar.empty
-  onBeforeExit <- Aff.forkAff do
-    waitForBeforeExit
-    canStart <- AVar.tryPut unit triggered
-    when canStart do
-      log "Running cleanup on exit"
+  log "Cleanup scheduled"
+  let
+    handle handlers = do
+      handler <- sequential do
+        ( handlers.onExit
+            <$> parallel waitForExit
+        )
+          <|>
+            ( handlers.onUncaughtException
+                <$> parallel waitForUncaughtException
+            )
+          <|>
+            ( handlers.onBeforeExit
+                <$ parallel waitForBeforeExit
+            )
+          <|>
+            ( handlers.onWaitForSignal
+                <$ parallel (waitForSignal SIGINT)
+            )
+      handler
+    cleanup triggeredBy = do
+      log $ "Running cleanup on " <> triggeredBy
       runCleanup cleanupRef
-  onSigint <- Aff.forkAff do
-    waitForSignal SIGINT
-    canStart <- AVar.tryPut unit triggered
-    when canStart do
-      log "Running cleanup on SIGINT"
-      runCleanup cleanupRef
-  pure { onBeforeExit, onSigint }
+
+  fiber <- Aff.forkAff $ handle
+    { onExit: \code -> cleanup $ "exit with " <> show code
+    , onUncaughtException: \err -> do
+        cleanup "uncaught exception"
+        log $ "Failing irrecoverably after the cleanup after error: " <> show
+          err
+        liftEffect $ Process.exit 7 -- Failing irrecoverably
+    , onBeforeExit: cleanup "before exit"
+    , onWaitForSignal: cleanup "SIGINT"
+    }
+  pure { fiber }
 
 addCleanup :: Ref (Array (Aff Unit)) -> Aff Unit -> Effect Unit
 addCleanup = map void <<< flip
