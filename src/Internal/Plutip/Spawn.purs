@@ -16,9 +16,8 @@ module Ctl.Internal.Plutip.Spawn
   , _rmdirSync
   ) where
 
-import Prelude
+import Contract.Prelude
 
-import Contract.Prelude (maybe)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Types (FilePath)
@@ -94,8 +93,11 @@ spawn' cmd args opts mbFilter cont = do
     RL.close interface
     void $ AVar.tryPut code closedAVar
     output <- Ref.read outputRef
-    cont $ Left $ error $
-      "Process " <> fullCmd <> " exited. Output:\n" <> output
+    cont $ Left $ error
+      $ "Process "
+      <> fullCmd
+      <> " exited. Output:\n"
+      <> output
 
   -- Ideally we call `RL.close interface` instead of detaching the listener
   -- via `clearLineHandler interface`, but it causes issues with the output
@@ -116,7 +118,8 @@ spawn' cmd args opts mbFilter cont = do
               kill SIGINT child
               clearLineHandler interface
               cont $ Left $ error
-                $ "Process cancelled because output received: " <> str
+                $ "Process cancelled because output received: "
+                <> str
             _ -> pure unit
 
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child
@@ -148,9 +151,14 @@ onSignal sig = onSignalImpl (Signal.toString sig)
 
 -- | Just as onSignal, but Aff.
 waitForSignal :: Signal -> Aff Unit
-waitForSignal signal = makeAff \cont -> ado
-  onSignalRef <- onSignal signal $ cont $ pure unit
-  in Canceler \_ -> liftEffect $ removeOnSignal onSignalRef
+waitForSignal signal = makeAff \cont -> do
+  isCanceledRef <- Ref.new false
+  onSignalRef <- onSignal signal
+    $ Ref.read isCanceledRef >>= flip unless (cont $ Right unit)
+  pure $ Canceler \err -> liftEffect do
+    Ref.write true isCanceledRef
+    removeOnSignal onSignalRef
+    cont $ Left err
 
 cleanupOnSigint :: FilePath -> FilePath -> Effect OnSignalRef
 cleanupOnSigint workingDir testClusterDir = do
