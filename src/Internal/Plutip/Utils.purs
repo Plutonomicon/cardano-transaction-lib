@@ -70,9 +70,10 @@ waitForClose (ManagedProcess _ child _) = do
     $ flip RL.createInterface mempty
     $ Node.ChildProcess.stdout child
   Aff.makeAff \cont -> do
-    { canceler, ifNotCanceled } <- simpleAffCanceler cont
-    _ <- setCloseHandler interface $ ifNotCanceled unit
-    pure canceler
+    onCloseRef <- setCloseHandler interface $ cont $ Right unit
+    pure $ Aff.Canceler \err -> liftEffect do
+      removeOnSignal onCloseRef
+      cont $ Left $ appendErrorMessage "waitForClose has been canceled" err
 
 simpleAffCanceler
   :: forall a
@@ -142,19 +143,18 @@ newtype EventSource b = EventSource
 waitForEvent :: forall a. EventSource a -> Aff a
 waitForEvent (EventSource { subscribe }) = annotateError "waitForEvent" $
   Aff.makeAff \cont -> do
-    { cancel, isCanceled } <- simpleAffCanceler cont
     subscriptionResult <- subscribe \{ unsubscribe, event } -> do
       unsubscribe
-      isCanceled >>= flip unless (cont event)
+      cont event
     case subscriptionResult of
       Right { unsubscribe } -> pure $ Aff.Canceler \err -> liftEffect do
         unsubscribe
-        cancel err
+        cont $ Left $ appendErrorMessage "waitForEvent:canceled" err
       Left subError -> do
-        let
-          err = error $ append "Failed to subscribe" $ message subError
         suppressAndLogErrors "waitForEvent:badSubscription"
-          $ cancel err
+          $ cont
+          $ Left
+          $ appendErrorMessage "Failed to subscribe" subError
         pure Aff.nonCanceler
 
 onLine
@@ -163,20 +163,28 @@ onLine
   -> (String -> Maybe b)
   -> Effect (EventSource b)
 onLine readable =
-  map _.eventSource <<< makeEventSource \mainHandler -> do
+  map _.eventSource <<< makeEventSource \{ handle: mainHandler } -> do
     interface <- RL.createInterface readable mempty
     lineHandler <- setLineHandler interface \x -> do
       void
         $ suppressAndLogErrors "onLine:setLineHandler"
         $ mainHandler
         $ Right x
-    setCloseHandler interface do
-      removeOnSignal lineHandler
-      void
-        $ suppressAndLogErrors "onLine:setCloseHandler"
-        $ mainHandler
-        $ Left
-        $ error "Line event source has been closed."
+    let
+      cancel = do
+        removeOnSignal lineHandler
+        void
+          $ suppressAndLogErrors "onLine:setCloseHandler"
+          $ mainHandler
+          $ Left
+          $ error "Line event source has been closed."
+    closeHandler <- setCloseHandler interface cancel
+    pure
+      { outcome: unit
+      , unsubscribe: do
+          removeOnSignal closeHandler
+          cancel
+      }
 
 -- | Create an event source based on another event source, but
 -- with smaller variety of events.
@@ -185,31 +193,41 @@ narrowEventSource
    . (a -> Maybe b)
   -> EventSource a
   -> Effect (EventSource b)
-narrowEventSource filter (EventSource { subscribe }) = annotateError
+narrowEventSource filter (EventSource source) = annotateError
   "narrowEventSource"
   do
-    { eventSource: EventSource source@{ cancel }
-    , outcome: subscriptionResult
-    } <- flip makeEventSource filter \registerHandler ->
-      subscribe $ registerHandler <<< _.event
-    { unsubscribe } <- liftEither subscriptionResult
-    pure $ EventSource source
-      { cancel = \e -> cancel e *> unsubscribe }
+    { eventSource: new
+    , outcome: subscriptionResult -- this goes from the source
+    } <- flip makeEventSource filter \{ handle } ->
+      do -- this is how new event source subscribe on the source
+        source.subscribe (handle <<< _.event) >>= case _ of
+          Left err -> pure
+            { outcome: Left err -- this is not for makeEventSource
+            , unsubscribe: pure unit -- how do 'new' unsubscribe from the 'source'
+            }
+          Right { unsubscribe: unsubFromSource } -> pure
+            { outcome: Right unit -- this is not for makeEventSource
+            , unsubscribe: unsubFromSource -- how do 'new' unsubscribe from the 'source'
+            }
+    liftEither subscriptionResult
+    pure new
 
 makeEventSource
   :: forall a b c
-   . ((Either Error a -> Effect Unit) -> Effect c)
+   . ( { handle :: Either Error a -> Effect Unit }
+       -> Effect { unsubscribe :: Effect Unit, outcome :: c }
+     )
   -> (a -> Maybe b)
   -> Effect { eventSource :: EventSource b, outcome :: c }
 makeEventSource subscribeOnEvents filter = annotateError "make event source" do
   handlers <- Ref.new $ Map.fromFoldable []
-  { isCanceled, cancel } <- makeErrorCanceler \error -> do
-    Ref.read handlers >>= traverse_ \cont ->
-      void $ suppressAndLogErrors "makeEventSource:cancel" $ cont $ Left error
-    Ref.write (Map.fromFoldable []) handlers
+  isCanceled <- Ref.new false
+  cancelRef <- Ref.new mempty
   let
+    markCanceled = Ref.write true isCanceled
+    cancel error = Ref.read cancelRef >>= (_ $ error)
     subscribe handler = do
-      isCanceled >>=
+      Ref.read isCanceled >>=
         if _ then
           pure $ Left $ error "Event source is closed."
         else do
@@ -220,34 +238,25 @@ makeEventSource subscribeOnEvents filter = annotateError "make event source" do
             handlers
           pure $ Right { unsubscribe }
 
-  outcome <- subscribeOnEvents \ea -> case ea of
-    Left error -> cancel error
-    Right a -> case filter a of
-      Just b -> do
-        isCanceled >>= flip unless do
-          Ref.read handlers >>= traverse_ (_ $ Right b)
-      Nothing -> pure unit
+  { unsubscribe, outcome } <- subscribeOnEvents
+    { handle: \ea -> case ea of
+        Left error -> cancel error
+        Right a -> case filter a of
+          Just b -> do
+            Ref.read handlers >>= traverse_ (_ $ Right b)
+          Nothing -> pure unit
+    }
+  flip Ref.write cancelRef \error -> do
+    unsubscribe
+    markCanceled
+    Ref.read handlers >>= traverse_ \cont ->
+      void $ suppressAndLogErrors "makeEventSource:cancel" $ cont $ Left error
+    Ref.write (Map.fromFoldable []) handlers
+
   pure
     { eventSource: EventSource { cancel, subscribe }
     , outcome
     }
-
-makeErrorCanceler
-  :: forall e
-   . (e -> Effect Unit)
-  -> Effect
-       { cancel :: e -> Effect Unit
-       , isCanceled :: Effect Boolean
-       }
-makeErrorCanceler customCancelation = do
-  isCanceledRef <- Ref.new false
-  let
-    cancel err = do
-      log "Canceled."
-      Ref.write false isCanceledRef
-      customCancelation err
-    isCanceled = Ref.read isCanceledRef
-  pure { isCanceled, cancel }
 
 makeCanceler :: Effect { cancel :: Effect Unit, isCanceled :: Effect Boolean }
 makeCanceler = do
@@ -310,5 +319,11 @@ annotateError
   -> m a
   -> m a
 annotateError withPrefix action =
-  catchError action \err ->
-    throwError $ error $ withPrefix <> ": " <> message err
+  catchError action $ throwError <<< appendErrorMessage withPrefix
+
+appendErrorMessage
+  :: String
+  -> Error
+  -> Error
+appendErrorMessage withPrefix =
+  error <<< append (withPrefix <> ": ") <<< message
