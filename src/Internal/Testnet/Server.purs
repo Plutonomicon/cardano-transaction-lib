@@ -158,7 +158,7 @@ startTestnetCluster startupParams cleanupRef cfg = do
         $ fst
         >>> stop
     kupoChannels <- liftEffect $ getChannels kupo
-    redirectChannels
+    _ <- redirectChannels
       kupoChannels
       { stderrTo:
           { log: workdir <</>> "kupo.stderr.log"
@@ -175,7 +175,7 @@ startTestnetCluster startupParams cleanupRef cfg = do
       stop
 
     ogmiosChannels <- liftEffect $ getChannels ogmios
-    redirectChannels
+    _ <- redirectChannels
       ogmiosChannels
       { stderrTo:
           { log: workdir <</>> "ogmios.stderr.log"
@@ -292,19 +292,16 @@ startCardanoTestnet params cleanupRef = do
           _rmdirSync workdirAbsolute
 
   -- forward node's stdout
-  redirectLogging channels.stdout
-    { storeLogs: Just
-        { logFile: workdirAbsolute <</>> "cardano-testnet.stdout.log"
-        , toString: identity
+  _ <- redirectChannels
+    { stderr: channels.stderr, stdout: channels.stdout }
+    { stdoutTo:
+        { log: workdirAbsolute <</>> "cardano-testnet.stdout.log"
+        , console: Just "[cardano-testnet][info]"
         }
-    , handleLine: log <<< append "[cardano-testnet][info]"
-    }
-  redirectLogging channels.stderr
-    { storeLogs: Just
-        { logFile: workdirAbsolute <</>> "cardano-testnet.stderr.log"
-        , toString: identity
+    , stderrTo:
+        { log: workdirAbsolute <</>> "cardano-testnet.stderr.log"
+        , console: Just "[cardano-testnet][error]"
         }
-    , handleLine: log <<< append "[cardano-testnet][error]"
     }
 
   pure { testnet, workdirAbsolute, channels, nodes }
@@ -320,6 +317,8 @@ getChannels (ManagedProcess _ process _) = ado
   stderr <- onLine (Node.ChildProcess.stderr process) Just
   in { stdout, stderr }
 
+-- Note: it will not throw, so to check the computation result
+-- Fiber must be inspected.
 redirectChannels
   :: { stderr :: EventSource String
      , stdout :: EventSource String
@@ -327,9 +326,9 @@ redirectChannels
   -> { stderrTo :: { log :: FilePath, console :: Maybe String }
      , stdoutTo :: { log :: FilePath, console :: Maybe String }
      }
-  -> Aff Unit
+  -> Aff (Aff.Fiber (Either Error Unit))
 redirectChannels { stderr, stdout } { stderrTo, stdoutTo } = do
-  redirectLogging
+  handleStderr <- redirectLogging
     stderr
     { storeLogs: Just
         { logFile: stderrTo.log
@@ -339,7 +338,7 @@ redirectChannels { stderr, stdout } { stderrTo, stdoutTo } = do
         Nothing -> const $ pure unit
         Just prefix -> append prefix >>> log
     }
-  redirectLogging
+  handleStdout <- redirectLogging
     stdout
     { storeLogs: Just
         { logFile: stdoutTo.log
@@ -349,6 +348,7 @@ redirectChannels { stderr, stdout } { stderrTo, stdoutTo } = do
         Nothing -> const $ pure unit
         Just prefix -> append prefix >>> log
     }
+  pure $ applySecond <$> handleStderr <*> handleStdout
 
 redirectLogging
   :: forall a
@@ -360,17 +360,13 @@ redirectLogging
            }
      , handleLine :: a -> Effect Unit
      }
-  -> Aff Unit
+  -> Aff (Aff.Fiber (Either Error Unit))
 redirectLogging events { handleLine, storeLogs } =
-  void $ Aff.forkAff $ flip tailRecM unit \_ -> do
+  Aff.forkAff $ tryAndLogErrors "redirectLogging" $ flip tailRecM unit \_ -> do
     line <- waitForEvent events
-    liftEffect $ logErrors $ void do
-      handleLine line
-      for storeLogs \{ logFile, toString } ->
-        appendTextFile UTF8 logFile $ toString line <> "\n"
+    liftEffect $ suppressAndLogErrors "redirectLogging: callback error" $ void
+      do
+        handleLine line
+        for storeLogs \{ logFile, toString } ->
+          appendTextFile UTF8 logFile $ toString line <> "\n"
     pure $ Loop unit
-  where
-  logErrors = flip catchError
-    $ message
-    >>> append "redirectLogging: callback error: "
-    >>> log
