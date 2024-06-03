@@ -15,14 +15,7 @@ import Data.String (Pattern(..), contains)
 import Data.String as String
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect.Aff (Fiber, forkAff)
-import Effect.Exception (Error, error)
-import Internal.Testnet.Types
-  ( Event(..)
-  , StartupFailure(..)
-  , TestnetPaths
-  , TestnetRuntime
-  )
+import Effect.Exception (Error, error, throw)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)

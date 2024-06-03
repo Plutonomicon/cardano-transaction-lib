@@ -1,4 +1,4 @@
-module Internal.Testnet.Contract where
+module Ctl.Internal.Testnet.Contract where
 
 import Contract.Prelude
 

@@ -45,6 +45,13 @@ import Ctl.Internal.Test.ContractTest
   , ContractTestPlan(ContractTestPlan)
   )
 import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
+import Ctl.Internal.Testnet.Types
+  ( CardanoTestnetStartupParams
+  , KupmiosConfig
+  , Node
+  , TestnetPaths
+  )
+import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Testnet.Utils
   ( findNodeDirs
   , findTestnetPaths
@@ -63,11 +70,6 @@ import Effect.Aff as Aff
 import Effect.Exception (message)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Effect.Ref (Ref)
-import Internal.Testnet.Types
-  ( CardanoTestnetStartupParams
-  , Event(..)
-  , TestnetPaths
-  )
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))

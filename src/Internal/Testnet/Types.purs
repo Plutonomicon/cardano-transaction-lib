@@ -1,4 +1,4 @@
-module Internal.Testnet.Types
+module Ctl.Internal.Testnet.Types
   ( CardanoTestnetStartupParams
   , Era(..)
   , LoggingFormat(..)
