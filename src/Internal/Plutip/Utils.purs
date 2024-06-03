@@ -24,7 +24,6 @@ import Control.Monad.Error.Class (class MonadError, catchError, throwError)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess(..)
   , OnSignalRef
-  , makeAffCanceler
   , removeOnSignal
   , waitForSignal
   )
@@ -71,12 +70,29 @@ waitForClose (ManagedProcess _ child _) = do
     $ flip RL.createInterface mempty
     $ Node.ChildProcess.stdout child
   Aff.makeAff \cont -> do
-    { canceler, cancelationStatus } <- makeAffCanceler $ const $ pure unit
-    _ <- setCloseHandler interface
-      $ cancelationStatus
-      >>= maybe (Right unit) Left
-      >>> cont
+    { canceler, ifNotCanceled } <- simpleAffCanceler cont
+    _ <- setCloseHandler interface $ ifNotCanceled unit
     pure canceler
+
+simpleAffCanceler :: forall a. (Either Error a -> Effect Unit) -> Effect
+  { canceler :: Aff.Canceler
+  , cancel :: Error -> Effect Unit
+  , isCanceled :: Effect Boolean
+  , ifNotCanceled :: a -> Effect Unit
+  }
+simpleAffCanceler cont = do
+  {cancel, isCanceled} <- makeCanceler
+  let
+    onCancel = \err -> do
+      cancel
+      cont $ Left err
+  pure
+    { canceler: Aff.Canceler $ onCancel >>> liftEffect
+    , isCanceled
+    , ifNotCanceled: \a ->
+      isCanceled >>= flip unless (cont $ Right a)
+    , cancel: onCancel
+    }
 
 tryAndLogErrors
   :: forall a m
@@ -104,11 +120,8 @@ runCleanup cleanupRef = do
 
 waitForBeforeExit :: Aff Unit
 waitForBeforeExit = Aff.makeAff \cont -> do
-  { canceler, cancelationStatus } <- makeAffCanceler $ const $ pure unit
-  Process.onBeforeExit
-    $ cancelationStatus
-    >>= maybe (Right unit) Left
-    >>> cont
+  { canceler, ifNotCanceled } <- simpleAffCanceler cont
+  Process.onBeforeExit $ ifNotCanceled unit
   pure canceler
 
 newtype EventSource b = EventSource
@@ -126,38 +139,20 @@ newtype EventSource b = EventSource
 waitForEvent :: forall a. EventSource a -> Aff a
 waitForEvent (EventSource { subscribe }) = annotateError "waitForEvent" $
   Aff.makeAff \cont -> do
-    { canceler: Aff.Canceler cancel, cancelationStatus } <-
-      makeAffCanceler $ const $ pure unit
-    canceler <- makeCanceler
+    {cancel, isCanceled} <- simpleAffCanceler cont
     subscriptionResult <- subscribe \{ unsubscribe, event } -> do
       unsubscribe
-      canceler.isCanceled >>= flip when do
-        void
-          $ suppressAndLogErrors "waitForEvent:event"
-          $ cont
-          $ Left
-          $ error "Action has been canceled"
-      cancelationStatus >>= case _ of
-        Nothing -> void $ suppressAndLogErrors "waitForEvent:success" $ cont
-          event
-        Just err -> void $ suppressAndLogErrors "waitForEvent:failure" $ cont $
-          Left err
+      isCanceled >>= flip unless (cont event)
     case subscriptionResult of
-      Right { unsubscribe } ->
-        pure $ Aff.Canceler \err -> do
-          log "canceling"
-          liftEffect do
-            unsubscribe
-            canceler.cancel
-          cancel err
+      Right { unsubscribe } -> pure $ Aff.Canceler \err -> liftEffect do
+        unsubscribe
+        cancel err
       Left subError -> do
-        err <- try
-          $ annotateError "Failed to subscribe"
-          $ throwError subError
-
+        let
+          err = error $ append "Failed to subscribe" $ message subError
         suppressAndLogErrors "waitForEvent:badSubscription"
-          $ cont err
-        pure $ Aff.Canceler \e -> throwError e
+          $ cancel err
+        pure Aff.nonCanceler
 
 onLine
   :: forall a b
