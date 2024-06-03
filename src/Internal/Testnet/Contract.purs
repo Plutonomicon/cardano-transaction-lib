@@ -43,4 +43,4 @@ withContractEnv cfg cont = do
   _ <- cleanupOnExit cleanupRef
   cluster <- startTestnetCluster defaultStartupParams cleanupRef cfg
   { env, printLogs } <- makeClusterContractEnv cleanupRef cfg
-  whenError printLogs $ cont cluster env
+  whenError printLogs $ cont cluster $ env { networkId = TestnetId }
