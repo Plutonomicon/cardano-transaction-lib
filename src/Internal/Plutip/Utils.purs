@@ -74,14 +74,17 @@ waitForClose (ManagedProcess _ child _) = do
     _ <- setCloseHandler interface $ ifNotCanceled unit
     pure canceler
 
-simpleAffCanceler :: forall a. (Either Error a -> Effect Unit) -> Effect
-  { canceler :: Aff.Canceler
-  , cancel :: Error -> Effect Unit
-  , isCanceled :: Effect Boolean
-  , ifNotCanceled :: a -> Effect Unit
-  }
+simpleAffCanceler
+  :: forall a
+   . (Either Error a -> Effect Unit)
+  -> Effect
+       { canceler :: Aff.Canceler
+       , cancel :: Error -> Effect Unit
+       , isCanceled :: Effect Boolean
+       , ifNotCanceled :: a -> Effect Unit
+       }
 simpleAffCanceler cont = do
-  {cancel, isCanceled} <- makeCanceler
+  { cancel, isCanceled } <- makeCanceler
   let
     onCancel = \err -> do
       cancel
@@ -90,7 +93,7 @@ simpleAffCanceler cont = do
     { canceler: Aff.Canceler $ onCancel >>> liftEffect
     , isCanceled
     , ifNotCanceled: \a ->
-      isCanceled >>= flip unless (cont $ Right a)
+        isCanceled >>= flip unless (cont $ Right a)
     , cancel: onCancel
     }
 
@@ -139,7 +142,7 @@ newtype EventSource b = EventSource
 waitForEvent :: forall a. EventSource a -> Aff a
 waitForEvent (EventSource { subscribe }) = annotateError "waitForEvent" $
   Aff.makeAff \cont -> do
-    {cancel, isCanceled} <- simpleAffCanceler cont
+    { cancel, isCanceled } <- simpleAffCanceler cont
     subscriptionResult <- subscribe \{ unsubscribe, event } -> do
       unsubscribe
       isCanceled >>= flip unless (cont event)

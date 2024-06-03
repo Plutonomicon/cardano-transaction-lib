@@ -154,7 +154,8 @@ waitForSignal :: Signal -> Aff Unit
 waitForSignal signal = makeAff \cont -> do
   isCanceledRef <- Ref.new false
   onSignalRef <- onSignal signal
-    $ Ref.read isCanceledRef >>= flip unless (cont $ Right unit)
+    $ Ref.read isCanceledRef
+    >>= flip unless (cont $ Right unit)
   pure $ Canceler \err -> liftEffect do
     Ref.write true isCanceledRef
     removeOnSignal onSignalRef
