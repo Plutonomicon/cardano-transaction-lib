@@ -261,8 +261,13 @@ spawnCardanoTestnet { cwd } params = do
     $ Object.lookup "INIT_CWD" env
   let
     env' = Object.fromFoldable
-      [ "TMPDIR" /\ cwd
+      [ "TMPDIR" /\ cwd -- only for 8.1.1; 8.7.2 puts it's testnet directory into cwd instead
       , "CARDANO_NODE_SRC" /\ (initCwd <</>> "cardano-testnet-files")
+      , "CARDANO_CLI" /\ "cardano-cli"
+      , "CREATE_SCRIPT_CONTEXT" /\ "create-script-context"
+      , "CARDANO_NODE" /\ "cardano-node"
+      , "CARDANO_SUBMIT_API" /\ "cardano-submit-api"
+      , "CARDANO_NODE_CHAIRMAN" /\ "cardano-node-chairman"
       ]
     opts = defaultSpawnOptions
       { cwd = Just cwd, env = Just $ Object.union env' env }
