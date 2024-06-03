@@ -6,6 +6,7 @@ import Contract.Monad
   ( Contract
   , ContractEnv
   )
+import Cardano.Types (NetworkId(TestnetId))
 import Contract.Monad as Contract
 import Ctl.Internal.Plutip.Server
   ( makeClusterContractEnv
