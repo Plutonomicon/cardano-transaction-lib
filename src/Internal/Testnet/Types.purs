@@ -6,6 +6,8 @@ module Ctl.Internal.Testnet.Types
   , Event(..)
   , StartupFailure(..)
   , KupmiosConfig
+  , NodeLocation
+  , Node
   , OptionalStartupParams
   , TestnetRuntime
   , TestnetClusterConfig
@@ -16,6 +18,7 @@ module Ctl.Internal.Testnet.Types
 
 import Contract.Prelude
 
+import Cardano.Types as Cardano.Types
 import Contract.Config as Config
 import Data.Time.Duration (Milliseconds, Seconds)
 import Data.UInt (UInt)
@@ -101,8 +104,20 @@ type TestnetPaths =
   { testnetDirectory :: FilePath
   , nodeConfigPath :: FilePath
   , nodeSocketPath :: FilePath
-  , nodeDirs :: Array FilePath
+  , nodeDirs :: Array { | NodeLocation () }
   }
+
+type Node r =
+  ( socket :: FilePath
+  , port :: UInt
+  | NodeLocation r
+  )
+
+type NodeLocation r =
+  ( idx :: Int
+  , workdir :: FilePath
+  | r
+  )
 
 type TestnetClusterConfig r =
   ( hooks :: Config.Hooks
@@ -123,6 +138,6 @@ type KupmiosConfig r =
   )
 
 type TestnetRuntime r =
-  ( nodePorts :: Array UInt
-  | KupmiosConfig r
+  ( nodes :: Array { | Node () }
+  | r
   )

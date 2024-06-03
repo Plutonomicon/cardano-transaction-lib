@@ -9,8 +9,21 @@ import Control.Monad.Error.Class
 import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Utils (EventSource, narrowEventSource, waitForEvent)
+import Ctl.Internal.Plutip.Utils
+  ( EventSource
+  , narrowEventSource
+  , waitForEvent
+  )
+import Ctl.Internal.Testnet.Types
+  ( Event(..)
+  , Node
+  , NodeLocation
+  , StartupFailure(..)
+  , TestnetPaths
+  , TestnetRuntime
+  )
 import Data.Array as Array
+import Data.Int as Int
 import Data.String (Pattern(..), contains)
 import Data.String as String
 import Data.UInt (UInt)
@@ -46,17 +59,6 @@ parseEvent = case _ of
     Just Finished
   _ -> Nothing
 
-onStartupFailure
-  :: forall a
-   . EventSource Event
-  -> (StartupFailure -> Aff a)
-  -> Aff (Fiber a)
-onStartupFailure source handle = forkAff do
-  err <- waitFor source case _ of
-    StartupFailed err -> Just err
-    _ -> Nothing
-  handle err
-
 waitFor :: forall a. EventSource Event -> (Event -> Maybe a) -> Aff a
 waitFor source f = flip tailRecM unit \_ -> do
   event <- waitForEvent source
@@ -67,10 +69,30 @@ waitFor source f = flip tailRecM unit \_ -> do
 onTestnetEvent :: EventSource String -> Effect (EventSource Event)
 onTestnetEvent = narrowEventSource parseEvent
 
-getRuntime :: TestnetPaths -> Effect TestnetRuntime
+getRuntime :: TestnetPaths -> Effect (Record (TestnetRuntime ()))
 getRuntime paths = do
-  nodePorts <- traverse (getNodePort <<< { nodeDir: _ }) paths.nodeDirs
-  pure { nodePorts }
+  nodes <- readNodes paths
+  -- genesis <- readGenesis {workdir: paths.testnetDirectory}
+  pure { nodes {-, genesis-} }
+
+readNodes
+  :: forall r
+   . { nodeDirs :: Array { | NodeLocation () }
+     , testnetDirectory :: FilePath
+     | r
+     }
+  -> Effect (Array { | Node () })
+readNodes { nodeDirs, testnetDirectory } = do
+  for nodeDirs \{ idx, workdir } -> do
+    let
+      socketPath = testnetDirectory <</>> "socket" <</>> "node-spo" <> show idx
+    exists <- Node.FS.exists socketPath
+    unless exists
+      $ throw
+      $ "Couldn't find node socket at "
+      <> socketPath
+    port <- getNodePort { nodeDir: workdir }
+    pure { idx, socket: socketPath, port, workdir }
 
 getNodePort :: { nodeDir :: FilePath } -> Effect UInt
 getNodePort { nodeDir } =
@@ -78,11 +100,13 @@ getNodePort { nodeDir } =
     <<< UInt.fromString
     =<< Node.FS.readTextFile UTF8 (nodeDir <</>> "/port")
 
-findNodeDirs :: { workdir :: FilePath } -> Effect (Array FilePath)
-findNodeDirs { workdir } = do
+findNodeDirs :: { workdir :: FilePath } -> Effect (Array { | NodeLocation () })
+findNodeDirs { workdir } = ado
   subdirs <- Node.FS.readdir workdir
-  pure $ flip Array.mapMaybe subdirs \dirname ->
-    workdir <</>> dirname <$ String.stripPrefix (Pattern "node-spo") dirname
+  in flip Array.mapMaybe subdirs \dirname -> ado
+      idx <- Int.fromString
+        =<< String.stripPrefix (Pattern "node-spo") dirname
+      in { idx, workdir: workdir <</>> dirname }
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
