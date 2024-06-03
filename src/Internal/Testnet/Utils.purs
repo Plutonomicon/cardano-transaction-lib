@@ -103,7 +103,8 @@ getNodePort { nodeDir } =
 findNodeDirs :: { workdir :: FilePath } -> Effect (Array { | NodeLocation () })
 findNodeDirs { workdir } = ado
   subdirs <- Node.FS.readdir workdir
-  in flip Array.mapMaybe subdirs \dirname -> ado
+  in
+    flip Array.mapMaybe subdirs \dirname -> ado
       idx <- Int.fromString
         =<< String.stripPrefix (Pattern "node-spo") dirname
       in { idx, workdir: workdir <</>> dirname }
