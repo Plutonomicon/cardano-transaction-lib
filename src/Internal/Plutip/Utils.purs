@@ -58,7 +58,7 @@ foreign import setCloseHandler
 
 suppressAndLogErrors
   :: forall m. MonadEffect m => MonadError Error m => String -> m Unit -> m Unit
-suppressAndLogErrors location = flip catchError $ message
+suppressAndLogErrors location = flip catchError $ show
   >>> append ("An error occured and suppressed at " <> location <> ": ")
   >>> log
 
@@ -174,7 +174,7 @@ onLine readable =
       cancel = do
         removeOnSignal lineHandler
         void
-          $ suppressAndLogErrors "onLine:setCloseHandler"
+          $ suppressAndLogErrors "onLine:cancel"
           $ mainHandler
           $ Left
           $ error "Line event source has been closed."
@@ -247,6 +247,7 @@ makeEventSource subscribeOnEvents filter = annotateError "make event source" do
           Nothing -> pure unit
     }
   flip Ref.write cancelRef \error -> do
+    Ref.write mempty cancelRef -- canceler may be called only once
     unsubscribe
     markCanceled
     Ref.read handlers >>= traverse_ \cont ->
