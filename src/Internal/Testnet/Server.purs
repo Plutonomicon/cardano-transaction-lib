@@ -6,6 +6,9 @@ module Ctl.Internal.Testnet.Server
   , startCardanoTestnet
   , testTestnetContracts
   , startTestnetCluster
+  , defaultStartupParams
+  , StartedTestnetCluster(MkStartedTestnetCluster)
+  , Channels
   ) where
 
 import Contract.Prelude
@@ -97,6 +100,30 @@ type Channels a =
   , stdout :: EventSource a
   }
 
+defaultStartupParams :: CardanoTestnetStartupParams
+defaultStartupParams =
+  ( Testnet.Types.defaultStartupParams
+      { testnetMagic: 2 }
+  )
+    { nodeLoggingFormat = Just Testnet.Types.LogAsJson }
+
+newtype StartedTestnetCluster = MkStartedTestnetCluster
+  { ogmios ::
+      { process :: ManagedProcess
+      , channels :: Channels String
+      }
+  , kupo ::
+      { process :: ManagedProcess
+      , channels :: Channels String
+      , workdir :: FilePath
+      }
+  , testnet ::
+      { process :: ManagedProcess
+      , channels :: Channels String
+      }
+  , paths :: TestnetPaths
+  }
+
 -- | Start the plutip cluster, initializing the state with the given
 -- | UTxO distribution. Also initializes an extra payment key (aka
 -- | `ourKey`) with some UTxOs for use with further plutip
@@ -104,27 +131,11 @@ type Channels a =
 -- | UTxOs in the passed distribution, so it can be used to handle
 -- | transaction fees.
 startTestnetCluster
-  :: CardanoTestnetStartupParams
+  :: forall r
+   . CardanoTestnetStartupParams
   -> Ref (Array (Aff Unit))
-  -> { ogmiosConfig :: ServerConfig
-     , kupoConfig :: ServerConfig
-     }
-  -> Aff
-       { ogmios ::
-           { process :: ManagedProcess
-           , channels :: Channels String
-           }
-       , kupo ::
-           { process :: ManagedProcess
-           , channels :: Channels String
-           , workdir :: FilePath
-           }
-       , testnet ::
-           { process :: ManagedProcess
-           , channels :: Channels String
-           }
-       , paths :: TestnetPaths
-       }
+  -> Record (KupmiosConfig r)
+  -> Aff StartedTestnetCluster
 startTestnetCluster startupParams cleanupRef cfg = do
   { testnet
   , channels
@@ -143,7 +154,7 @@ startTestnetCluster startupParams cleanupRef cfg = do
   ogmios <- startOgmios' { paths, workdir: workdirAbsolute }
   kupo <- startKupo' { paths, workdir: workdirAbsolute }
 
-  pure
+  pure $ MkStartedTestnetCluster
     { paths
     , ogmios
     , kupo
@@ -248,7 +259,7 @@ startCardanoTestnet
            , stdout :: EventSource String
            }
        , workdirAbsolute :: FilePath
-       , nodes :: Array { dir :: FilePath, port :: UInt }
+       , nodes :: Array { | Node () }
        }
 startCardanoTestnet params cleanupRef = do
 
@@ -263,15 +274,14 @@ startCardanoTestnet params cleanupRef = do
           channels.stdout
     workdir <- waitForEvent events
     log $ "Found workdir: " <> workdir
-    liftEffect cancel
+    liftEffect $ cancel $ error "Not needed anymore"
     pure $ tmp <</>> workdir
 
   -- cardano-testnet doesn't kill cardano-nodes it spawns, so we do it ourselves
   nodes <- liftEffect do
     nodeDirs <- findNodeDirs { workdir: workdirAbsolute }
-    for nodeDirs \nodeDir -> do
-      port <- getNodePort { nodeDir }
-      pure { dir: nodeDir, port }
+    readNodes { testnetDirectory: workdirAbsolute, nodeDirs }
+
   for_ nodes \{ port } -> do
     liftEffect
       $ addCleanup cleanupRef
