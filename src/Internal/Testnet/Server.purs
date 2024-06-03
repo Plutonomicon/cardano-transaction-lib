@@ -14,7 +14,10 @@ module Ctl.Internal.Testnet.Server
 import Contract.Prelude
 
 import Contract.Test.Mote (TestPlanM)
-import Control.Monad.Error.Class (catchError)
+import Control.Apply (applySecond)
+import Control.Monad.Error.Class
+  ( throwError
+  )
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Server
@@ -36,13 +39,17 @@ import Ctl.Internal.Plutip.Types
 import Ctl.Internal.Plutip.Utils
   ( EventSource(..)
   , addCleanup
+  , annotateError
   , narrowEventSource
   , onLine
+  , runCleanup
   , scheduleCleanup
+  , suppressAndLogErrors
   , tmpdir
+  , tryAndLogErrors
+  , waitForClose
   , waitForEvent
   )
-import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Test.ContractTest
   ( ContractTest
   , ContractTestPlan(ContractTestPlan)
@@ -58,8 +65,8 @@ import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Testnet.Utils
   ( findNodeDirs
   , findTestnetPaths
-  , getNodePort
   , onTestnetEvent
+  , readNodes
   , tellsIt'sLocation
   , waitFor
   )
@@ -67,10 +74,9 @@ import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
 import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Tuple.Nested (type (/\))
-import Data.UInt (UInt)
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
-import Effect.Exception (message)
+import Effect.Exception (Error, error)
 import Effect.Exception.Unsafe (unsafeThrow)
 import Effect.Ref (Ref)
 import Node.ChildProcess (defaultSpawnOptions)
@@ -140,19 +146,24 @@ startTestnetCluster startupParams cleanupRef cfg = do
   { testnet
   , channels
   , workdirAbsolute
-  } <- startCardanoTestnet startupParams cleanupRef
-  source <- liftEffect $ onTestnetEvent channels.stdout
+  } <- annotateError "Could not start cardano-testnet"
+    $ startCardanoTestnet startupParams cleanupRef
 
-  -- it will crash right here if testnet process will die
-  waitFor source case _ of
-    Ready -> Just unit
+  testnetEvents <- liftEffect $ onTestnetEvent channels.stdout
+  -- it will crash right here uncatchable if testnet process will die
+  log "Waiting for Ready state"
+  waitFor testnetEvents case _ of
+    Testnet.Types.Ready -> Just unit
     _ -> Nothing
+  log "Testnet is ready"
 
   paths <- liftEither
     =<< liftEffect (findTestnetPaths { workdir: workdirAbsolute })
 
-  ogmios <- startOgmios' { paths, workdir: workdirAbsolute }
-  kupo <- startKupo' { paths, workdir: workdirAbsolute }
+  ogmios <- annotateError "Could not start ogmios"
+    $ startOgmios' { paths, workdir: workdirAbsolute }
+  kupo <- annotateError "Could not start kupo"
+    $ startKupo' { paths, workdir: workdirAbsolute }
 
   pure $ MkStartedTestnetCluster
     { paths
@@ -168,6 +179,12 @@ startTestnetCluster startupParams cleanupRef cfg = do
         (startKupo cfg paths cleanupRef)
         $ fst
         >>> stop
+
+    _ <- Aff.forkAff do
+      waitForClose kupo
+      runCleanup cleanupRef
+      throwError $ error "kupo process has exited"
+
     kupoChannels <- liftEffect $ getChannels kupo
     _ <- redirectChannels
       kupoChannels
@@ -184,6 +201,10 @@ startTestnetCluster startupParams cleanupRef cfg = do
       cleanupRef
       (startOgmios cfg paths)
       stop
+    _ <- Aff.forkAff do
+      waitForClose ogmios
+      runCleanup cleanupRef
+      throwError $ error "ogmios process has exited"
 
     ogmiosChannels <- liftEffect $ getChannels ogmios
     _ <- redirectChannels
@@ -267,6 +288,12 @@ startCardanoTestnet params cleanupRef = do
 
   testnet <- spawnCardanoTestnet params
   channels <- liftEffect $ getChannels testnet
+
+  _ <- Aff.forkAff do
+    waitForClose testnet
+    runCleanup cleanupRef
+    throwError $ error "cardano-testnet process has exited"
+
   workdirAbsolute <- do
     events@(EventSource { cancel }) <- liftEffect
       $ narrowEventSource
