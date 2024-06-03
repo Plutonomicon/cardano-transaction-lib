@@ -192,6 +192,8 @@
                 nodePackages.prettier
                 blockfrost-backend-ryo
                 cardano-node.packages.${system}.cardano-testnet
+                cardano-node.packages.${system}.cardano-cli
+                cardano-node.packages.${system}.cardano-node
               ];
             };
           };
