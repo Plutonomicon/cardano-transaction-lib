@@ -12,6 +12,7 @@ module Ctl.Internal.Plutip.Utils
   , addCleanup
   , scheduleCleanup
   , after
+  , whenError
   , suppressAndLogErrors
   ) where
 
@@ -176,6 +177,13 @@ scheduleCleanup
   -> Aff a
 scheduleCleanup cleanupRef create cleanup =
   after create $ liftEffect <<< addCleanup cleanupRef <<< cleanup
+
+-- Similar to `catchError` but preserves the error
+whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
+whenError whenErrorAction action = do
+  res <- try action
+  when (isLeft res) whenErrorAction
+  liftEither res
 
 -- | Just as a bracket but without the body.
 after :: forall a. Aff a -> (a -> Aff Unit) -> Aff a

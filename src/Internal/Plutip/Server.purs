@@ -64,8 +64,8 @@ import Ctl.Internal.Plutip.Utils
   ( addCleanup
   , after
   , runCleanup
-  , suppressAndLogErrors
   , tmpdir
+  , whenError
   )
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.ServerConfig (ServerConfig)
@@ -91,7 +91,7 @@ import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, isLeft)
+import Data.Either (Either(Left, Right), either)
 import Data.Foldable (fold)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
@@ -213,13 +213,6 @@ runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
     Mote.bracket { before, after } $ flip mapTest act \t -> do
       result <- liftEffect $ Ref.read resultRef >>= liftEither
       t result
-
--- Similar to `catchError` but preserves the error
-whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
-whenError whenErrorAction action = do
-  res <- try action
-  when (isLeft res) whenErrorAction
-  liftEither res
 
 -- | Lifts the UTxO distributions of each test out of Mote, into a combined
 -- | distribution. Adapts the tests to pick their distribution out of the
@@ -603,8 +596,7 @@ startKupo cfg params cleanupRef = do
       $ liftEffect
       $ addCleanup cleanupRef
       $ liftEffect
-      $ suppressAndLogErrors do
-          _rmdirSync workdir
+      $ _rmdirSync workdir
   pure (childProcess /\ workdir)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
