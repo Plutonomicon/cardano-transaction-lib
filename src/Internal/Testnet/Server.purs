@@ -19,8 +19,10 @@ import Control.Apply (applySecond)
 import Control.Monad.Error.Class (liftMaybe, throwError, try)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Server (
-  startKupo, startOgmios)
+import Ctl.Internal.Plutip.Server
+  ( startKupo
+  , startOgmios
+  )
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess(..)
   , _rmdirSync
@@ -271,7 +273,6 @@ spawnCardanoTestnet { cwd } params = do
     opts
     Nothing
   where
-
   flag :: String -> String
   flag name = "--" <> name
 
