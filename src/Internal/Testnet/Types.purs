@@ -115,6 +115,7 @@ type Node r =
 
 type NodeLocation r =
   ( idx :: Int
+  , name :: String
   , workdir :: FilePath
   | r
   )

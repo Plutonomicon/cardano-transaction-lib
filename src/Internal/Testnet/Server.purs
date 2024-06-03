@@ -14,16 +14,13 @@ module Ctl.Internal.Testnet.Server
 import Contract.Prelude
 
 import Contract.Test.Mote (TestPlanM)
+import Control.Alt ((<|>))
 import Control.Apply (applySecond)
-import Control.Monad.Error.Class
-  ( throwError
-  )
+import Control.Monad.Error.Class (liftMaybe, throwError, try)
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Server
-  ( startKupo
-  , startOgmios
-  )
+import Ctl.Internal.Plutip.Server (
+  startKupo, startOgmios)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess(..)
   , _rmdirSync
@@ -37,10 +34,10 @@ import Ctl.Internal.Plutip.Types
   , StopClusterResponse
   )
 import Ctl.Internal.Plutip.Utils
-  ( EventSource(..)
+  ( EventSource
   , addCleanup
   , annotateError
-  , narrowEventSource
+  , mkDirIfNotExists
   , onLine
   , runCleanup
   , scheduleCleanup
@@ -48,7 +45,9 @@ import Ctl.Internal.Plutip.Utils
   , tmpdir
   , tryAndLogErrors
   , waitForClose
+  , waitForError
   , waitForEvent
+  , waitUntil
   )
 import Ctl.Internal.Test.ContractTest
   ( ContractTest
@@ -65,24 +64,26 @@ import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Testnet.Utils
   ( findNodeDirs
   , findTestnetPaths
-  , onTestnetEvent
+  , findTestnetWorkir
+  , getRuntime
   , readNodes
-  , tellsIt'sLocation
-  , waitFor
   )
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
 import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
+import Data.Time.Duration (Milliseconds(..))
 import Data.Tuple.Nested (type (/\))
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
 import Effect.Exception (Error, error)
 import Effect.Exception.Unsafe (unsafeThrow)
+import Effect.Random (randomInt)
 import Effect.Ref (Ref)
+import Foreign.Object as Object
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Sync (appendTextFile)
+import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 import Node.Process as Node.Process
 
@@ -149,16 +150,24 @@ startTestnetCluster startupParams cleanupRef cfg = do
   } <- annotateError "Could not start cardano-testnet"
     $ startCardanoTestnet startupParams cleanupRef
 
-  testnetEvents <- liftEffect $ onTestnetEvent channels.stdout
+  -- testnetEvents <- liftEffect $ onTestnetEvent channels.stdout
   -- it will crash right here uncatchable if testnet process will die
   log "Waiting for Ready state"
-  waitFor testnetEvents case _ of
-    Testnet.Types.Ready -> Just unit
-    _ -> Nothing
-  log "Testnet is ready"
+  -- waitFor testnetEvents case _ of
+  --   Testnet.Types.Ready -> Just unit
+  --   _ -> Nothing
 
-  paths <- liftEither
-    =<< liftEffect (findTestnetPaths { workdir: workdirAbsolute })
+  { runtime, paths } <- waitUntil (Milliseconds 4000.0)
+    $ map hush
+    $ tryAndLogErrors "Waiting for ready state"
+    $ liftEffect do
+
+        paths <- liftEither =<< findTestnetPaths { workdir: workdirAbsolute }
+        runtime <- getRuntime paths
+        pure { runtime, paths }
+
+  log "Testnet is ready"
+  Aff.delay $ Milliseconds 2000.0
 
   ogmios <- annotateError "Could not start ogmios"
     $ startOgmios' { paths, workdir: workdirAbsolute }
@@ -189,10 +198,11 @@ startTestnetCluster startupParams cleanupRef cfg = do
     _ <- redirectChannels
       kupoChannels
       { stderrTo:
-          { log: workdir <</>> "kupo.stderr.log"
+          { log: Just $ workdir <</>> "kupo.stderr.log"
           , console: Just "[kupo][error]: "
           }
-      , stdoutTo: { log: workdir <</>> "kupo.stdout.log", console: Nothing }
+      , stdoutTo:
+          { log: Just $ workdir <</>> "kupo.stdout.log", console: Nothing }
       }
     pure { process: kupo, workdir: kupoWorkdir, channels: kupoChannels }
 
@@ -210,10 +220,11 @@ startTestnetCluster startupParams cleanupRef cfg = do
     _ <- redirectChannels
       ogmiosChannels
       { stderrTo:
-          { log: workdir <</>> "ogmios.stderr.log"
+          { log: Just $ workdir <</>> "ogmios.stderr.log"
           , console: Just "[ogmios][error]: "
           }
-      , stdoutTo: { log: workdir <</>> "ogmios.stdout.log", console: Nothing }
+      , stdoutTo:
+          { log: Just $ workdir <</>> "ogmios.stdout.log", console: Nothing }
       }
     pure { process: ogmios, channels: ogmiosChannels }
 
@@ -239,15 +250,28 @@ runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) =
 
 -- | Runs cardano-testnet executable with provided params.
 spawnCardanoTestnet
-  :: CardanoTestnetStartupParams
+  :: { cwd :: FilePath }
+  -> CardanoTestnetStartupParams
   -> Aff ManagedProcess
-spawnCardanoTestnet params = do
+spawnCardanoTestnet { cwd } params = do
+  env <- liftEffect Node.Process.getEnv
+  initCwd <- liftMaybe (error "Couldn't find INIT_CWD env variable")
+    $ Object.lookup "INIT_CWD" env
+  let
+    env' = Object.fromFoldable
+      [ "TMPDIR" /\ cwd
+      , "CARDANO_NODE_SRC" /\ (initCwd <</>> "cardano-testnet-files")
+      ]
+    opts = defaultSpawnOptions
+      { cwd = Just cwd, env = Just $ Object.union env' env }
+  -- log $ show env
   spawn
     "cardano-testnet"
     options
-    defaultSpawnOptions
+    opts
     Nothing
   where
+
   flag :: String -> String
   flag name = "--" <> name
 
@@ -282,32 +306,62 @@ startCardanoTestnet
        , workdirAbsolute :: FilePath
        , nodes :: Array { | Node () }
        }
-startCardanoTestnet params cleanupRef = do
+startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
 
-  tmp <- liftEffect tmpdir
+  testDir <- liftEffect do
+    tmp <- tmpdir
+    log $ show { tmp }
+    testId <- randomInt 0 999
+    let dir = tmp <</>> "testnet-" <> show testId
+    mkDirIfNotExists dir
+    log $ show { dir }
+    pure dir
 
-  testnet <- spawnCardanoTestnet params
+  let
+    tmpLogDir = testDir <</>> "logs"
+    tmpStdoutLogs = tmpLogDir <</>> "cardano-testnet.stdout.tmp.log"
+    tmpStderrLogs = tmpLogDir <</>> "cardano-testnet.stderr.tmp.log"
+    cleanupTmpLogs = do
+      void $ try $ Node.FS.rm tmpStdoutLogs
+      void $ try $ Node.FS.rm tmpStderrLogs
+
+  testnet <- spawnCardanoTestnet { cwd: testDir } params
   channels <- liftEffect $ getChannels testnet
 
-  _ <- Aff.forkAff do
-    waitForClose testnet
+  -- Additional logging channels
+  _ <- Aff.forkAff $ annotateError "startCardanoTestnet:waitForFail" do
+    let
+      waitError = Just <$> waitForError testnet
+      waitClose = Nothing <$ waitForClose testnet
+    cause <- waitError <|> waitClose
     runCleanup cleanupRef
-    throwError $ error "cardano-testnet process has exited"
+    throwError $ fromMaybe (error "cardano-testnet process has exited") cause
 
-  workdirAbsolute <- do
-    events@(EventSource { cancel }) <- liftEffect
-      $ narrowEventSource
-          (tellsIt'sLocation { tmpdir: tmp })
-          channels.stdout
-    workdir <- waitForEvent events
-    log $ "Found workdir: " <> workdir
-    liftEffect $ cancel $ error "Not needed anymore"
-    pure $ tmp <</>> workdir
+  liftEffect $ mkDirIfNotExists tmpLogDir
+  tempOutput <- redirectChannels
+    { stderr: channels.stderr, stdout: channels.stdout }
+    { stdoutTo: { log: Just tmpStdoutLogs, console: Just "[node][stdout]" }
+    , stderrTo: { log: Just tmpStderrLogs, console: Just "[node][stderr]" }
+    }
+  log "Redirected logs"
+
+  -- -- It may not create an own directory until show any signs of life 
+  -- _ <- waitForEvent channels.stdout
+
+  -- forward node's stdout
+  workdirAbsolute <- waitUntil (Milliseconds 1000.0) do
+    liftEffect $ findTestnetWorkir { tmpdir: testDir, dirIdx: 0 }
+  Aff.killFiber (error "Temp output is not needed anymore") tempOutput
 
   -- cardano-testnet doesn't kill cardano-nodes it spawns, so we do it ourselves
-  nodes <- liftEffect do
-    nodeDirs <- findNodeDirs { workdir: workdirAbsolute }
-    readNodes { testnetDirectory: workdirAbsolute, nodeDirs }
+
+  nodes <- waitUntil (Milliseconds 3000.0)
+    $ liftEffect
+    $ map hush
+    $ tryAndLogErrors "waiting until nodes are there" do
+
+        nodeDirs <- findNodeDirs { workdir: workdirAbsolute }
+        readNodes { testnetDirectory: workdirAbsolute, nodeDirs }
 
   for_ nodes \{ port } -> do
     liftEffect
@@ -326,21 +380,21 @@ startCardanoTestnet params cleanupRef = do
       $ addCleanup cleanupRef
       $ liftEffect do
           log "Cleaning up workidr"
+          cleanupTmpLogs
           _rmdirSync workdirAbsolute
 
-  -- forward node's stdout
   _ <- redirectChannels
     { stderr: channels.stderr, stdout: channels.stdout }
     { stdoutTo:
-        { log: workdirAbsolute <</>> "cardano-testnet.stdout.log"
-        , console: Just "[cardano-testnet][info]"
+        { log: Just $ workdirAbsolute <</>> "cardano-testnet.stdout.log"
+        , console: Nothing
         }
     , stderrTo:
-        { log: workdirAbsolute <</>> "cardano-testnet.stderr.log"
-        , console: Just "[cardano-testnet][error]"
+        { log: Just $ workdirAbsolute <</>> "cardano-testnet.stderr.log"
+        , console: Nothing
         }
     }
-
+  log "startCardanoTestnet:done"
   pure { testnet, workdirAbsolute, channels, nodes }
 
 getChannels
@@ -360,15 +414,15 @@ redirectChannels
   :: { stderr :: EventSource String
      , stdout :: EventSource String
      }
-  -> { stderrTo :: { log :: FilePath, console :: Maybe String }
-     , stdoutTo :: { log :: FilePath, console :: Maybe String }
+  -> { stderrTo :: { log :: Maybe FilePath, console :: Maybe String }
+     , stdoutTo :: { log :: Maybe FilePath, console :: Maybe String }
      }
   -> Aff (Aff.Fiber (Either Error Unit))
 redirectChannels { stderr, stdout } { stderrTo, stdoutTo } = do
   handleStderr <- redirectLogging
     stderr
-    { storeLogs: Just
-        { logFile: stderrTo.log
+    { storeLogs: stderrTo.log <#>
+        { logFile: _
         , toString: identity
         }
     , handleLine: case stderrTo.console of
@@ -377,8 +431,8 @@ redirectChannels { stderr, stdout } { stderrTo, stdoutTo } = do
     }
   handleStdout <- redirectLogging
     stdout
-    { storeLogs: Just
-        { logFile: stdoutTo.log
+    { storeLogs: stdoutTo.log <#>
+        { logFile: _
         , toString: identity
         }
     , handleLine: case stdoutTo.console of
@@ -405,5 +459,5 @@ redirectLogging events { handleLine, storeLogs } =
       do
         handleLine line
         for storeLogs \{ logFile, toString } ->
-          appendTextFile UTF8 logFile $ toString line <> "\n"
+          Node.FS.appendTextFile UTF8 logFile $ toString line <> "\n"
     pure $ Loop unit

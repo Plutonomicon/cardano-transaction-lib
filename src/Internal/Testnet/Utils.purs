@@ -1,7 +1,19 @@
-module Ctl.Internal.Testnet.Utils where
+module Ctl.Internal.Testnet.Utils
+  ( findNodeDirs
+  , findTestnetPaths
+  , findTestnetWorkir
+  , getNodePort
+  , getRuntime
+  , is811TestnetDirectoryName
+  , onTestnetEvent
+  , parseEvent
+  , readNodes
+  , waitFor
+  ) where
 
 import Contract.Prelude
 
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class
   ( liftMaybe
   , throwError
@@ -24,33 +36,31 @@ import Ctl.Internal.Testnet.Types
   )
 import Data.Array as Array
 import Data.Int as Int
-import Data.String (Pattern(..), contains)
+import Data.String (Pattern(..))
 import Data.String as String
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, error)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 
-parseTestnetDirectory :: { tmpdir :: FilePath } -> String -> Maybe FilePath
-parseTestnetDirectory { tmpdir } =
-  map (String.takeWhile $ not <<< isFolderSeparator)
-    <<< String.stripPrefix (Pattern $ tmpdir <> "/")
-    <<< String.dropWhile (not <<< isFolderSeparator)
-  where
-  isFolderSeparator = eq $ String.codePointFromChar '/'
+-- | For cardano-node 8.1.1
+is811TestnetDirectoryName :: Int -> FilePath -> Boolean
+is811TestnetDirectoryName n =
+  isJust <<< String.stripPrefix (Pattern $ "testnet-" <> show n <> "-test-")
 
-tellsIt'sLocation :: { tmpdir :: FilePath } -> String -> Maybe FilePath
-tellsIt'sLocation tmpdir src
-  | contains (Pattern "stake-pools.json") src
-  , contains (Pattern "      ━━━━ File:") src =
-      parseTestnetDirectory tmpdir src
-  | otherwise = Nothing
+findTestnetWorkir
+  :: { tmpdir :: FilePath, dirIdx :: Int } -> Effect (Maybe FilePath)
+findTestnetWorkir { tmpdir, dirIdx } =
+  map (tmpdir <</>> _)
+    <<< Array.find (is811TestnetDirectoryName dirIdx)
+    <$> Node.FS.readdir tmpdir
 
 parseEvent :: String -> Maybe Event
 parseEvent = case _ of
-  "    forAll109 =" -> Just Ready
+  -- we can't know this way when 8.1.1 cardano-testnet is ready
+  -- "    forAll709 =" -> Just Ready -- forAll109 for 8.3.2 
   "Usage: cardano-testnet cardano [--num-pool-nodes COUNT]" ->
     Just $ StartupFailed SpawnFailed
   "Failed to start testnet." ->
@@ -69,6 +79,48 @@ waitFor source f = flip tailRecM unit \_ -> do
 onTestnetEvent :: EventSource String -> Effect (EventSource Event)
 onTestnetEvent = narrowEventSource parseEvent
 
+-- type GenesisKeyFile = Int /\ FilePath
+
+-- parseGenesisKeyFileName
+--   :: FilePath
+--   -> Maybe
+--        (Either { vkey :: GenesisKeyFile } { skey :: GenesisKeyFile })
+-- parseGenesisKeyFileName filename = do
+--   idWithExt <- String.stripPrefix (Pattern "genesis") filename
+--   let
+--     vkey = do
+--       idx <- parseIdx ".vkey" idWithExt
+--       pure { vkey: idx /\ filename }
+--     skey = do
+--       idx <- parseIdx ".skey" idWithExt
+--       pure { skey: idx /\ filename }
+--   choose vkey skey
+--   where
+--   parseIdx ext =
+--     Int.fromString <=< String.stripSuffix (Pattern ext)
+
+-- readGenesisKeyPaths
+--   :: { workdir :: FilePath }
+--   -> Effect (Map.Map Int { skey :: FilePath, vkey :: FilePath })
+-- readGenesisKeyPaths { workdir } = do
+--   keyfiles <- Node.FS.readdir $ workdir <</>> "genesis-keys"
+--   genesis <- liftMaybe (error $ "Can't parse genesis-keys filenames")
+--     $ traverse parseGenesisKeyFileName keyfiles
+--   let
+--     empty :: forall k v. Ord k => Map.Map k v
+--     empty = Map.fromFoldable []
+--     vkeys /\ skeys = fold $ genesis <#>
+--       either
+--         (\{ vkey: elem } -> Map.fromFoldable [ elem ] /\ empty)
+--         (\{ skey: elem } -> empty /\ Map.fromFoldable [ elem ])
+--     keys = Map.intersectionWith { vkey: _, skey: _ } vkeys skeys
+--     toFullPath filename = workdir <</>> "genesis-keys" <</>> filename
+
+--   pure $ keys <#> \{ skey, vkey } ->
+--     { skey: toFullPath skey
+--     , vkey: toFullPath vkey
+--     }
+
 getRuntime :: TestnetPaths -> Effect (Record (TestnetRuntime ()))
 getRuntime paths = do
   nodes <- readNodes paths
@@ -83,16 +135,17 @@ readNodes
      }
   -> Effect (Array { | Node () })
 readNodes { nodeDirs, testnetDirectory } = do
-  for nodeDirs \{ idx, workdir } -> do
+  for nodeDirs \{ idx, workdir, name } -> do
     let
-      socketPath = testnetDirectory <</>> "socket" <</>> "node-spo" <> show idx
+      socketPath = testnetDirectory <</>> "socket" <</>> name
     exists <- Node.FS.exists socketPath
     unless exists
-      $ throw
+      $ throwError
+      $ error
       $ "Couldn't find node socket at "
       <> socketPath
     port <- getNodePort { nodeDir: workdir }
-    pure { idx, socket: socketPath, port, workdir }
+    pure { idx, socket: socketPath, port, workdir, name }
 
 getNodePort :: { nodeDir :: FilePath } -> Effect UInt
 getNodePort { nodeDir } =
@@ -105,17 +158,22 @@ findNodeDirs { workdir } = ado
   subdirs <- Node.FS.readdir workdir
   in
     flip Array.mapMaybe subdirs \dirname -> ado
-      idx <- Int.fromString
-        =<< String.stripPrefix (Pattern "node-spo") dirname
-      in { idx, workdir: workdir <</>> dirname }
+      idx <- Int.fromString =<< node881 dirname
+      in { idx, workdir: workdir <</>> dirname, name: dirname }
+  where
+  node881 x =
+    String.stripPrefix (Pattern "node-bft") x
+      <|> String.stripPrefix (Pattern "node-pool") x
+  node832 = String.stripPrefix (Pattern "node-spo")
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
 findTestnetPaths { workdir } = runExceptT do
-  nodeDirs <- lift $ findNodeDirs { workdir }
   let
     nodeConfigPath = workdir <</>> "configuration.yaml"
-    nodeSocketPath = workdir <</>> "socket/node-spo1"
+    firstNode811 = "socket/node-pool1"
+    firstNode832 = "socket/node-spo1"
+    nodeSocketPath = workdir <</>> firstNode811
   workdirExists <- lift $ Node.FS.exists workdir
   configPathExists <- lift $ Node.FS.exists nodeConfigPath
   socketPathExists <- lift $ Node.FS.exists nodeSocketPath
@@ -126,8 +184,10 @@ findTestnetPaths { workdir } = runExceptT do
     throwError $ error $
       "'configuration.yaml' not found in cardano-testnet working directory."
   unless socketPathExists do
-    throwError $ error $
-      "'socket/node-spo1' not found in cardano-testnet working directory."
+    throwError $ error
+      $ firstNode811
+      <> " not found in cardano-testnet working directory."
+  nodeDirs <- lift $ findNodeDirs { workdir }
   pure
     { testnetDirectory: workdir
     , nodeConfigPath
