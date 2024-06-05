@@ -325,8 +325,10 @@ execCardanoCli
        }
 execCardanoCli params = Aff.makeAff \cont -> do
   processRef <- Ref.new Nothing
+  let cmd = "cardano-cli " <> intercalate " " params
+  log $ show {execCardanoCli: cmd}
   process <- Node.ChildProcess.exec
-    ("cardano-cli " <> intercalate " " params)
+    cmd
     Node.ChildProcess.defaultExecOptions
     ( \{ error: err, stderr, stdout } -> do
         process <-
