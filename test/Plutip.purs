@@ -8,68 +8,24 @@ import Cardano.Types.Address as Cardano.Types
 import Contract.Config as Config
 import Contract.Monad (Contract, launchAff_, withContractEnv)
 import Contract.Monad as Contract
-import Contract.Prelude
-  ( Either(..)
-  , Maybe(..)
-  , for
-  , for_
-  , intercalate
-  , isJust
-  , length
-  , liftAff
-  , liftEffect
-  , log
-  , maybe
-  , traverse
-  )
+import Contract.Prelude (Either(..), Maybe(..), for, for_, intercalate, isJust, length, liftAff, liftEffect, log, maybe, traverse)
 import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Staking (getPoolIds)
 import Contract.Test.Plutip (PlutipConfig, defaultPlutipConfig, noWallet)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Contract.TextEnvelope
-  ( TextEnvelope(..)
-  , TextEnvelopeType(..)
-  , decodeTextEnvelope
-  )
-import Contract.Wallet
-  ( getWalletAddresses
-  , getWalletBalance
-  , mkKeyWalletFromPrivateKeys
-  , ownPaymentPubKeyHashes
-  , withKeyWallet
-  )
-import Contract.Wallet.KeyFile
-  ( mkKeyWalletFromFiles
-  , privatePaymentKeyFromTextEnvelope
-  )
+import Contract.TextEnvelope (TextEnvelope(..), TextEnvelopeType(..), decodeTextEnvelope)
+import Contract.Wallet (KeyWallet, getWalletAddresses, getWalletBalance, mkKeyWalletFromPrivateKeys, ownPaymentPubKeyHashes, withKeyWallet)
+import Contract.Wallet.KeyFile (mkKeyWalletFromFiles, privatePaymentKeyFromTextEnvelope)
 import Control.Monad.Error.Class (liftMaybe, throwError, try)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), stop)
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Ctl.Internal.Plutip.Utils
-  ( cleanupOnExit
-  , onLine
-  , tmpdir
-  , waitForBeforeExit
-  , waitForExit
-  , waitForUncaughtException
-  )
+import Ctl.Internal.Plutip.Utils (cleanupOnExit, onLine, tmpdir, waitForBeforeExit, waitForExit, waitForUncaughtException)
 import Ctl.Internal.Testnet.Contract as Testnet.Contract
-import Ctl.Internal.Testnet.Server
-  ( checkTestnet
-  , redirectChannels
-  , runTestnetTestPlan
-  , startTestnet
-  , stopTestnet
-  , testTestnetContracts
-  )
+import Ctl.Internal.Testnet.Server (checkTestnet, redirectChannels, runTestnetTestPlan, startTestnet, stopTestnet, testTestnetContracts)
 import Ctl.Internal.Testnet.Server as Testnet
-import Ctl.Internal.Testnet.Types
-  ( CardanoTestnetStartupParams
-  , Event(..)
-  , LoggingFormat(..)
-  )
+import Ctl.Internal.Testnet.Types (CardanoTestnetStartupParams, Event(..), LoggingFormat(..))
 import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Testnet.Utils (findTestnetPaths, onTestnetEvent, waitFor)
 import Ctl.Internal.Types.ScriptLookups (ownPaymentPubKeyHash)
@@ -77,18 +33,9 @@ import Ctl.Internal.Wallet.KeyFile (privateStakeKeyFromTextEnvelope)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(..))
 import Effect (Effect)
-import Effect.Aff
-  ( Aff
-  , Milliseconds(Milliseconds)
-  , bracket
-  , cancelWith
-  , delay
-  , effectCanceler
-  , forkAff
-  , killFiber
-  , launchAff
-  )
+import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, cancelWith, delay, effectCanceler, forkAff, killFiber, launchAff)
 import Effect.Aff as Aff
+import Effect.Aff.Class (class MonadAff)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Mote (group, test)
@@ -220,24 +167,28 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
         delegatesDir = paths.testnetDirectory <</>> "shelley" <</>>
           "delegate-keys"
 
-        readWallet name n = liftAff $ mkKeyWalletFromFiles
-          (name <> show n <> ".skey")
-          (Just $ name <> show n <> "-stake.skey")
-
-        readHackWallet makeStakeKey name n =
-          liftAff $ walletFromHackedKeys
+        readWallet name n = liftAff do
+          wallet <- mkKeyWalletFromFiles
+            (name <> show n <> ".skey")
+            (Just $ name <> show n <> "-stake.skey")
+          pure $ (name <> show n) /\ wallet
+        readHackWallet :: forall m. MonadAff m => _ -> _ -> _ -> m (String /\ KeyWallet)
+        readHackWallet makeStakeKey name n = liftAff do 
+          wallet <- walletFromHackedKeys
             (name <> show n <> ".skey")
             ( if makeStakeKey then Just $ name <> show n <> "-stake.skey"
               else Nothing
             )
+          pure $ (name <> show n) /\ wallet
         walletFromHackedKeys payment staking = do
           pk <- readGenesisPkey payment
           sk <- traverse readGenesisStakingPkey staking
           pure $ mkKeyWalletFromPrivateKeys pk sk
         --    (Just $ name <> show n <> "-stake.skey")
 
-        walletBalance wallet =
+        walletBalance walletName wallet =
           withKeyWallet wallet do
+            log $ show {walletBalance: walletName}
             addresses <- getWalletAddresses
             for_ addresses $ liftAff <<< askAddressFunds
               { socketPath: paths.nodeSocketPath
@@ -248,24 +199,25 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
       -- log <<< append "Balance: " <<< show =<< getWalletBalance
 
       for_ [ 1, 2 ] \n -> do
-        walletBalance =<< readWallet (addressesDir <</>> "pool-owner") n
-        walletBalance =<< readWallet (addressesDir <</>> "user") n
+        uncurry walletBalance =<< readWallet (addressesDir <</>> "pool-owner") n
+        uncurry walletBalance =<< readWallet (addressesDir <</>> "user") n
       liftAff $ Aff.delay $ Milliseconds 8000.0
       for_ [ 1, 2, 3, 4 ] \n -> do
-        walletBalance =<< readHackWallet false (delegatesDir <</>> "delegate") n
+        uncurry walletBalance =<< readHackWallet false (delegatesDir <</>> "delegate") n
       for_ [ 1, 2 ] \n -> do
-        walletBalance =<< liftAff
+        let nodeBft = "node-bft" <> show n
+            nodePool = "node-pool" <> show n
+        walletBalance nodeBft =<< liftAff
           ( walletFromHackedKeys
-              ( paths.testnetDirectory <</>> "node-bft" <> show n
+              ( paths.testnetDirectory <</>> nodeBft
                   <</>> "shelley"
                   <</>> "operator.skey"
               )
               Nothing
           )
-        walletBalance =<< liftAff
+        walletBalance nodePool =<< liftAff
           ( walletFromHackedKeys
-              ( paths.testnetDirectory <</>> "node-pool" <> show n <</>>
-                  "owner.skey"
+              ( paths.testnetDirectory <</>> nodePool <</>> "owner.skey"
               )
               Nothing
           )
