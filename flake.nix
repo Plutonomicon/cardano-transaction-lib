@@ -35,7 +35,7 @@
     };
 
     cardano-node = {
-      url = "github:IntersectMBO/cardano-node/8.10.1-pre";
+      url = "github:IntersectMBO/cardano-node/8.11.0-sancho";
       inputs = {
         hackageNix.follows = "hackage-nix";
         CHaP.follows = "CHaP";
@@ -67,7 +67,7 @@
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=d55cc5cd71f95807601800f4d6b148eefffbfe10";
+      url = "github:input-output-hk/cardano-configurations";
       flake = false;
     };
     easy-purescript-nix = {

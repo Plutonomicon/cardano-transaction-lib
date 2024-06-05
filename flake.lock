@@ -3,11 +3,11 @@
     "CHaP": {
       "flake": false,
       "locked": {
-        "lastModified": 1714001377,
-        "narHash": "sha256-FElLa99dH+HzG3tUkotgJhEB2T/ooyaIb5qwum/x8UE=",
+        "lastModified": 1717532272,
+        "narHash": "sha256-V7JXGPxd6gwB7YVeZGtikI+Xjfowi8tZRQPcLQFPRJM=",
         "owner": "input-output-hk",
         "repo": "cardano-haskell-packages",
-        "rev": "a2e6e0cf123e35bc643ab2f33fcb5c4df5a8abe7",
+        "rev": "8cc5e017d80016c00a48248cdb5dc5274f7a5bfa",
         "type": "github"
       },
       "original": {
@@ -4828,17 +4828,16 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "lastModified": 1712970893,
-        "narHash": "sha256-GWAy9+ak6LNrRAZ30bLPPi+ZkV+7V3U1+J8oDSzelxs=",
+        "lastModified": 1715909148,
+        "narHash": "sha256-xDGbfbZO8LAfCDLa44Ss231/ek8OIetFi+uANfAOQMk=",
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "d55cc5cd71f95807601800f4d6b148eefffbfe10",
+        "rev": "692010ed0f454bfbb566c06443227c79e2f4dbab",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "d55cc5cd71f95807601800f4d6b148eefffbfe10",
         "type": "github"
       }
     },
@@ -5192,16 +5191,16 @@
         "utils": "utils_2"
       },
       "locked": {
-        "lastModified": 1713857353,
-        "narHash": "sha256-Ss5MHb8DTFlBXlWqyjW5hzwEI9i/SEx3xXASXtxxTlM=",
+        "lastModified": 1715901350,
+        "narHash": "sha256-teLUo4cQ9H52EkmJ9uXOIuyI78DtrKWxflJm+BnBqlM=",
         "owner": "IntersectMBO",
         "repo": "cardano-node",
-        "rev": "1ffe4a57137000b99ae2f148eaf763bc55f0ed89",
+        "rev": "235e34f6df9a1490190f6247b610b4e114ca3b96",
         "type": "github"
       },
       "original": {
         "owner": "IntersectMBO",
-        "ref": "8.10.1-pre",
+        "ref": "8.11.0-sancho",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -25623,11 +25622,11 @@
         "sodium": "sodium"
       },
       "locked": {
-        "lastModified": 1712333583,
-        "narHash": "sha256-jVIJWfPvsdpS9hsyWoI7BjkxpXVACiPfqmMu35kZz58=",
+        "lastModified": 1715898223,
+        "narHash": "sha256-G1LFsvP53twrqaC1FVard/6rjJJ3oitnpJ1E+mTZDGM=",
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "839040612c0d13687059b5cfaaa3f58c354989c6",
+        "rev": "29f19cd41dc593cf17bbc24194e34e7c20889fc9",
         "type": "github"
       },
       "original": {
