@@ -2,8 +2,9 @@ module Test.Ctl.Plutip
   ( main
   ) where
 
-import Prelude
+import Contract.Prelude
 
+import Cardano.Types.Address as Cardano.Types
 import Contract.Config as Config
 import Contract.Monad (Contract, launchAff_, withContractEnv)
 import Contract.Monad as Contract
@@ -11,11 +12,15 @@ import Contract.Prelude
   ( Either(..)
   , Maybe(..)
   , for
+  , for_
+  , intercalate
   , isJust
   , length
   , liftAff
   , liftEffect
   , log
+  , maybe
+  , traverse
   )
 import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Staking (getPoolIds)
@@ -27,8 +32,10 @@ import Contract.TextEnvelope
   , decodeTextEnvelope
   )
 import Contract.Wallet
-  ( getWalletBalance
+  ( getWalletAddresses
+  , getWalletBalance
   , mkKeyWalletFromPrivateKeys
+  , ownPaymentPubKeyHashes
   , withKeyWallet
   )
 import Contract.Wallet.KeyFile
@@ -42,6 +49,7 @@ import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), stop)
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
 import Ctl.Internal.Plutip.Utils
   ( cleanupOnExit
+  , onLine
   , tmpdir
   , waitForBeforeExit
   , waitForExit
@@ -50,15 +58,21 @@ import Ctl.Internal.Plutip.Utils
 import Ctl.Internal.Testnet.Contract as Testnet.Contract
 import Ctl.Internal.Testnet.Server
   ( checkTestnet
+  , redirectChannels
   , runTestnetTestPlan
   , startTestnet
   , stopTestnet
   , testTestnetContracts
   )
 import Ctl.Internal.Testnet.Server as Testnet
-import Ctl.Internal.Testnet.Types (Event(..), LoggingFormat(..))
+import Ctl.Internal.Testnet.Types
+  ( CardanoTestnetStartupParams
+  , Event(..)
+  , LoggingFormat(..)
+  )
 import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Testnet.Utils (findTestnetPaths, onTestnetEvent, waitFor)
+import Ctl.Internal.Types.ScriptLookups (ownPaymentPubKeyHash)
 import Ctl.Internal.Wallet.KeyFile (privateStakeKeyFromTextEnvelope)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(..))
@@ -75,18 +89,21 @@ import Effect.Aff
   , launchAff
   )
 import Effect.Aff as Aff
-import Effect.Exception (error, throw)
+import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Mote (group, test)
 import Mote.Monad (mapTest)
 import Mote.TestPlanM (TestPlanM)
 import Mote.TestPlanM as Utils
+import Node.Buffer as Node.Buffer
 import Node.ChildProcess (kill)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile, writeTextFile)
 import Node.Path (FilePath)
 import Node.Process as Process
+import Node.Stream as Node.Stream
+import Record as Record
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Common (config)
 import Test.Ctl.Plutip.Contract as Contract
@@ -101,6 +118,9 @@ import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
+
+foreign import readableFromBuffer
+  :: Node.Buffer.Buffer -> Effect (Node.Stream.Readable ())
 
 readGenesisPkey :: FilePath -> Aff Config.PrivatePaymentKey
 readGenesisPkey path = do
@@ -125,6 +145,49 @@ readGenesisStakingPkey path = do
       (envelope { type_ = StakeSigningKeyShelleyed25519 })
   liftMaybe (error "Cannot decode genesis pkey from decoded envelope")
     $ privateStakeKeyFromTextEnvelope envelope'
+
+askAddressFunds
+  :: { socketPath :: FilePath
+     , testnetMagic :: Int
+     }
+  -> Cardano.Types.Address
+  -> Aff Unit
+askAddressFunds { socketPath, testnetMagic } address = do
+  channels <- do
+    { stderr, stdout } <- execCardanoCli
+      [ "query"
+      , "utxo"
+      , "--socket-path"
+      , socketPath
+      , "--testnet-magic"
+      , show testnetMagic
+      , "--address"
+      , Cardano.Types.toBech32 address
+      ]
+    liftEffect
+      $ { stderr: _, stdout: _ }
+      <$> onLine stderr Just
+      <*> onLine stdout Just
+
+  void $ redirectChannels channels
+    { stderrTo:
+        { console: Just "[cardano-cli][stderr]"
+        , log: Just
+            "/home/alexey/cardano-transaction-lib/cardano-cli.stderr.log"
+        }
+    , stdoutTo:
+        { console: Just "[cardano-cli][stdout]"
+        , log: Just
+            "/home/alexey/cardano-transaction-lib/cardano-cli.stdout.log"
+        }
+    }
+
+defaultStartupParams :: { | CardanoTestnetStartupParams () }
+defaultStartupParams =
+  ( Testnet.Types.defaultStartupParams
+      { testnetMagic: 2 }
+  )
+    { nodeLoggingFormat = Just Testnet.Types.LogAsJson }
 
 -- Run with `npm run plutip-test`
 main :: Effect Unit
@@ -207,3 +270,32 @@ configWithMaxExUnits = config
 --       stopRes `shouldSatisfy` case _ of
 --         StopClusterSuccess -> true
 --         _ -> false
+
+execCardanoCli
+  :: Array String
+  -> Aff
+       { stdout :: Node.Stream.Readable ()
+       , stderr :: Node.Stream.Readable ()
+       , process :: Node.ChildProcess.ChildProcess
+       }
+execCardanoCli params = Aff.makeAff \cont -> do
+  processRef <- Ref.new Nothing
+  process <- Node.ChildProcess.exec
+    ("cardano-cli " <> intercalate " " params)
+    Node.ChildProcess.defaultExecOptions
+    ( \{ error: err, stderr, stdout } -> do
+        process <-
+          liftMaybe (error "Couldn't find executed process" :: Error)
+            =<< Ref.read processRef
+        stderrStream <- readableFromBuffer stderr :: Effect _
+        stdoutStream <- readableFromBuffer stdout
+        let
+          result =
+            { stderr: stderrStream
+            , stdout: stdoutStream
+            , process
+            }
+        cont $ maybe (Right result) Left err
+    )
+  Ref.write (Just process) processRef
+  pure $ Aff.Canceler \err -> liftEffect $ cont $ Left err
