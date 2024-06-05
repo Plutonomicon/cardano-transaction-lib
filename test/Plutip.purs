@@ -211,21 +211,66 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
   -- key <-
   --   liftAff $ readGenesisPkey $ genesis1Path paths.testnetDirectory
   -- let spo2 = mkKeyWalletFromPrivateKeys key Nothing
-
-  _ <- Testnet.Contract.withContractEnv defaultPlutipConfig \cluster env ->
+  let cfg = Record.union defaultStartupParams defaultPlutipConfig
+  _ <- Testnet.Contract.withContractEnv cfg \cluster env ->
     Contract.runContractInEnv env do
       let
         Testnet.MkStartedTestnetCluster { paths } = cluster
         addressesDir = paths.testnetDirectory <</>> "addresses"
+        delegatesDir = paths.testnetDirectory <</>> "shelley" <</>>
+          "delegate-keys"
 
-      wallet <- liftAff $ mkKeyWalletFromFiles
-        (addressesDir <</>> "pool-owner1.skey")
-        (Just $ addressesDir <</>> "pool-owner1-stake.skey")
-      _ <- withKeyWallet wallet do
-        log <<< append "Balance: " <<< show =<< getWalletBalance
+        readWallet name n = liftAff $ mkKeyWalletFromFiles
+          (name <> show n <> ".skey")
+          (Just $ name <> show n <> "-stake.skey")
 
-      log <<< show =<< getProtocolParameters
-      log <<< show =<< getPoolIds
+        readHackWallet makeStakeKey name n =
+          liftAff $ walletFromHackedKeys
+            (name <> show n <> ".skey")
+            ( if makeStakeKey then Just $ name <> show n <> "-stake.skey"
+              else Nothing
+            )
+        walletFromHackedKeys payment staking = do
+          pk <- readGenesisPkey payment
+          sk <- traverse readGenesisStakingPkey staking
+          pure $ mkKeyWalletFromPrivateKeys pk sk
+        --    (Just $ name <> show n <> "-stake.skey")
+
+        walletBalance wallet =
+          withKeyWallet wallet do
+            addresses <- getWalletAddresses
+            for_ addresses $ liftAff <<< askAddressFunds
+              { socketPath: paths.nodeSocketPath
+              , testnetMagic: cfg.testnetMagic
+              }
+
+      -- log <<< show =<< ownPaymentPubKeyHashes
+      -- log <<< append "Balance: " <<< show =<< getWalletBalance
+
+      for_ [ 1, 2 ] \n -> do
+        walletBalance =<< readWallet (addressesDir <</>> "pool-owner") n
+        walletBalance =<< readWallet (addressesDir <</>> "user") n
+      liftAff $ Aff.delay $ Milliseconds 8000.0
+      for_ [ 1, 2, 3, 4 ] \n -> do
+        walletBalance =<< readHackWallet false (delegatesDir <</>> "delegate") n
+      for_ [ 1, 2 ] \n -> do
+        walletBalance =<< liftAff
+          ( walletFromHackedKeys
+              ( paths.testnetDirectory <</>> "node-bft" <> show n
+                  <</>> "shelley"
+                  <</>> "operator.skey"
+              )
+              Nothing
+          )
+        walletBalance =<< liftAff
+          ( walletFromHackedKeys
+              ( paths.testnetDirectory <</>> "node-pool" <> show n <</>>
+                  "owner.skey"
+              )
+              Nothing
+          )
+  -- log <<< show =<< getProtocolParameters
+  -- log <<< show =<< getPoolIds
 
   -- startupFailureWaiting <- onStartupFailure source
   --   (show >>> append "Failed to startup testnet: " >>> error >>> throwError)
