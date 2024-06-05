@@ -69,7 +69,7 @@ instance Show LoggingFormat where
     LogAsJson -> "json"
     LogAsText -> "text"
 
-type OptionalStartupParams =
+type OptionalStartupParams r =
   ( numPoolNodes :: Maybe Int
   , era :: Maybe Era
   , epochLength :: Maybe Milliseconds
@@ -77,19 +77,21 @@ type OptionalStartupParams =
   , activeSlotsCoeff :: Maybe Number
   , enableP2p :: Maybe Boolean
   , nodeLoggingFormat :: Maybe LoggingFormat
+  | r
   )
 
 -- | Command line params for the cardano-testnet executable
-type CardanoTestnetStartupParams =
-  { testnetMagic :: Int
-  | OptionalStartupParams
-  }
+type CardanoTestnetStartupParams r =
+  ( testnetMagic :: Int
+  | OptionalStartupParams r
+  )
 
-defaultStartupParams :: { testnetMagic :: Int } -> CardanoTestnetStartupParams
+defaultStartupParams
+  :: { testnetMagic :: Int } -> Record (CardanoTestnetStartupParams ())
 defaultStartupParams necessaryParams =
   defaultOptionalStartupParams `Record.union` necessaryParams
 
-defaultOptionalStartupParams :: Record OptionalStartupParams
+defaultOptionalStartupParams :: Record (OptionalStartupParams ())
 defaultOptionalStartupParams =
   { numPoolNodes: Nothing
   , era: Nothing

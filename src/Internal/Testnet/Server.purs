@@ -6,7 +6,6 @@ module Ctl.Internal.Testnet.Server
   , startCardanoTestnet
   , testTestnetContracts
   , startTestnetCluster
-  , defaultStartupParams
   , StartedTestnetCluster(MkStartedTestnetCluster)
   , Channels
   ) where
@@ -109,13 +108,6 @@ type Channels a =
   , stdout :: EventSource a
   }
 
-defaultStartupParams :: CardanoTestnetStartupParams
-defaultStartupParams =
-  ( Testnet.Types.defaultStartupParams
-      { testnetMagic: 2 }
-  )
-    { nodeLoggingFormat = Just Testnet.Types.LogAsJson }
-
 newtype StartedTestnetCluster = MkStartedTestnetCluster
   { ogmios ::
       { process :: ManagedProcess
@@ -141,11 +133,10 @@ newtype StartedTestnetCluster = MkStartedTestnetCluster
 -- | transaction fees.
 startTestnetCluster
   :: forall r
-   . CardanoTestnetStartupParams
+   . Record (CardanoTestnetStartupParams (KupmiosConfig r))
   -> Ref (Array (Aff Unit))
-  -> Record (KupmiosConfig r)
   -> Aff StartedTestnetCluster
-startTestnetCluster startupParams cleanupRef cfg = do
+startTestnetCluster startupParams cleanupRef = do
   { testnet
   , channels
   , workdirAbsolute
@@ -187,7 +178,7 @@ startTestnetCluster startupParams cleanupRef cfg = do
     kupo /\ kupoWorkdir <-
       scheduleCleanup
         cleanupRef
-        (startKupo cfg paths cleanupRef)
+        (startKupo startupParams paths cleanupRef)
         $ fst
         >>> stop
 
@@ -211,7 +202,7 @@ startTestnetCluster startupParams cleanupRef cfg = do
   startOgmios' { paths, workdir } = do
     ogmios <- scheduleCleanup
       cleanupRef
-      (startOgmios cfg paths)
+      (startOgmios startupParams paths)
       stop
     _ <- Aff.forkAff do
       waitForClose ogmios
@@ -252,8 +243,9 @@ runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) =
 
 -- | Runs cardano-testnet executable with provided params.
 spawnCardanoTestnet
-  :: { cwd :: FilePath }
-  -> CardanoTestnetStartupParams
+  :: forall r
+   . { cwd :: FilePath }
+  -> { | CardanoTestnetStartupParams r }
   -> Aff ManagedProcess
 spawnCardanoTestnet { cwd } params = do
   env <- liftEffect Node.Process.getEnv
@@ -301,7 +293,8 @@ spawnCardanoTestnet { cwd } params = do
     ]
 
 startCardanoTestnet
-  :: CardanoTestnetStartupParams
+  :: forall r
+   . { | CardanoTestnetStartupParams r }
   -> Ref (Array (Aff Unit))
   -> Aff
        { testnet :: ManagedProcess
