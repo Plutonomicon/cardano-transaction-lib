@@ -1,6 +1,7 @@
 module Ctl.Internal.Testnet.Server
   ( checkTestnet
   , runTestnetTestPlan
+  , redirectChannels
   , startTestnet
   , stopTestnet
   , startCardanoTestnet
