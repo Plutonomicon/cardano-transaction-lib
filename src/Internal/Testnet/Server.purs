@@ -355,8 +355,12 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
   -- _ <- waitForEvent channels.stdout
 
   -- forward node's stdout
-  workdirAbsolute <- waitUntil (Milliseconds 1000.0) do
-    liftEffect $ findTestnetWorkir { tmpdir: testDir, dirIdx: 0 }
+  workdirAbsolute <- waitUntil (Milliseconds 1000.0)
+    $ liftEffect
+    $ map hush
+    $ try
+    $ liftMaybe (error "First testnet dir is missing")
+      =<< findTestnetWorkir { tmpdir: testDir, dirIdx: 0 }
   Aff.killFiber (error "Temp output is not needed anymore") tempOutput
 
   -- cardano-testnet doesn't kill cardano-nodes it spawns, so we do it ourselves
