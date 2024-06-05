@@ -3,11 +3,11 @@
     "CHaP": {
       "flake": false,
       "locked": {
-        "lastModified": 1717532272,
+        "lastModified": 1717598044,
         "narHash": "sha256-V7JXGPxd6gwB7YVeZGtikI+Xjfowi8tZRQPcLQFPRJM=",
         "owner": "input-output-hk",
         "repo": "cardano-haskell-packages",
-        "rev": "8cc5e017d80016c00a48248cdb5dc5274f7a5bfa",
+        "rev": "3e53f1c487d7ba6a7790c0ce2aba28fd6e003573",
         "type": "github"
       },
       "original": {
@@ -40832,11 +40832,11 @@
         "ogmios": "ogmios_4"
       },
       "locked": {
-        "lastModified": 1714501832,
-        "narHash": "sha256-bZ+6425t7cEHsotuluhZMc0rfIieMa3KqRwdwwMDw3g=",
+        "lastModified": 1717617063,
+        "narHash": "sha256-Y3PytnUlRgM27QBIWqaCT1BD1MVGZ+7CdR2JGZqz4SQ=",
         "owner": "Fourierlabs",
         "repo": "ogmios-nixos",
-        "rev": "dd5e90ec9a17a1bb492f3e2965511855aafa6f96",
+        "rev": "4dfe41b5258a9da9796a34d5cf58caddd97f2937",
         "type": "github"
       },
       "original": {
@@ -40882,11 +40882,11 @@
     "ogmios_4": {
       "flake": false,
       "locked": {
-        "lastModified": 1714292716,
-        "narHash": "sha256-ozpn+2daZLIK5uVZIXrZ5lv+sVtRHZoBoJMUK4RFz6g=",
+        "lastModified": 1717589216,
+        "narHash": "sha256-/w2bKCE8WPNfhDSzlz0jwAPuStS36Gp4KlquoGIGIvg=",
         "owner": "CardanoSolutions",
         "repo": "ogmios",
-        "rev": "83065af5d370389c09e901c64628781ac0898a03",
+        "rev": "395776e7f6cfdbef756aa7abe8030b9cc2e0ba8d",
         "type": "github"
       },
       "original": {
