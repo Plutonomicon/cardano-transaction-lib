@@ -4,67 +4,82 @@ module Test.Ctl.Plutip
 
 import Contract.Prelude
 
-import Cardano.Types.Address as Cardano.Types
+import Cardano.Plutus.Types.Address as Cardano.Plutus.Types.Address
+import Cardano.Serialization.Lib as CSL
+import Cardano.Types
+  ( Credential(PubKeyHashCredential)
+  , PaymentCredential(..)
+  , TransactionHash
+  )
+import Cardano.Types (NetworkId(TestnetId)) as Cardano.Types
+import Cardano.Types.Address (Address, toBech32) as Cardano.Types
+import Cardano.Types.Address as Cardano.Types.Address
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PrivateKey as Cardano.Type.PrivateKey
+import Cardano.Types.PublicKey as Cardano.Types.PublicKey
+import Contract.Config (PrivatePaymentKey)
 import Contract.Config as Config
-import Contract.Monad (Contract, launchAff_, withContractEnv)
-import Contract.Monad as Contract
-import Contract.Prelude (Either(..), Maybe(..), for, for_, intercalate, isJust, length, liftAff, liftEffect, log, maybe, traverse)
-import Contract.ProtocolParameters (getProtocolParameters)
-import Contract.Staking (getPoolIds)
-import Contract.Test.Plutip (PlutipConfig, defaultPlutipConfig, noWallet)
-import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Contract.TextEnvelope (TextEnvelope(..), TextEnvelopeType(..), decodeTextEnvelope)
-import Contract.Wallet (KeyWallet, getWalletAddresses, getWalletBalance, mkKeyWalletFromPrivateKeys, ownPaymentPubKeyHashes, withKeyWallet)
-import Contract.Wallet.KeyFile (mkKeyWalletFromFiles, privatePaymentKeyFromTextEnvelope)
-import Control.Monad.Error.Class (liftMaybe, throwError, try)
-import Ctl.Internal.Contract.Monad (wrapQueryM)
+import Contract.Monad (runContractInEnv) as Contract
+import Contract.Test.Plutip (defaultPlutipConfig)
+import Contract.Test.Utils
+  ( interruptOnSignal
+  )
+import Contract.TextEnvelope
+  ( TextEnvelope(..)
+  , TextEnvelopeType(..)
+  , decodeTextEnvelope
+  )
+import Contract.Transaction (awaitTxConfirmed)
+import Contract.Utxos (utxosAt)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , mkKeyWalletFromPrivateKeys
+  , withKeyWallet
+  )
+import Contract.Wallet.Key (KeyWallet(..))
+import Contract.Wallet.KeyFile
+  ( privatePaymentKeyFromTextEnvelope
+  , privatePaymentKeyToFile
+  )
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), stop)
-import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
-import Ctl.Internal.Plutip.Utils (cleanupOnExit, onLine, tmpdir, waitForBeforeExit, waitForExit, waitForUncaughtException)
+import Ctl.Internal.Plutip.Utils (EventSource, onLine, tmpdir)
 import Ctl.Internal.Testnet.Contract as Testnet.Contract
-import Ctl.Internal.Testnet.Server (checkTestnet, redirectChannels, runTestnetTestPlan, startTestnet, stopTestnet, testTestnetContracts)
+import Ctl.Internal.Testnet.Server
+  ( redirectChannels
+  )
 import Ctl.Internal.Testnet.Server as Testnet
-import Ctl.Internal.Testnet.Types (CardanoTestnetStartupParams, Event(..), LoggingFormat(..))
+import Ctl.Internal.Testnet.Types
+  ( CardanoTestnetStartupParams
+  )
 import Ctl.Internal.Testnet.Types as Testnet.Types
-import Ctl.Internal.Testnet.Utils (findTestnetPaths, onTestnetEvent, waitFor)
-import Ctl.Internal.Types.ScriptLookups (ownPaymentPubKeyHash)
+import Ctl.Internal.Testnet.Utils
+  ( waitFor
+  )
 import Ctl.Internal.Wallet.KeyFile (privateStakeKeyFromTextEnvelope)
+import Data.Array as Array
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(..))
+import Data.String as String
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect (Effect)
-import Effect.Aff (Aff, Milliseconds(Milliseconds), bracket, cancelWith, delay, effectCanceler, forkAff, killFiber, launchAff)
+import Effect.Aff (Aff, launchAff)
 import Effect.Aff as Aff
 import Effect.Aff.Class (class MonadAff)
-import Effect.Exception (Error, error, throw)
+import Effect.Exception (Error, error)
+import Effect.Random (randomInt)
 import Effect.Ref as Ref
-import Mote (group, test)
-import Mote.Monad (mapTest)
-import Mote.TestPlanM (TestPlanM)
-import Mote.TestPlanM as Utils
 import Node.Buffer as Node.Buffer
-import Node.ChildProcess (kill)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(..))
-import Node.FS.Aff (readTextFile, writeTextFile)
+import Node.FS.Aff (mkdir, readTextFile)
 import Node.Path (FilePath)
-import Node.Process as Process
 import Node.Stream as Node.Stream
 import Record as Record
-import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
-import Test.Ctl.Plutip.Common (config)
-import Test.Ctl.Plutip.Contract as Contract
-import Test.Ctl.Plutip.Contract.Assert as Assert
-import Test.Ctl.Plutip.Contract.ClusterParameters as ClusterParameters
-import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
-import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
-import Test.Ctl.Plutip.ExUnits as ExUnits
-import Test.Ctl.Plutip.Logging as Logging
-import Test.Ctl.Plutip.SameWallets as SameWallets
-import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
-import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
-import Test.Spec.Assertions (shouldSatisfy)
-import Test.Spec.Runner (defaultConfig)
 
 foreign import readableFromBuffer
   :: Node.Buffer.Buffer -> Effect (Node.Stream.Readable ())
@@ -93,41 +108,142 @@ readGenesisStakingPkey path = do
   liftMaybe (error "Cannot decode genesis pkey from decoded envelope")
     $ privateStakeKeyFromTextEnvelope envelope'
 
+allToConsolePrefixed
+  :: String
+  -> { stdout :: EventSource String
+     , stderr :: EventSource String
+     }
+  -> Aff Unit
+allToConsolePrefixed prefix channels = void $ redirectChannels channels
+  { stderrTo:
+      { console: Just $ "[" <> prefix <> "][stderr]"
+      , log: Nothing
+      }
+  , stdoutTo:
+      { console: Just $ "[" <> prefix <> "][stdout]"
+      , log: Nothing
+      }
+  }
+
+-- | Send lovelace from one address to another, requiring only one signature
+sendFundsViaCardanoCli
+  :: { socketPath :: FilePath, testnetMagic :: Int }
+  -> { from ::
+         { txIn :: { hash :: String, id :: Int }
+         , privatePaymentKey :: PrivatePaymentKey
+         , verificationKeyHash :: String
+         , amount :: BigNum
+         }
+     , changeAddress :: String
+     , to :: { address :: String }
+     }
+  -> Aff TransactionHash
+sendFundsViaCardanoCli { socketPath, testnetMagic } { from, changeAddress, to } =
+  do
+    -- every instance have it's own dir for temp files
+    workdir <- liftEffect do
+      tmp <- tmpdir
+      operationId <- show <$> randomInt 0 1000
+      pure $ tmp <</>> "transaction-" <> operationId
+    let
+      keyFile = workdir <</>> "signature.skey"
+      txBodyFile = workdir <</>> "tx-body.json"
+      txFile = workdir <</>> "tx.json"
+    mkdir workdir
+    privatePaymentKeyToFile keyFile from.privatePaymentKey
+    { channels: buildTxChannel } <- execCardanoCli
+      [ "transaction"
+      , "build"
+      , "--socket-path"
+      , socketPath
+      , "--testnet-magic"
+      , show testnetMagic
+      , "--tx-in"
+      , from.txIn.hash <> "#" <> show from.txIn.id
+      , "--tx-out"
+      , to.address <> "+" <> BigNum.toString from.amount
+      , "--required-signer-hash"
+      , from.verificationKeyHash
+      , "--required-signer"
+      , keyFile
+      , "--change-address"
+      , changeAddress
+      , "--out-file"
+      , txBodyFile
+      ]
+    allToConsolePrefixed "cardano-cli/build-transaction" buildTxChannel
+    { channels: signTxChannel } <- execCardanoCli
+      [ "transaction"
+      , "sign"
+      , "--tx-body-file"
+      , txBodyFile
+      , "--signing-key-file"
+      , keyFile
+      , "--testnet-magic"
+      , show testnetMagic
+      , "--out-file"
+      , txFile
+      ]
+    allToConsolePrefixed "cardano-cli/sign-transaction" signTxChannel
+    { channels: txIdChannel } <- execCardanoCli
+      [ "transaction"
+      , "txid"
+      , "--tx-file"
+      , txFile
+      ]
+    allToConsolePrefixed "cardano-cli/transaction-id" txIdChannel
+    txHash <- waitFor txIdChannel.stdout Just -- the only output is a tx hash
+    { channels: submitTxChannel } <- execCardanoCli
+      [ "transaction"
+      , "submit"
+      , "--socket-path"
+      , socketPath
+      , "--testnet-magic"
+      , show testnetMagic
+      , "--tx-file"
+      , txFile
+      ]
+    allToConsolePrefixed "cardano-cli/submit-transaction" submitTxChannel
+    liftMaybe (error "Cannot parse tx hash")
+      $ map wrap
+      <<< CSL.fromBytes
+      =<< hexToByteArray txHash
+
 askAddressFunds
   :: { socketPath :: FilePath
      , testnetMagic :: Int
      }
   -> Cardano.Types.Address
-  -> Aff Unit
+  -> Aff CardanoCliTxOutInfo
 askAddressFunds { socketPath, testnetMagic } address = do
-  channels <- do
-    { stderr, stdout } <- execCardanoCli
-      [ "query"
-      , "utxo"
-      , "--socket-path"
-      , socketPath
-      , "--testnet-magic"
-      , show testnetMagic
-      , "--address"
-      , Cardano.Types.toBech32 address
-      ]
-    liftEffect
-      $ { stderr: _, stdout: _ }
-      <$> onLine stderr Just
-      <*> onLine stdout Just
+  { channels } <- execCardanoCli
+    [ "query"
+    , "utxo"
+    , "--socket-path"
+    , socketPath
+    , "--testnet-magic"
+    , show testnetMagic
+    , "--address"
+    , Cardano.Types.toBech32 address
+    ]
+  allToConsolePrefixed "cardano-cli/query-utxo" channels
+  waitFor channels.stdout parseTxOut
 
-  void $ redirectChannels channels
-    { stderrTo:
-        { console: Just "[cardano-cli][stderr]"
-        , log: Just
-            "/home/alexey/cardano-transaction-lib/cardano-cli.stderr.log"
-        }
-    , stdoutTo:
-        { console: Just "[cardano-cli][stdout]"
-        , log: Just
-            "/home/alexey/cardano-transaction-lib/cardano-cli.stdout.log"
-        }
-    }
+type CardanoCliTxOutInfo =
+  { txId :: TransactionHash, txOutId :: UInt, amount :: BigNum }
+
+parseTxOut :: String -> Maybe CardanoCliTxOutInfo
+parseTxOut src = do
+  let
+    words = String.split (String.Pattern " ") src
+    nonEmptyWords = Array.take 3 $ Array.filter (not <<< String.null) words
+  { hash, id, amt } <- case nonEmptyWords of
+    [ hash, id, amt ] -> Just { hash, id, amt }
+    _ -> Nothing
+  txId <- map wrap <<< CSL.fromBytes =<< hexToByteArray hash
+  txOutId <- UInt.fromString id
+  amount <- BigNum.fromString amt
+  pure { txId, txOutId, amount }
 
 defaultStartupParams :: { | CardanoTestnetStartupParams () }
 defaultStartupParams =
@@ -139,88 +255,95 @@ defaultStartupParams =
 -- Run with `npm run plutip-test`
 main :: Effect Unit
 main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
-
-  -- cleanupRef <- liftEffect $ Ref.new []
-  -- _ <- cleanupOnExit cleanupRef
-  -- { paths, testnet: { process } } <-
-  --   Testnet.startTestnetCluster
-  --     Testnet.defaultStartupParams
-  --     cleanupRef
-  --     { kupoConfig: defaultPlutipConfig.kupoConfig
-  --     , ogmiosConfig: defaultPlutipConfig.ogmiosConfig
-  --     }
-  -- genesisPaths <- liftEffect
-  --   $ readGenesisKeyPaths {workdir: paths.testnetDirectory}
-  -- for genesisPaths $ readGenesisPkey <<< _.skey
-  -- log $ show $ "Parsed genesis keys: " <> show (isJust key)
-  --
-  -- _ <- Testnet.Contract.runContract defaultPlutipConfig do
-  -- key <-
-  --   liftAff $ readGenesisPkey $ genesis1Path paths.testnetDirectory
-  -- let spo2 = mkKeyWalletFromPrivateKeys key Nothing
   let cfg = Record.union defaultStartupParams defaultPlutipConfig
-  _ <- Testnet.Contract.withContractEnv cfg \cluster env ->
+  _ <- Testnet.Contract.withContractEnv cfg \cluster env -> do
+    log "Running test contract"
     Contract.runContractInEnv env do
+      log "Inside"
       let
         Testnet.MkStartedTestnetCluster { paths } = cluster
-        addressesDir = paths.testnetDirectory <</>> "addresses"
-        delegatesDir = paths.testnetDirectory <</>> "shelley" <</>>
-          "delegate-keys"
+        v872utxoKeysDir = paths.testnetDirectory <</>> "utxo-keys"
 
-        readWallet name n = liftAff do
-          wallet <- mkKeyWalletFromFiles
-            (name <> show n <> ".skey")
-            (Just $ name <> show n <> "-stake.skey")
-          pure $ (name <> show n) /\ wallet
-        readHackWallet :: forall m. MonadAff m => _ -> _ -> _ -> m (String /\ KeyWallet)
-        readHackWallet makeStakeKey name n = liftAff do 
-          wallet <- walletFromHackedKeys
-            (name <> show n <> ".skey")
-            ( if makeStakeKey then Just $ name <> show n <> "-stake.skey"
-              else Nothing
-            )
-          pure $ (name <> show n) /\ wallet
+      -- a new wallet to send initial lovelace to
+      newWallet <- do
+        newPk <- wrap <<< wrap <$> liftEffect CSL.privateKey_generateEd25519
+        let
+          pkh = Cardano.Types.PublicKey.hash
+            $ Cardano.Type.PrivateKey.toPublicKey
+            $ unwrap newPk
+          wallet = mkKeyWalletFromPrivateKeys newPk Nothing
+        address <-
+          liftMaybe (error "Cannot convert Plutus address to Cardano address")
+            $ Cardano.Plutus.Types.Address.toCardano Cardano.Types.TestnetId
+            $ Cardano.Plutus.Types.Address.pubKeyHashAddress
+                (wrap $ wrap pkh)
+                Nothing
+        pure { pkh, wallet, address }
+
+      let
+        -- | Creates wallet from a payment key in TextEnvelope of any .type as if it was private payment key type.  
+        readHackWallet
+          :: forall m. MonadAff m => String -> Int -> m (String /\ KeyWallet)
+        readHackWallet name idx = liftAff do
+          let identifier = name <> show idx
+          wallet <- walletFromHackedKeys (identifier <> ".skey") Nothing
+          pure $ identifier /\ wallet
+
         walletFromHackedKeys payment staking = do
           pk <- readGenesisPkey payment
           sk <- traverse readGenesisStakingPkey staking
           pure $ mkKeyWalletFromPrivateKeys pk sk
-        --    (Just $ name <> show n <> "-stake.skey")
 
-        walletBalance walletName wallet =
-          withKeyWallet wallet do
-            log $ show {walletBalance: walletName}
-            addresses <- getWalletAddresses
-            for_ addresses $ liftAff <<< askAddressFunds
+      -- do something interesting with every utxo in utxo-keys
+      for_ [ 1, 2, 3 ] \idx -> do
+        walletName /\ wallet@(KeyWallet w) <-
+          readHackWallet (v872utxoKeysDir <</>> "utxo") idx
+        withKeyWallet wallet do
+          addresses <- getWalletAddresses
+          log
+            <<< show
+            <<< { wallet: walletName, initialBalanceViaKupo: _ }
+            =<< getWalletBalance
+          for_ addresses \addr -> do
+            { txId, txOutId } <- liftAff $ askAddressFunds
               { socketPath: paths.nodeSocketPath
               , testnetMagic: cfg.testnetMagic
               }
+              addr
+            ownPkh <- liftMaybe (error "Cannot get own pkh")
+              $ Cardano.Types.Address.getPaymentCredential addr
+              >>= case _ of
+                PaymentCredential (PubKeyHashCredential pkh) -> Just pkh
+                _ -> Nothing
+            log "Making makeTxViaCli args"
+            let
+              args =
+                { from:
+                    { txIn:
+                        { hash: byteArrayToHex $ CSL.toBytes $ unwrap txId
+                        , id: UInt.toInt txOutId
+                        }
+                    , amount: BigNum.fromInt 300000000
+                    , privatePaymentKey: w.paymentKey
+                    , verificationKeyHash:
+                        byteArrayToHex $ CSL.toBytes $ unwrap ownPkh
+                    }
+                , changeAddress: Cardano.Types.Address.toBech32 addr
+                , to:
+                    { address: Cardano.Types.Address.toBech32 newWallet.address
+                    }
+                }
+            log "Made makeTxViaCli args"
+            txHash <- liftAff $ sendFundsViaCardanoCli
+              { socketPath: paths.nodeSocketPath
+              , testnetMagic: cfg.testnetMagic
+              }
+              args
+            awaitTxConfirmed txHash
+            log "Confirmed"
+            log <<< show <<< { utxosAfterTx: _ } =<< utxosAt newWallet.address
 
-      -- log <<< show =<< ownPaymentPubKeyHashes
-      -- log <<< append "Balance: " <<< show =<< getWalletBalance
-
-      for_ [ 1, 2 ] \n -> do
-        uncurry walletBalance =<< readWallet (addressesDir <</>> "pool-owner") n
-        uncurry walletBalance =<< readWallet (addressesDir <</>> "user") n
-      liftAff $ Aff.delay $ Milliseconds 8000.0
-      for_ [ 1, 2, 3, 4 ] \n -> do
-        uncurry walletBalance =<< readHackWallet false (delegatesDir <</>> "delegate") n
-      for_ [ 1, 2 ] \n -> do
-        let nodeBft = "node-bft" <> show n
-            nodePool = "node-pool" <> show n
-        walletBalance nodeBft =<< liftAff
-          ( walletFromHackedKeys
-              ( paths.testnetDirectory <</>> nodeBft
-                  <</>> "shelley"
-                  <</>> "operator.skey"
-              )
-              Nothing
-          )
-        walletBalance nodePool =<< liftAff
-          ( walletFromHackedKeys
-              ( paths.testnetDirectory <</>> nodePool <</>> "owner.skey"
-              )
-              Nothing
-          )
+      pure unit
   -- log <<< show =<< getProtocolParameters
   -- log <<< show =<< getPoolIds
 
@@ -252,9 +375,9 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
 --         runTestnetTestPlan config SameWallets.suite
 --         ClusterParameters.runTest
 
-configWithMaxExUnits :: PlutipConfig
-configWithMaxExUnits = config
-  { clusterConfig = config.clusterConfig { raiseExUnitsToMax = true } }
+-- configWithMaxExUnits :: PlutipConfig
+-- configWithMaxExUnits = config
+--   { clusterConfig = config.clusterConfig { raiseExUnitsToMax = true } }
 
 -- testStartTestnet:: TestPlanM (Aff Unit) Unit
 -- testStartTestnet = group "Server" do
@@ -271,14 +394,16 @@ configWithMaxExUnits = config
 execCardanoCli
   :: Array String
   -> Aff
-       { stdout :: Node.Stream.Readable ()
-       , stderr :: Node.Stream.Readable ()
+       { channels ::
+           { stdout :: EventSource String
+           , stderr :: EventSource String
+           }
        , process :: Node.ChildProcess.ChildProcess
        }
 execCardanoCli params = Aff.makeAff \cont -> do
   processRef <- Ref.new Nothing
   let cmd = "cardano-cli " <> intercalate " " params
-  log $ show {execCardanoCli: cmd}
+  log $ show { execCardanoCli: cmd }
   process <- Node.ChildProcess.exec
     cmd
     Node.ChildProcess.defaultExecOptions
@@ -288,10 +413,13 @@ execCardanoCli params = Aff.makeAff \cont -> do
             =<< Ref.read processRef
         stderrStream <- readableFromBuffer stderr :: Effect _
         stdoutStream <- readableFromBuffer stdout
+        channels <- liftEffect
+          $ { stderr: _, stdout: _ }
+          <$> onLine stderrStream Just
+          <*> onLine stdoutStream Just
         let
           result =
-            { stderr: stderrStream
-            , stdout: stdoutStream
+            { channels
             , process
             }
         cont $ maybe (Right result) Left err
