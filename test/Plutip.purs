@@ -84,28 +84,30 @@ import Record as Record
 foreign import readableFromBuffer
   :: Node.Buffer.Buffer -> Effect (Node.Stream.Readable ())
 
-readGenesisPkey :: FilePath -> Aff Config.PrivatePaymentKey
-readGenesisPkey path = do
+-- | Changes TextEnvelope type to match private payment key one and tries to read that. 
+readTextEnvelopeAsPaymentSkey :: FilePath -> Aff Config.PrivatePaymentKey
+readTextEnvelopeAsPaymentSkey path = do
   TextEnvelope envelope <-
-    liftMaybe (error "Cannot decode genesis pkey envelope")
+    liftMaybe (error "Cannot decode skey envelope")
       <<< decodeTextEnvelope
       =<< readTextFile UTF8 path
   let
     envelope' = TextEnvelope
       (envelope { type_ = PaymentSigningKeyShelleyed25519 })
-  liftMaybe (error "Cannot decode genesis pkey from decoded envelope")
+  liftMaybe (error "Cannot decode payment skey from decoded envelope")
     $ privatePaymentKeyFromTextEnvelope envelope'
 
-readGenesisStakingPkey :: FilePath -> Aff Config.PrivateStakeKey
-readGenesisStakingPkey path = do
+-- | Changes TextEnvelope type to match private staking key one and tries to read that. 
+readTextEnvelopeAsStakingSkey :: FilePath -> Aff Config.PrivateStakeKey
+readTextEnvelopeAsStakingSkey path = do
   TextEnvelope envelope <-
-    liftMaybe (error "Cannot decode genesis pkey envelope")
+    liftMaybe (error "Cannot decode skey envelope")
       <<< decodeTextEnvelope
       =<< readTextFile UTF8 path
   let
     envelope' = TextEnvelope
       (envelope { type_ = StakeSigningKeyShelleyed25519 })
-  liftMaybe (error "Cannot decode genesis pkey from decoded envelope")
+  liftMaybe (error "Cannot decode staking skey from decoded envelope")
     $ privateStakeKeyFromTextEnvelope envelope'
 
 allToConsolePrefixed
@@ -297,8 +299,8 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
           pure $ identifier /\ wallet
 
         walletFromHackedKeys payment staking = do
-          pk <- readGenesisPkey payment
-          sk <- traverse readGenesisStakingPkey staking
+          pk <- readTextEnvelopeAsPaymentSkey payment
+          sk <- traverse readTextEnvelopeAsStakingSkey staking
           pure $ mkKeyWalletFromPrivateKeys pk sk
 
       -- do something interesting with every utxo in utxo-keys
