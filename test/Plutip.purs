@@ -209,13 +209,14 @@ sendFundsViaCardanoCli { socketPath, testnetMagic } { from, changeAddress, to } 
       <<< CSL.fromBytes
       =<< hexToByteArray txHash
 
-askAddressFunds
+-- | Queries address funds via cardano-cli and returns the first UTxO data.
+queryUtxosViaCardanoCli
   :: { socketPath :: FilePath
      , testnetMagic :: Int
      }
   -> Cardano.Types.Address
   -> Aff CardanoCliTxOutInfo
-askAddressFunds { socketPath, testnetMagic } address = do
+queryUtxosViaCardanoCli { socketPath, testnetMagic } address = do
   { channels } <- execCardanoCli
     [ "query"
     , "utxo"
@@ -281,6 +282,12 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
         pure { pkh, wallet, address }
 
       let
+        getAddressPaymentPkh addr = liftMaybe (error "Cannot get own pkh")
+          $ Cardano.Types.Address.getPaymentCredential addr
+          >>= case _ of
+            PaymentCredential (PubKeyHashCredential pkh) -> Just pkh
+            _ -> Nothing
+
         -- | Creates wallet from a payment key in TextEnvelope of any .type as if it was private payment key type.  
         readHackWallet
           :: forall m. MonadAff m => String -> Int -> m (String /\ KeyWallet)
@@ -299,51 +306,40 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
         walletName /\ wallet@(KeyWallet w) <-
           readHackWallet (v872utxoKeysDir <</>> "utxo") idx
         withKeyWallet wallet do
+          let
+            nodeCfg =
+              { socketPath: paths.nodeSocketPath
+              , testnetMagic: cfg.testnetMagic
+              }
           addresses <- getWalletAddresses
           log
             <<< show
             <<< { wallet: walletName, initialBalanceViaKupo: _ }
             =<< getWalletBalance
           for_ addresses \addr -> do
-            { txId, txOutId } <- liftAff $ askAddressFunds
-              { socketPath: paths.nodeSocketPath
-              , testnetMagic: cfg.testnetMagic
-              }
-              addr
-            ownPkh <- liftMaybe (error "Cannot get own pkh")
-              $ Cardano.Types.Address.getPaymentCredential addr
-              >>= case _ of
-                PaymentCredential (PubKeyHashCredential pkh) -> Just pkh
-                _ -> Nothing
-            log "Making makeTxViaCli args"
-            let
-              args =
-                { from:
-                    { txIn:
-                        { hash: byteArrayToHex $ CSL.toBytes $ unwrap txId
-                        , id: UInt.toInt txOutId
-                        }
-                    , amount: BigNum.fromInt 300000000
-                    , privatePaymentKey: w.paymentKey
-                    , verificationKeyHash:
-                        byteArrayToHex $ CSL.toBytes $ unwrap ownPkh
-                    }
-                , changeAddress: Cardano.Types.Address.toBech32 addr
-                , to:
-                    { address: Cardano.Types.Address.toBech32 newWallet.address
-                    }
-                }
-            log "Made makeTxViaCli args"
+            ownPkh <- getAddressPaymentPkh addr
+            { txId, txOutId } <- liftAff $ queryUtxosViaCardanoCli nodeCfg addr
+
             txHash <- liftAff $ sendFundsViaCardanoCli
-              { socketPath: paths.nodeSocketPath
-              , testnetMagic: cfg.testnetMagic
+              nodeCfg
+              { from:
+                  { txIn:
+                      { hash: byteArrayToHex $ CSL.toBytes $ unwrap txId
+                      , id: UInt.toInt txOutId
+                      }
+                  , amount: BigNum.fromInt 300000000
+                  , privatePaymentKey: w.paymentKey
+                  , verificationKeyHash:
+                      byteArrayToHex $ CSL.toBytes $ unwrap ownPkh
+                  }
+              , changeAddress: Cardano.Types.Address.toBech32 addr
+              , to:
+                  { address: Cardano.Types.Address.toBech32 newWallet.address
+                  }
               }
-              args
             awaitTxConfirmed txHash
             log "Confirmed"
             log <<< show <<< { utxosAfterTx: _ } =<< utxosAt newWallet.address
-
-      pure unit
   -- log <<< show =<< getProtocolParameters
   -- log <<< show =<< getPoolIds
 
