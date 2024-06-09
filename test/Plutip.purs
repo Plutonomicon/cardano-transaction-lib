@@ -312,14 +312,17 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
               , testnetMagic: cfg.testnetMagic
               }
           addresses <- getWalletAddresses
+          -- it will show zero balance
           log
             <<< show
             <<< { wallet: walletName, initialBalanceViaKupo: _ }
             =<< getWalletBalance
+          -- so let's try to use cardano-cli to resend funds and then Kupo will see it
           for_ addresses \addr -> do
             ownPkh <- getAddressPaymentPkh addr
+            -- cardano-cli will show some funds
             { txId, txOutId } <- liftAff $ queryUtxosViaCardanoCli nodeCfg addr
-
+            -- sending to the new wallet defined above
             txHash <- liftAff $ sendFundsViaCardanoCli
               nodeCfg
               { from:
@@ -339,12 +342,8 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
               }
             awaitTxConfirmed txHash
             log "Confirmed"
+            -- Kupo does see funds on the new wallet
             log <<< show <<< { utxosAfterTx: _ } =<< utxosAt newWallet.address
-  -- log <<< show =<< getProtocolParameters
-  -- log <<< show =<< getPoolIds
-
-  -- startupFailureWaiting <- onStartupFailure source
-  --   (show >>> append "Failed to startup testnet: " >>> error >>> throwError)
 
   log <<< append "Tmp dir is: " =<< liftEffect tmpdir
 
