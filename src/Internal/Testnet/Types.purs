@@ -43,7 +43,7 @@ instance Show StartupFailure where
   show = genericShow
 
 data Event
-  = Ready
+  = Ready872 -- when cardano-testnet 8.7.2 is ready to go
   | Finished
   | Failed
   | StartupFailed StartupFailure

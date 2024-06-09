@@ -66,9 +66,9 @@ import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Testnet.Utils
   ( findNodeDirs
   , findTestnetPaths
-  , findTestnetWorkir
   , getRuntime
   , readNodes
+  , waitForTestnet872Workdir
   )
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
 import Data.Array as Array
@@ -161,13 +161,13 @@ startTestnetCluster startupParams cleanupRef = do
         pure { runtime, paths }
 
   log "Testnet is ready"
-  Aff.delay $ Milliseconds 2000.0
 
   ogmios <- annotateError "Could not start ogmios"
     $ startOgmios' { paths, workdir: workdirAbsolute }
   kupo <- annotateError "Could not start kupo"
     $ startKupo' { paths, workdir: workdirAbsolute }
 
+  log "startTestnetCluster:done"
   pure $ MkStartedTestnetCluster
     { paths
     , ogmios
@@ -347,18 +347,16 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
 
   -- -- It may not create an own directory until show any signs of life 
   -- _ <- waitForEvent channels.stdout
-
+  log "Waiting until testnet create it's own workdir"
   -- forward node's stdout
-  workdirAbsolute <- waitUntil (Milliseconds 1000.0)
-    $ liftEffect
-    $ map hush
-    $ try
-    $ liftMaybe (error "First testnet dir is missing")
-      =<< findTestnetWorkir { tmpdir: testDir, dirIdx: 0 }
+  workdirAbsolute <-
+    map (_.workdir >>> (testDir <</>> _)) -- workdir name to abs path
+
+      $ waitForTestnet872Workdir channels.stdout { tmpdir: testDir }
   Aff.killFiber (error "Temp output is not needed anymore") tempOutput
 
   -- cardano-testnet doesn't kill cardano-nodes it spawns, so we do it ourselves
-
+  log "Waiting for node sockets"
   nodes <- waitUntil (Milliseconds 3000.0)
     $ liftEffect
     $ map hush

@@ -1,7 +1,7 @@
 module Ctl.Internal.Testnet.Utils
   ( findNodeDirs
+  , waitForTestnet872Workdir
   , findTestnetPaths
-  , findTestnetWorkir
   , getNodePort
   , getRuntime
   , is811TestnetDirectoryName
@@ -50,17 +50,30 @@ is811TestnetDirectoryName :: Int -> FilePath -> Boolean
 is811TestnetDirectoryName n =
   isJust <<< String.stripPrefix (Pattern $ "testnet-" <> show n <> "-test-")
 
-findTestnetWorkir
+find811TestnetWorkir
   :: { tmpdir :: FilePath, dirIdx :: Int } -> Effect (Maybe FilePath)
-findTestnetWorkir { tmpdir, dirIdx } =
+find811TestnetWorkir { tmpdir, dirIdx } =
   map (tmpdir <</>> _)
     <<< Array.find (is811TestnetDirectoryName dirIdx)
     <$> Node.FS.readdir tmpdir
 
+waitForTestnet872Workdir
+  :: EventSource String -> { tmpdir :: FilePath } -> Aff { workdir :: FilePath }
+waitForTestnet872Workdir src = map { workdir: _ }
+  <<< waitFor src
+  <<< parseTestnet872Workdir
+
+parseTestnet872Workdir :: { tmpdir :: FilePath } -> String -> Maybe FilePath
+parseTestnet872Workdir { tmpdir } = String.stripPrefix
+  $ Pattern
+  $ "      Workspace: "
+  <> tmpdir
+  <> "/"
+
 parseEvent :: String -> Maybe Event
 parseEvent = case _ of
   -- we can't know this way when 8.1.1 cardano-testnet is ready
-  -- "    forAll709 =" -> Just Ready -- forAll109 for 8.3.2 
+  "    forAll109 =" -> Just Ready872
   "Usage: cardano-testnet cardano [--num-pool-nodes COUNT]" ->
     Just $ StartupFailed SpawnFailed
   "Failed to start testnet." ->
@@ -69,7 +82,7 @@ parseEvent = case _ of
     Just Finished
   _ -> Nothing
 
-waitFor :: forall a. EventSource Event -> (Event -> Maybe a) -> Aff a
+waitFor :: forall a e. EventSource e -> (e -> Maybe a) -> Aff a
 waitFor source f = flip tailRecM unit \_ -> do
   event <- waitForEvent source
   pure case f event of
@@ -158,13 +171,13 @@ findNodeDirs { workdir } = ado
   subdirs <- Node.FS.readdir workdir
   in
     flip Array.mapMaybe subdirs \dirname -> ado
-      idx <- Int.fromString =<< node881 dirname
+      idx <- Int.fromString =<< node872 dirname
       in { idx, workdir: workdir <</>> dirname, name: dirname }
   where
   node881 x =
     String.stripPrefix (Pattern "node-bft") x
       <|> String.stripPrefix (Pattern "node-pool") x
-  node832 = String.stripPrefix (Pattern "node-spo")
+  node872 = String.stripPrefix (Pattern "node-spo")
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
@@ -172,8 +185,8 @@ findTestnetPaths { workdir } = runExceptT do
   let
     nodeConfigPath = workdir <</>> "configuration.yaml"
     firstNode811 = "socket/node-pool1"
-    firstNode832 = "socket/node-spo1"
-    nodeSocketPath = workdir <</>> firstNode811
+    firstNode872 = "socket/node-spo1"
+    nodeSocketPath = workdir <</>> firstNode872
   workdirExists <- lift $ Node.FS.exists workdir
   configPathExists <- lift $ Node.FS.exists nodeConfigPath
   socketPathExists <- lift $ Node.FS.exists nodeSocketPath
@@ -185,7 +198,7 @@ findTestnetPaths { workdir } = runExceptT do
       "'configuration.yaml' not found in cardano-testnet working directory."
   unless socketPathExists do
     throwError $ error
-      $ firstNode811
+      $ firstNode872
       <> " not found in cardano-testnet working directory."
   nodeDirs <- lift $ findNodeDirs { workdir }
   pure
