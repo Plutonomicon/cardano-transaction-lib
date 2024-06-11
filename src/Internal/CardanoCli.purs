@@ -1,4 +1,4 @@
-module Internal.CardanoCli where
+module Ctl.Internal.CardanoCli where
 
 import Contract.Prelude
 

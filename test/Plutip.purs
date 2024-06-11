@@ -9,10 +9,8 @@ import Cardano.Types as Cardano.Types
 import Cardano.Types.Address as Cardano.Types.Address
 import Cardano.Types.PrivateKey as Cardano.Type.PrivateKey
 import Cardano.Types.PublicKey as Cardano.Types.PublicKey
-import Contract.ClientError as Contract.ClientError
 import Contract.Config as Config
-import Contract.Monad (ContractEnv)
-import Contract.Monad (runContractInEnv) as Contract
+import Contract.Monad as Contract
 import Contract.Test.Plutip (defaultPlutipConfig)
 import Contract.Test.Utils
   ( interruptOnSignal
@@ -35,13 +33,7 @@ import Contract.Wallet.KeyFile
   )
 import Control.Monad.Error.Class
   ( liftMaybe
-  , try
   )
-import Control.Monad.Except
-  ( ExceptT(..)
-  , runExceptT
-  )
-import Control.Monad.Reader (local)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Utils
   ( tmpdir
@@ -54,22 +46,17 @@ import Ctl.Internal.Testnet.Types
 import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
 import Ctl.Internal.Wallet.KeyFile (privateStakeKeyFromTextEnvelope)
-import Data.Bifunctor (bimap)
-import Data.Lens (Lens', (%~))
-import Data.Lens.Record (prop)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(..))
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Exception (Error, error, message)
-import Internal.CardanoCli as CardanoCli
+import Effect.Exception (error)
+import Internal.CardanoCli.QueryHandler as CardanoCli.QueryHandler
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile)
 import Node.Path (FilePath)
 import Record as Record
-import Type.Proxy (Proxy(..))
 
 -- | Changes TextEnvelope type to match private payment key one and tries to read that. 
 readTextEnvelopeAsPaymentSkey :: FilePath -> Aff Config.PrivatePaymentKey
@@ -96,29 +83,6 @@ readTextEnvelopeAsStakingSkey path = do
       (envelope { type_ = StakeSigningKeyShelleyed25519 })
   liftMaybe (error "Cannot decode staking skey from decoded envelope")
     $ privateStakeKeyFromTextEnvelope envelope'
-
-type UtxosAtQuery =
-  Cardano.Types.Address
-  -> Aff (Either Contract.ClientError.ClientError Cardano.Types.UtxoMap)
-
-utxosAtWithCardanoCli
-  :: CardanoCli.CardanoNodeInstance
-  -> UtxosAtQuery
-  -> UtxosAtQuery
-utxosAtWithCardanoCli node utxosAt address = runExceptT do
-  let
-    toCliError :: Error -> Contract.ClientError.ClientError
-    toCliError = Contract.ClientError.ClientOtherError <<< message
-
-    toUtxoMap :: Array CardanoCli.CardanoCliTxOutInfo -> Cardano.Types.UtxoMap
-    toUtxoMap = Map.fromFoldable
-      <<< map (CardanoCli.cardanoCliTxOutInfoToUtxo address)
-  cardanoCliUtxos <- ExceptT
-    $ map (bimap toCliError toUtxoMap)
-    $ try
-    $ CardanoCli.queryUtxosViaCardanoCli node address
-  kupoUtxos <- ExceptT $ utxosAt address
-  pure $ Map.union kupoUtxos cardanoCliUtxos
 
 defaultStartupParams :: { | CardanoTestnetStartupParams () }
 defaultStartupParams =
@@ -214,15 +178,11 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
             =<< getWalletBalance
 
           -- we can see genesis utxos when add cardano-cli query results to utxosAt
-          local (utxosAtL %~ utxosAtWithCardanoCli nodeCfg) do
+          CardanoCli.QueryHandler.withCardanoCliCompletion nodeCfg do
             log <<< show <<< { utxosAfterTx: _ } <<< map valueToCoin =<<
               getWalletBalance -- utxosAt newWallet.address
 
   log <<< append "Tmp dir is: " =<< liftEffect tmpdir
-
--- | txos
-utxosAtL :: Lens' ContractEnv UtxosAtQuery
-utxosAtL = prop (Proxy :: _ "handle") <<< prop (Proxy :: _ "utxosAt")
 
 -- flip cancelWith (effectCanceler (exitCode 1)) do
 --   Utils.interpretWithConfig
