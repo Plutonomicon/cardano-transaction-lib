@@ -63,6 +63,7 @@ You can edit this file as you like.
   , "node-process"
   , "node-readline"
   , "node-streams"
+  , "node-streams-aff"
   , "nonempty"
   , "now"
   , "nullable"

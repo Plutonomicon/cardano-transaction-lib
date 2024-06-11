@@ -1001,6 +1001,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "node-streams-aff" = pkgs.stdenv.mkDerivation {
+        name = "node-streams-aff";
+        version = "v4.0.1";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-streams-aff.git";
+          rev = "5c9b6937d14d6fed2273e3ac8780e3d256763e7d";
+          sha256 = "1vm5s6mlawdpqamnqfyh1vbsybjm2s972m02h8mza4m47zlca948";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "node-url" = pkgs.stdenv.mkDerivation {
         name = "node-url";
         version = "v6.0.0";
