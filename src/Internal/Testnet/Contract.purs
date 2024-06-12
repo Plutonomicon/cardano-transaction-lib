@@ -8,6 +8,7 @@ import Contract.Monad
   , ContractEnv
   )
 import Contract.Monad as Contract
+import Contract.Wallet as Contract.Wallet
 import Ctl.Internal.Plutip.Server
   ( makeClusterContractEnv
   )
@@ -23,6 +24,7 @@ import Ctl.Internal.Testnet.Types
   ( CardanoTestnetStartupParams
   , TestnetClusterConfig
   )
+import Effect.Exception.Unsafe (unsafeThrow)
 import Effect.Ref as Ref
 
 -- | Run a single `Contract` in Plutip environment.
@@ -33,6 +35,10 @@ runContract
   -> Aff a
 runContract cfg cont = withContractEnv cfg \_ env ->
   Contract.runContractInEnv env cont
+
+-- TODO
+genesisWallets :: Aff Contract.Wallet.KeyWallet
+genesisWallets = unsafeThrow "not implemented"
 
 -- | Provide a `ContractEnv` connected to Plutip.
 -- | can be used to run multiple `Contract`s using `runContractInEnv`.
