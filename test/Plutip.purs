@@ -9,16 +9,10 @@ import Cardano.Types as Cardano.Types
 import Cardano.Types.Address as Cardano.Types.Address
 import Cardano.Types.PrivateKey as Cardano.Type.PrivateKey
 import Cardano.Types.PublicKey as Cardano.Types.PublicKey
-import Contract.Config as Config
 import Contract.Monad as Contract
 import Contract.Test.Plutip (defaultPlutipConfig)
 import Contract.Test.Utils
   ( interruptOnSignal
-  )
-import Contract.TextEnvelope
-  ( TextEnvelope(..)
-  , TextEnvelopeType(..)
-  , decodeTextEnvelope
   )
 import Contract.Value
   ( valueToCoin
@@ -28,16 +22,11 @@ import Contract.Wallet
   , mkKeyWalletFromPrivateKeys
   , withKeyWallet
   )
-import Contract.Wallet.KeyFile
-  ( privatePaymentKeyFromTextEnvelope
-  )
-import Control.Monad.Error.Class
-  ( liftMaybe
-  )
-import Ctl.Internal.CardanoCli as CardanoCli
-import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Utils
   ( tmpdir
+  )
+import Ctl.Internal.Testnet.Contract
+  ( readGenesisWallets
   )
 import Ctl.Internal.Testnet.Contract as Testnet.Contract
 import Ctl.Internal.Testnet.Server as Testnet
@@ -46,44 +35,12 @@ import Ctl.Internal.Testnet.Types
   )
 import Ctl.Internal.Testnet.Types as Testnet.Types
 import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
-import Ctl.Internal.Wallet.KeyFile (privateStakeKeyFromTextEnvelope)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(..))
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff)
-import Effect.Aff.Class (class MonadAff)
-import Effect.Exception (error)
+import Effect.Aff (launchAff)
 import Internal.CardanoCli.QueryHandler as CardanoCli.QueryHandler
-import Node.Encoding (Encoding(..))
-import Node.FS.Aff (readTextFile)
-import Node.Path (FilePath)
 import Record as Record
-
--- | Changes TextEnvelope type to match private payment key one and tries to read that. 
-readTextEnvelopeAsPaymentSkey :: FilePath -> Aff Config.PrivatePaymentKey
-readTextEnvelopeAsPaymentSkey path = do
-  TextEnvelope envelope <-
-    liftMaybe (error "Cannot decode skey envelope")
-      <<< decodeTextEnvelope
-      =<< readTextFile UTF8 path
-  let
-    envelope' = TextEnvelope
-      (envelope { type_ = PaymentSigningKeyShelleyed25519 })
-  liftMaybe (error "Cannot decode payment skey from decoded envelope")
-    $ privatePaymentKeyFromTextEnvelope envelope'
-
--- | Changes TextEnvelope type to match private staking key one and tries to read that. 
-readTextEnvelopeAsStakingSkey :: FilePath -> Aff Config.PrivateStakeKey
-readTextEnvelopeAsStakingSkey path = do
-  TextEnvelope envelope <-
-    liftMaybe (error "Cannot decode skey envelope")
-      <<< decodeTextEnvelope
-      =<< readTextFile UTF8 path
-  let
-    envelope' = TextEnvelope
-      (envelope { type_ = StakeSigningKeyShelleyed25519 })
-  liftMaybe (error "Cannot decode staking skey from decoded envelope")
-    $ privateStakeKeyFromTextEnvelope envelope'
 
 defaultStartupParams :: { | CardanoTestnetStartupParams () }
 defaultStartupParams =
@@ -144,28 +101,10 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
       log "Inside"
       let
         Testnet.MkStartedTestnetCluster { paths } = cluster
-        v872utxoKeysDir = paths.testnetDirectory <</>> "utxo-keys"
-
       -- a new wallet to send initial lovelace to
-
-      let
-        -- | Creates wallet from a payment key in TextEnvelope of any .type as if it was private payment key type.  
-        readHackWallet
-          :: forall m. MonadAff m => String -> Int -> m (String /\ KeyWallet)
-        readHackWallet name idx = liftAff do
-          let identifier = name <> show idx
-          wallet <- walletFromHackedKeys (identifier <> ".skey") Nothing
-          pure $ identifier /\ wallet
-
-        walletFromHackedKeys payment staking = do
-          pk <- readTextEnvelopeAsPaymentSkey payment
-          sk <- traverse readTextEnvelopeAsStakingSkey staking
-          pure $ mkKeyWalletFromPrivateKeys pk sk
-
       -- do something interesting with every utxo in utxo-keys
-      for_ [ 1, 2, 3 ] \idx -> do
-        walletName /\ wallet <-
-          readHackWallet (v872utxoKeysDir <</>> "utxo") idx
+      genesisWallets <- liftEffect $ readGenesisWallets paths
+      for_ genesisWallets \wallet -> do
         withKeyWallet wallet do
           let
             nodeCfg =
@@ -175,7 +114,7 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
           -- it will show zero balance
           log
             <<< show
-            <<< { wallet: walletName, initialBalanceViaKupo: _ }
+            <<< { initialBalanceViaKupo: _ }
             =<< getWalletBalance
 
           -- we can see genesis utxos when add cardano-cli query results to utxosAt

@@ -9,10 +9,20 @@ module Ctl.Internal.Testnet.Utils
   , parseEvent
   , readNodes
   , waitFor
+  , read872GenesisKey
   ) where
 
 import Contract.Prelude
 
+import Contract.Config as Contract.Config
+import Contract.TextEnvelope
+  ( TextEnvelope(TextEnvelope)
+  , TextEnvelopeType(PaymentSigningKeyShelleyed25519)
+  , decodeTextEnvelope
+  )
+import Contract.Wallet.KeyFile
+  ( privatePaymentKeyFromTextEnvelope
+  )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class
   ( liftMaybe
@@ -28,6 +38,7 @@ import Ctl.Internal.Plutip.Utils
   )
 import Ctl.Internal.Testnet.Types
   ( Event(..)
+  , GenesisUtxoKeyLocation
   , Node
   , NodeLocation
   , StartupFailure(..)
@@ -42,7 +53,9 @@ import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect.Exception (Error, error)
 import Node.Encoding (Encoding(UTF8))
+import Node.Encoding as Node.Encoding
 import Node.FS.Sync as Node.FS
+import Node.FS.Sync as Node.FS.Sync
 import Node.Path (FilePath)
 
 -- | For cardano-node 8.1.1
@@ -160,6 +173,50 @@ readNodes { nodeDirs, testnetDirectory } = do
     port <- getNodePort { nodeDir: workdir }
     pure { idx, socket: socketPath, port, workdir, name }
 
+-- | Changes TextEnvelope type to match private payment key one and tries to read that. 
+readTextEnvelopeAsPaymentSkey
+  :: FilePath
+  -> Effect Contract.Config.PrivatePaymentKey
+readTextEnvelopeAsPaymentSkey path = do
+  TextEnvelope envelope <-
+    liftMaybe (error "Cannot decode skey envelope")
+      <<< decodeTextEnvelope
+      =<< Node.FS.Sync.readTextFile Node.Encoding.UTF8 path
+  let
+    envelope' = TextEnvelope
+      (envelope { type_ = PaymentSigningKeyShelleyed25519 })
+  liftMaybe (error "Cannot decode payment skey from decoded envelope")
+    $ privatePaymentKeyFromTextEnvelope envelope'
+
+parse872UtxoKeyFilename :: FilePath -> Either Error (Maybe { idx :: Int })
+parse872UtxoKeyFilename path =
+  traverse
+    ( map { idx: _ }
+        <<< note (error "Can't parse genesis key index")
+        <<< Int.fromString
+    )
+    $ String.stripSuffix (Pattern ".skey")
+    =<< String.stripPrefix (Pattern "utxo") path
+
+read872GenesisKeyLocations
+  :: { workdir :: FilePath }
+  -> Effect (Array { | GenesisUtxoKeyLocation () })
+read872GenesisKeyLocations { workdir } = do
+  let
+    keysDir = workdir <</>> "utxo-keys"
+  filenames <- Node.FS.readdir keysDir
+  map Array.catMaybes
+    $ liftEither
+    $ for filenames \filename ->
+        parse872UtxoKeyFilename filename <#> map \{ idx } ->
+          { idx, path: keysDir <</>> filename }
+
+read872GenesisKey
+  :: forall r
+   . { | GenesisUtxoKeyLocation r }
+  -> Effect Contract.Config.PrivatePaymentKey
+read872GenesisKey { path } = readTextEnvelopeAsPaymentSkey path
+
 getNodePort :: { nodeDir :: FilePath } -> Effect UInt
 getNodePort { nodeDir } =
   liftMaybe (error $ "Failed to parse port at " <> nodeDir <</>> "/port")
@@ -201,9 +258,11 @@ findTestnetPaths { workdir } = runExceptT do
       $ firstNode872
       <> " not found in cardano-testnet working directory."
   nodeDirs <- lift $ findNodeDirs { workdir }
+  genesisKeys <- lift $ read872GenesisKeyLocations { workdir }
   pure
     { testnetDirectory: workdir
     , nodeConfigPath
     , nodeSocketPath
+    , genesisKeys
     , nodeDirs
     }

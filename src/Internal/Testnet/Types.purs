@@ -8,6 +8,7 @@ module Ctl.Internal.Testnet.Types
   , KupmiosConfig
   , NodeLocation
   , Node
+  , GenesisUtxoKeyLocation
   , OptionalStartupParams
   , TestnetRuntime
   , TestnetClusterConfig
@@ -18,7 +19,6 @@ module Ctl.Internal.Testnet.Types
 
 import Contract.Prelude
 
-import Cardano.Types as Cardano.Types
 import Contract.Config as Config
 import Data.Time.Duration (Milliseconds, Seconds)
 import Data.UInt (UInt)
@@ -104,6 +104,7 @@ defaultOptionalStartupParams =
 
 type TestnetPaths =
   { testnetDirectory :: FilePath
+  , genesisKeys :: Array { | GenesisUtxoKeyLocation () }
   , nodeConfigPath :: FilePath
   , nodeSocketPath :: FilePath
   , nodeDirs :: Array { | NodeLocation () }
@@ -119,6 +120,12 @@ type NodeLocation r =
   ( idx :: Int
   , name :: String
   , workdir :: FilePath
+  | r
+  )
+
+type GenesisUtxoKeyLocation r =
+  ( path :: FilePath
+  , idx :: Int
   | r
   )
 

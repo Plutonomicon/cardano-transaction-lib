@@ -72,6 +72,7 @@ You can edit this file as you like.
   , "ordered-collections"
   , "orders"
   , "parallel"
+  , "parsing"
   , "partial"
   , "plutus-types"
   , "posix-types"
