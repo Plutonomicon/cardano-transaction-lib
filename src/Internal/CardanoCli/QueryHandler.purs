@@ -22,6 +22,8 @@ type UtxosAtQuery =
   Cardano.Types.Address
   -> Aff (Either Contract.ClientError.ClientError Cardano.Types.UtxoMap)
 
+-- | Adds to the utxosAt results UTxOs found by cardano-cli but not found by the current 'utxosAt' query.
+-- UTxOs found by cardano-cli assumed to have no datum or script ref. 
 withCardanoCliCompletion
   :: forall a
    . CardanoCli.CardanoNodeInstance
@@ -33,7 +35,8 @@ withCardanoCliCompletion node =
 utxosAtL :: Lens' ContractEnv UtxosAtQuery
 utxosAtL = prop (Proxy :: _ "handle") <<< prop (Proxy :: _ "utxosAt")
 
--- | Adds to the results UTxOs found by cardano-cli but not found by the given 'utxosAt' query. 
+-- | Adds to the results UTxOs found by cardano-cli but not found by the given 'utxosAt' query.
+-- UTxOs found by cardano-cli assumed to have no datum or script ref.  
 completeUtxosAt
   :: CardanoCli.CardanoNodeInstance
   -> UtxosAtQuery

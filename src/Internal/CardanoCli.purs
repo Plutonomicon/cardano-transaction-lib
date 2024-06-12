@@ -1,18 +1,28 @@
-module Ctl.Internal.CardanoCli where
+module Ctl.Internal.CardanoCli
+  ( CardanoNodeInstance
+  , CardanoCliTxOutInfo
+  , queryUtxosViaCardanoCli
+  , cardanoCliTxOutInfoToUtxo
+  ) where
 
 import Contract.Prelude
 
 import Cardano.Serialization.Lib as CSL
 import Cardano.Types as Cardano.Types
 import Cardano.Types.Address as Cardano.Types.Address
+import Cardano.Types.AssetName as Cardano.Types.AssetName
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Value as Cardano.Types.Value
 import Contract.Value as Contract.Value
-import Control.Monad.Error.Class (liftMaybe)
+import Control.Alt ((<|>))
 import Control.Monad.Except (throwError)
+import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Plutip.Spawn as Ctl.Internal.Plutip.Spawn
 import Ctl.Internal.Plutip.Utils (annotateError)
 import Data.Array as Array
+import Data.Bifunctor (lmap)
+import Data.ByteArray (ByteArray)
 import Data.ByteArray as Data.ByteArray
 import Data.List as List
 import Data.String as String
@@ -24,6 +34,10 @@ import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding as Node.Encoding
 import Node.Path as Node.Path
 import Node.Stream.Aff as Node.Stream.Aff
+import Parsing as Parsing
+import Parsing.Combinators as Parsing.Combinators
+import Parsing.String as Parsing.String
+import Parsing.String.Basic as Parsing.String.Basic
 
 type CardanoNodeInstance =
   { socketPath :: Node.Path.FilePath
@@ -40,7 +54,7 @@ cardanoCliTxOutInfoToUtxo address { input: { txHash, txOutId }, amount } =
       { index: txOutId, transactionId: txHash }
     txOut = Cardano.Types.TransactionOutput
       { address
-      , amount: Contract.Value.coinToValue amount
+      , amount
       , datum: Nothing
       , scriptRef: Nothing
       }
@@ -52,26 +66,42 @@ type CardanoCliTxOutInfo =
       { txHash :: Cardano.Types.TransactionHash
       , txOutId :: UInt
       }
-  , amount :: Cardano.Types.Coin
+  , amount :: Cardano.Types.Value -- Coin
   }
 
 -- | A line of the CLI output of 'cardano-cli query utxo' containing utxo information
 newtype CliUtxo = CliUtxo String
 
-parseTxOut :: CliUtxo -> Maybe CardanoCliTxOutInfo
-parseTxOut (CliUtxo src) = do
+parseTxOutIgnoringDatums
+  :: CliUtxo -> Either Parsing.ParseError CardanoCliTxOutInfo
+parseTxOutIgnoringDatums (CliUtxo src) = Parsing.runParser src do
+  Parsing.String.Basic.skipSpaces
+  txHash <- parseTxHash
+  Parsing.String.Basic.skipSpaces
+  txOutId <- parseTxOutputIndex
   let
-    words = String.split (String.Pattern " ") src
-    nonEmptyWords = Array.take 3 $ Array.filter (not <<< String.null) words
-  { hash, id, amt } <- case nonEmptyWords of
-    [ hash, id, amt ] -> Just { hash, id, amt }
-    _ -> Nothing
-  txHash <- map wrap <<< CSL.fromBytes =<< Data.ByteArray.hexToByteArray hash
-  txOutId <- UInt.fromString id
-  amount <- BigNum.fromString amt
-  pure { input: { txHash, txOutId }, amount: wrap amount }
+    txDatumBegin =
+      Parsing.String.string "TxOutDatumNone"
+        <|> Parsing.String.string "TxOutDatumInline"
+        <|> Parsing.String.string "TxOutDatumHash"
+
+    parseAssets
+      :: Contract.Value.Value -> Parsing.Parser String Contract.Value.Value
+    parseAssets = tailRecM \acc -> do
+      value <- parseAsset
+      void $ Parsing.String.string " + "
+      acc' <- noteParser "Can't sum up value"
+        $ Contract.Value.add acc value
+      (Done acc' <$ txDatumBegin) <|> pure (Loop acc')
+  Parsing.String.Basic.skipSpaces
+  value <- parseAssets Contract.Value.empty
+  pure
+    { input: { txHash, txOutId }
+    , amount: value
+    }
 
 -- | Queries address funds via cardano-cli and returns the first UTxO data.
+-- Note, that it assumes no output datum and script ref.
 queryUtxosViaCardanoCli
   :: CardanoNodeInstance
   -> Cardano.Types.Address
@@ -88,11 +118,21 @@ queryUtxosViaCardanoCli { socketPath, testnetMagic } address =
       , "--address"
       , Cardano.Types.Address.toBech32 address
       ]
+    let
+      parsingError utxos (Parsing.ParseError msg pos) = mconcat
+        [ "Cannot parse UTxOs: "
+        , show utxos
+        , " because of "
+        , msg
+        , " at "
+        , show pos
+        ]
     case List.fromFoldable stdout of
       List.Cons _ (List.Cons _ utxos) ->
         map Array.fromFoldable
-          <<< liftMaybe (error $ "Cannot parse TxOuts" <> show utxos)
-          $ for utxos (parseTxOut <<< CliUtxo)
+          <<< liftEither
+          <<< lmap (error <<< parsingError utxos)
+          $ for utxos (parseTxOutIgnoringDatums <<< CliUtxo)
       _ -> throwError $ error $ "Output is too short " <> show stdout
 
 execCardanoCli
@@ -127,3 +167,67 @@ execCardanoCli params = annotateError "execCardanoCli" do
       $ error
       $ intercalate "\n" output.stderr
   pure { stdout: output.stdout, process }
+
+-- * Parsing
+
+parseTxOutputIndex :: Parsing.Parser String UInt
+parseTxOutputIndex = parseNatural \n ->
+  note ("Can't parse Tx output index: " <> n)
+    $ UInt.fromString n
+
+parseAsset :: Parsing.Parser String Cardano.Types.Value
+parseAsset = do
+  amount <- parseAmount
+  Parsing.String.Basic.skipSpaces
+  parseLovelace amount <|> parseNativeAsset amount
+  where
+  parseAmount = parseNatural \n ->
+    note ("Can't parse asset amount: " <> n)
+      $ BigNum.fromString n
+  parseLovelace amount = do
+    void $ Parsing.String.string "lovelace"
+    pure $ Cardano.Types.Value.coinToValue $ wrap amount
+  parseNativeAsset amount = do
+    cs <- parseScriptHash
+    void $ Parsing.String.char '.'
+    tn <- parseAssetName
+    pure $ Contract.Value.singleton cs tn amount
+
+parseTxHash :: Parsing.Parser String Cardano.Types.TransactionHash
+parseTxHash = map wrap
+  <<< noteParser "Cannot parse tx hash from byte array"
+  <<< CSL.fromBytes
+  =<< parseHex
+
+parseScriptHash :: Parsing.Parser String Cardano.Types.ScriptHash
+parseScriptHash = parseHex >>= \bytes ->
+  map wrap
+    $ noteParser ("Cannot parse script hash from byte array" <> show bytes)
+    $ CSL.fromBytes bytes
+
+parseAssetName :: Parsing.Parser String Cardano.Types.AssetName
+parseAssetName =
+  noteParser "Cannot create asset name from the parsed bytes"
+    <<< Cardano.Types.AssetName.mkAssetName
+    =<< parseHex
+
+makeString :: forall f. Foldable f => f Char -> String
+makeString = String.fromCodePointArray
+  <<< map String.codePointFromChar
+  <<< Array.fromFoldable
+
+parseNatural :: forall n. (String -> Either String n) -> Parsing.Parser String n
+parseNatural toNumber = Parsing.liftEither
+  <<< toNumber
+  <<< makeString
+  =<< Parsing.Combinators.many Parsing.String.Basic.digit
+
+noteParser :: forall s a. String -> Maybe a -> Parsing.Parser s a
+noteParser err = Parsing.liftEither <<< note err
+
+parseHex :: Parsing.Parser String ByteArray
+parseHex =
+  noteParser "Cannot parse hex-encoded byte array"
+    <<< Data.ByteArray.hexToByteArray
+    <<< makeString
+    =<< Parsing.Combinators.many Parsing.String.Basic.hexDigit

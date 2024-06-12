@@ -34,6 +34,7 @@ import Contract.Wallet.KeyFile
 import Control.Monad.Error.Class
   ( liftMaybe
   )
+import Ctl.Internal.CardanoCli as CardanoCli
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Utils
   ( tmpdir
