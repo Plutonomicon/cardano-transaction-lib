@@ -16,7 +16,6 @@ import Cardano.Types.Value as Cardano.Types.Value
 import Contract.Value as Contract.Value
 import Control.Alt ((<|>))
 import Control.Monad.Except (throwError)
-import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Control.Parallel (parallel, sequential)
 import Ctl.Internal.Plutip.Spawn as Ctl.Internal.Plutip.Spawn
 import Ctl.Internal.Plutip.Utils (annotateError)
@@ -85,16 +84,14 @@ parseTxOutIgnoringDatums (CliUtxo src) = Parsing.runParser src do
         <|> Parsing.String.string "TxOutDatumInline"
         <|> Parsing.String.string "TxOutDatumHash"
 
-    parseAssets
-      :: Contract.Value.Value -> Parsing.Parser String Contract.Value.Value
-    parseAssets = tailRecM \acc -> do
-      value <- parseAsset
-      void $ Parsing.String.string " + "
-      acc' <- noteParser "Can't sum up value"
-        $ Contract.Value.add acc value
-      (Done acc' <$ txDatumBegin) <|> pure (Loop acc')
   Parsing.String.Basic.skipSpaces
-  value <- parseAssets Contract.Value.empty
+  rawValues <- Parsing.Combinators.manyTill
+    (parseAsset <* Parsing.String.string " + ")
+    txDatumBegin
+  value <-
+    noteParser "Can't sum up asset amounts"
+      $ Contract.Value.sum
+      $ Array.fromFoldable rawValues
   pure
     { input: { txHash, txOutId }
     , amount: value
@@ -184,14 +181,14 @@ parseAsset = do
   parseAmount = parseNatural \n ->
     note ("Can't parse asset amount: " <> n)
       $ BigNum.fromString n
-  parseLovelace amount = do
+  parseLovelace amount = ado
     void $ Parsing.String.string "lovelace"
-    pure $ Cardano.Types.Value.coinToValue $ wrap amount
-  parseNativeAsset amount = do
+    in Cardano.Types.Value.coinToValue $ wrap amount
+  parseNativeAsset amount = ado
     cs <- parseScriptHash
     void $ Parsing.String.char '.'
     tn <- parseAssetName
-    pure $ Contract.Value.singleton cs tn amount
+    in Contract.Value.singleton cs tn amount
 
 parseTxHash :: Parsing.Parser String Cardano.Types.TransactionHash
 parseTxHash = map wrap
