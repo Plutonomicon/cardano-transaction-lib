@@ -137,7 +137,7 @@ rec {
               "${pkgs.bash}/bin/sh"
               "-c"
               ''
-                ${inputs.kupo-nixos.packages.${pkgs.system}.kupo}/bin/kupo \
+                ${pkgs.kupo}/bin/kupo \
                   --node-config /config/cardano-node/config.json \
                   --node-socket "${nodeSocketPath}" \
                   --since "${kupo.since}" \
