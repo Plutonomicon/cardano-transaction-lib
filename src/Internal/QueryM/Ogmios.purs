@@ -126,7 +126,6 @@ import Cardano.Types.NativeScript
       )
   )
 import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
-import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.PoolMetadata (PoolMetadata(PoolMetadata))
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
 import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward)) as RedeemerTag

@@ -78,22 +78,11 @@ import Prelude
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Types
-  ( AuxiliaryData(AuxiliaryData)
-  , Bech32String
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      )
+  ( Bech32String
   , Coin(Coin)
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
-  , Epoch(Epoch)
-  , ExUnitPrices(ExUnitPrices)
   , ExUnits(ExUnits)
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , Language(PlutusV2)
   , NativeScript
       ( TimelockExpiry
@@ -104,21 +93,12 @@ import Cardano.Types
       , ScriptPubkey
       )
   , NetworkId(TestnetId, MainnetId)
-  , OutputDatum(OutputDatum)
   , PaymentPubKeyHash(PaymentPubKeyHash)
   , PlutusData(Integer, Bytes, Constr, List, Map)
   , PlutusScript(PlutusScript)
-  , PoolMetadata(PoolMetadata)
-  , PoolParams(PoolParams)
-  , PoolPubKeyHash(PoolPubKeyHash)
-  , ProtocolParamUpdate(ProtocolParamUpdate)
-  , ProtocolVersion(ProtocolVersion)
   , Redeemer(Redeemer)
   , RedeemerTag(Spend)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , RewardAddress
   , ScriptHash
-  , ScriptRef(NativeScriptRef)
   , Slot(Slot)
   , Transaction(Transaction)
   , TransactionBody(TransactionBody)
@@ -126,8 +106,6 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , URL(URL)
-  , UnitInterval(UnitInterval)
   , UtxoMap
   , Value(Value)
   , Vkey(Vkey)
@@ -142,12 +120,7 @@ import Cardano.Types.Mint (Mint(Mint))
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.PlutusScript (plutusV1Script, plutusV2Script)
 import Cardano.Types.PublicKey as PublicKey
-import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
-import Cardano.Types.TransactionMetadatum (TransactionMetadatum(Text))
-import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
-import Contract.Prim.ByteArray (hexToByteArray)
-import Data.Array as Array
 import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -165,7 +138,6 @@ import JS.BigInt as BigInt
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
@@ -229,18 +201,8 @@ txOutputBinaryFixture1 =
 pkhBech32 :: Bech32String
 pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
 
-stake1 :: Credential
-stake1 = unsafePartial $ fromJust do
-  PubKeyHashCredential <$> Ed25519KeyHash.fromBech32 pkhBech32
-
 ed25519KeyHash1 :: Ed25519KeyHash
 ed25519KeyHash1 = unsafePartial $ fromJust $ Ed25519KeyHash.fromBech32 pkhBech32
-
-bigNumOne :: BigNum
-bigNumOne = BigNum.fromInt 1
-
-rewardAddress1 :: RewardAddress
-rewardAddress1 = { networkId: TestnetId, stakeCredential: wrap stake1 }
 
 -- | Extend this for your needs.
 type SampleTxConfig =

@@ -32,41 +32,25 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
-
-    ogmios-nixos = {
-      url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        cardano-node.follows = "cardano-node";
-        ogmios-src.follows = "ogmios";
-      };
-    };
-
-    ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.0.0";
-      flake = false;
-    };
-
-    kupo-nixos = {
-      url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
-      inputs.kupo.follows = "kupo";
-    };
-
-    kupo = {
-      url = "github:CardanoSolutions/kupo/v2.2.0";
-      flake = false;
-    };
+    cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-sancho";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=d952529afdfdf6d53ce190b1bf8af990a7ae9590";
+      url = "github:input-output-hk/cardano-configurations?rev=692010ed0f454bfbb566c06443227c79e2f4dbab";
       flake = false;
     };
+
+    # Get Ogmios and Kupo from cardano-nix
+    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
+
+    # Get Ogmios test fixtures 
+    ogmios = {
+      url = "github:CardanoSolutions/ogmios/v6.2.0";
+      flake = false;
+    };
+
     easy-purescript-nix = {
       url = "github:justinwoo/easy-purescript-nix";
       flake = false;
@@ -104,6 +88,9 @@
         "aarch64-linux"
         "aarch64-darwin"
       ];
+
+      ogmiosVersion = "6.2.0";
+      kupoVersion = "2.8.0";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -225,7 +212,7 @@
               name = "ctl-e2e-test";
               runnerMain = "Test.Ctl.E2E";
               testMain = "Ctl.Examples.ByUrl";
-              buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
+              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
@@ -315,8 +302,8 @@
               {
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios = ogmios-nixos.packages.${system}."ogmios:exe:ogmios";
-                kupo = inputs.kupo-nixos.packages.${system}.kupo;
+                ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
+                kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
