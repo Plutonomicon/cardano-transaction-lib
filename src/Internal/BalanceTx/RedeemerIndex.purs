@@ -81,7 +81,7 @@ unindexedRedeemerToRedeemer :: UnindexedRedeemer -> Redeemer
 unindexedRedeemerToRedeemer (UnindexedRedeemer { datum, purpose }) =
   Redeemer
     { tag: redeemerPurposeToRedeemerTag purpose
-    , "data": datum
+    , "data": wrap datum
     , index: BigNum.zero
     , exUnits: ExUnits.empty
     }
@@ -107,7 +107,7 @@ indexedRedeemerToRedeemer (IndexedRedeemer { tag, datum, index }) =
   Redeemer
     { tag
     , index: BigNum.fromInt index
-    , data: datum
+    , data: wrap datum
     , exUnits: ExUnits.empty
     }
 

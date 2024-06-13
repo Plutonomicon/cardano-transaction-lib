@@ -266,21 +266,27 @@ let additions =
       , cardano-serialization-lib =
         { dependencies =
           [ "aeson"
+          , "aff"
           , "argonaut"
           , "bifunctors"
           , "bytearrays"
           , "effect"
           , "either"
+          , "enums"
           , "maybe"
           , "nullable"
           , "ordered-collections"
+          , "partial"
           , "prelude"
           , "profunctor"
+          , "spec"
+          , "transformers"
           , "tuples"
+          , "unsafe-coerce"
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib"
-        , version = "26d437c3f398172c839b93b57c30eb43a7fa7ca0"
+        , version = "v1.0.0"
         }
       , cardano-plutus-data-schema =
         { dependencies = [ "prelude" ]
@@ -321,14 +327,15 @@ let additions =
       , cardano-types =
         { dependencies =
           [ "aeson"
+          , "aff"
           , "arraybuffer-types"
           , "arrays"
           , "bifunctors"
           , "bytearrays"
           , "cardano-plutus-data-schema"
           , "cardano-serialization-lib"
-          , "console"
           , "control"
+          , "datetime"
           , "effect"
           , "either"
           , "encoding"
@@ -342,6 +349,8 @@ let additions =
           , "literals"
           , "maybe"
           , "monad-logger"
+          , "mote"
+          , "mote-testplan"
           , "newtype"
           , "nonempty"
           , "nullable"
@@ -349,11 +358,12 @@ let additions =
           , "partial"
           , "prelude"
           , "profunctor"
+          , "profunctor-lenses"
           , "quickcheck"
           , "rationals"
           , "record"
           , "safe-coerce"
-          , "strings"
+          , "spec"
           , "these"
           , "tuples"
           , "typelevel-prelude"
@@ -362,7 +372,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "v1.0.1"
+        , version = "v2.0.0"
         }
       , cardano-message-signing =
         { dependencies =
