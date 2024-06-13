@@ -46,7 +46,7 @@
     # Get Ogmios and Kupo from cardano-nix
     cardano-nix.url = "github:mlabs-haskell/cardano.nix";
 
-    # Get Ogmios test fixtures 
+    # Get Ogmios test fixtures
     ogmios = {
       url = "github:CardanoSolutions/ogmios/v6.2.0";
       flake = false;
