@@ -28,6 +28,7 @@ import Test.Ctl.Partition as Partition
 import Test.Ctl.ProtocolParams as ProtocolParams
 import Test.Ctl.Serialization as Serialization
 import Test.Ctl.Serialization.Hash as Serialization.Hash
+import Test.Ctl.Testnet.DistributeFunds as Testnet.DistributeFunds
 import Test.Ctl.Types.Interval as Types.Interval
 import Test.Ctl.Types.Ipv6 as Ipv6
 import Test.Ctl.Types.TokenName as Types.TokenName
@@ -47,6 +48,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
+  Testnet.DistributeFunds.suite
   ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite
