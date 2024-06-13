@@ -34,7 +34,7 @@
     "@mlabs-haskell/cardano-message-signing": "^1.0.1",
     "@mlabs-haskell/cardano-serialization-lib-gc": "^1.0.10",
     "@mlabs-haskell/json-bigint": "2.0.0",
-    "@mlabs-haskell/uplc-apply-args": "1.0.0",
+    "@mlabs-haskell/uplc-apply-args": "2.0.0",
     "@noble/secp256k1": "^1.7.0",
     "base64-js": "^1.5.1",
     "bignumber.js": "^9.1.1",
