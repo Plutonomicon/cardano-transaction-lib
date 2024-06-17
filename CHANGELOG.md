@@ -75,6 +75,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- bump `cardano-node` dependency from 8.1.1 to 8.1.2, particularly to solve [this](https://github.com/IntersectMBO/cardano-node/issues/5398).
+- let `ogmios` and `plutip` not to follow roots dependencies
+- use CTL flake locally in `templates/ctl-scaffold`
+- recreate `flake.lock`, bumping the stuff which is not fixed in the `flake.nix`
+
 ### Fixed
 
 ## [v8.0.0]

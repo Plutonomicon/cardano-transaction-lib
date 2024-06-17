@@ -12,12 +12,7 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
-    ctl = {
-      type = "github";
-      owner = "Plutonomicon";
-      repo = "cardano-transaction-lib";
-      rev = "423e27b3f56b1a66db8d3126c22cea9bda7e50da";
-    };
+    ctl.url = "../..";
     # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
   };
@@ -148,6 +143,8 @@
         {
           default = self.apps.${system}.ctl-scaffold-runtime;
           ctl-scaffold-runtime = pkgs.launchCtlRuntime runtimeConfig;
+          ctl-scaffold-runtime-preprod = pkgs.launchCtlRuntime
+            (pkgs.lib.recursiveUpdate runtimeConfig { network = { name = "preprod"; magic = 1; }; });
           ctl-scaffold-blockfrost-runtime = pkgs.launchCtlRuntime
             (pkgs.lib.recursiveUpdate runtimeConfig { blockfrost = { enable = true; }; });
           docs = (psProjectFor pkgs).launchSearchablePursDocs { };
