@@ -52,7 +52,7 @@ import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
 import Ctl.Internal.Plutus.Types.AssocMap (Map(Map), singleton) as AssocMap
 import Ctl.Internal.Serialization.Hash (scriptHashFromBytes, scriptHashToBytes)
 import Ctl.Internal.ToData (class ToData, toData)
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayToHex, hexToByteArray)
 import Ctl.Internal.Types.Int as Int
 import Ctl.Internal.Types.PlutusData (PlutusData(Map, Integer))
 import Ctl.Internal.Types.RawBytes (rawBytesToHex)
@@ -227,23 +227,23 @@ metadataEntryDecodeAeson policyId assetName =
 
 -- | Encode the entry's policy id to the string used as the metadata
 -- | key
-encodePolicyIdKey :: Cip25MetadataEntry -> String
+encodePolicyIdKey :: Cip25MetadataEntry -> ByteArray
 encodePolicyIdKey (Cip25MetadataEntry { policyId }) =
-  rawBytesToHex $ scriptHashToBytes $ unwrap policyId
+  unwrap $ scriptHashToBytes $ unwrap policyId
 
 -- | Decode the CIP25 policy id key
-decodePolicyIdKey :: String -> Maybe MintingPolicyHash
-decodePolicyIdKey = map wrap <<< scriptHashFromBytes <=< hexToByteArray
+decodePolicyIdKey :: ByteArray -> Maybe MintingPolicyHash
+decodePolicyIdKey = map wrap <<< scriptHashFromBytes
 
 -- | Encode the entry's asset name to the string used as the metadata
 -- | key
-encodeAssetNameKey :: Cip25MetadataEntry -> String
+encodeAssetNameKey :: Cip25MetadataEntry -> ByteArray
 encodeAssetNameKey (Cip25MetadataEntry { assetName }) =
-  byteArrayToHex $ getTokenName $ unwrap assetName
+  getTokenName $ unwrap assetName
 
 -- | Decode the CIP25 asset name key
-decodeAssetNameKey :: String -> Maybe Cip25TokenName
-decodeAssetNameKey = map wrap <<< mkTokenName <=< hexToByteArray
+decodeAssetNameKey :: ByteArray -> Maybe Cip25TokenName
+decodeAssetNameKey = map wrap <<< mkTokenName
 
 newtype Cip25Metadata = Cip25Metadata (Array Cip25MetadataEntry)
 
