@@ -26458,16 +26458,16 @@
     "kupo": {
       "flake": false,
       "locked": {
-        "lastModified": 1715087353,
-        "narHash": "sha256-yPI3Hs3i8HG1k/p7VYRsS8LR9JukgRI1mg3UqIhXDRI=",
-        "owner": "Fourierlabs",
+        "lastModified": 1718734761,
+        "narHash": "sha256-J5eys+/VjeYqfBlcS+XW+Gzafq0/qkbOfY6b05JmFYI=",
+        "owner": "klarkc",
         "repo": "kupo",
-        "rev": "fa1d44404b6542815de21cd3f4c5750019c6dc9b",
+        "rev": "d95a324f6a94a963cd91cb5d5f88ef50640e7b8d",
         "type": "github"
       },
       "original": {
-        "owner": "Fourierlabs",
-        "ref": "fix-sanchonet",
+        "owner": "klarkc",
+        "ref": "patch-1",
         "repo": "kupo",
         "type": "github"
       }
@@ -26481,11 +26481,11 @@
         "kupo": "kupo"
       },
       "locked": {
-        "lastModified": 1715117180,
-        "narHash": "sha256-WwjhE0JxVt7lqUEQTrtPKPbOCkI78NObU0fidvh3u84=",
+        "lastModified": 1718735503,
+        "narHash": "sha256-Dwpl5BUeGGvhH7+RcF3as7e9rzUFeHRwVGxjfj0fMAM=",
         "owner": "Fourierlabs",
         "repo": "kupo-nixos",
-        "rev": "1dac3722856834ee2e2fca374eec6ce4b9585ec5",
+        "rev": "4ab9be5d524bf2c003874aa225f20d00cb6defcf",
         "type": "github"
       },
       "original": {
