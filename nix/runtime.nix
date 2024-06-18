@@ -3,12 +3,14 @@ rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
     # { name = "preprod"; magic = 1; }
+    # { name = "preview"; magic = 2; }
+    # { name = "sanchonet"; magic = 4; }
     # { name = "mainnet"; magic = null; }
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
     # for info on how to switch networks.
     network = {
-      name = "preview";
-      magic = 2; # use `null` for mainnet
+      name = "sanchonet";
+      magic = 4; # use `null` for mainnet
     };
     # *All* of these values are optional, and shown with their default
     # values. If you need even more customization, you can use `overideAttrs`
@@ -27,7 +29,6 @@ rec {
       port = 1442;
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
-      tag = "v2.2.0";
       deferDbIndexes = true; # whether to pass --defer-db-indexes
       pruneUtxo = true; # whether to pass --prune-utxo
       # TODO: Do we want to support connection through ogmios?

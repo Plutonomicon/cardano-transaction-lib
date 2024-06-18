@@ -52,7 +52,7 @@ import Test.Spec.Assertions (shouldEqual)
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval" do
-    group "EraSumaries related" do
+    group "EraSummaries related" do
       test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
       test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
       test "PosixTimeToSlot errors" testPosixTimeToSlotError
@@ -87,7 +87,7 @@ eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
   { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
     "queryLedgerState-eraSummaries"
-    "98b3bc6427566974984a768fb0a5e2b9"
+    "8073a8f378e969384ec52010ec6c290c"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart

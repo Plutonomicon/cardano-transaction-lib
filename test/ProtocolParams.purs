@@ -16,7 +16,7 @@ import Test.Spec.Assertions (shouldSatisfy)
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   aeson <- Utils.readAeson
-    "./fixtures/test/ogmios/queryLedgerState-protocolParameters-8b04ffba41e11788bfdb9110af812a8b.json"
+    "./fixtures/test/ogmios/queryLedgerState-protocolParameters-44aa6959a9fdb9d5e92b85678918374e.json"
   group "ProtocolParameters parser" $ do
     test "is able to parse ogmios response fixture" $
       (decodeAeson aeson :: Either _ { result :: OgmiosProtocolParameters })

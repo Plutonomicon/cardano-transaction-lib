@@ -87,7 +87,7 @@ import Cardano.Types
   ( AssetClass(AssetClass)
   , DataHash
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , Language(PlutusV2, PlutusV1)
+  , Language(PlutusV1, PlutusV2, PlutusV3)
   , PlutusData
   , PoolPubKeyHash
   , RawBytes
@@ -191,9 +191,11 @@ import Ctl.Internal.Types.EraSummaries
 import Ctl.Internal.Types.ProtocolParameters
   ( CostModelV1
   , CostModelV2
+  , CostModelV3
   , ProtocolParameters(ProtocolParameters)
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel
+  , convertPlutusV3CostModel
   )
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
@@ -1433,6 +1435,7 @@ type BlockfrostProtocolParametersRaw =
   , "cost_models" ::
       { "PlutusV1" :: { | CostModelV1 }
       , "PlutusV2" :: { | CostModelV2 }
+      , "PlutusV3" :: CostModelV3
       }
   , "price_mem" :: FiniteBigNumber
   , "price_step" :: FiniteBigNumber
@@ -1497,6 +1500,9 @@ instance DecodeAeson BlockfrostProtocolParameters where
       maybe (Left $ AtKey "coins_per_utxo_size" $ MissingValue)
         pure $ (Coin <<< unwrap <$> raw.coins_per_utxo_size)
 
+    plutusV3CostModel <- note (AtKey "PlutusV3" $ TypeMismatch "CostModel") $
+      convertPlutusV3CostModel raw.cost_models."PlutusV3"
+
     pure $ BlockfrostProtocolParameters $ ProtocolParameters
       { protocolVersion: raw.protocol_major_ver /\ raw.protocol_minor_ver
       -- The following two parameters were removed from Babbage
@@ -1504,7 +1510,7 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , maxBlockHeaderSize: raw.max_block_header_size
       , maxBlockBodySize: raw.max_block_size
       , maxTxSize: raw.max_tx_size
-      , txFeeFixed: raw.min_fee_b
+      , txFeeFixed: Coin $ BigNum.fromUInt raw.min_fee_b
       , txFeePerByte: raw.min_fee_a
       , stakeAddressDeposit: Coin $ unwrap raw.key_deposit
       , stakePoolDeposit: Coin $ unwrap raw.pool_deposit
@@ -1518,6 +1524,7 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , costModels: Map.fromFoldable
           [ PlutusV1 /\ convertPlutusV1CostModel raw.cost_models."PlutusV1"
           , PlutusV2 /\ convertPlutusV2CostModel raw.cost_models."PlutusV2"
+          , PlutusV3 /\ plutusV3CostModel
           ]
       , prices
       , maxTxExUnits:

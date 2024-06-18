@@ -31,8 +31,10 @@ import Cardano.Types
   , BigNum
   , DataHash
   , GeneralTransactionMetadata
+  , Language(PlutusV3)
   , MultiAsset
   , PlutusData
+  , PlutusScript(PlutusScript)
   , ScriptHash
   , Slot
   , TransactionHash(TransactionHash)
@@ -381,7 +383,11 @@ instance DecodeAeson KupoDatum where
 -- `getScriptByHash` response parsing
 --------------------------------------------------------------------------------
 
-data KupoScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
+data KupoScriptLanguage
+  = NativeScript
+  | PlutusV1Script
+  | PlutusV2Script
+  | PlutusV3Script
 
 derive instance Generic KupoScriptLanguage _
 
@@ -393,9 +399,10 @@ instance DecodeAeson KupoScriptLanguage where
     "native" -> pure NativeScript
     "plutus:v1" -> pure PlutusV1Script
     "plutus:v2" -> pure PlutusV2Script
+    "plutus:v3" -> pure PlutusV3Script
     invalid ->
       Left $ TypeMismatch $
-        "language: expected 'native' or 'plutus:v{1|2}', got: " <> invalid
+        "language: expected 'native' or 'plutus:v{1|2|3}', got: " <> invalid
 
 newtype KupoScriptRef = KupoScriptRef (Maybe ScriptRef)
 
@@ -422,6 +429,10 @@ instance DecodeAeson KupoScriptRef where
               PlutusV2Script ->
                 pure $ PlutusScriptRef $ PlutusScript.plutusV2Script $ wrap $
                   unwrap scriptBytes
+              PlutusV3Script ->
+                -- TODO: add plutusV3Script to Cardano.Types.PlutusScript
+                pure $ PlutusScriptRef $ PlutusScript $ unwrap scriptBytes /\
+                  PlutusV3
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing
