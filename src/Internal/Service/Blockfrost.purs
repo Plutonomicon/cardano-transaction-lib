@@ -1504,7 +1504,7 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , maxBlockHeaderSize: raw.max_block_header_size
       , maxBlockBodySize: raw.max_block_size
       , maxTxSize: raw.max_tx_size
-      , txFeeFixed: raw.min_fee_b
+      , txFeeFixed: Coin $ BigNum.fromUInt raw.min_fee_b
       , txFeePerByte: raw.min_fee_a
       , stakeAddressDeposit: Coin $ unwrap raw.key_deposit
       , stakePoolDeposit: Coin $ unwrap raw.pool_deposit

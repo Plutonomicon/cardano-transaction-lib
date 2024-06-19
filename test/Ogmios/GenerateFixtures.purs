@@ -119,7 +119,7 @@ main =
     WebSocket ws listeners <- mkWebSocketAff logLevel defaultOgmiosWsConfig
 
     let
-      queries =
+      queries = 
         [ mkQuery' "queryNetwork/tip"
         , mkQuery' "queryNetwork/startTime"
         , mkQuery' "queryLedgerState/epoch"
@@ -127,7 +127,6 @@ main =
         , mkQuery' "queryLedgerState/protocolParameters"
         , mkQuery' "queryLedgerState/stakePools"
         ]
-
     resps <- flip parTraverse queries \(Query qc method args) -> do
       resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity args
       pure { resp, method }

@@ -1,11 +1,12 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint delete-bundle-entrypoint
+.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports build create-bundle-entrypoint create-html-entrypoint delete-bundle-entrypoint
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
 nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
 js-sources := $(shell fd --no-ignore-parent -ejs -ecjs)
+purs-args := "--stash --censor-lib --censor-codes=UserDefinedWarning,ImplicitImport,ImplicitQualifiedImport,ImplicitQualifiedImportReExport"
 
 ### Bundler setup
 
@@ -21,8 +22,8 @@ preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r 
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
 serve-port := 4008
 
-spago-build:
-	@spago build
+build:
+	@spago build --purs-args ${purs-args}
 
 create-bundle-entrypoint:
 	@mkdir -p dist/

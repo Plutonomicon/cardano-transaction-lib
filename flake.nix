@@ -34,19 +34,15 @@
 
     cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
 
-    ogmios-nixos = {
-      url = "github:mlabs-haskell/ogmios-nixos/78e829e9ebd50c5891024dcd1004c2ac51facd80";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        cardano-node.follows = "cardano-node";
-        ogmios-src.follows = "ogmios";
-      };
+    # Get Ogmios from cardano-nix
+    cardano-nix = {
+      url = "github:mlabs-haskell/cardano.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.0.0";
+      url = "github:CardanoSolutions/ogmios/v6.0.3";
       flake = false;
     };
 
@@ -104,6 +100,8 @@
         "aarch64-linux"
         "aarch64-darwin"
       ];
+
+      ogmiosVersion = "6.0.3";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -315,7 +313,7 @@
               {
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios = ogmios-nixos.packages.${system}."ogmios:exe:ogmios";
+                ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;

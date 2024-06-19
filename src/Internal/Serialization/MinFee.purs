@@ -48,7 +48,7 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
   let
     cslLinearFee = linearFee_new
       (unwrap $ BigNum.fromUInt pparams.txFeePerByte)
-      (unwrap $ BigNum.fromUInt pparams.txFeeFixed)
+      (unwrap $ unwrap pparams.txFeeFixed)
 
   let fee = minFee cslTx cslLinearFee
   let exUnitPrices = pparams.prices

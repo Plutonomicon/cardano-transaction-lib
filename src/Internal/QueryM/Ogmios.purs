@@ -65,7 +65,6 @@ module Ctl.Internal.QueryM.Ogmios
   , releaseMempoolCall
   , submitTxCall
   , submitSuccessPartialResp
-  , slotLengthFactor
   , parseIpv6String
   , rationalToSubcoin
   , showRedeemerPointer
@@ -158,6 +157,7 @@ import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   , EraSummaryParameters(EraSummaryParameters)
+  , EraSummaryTime(EraSummaryTime)
   )
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
@@ -514,15 +514,23 @@ instance DecodeAeson OgmiosEraSummaries where
   -- in "start" "end" fields and "slotLength".
   decodeAeson = aesonArray (map (wrap <<< wrap) <<< traverse decodeEraSummary)
     where
+    decodeEraSummaryTime :: Aeson -> Either JsonDecodeError EraSummaryTime
+    decodeEraSummaryTime = aesonObject \obj -> do
+      time <- flip getField "seconds" =<< getField obj "time"
+      slot <- getField obj "slot"
+      epoch <- getField obj "epoch"
+      pure $ wrap { time, slot, epoch }
+
     decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
     decodeEraSummary = aesonObject \o -> do
-      start <- getField o "start"
+      start <- decodeEraSummaryTime =<< getField o "start"
       -- The field "end" is required by Ogmios API, but it can optionally return
       -- Null, so we want to fail if the field is absent but make Null value
       -- acceptable in presence of the field (hence why "end" is wrapped in
       -- `Maybe`).
       end' <- getField o "end"
-      end <- if isNull end' then pure Nothing else Just <$> decodeAeson end'
+      end <-
+        if isNull end' then pure Nothing else Just <$> decodeEraSummaryTime end'
       parameters <- decodeEraSummaryParameters =<< getField o "parameters"
       pure $ wrap { start, end, parameters }
 
@@ -530,10 +538,7 @@ instance DecodeAeson OgmiosEraSummaries where
       :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
     decodeEraSummaryParameters o = do
       epochLength <- getField o "epochLength"
-      slotLength <- wrap <$>
-        ( (*) slotLengthFactor <$>
-            (flip getField "seconds" =<< getField o "slotLength")
-        )
+      slotLength <- flip getField "milliseconds" =<< getField o "slotLength"
       safeZone <- fromMaybe zero <$> getField o "safeZone"
       pure $ wrap { epochLength, slotLength, safeZone }
 
@@ -541,11 +546,15 @@ instance EncodeAeson OgmiosEraSummaries where
   encodeAeson (OgmiosEraSummaries (EraSummaries eraSummaries)) =
     fromArray $ map encodeEraSummary eraSummaries
     where
+    encodeEraSummaryTime :: EraSummaryTime -> Aeson
+    encodeEraSummaryTime (EraSummaryTime { time, slot, epoch }) =
+      encodeAeson { "time": { "seconds": time }, "slot": slot, "epoch": epoch }
+
     encodeEraSummary :: EraSummary -> Aeson
     encodeEraSummary (EraSummary { start, end, parameters }) =
       encodeAeson
-        { "start": start
-        , "end": end
+        { "start": encodeEraSummaryTime start
+        , "end": encodeEraSummaryTime <$> end
         , "parameters": encodeEraSummaryParameters parameters
         }
 
@@ -553,14 +562,9 @@ instance EncodeAeson OgmiosEraSummaries where
     encodeEraSummaryParameters (EraSummaryParameters params) =
       encodeAeson
         { "epochLength": params.epochLength
-        , "slotLength": { "seconds": params.slotLength }
+        , "slotLength": { "milliseconds": params.slotLength }
         , "safeZone": params.safeZone
         }
-
--- Ogmios returns `slotLength` in seconds, and we use milliseconds,
--- so we need to convert between them.
-slotLengthFactor :: Number
-slotLengthFactor = 1000.0
 
 instance DecodeOgmios OgmiosEraSummaries where
   decodeOgmios = decodeResult decodeAeson
@@ -757,6 +761,8 @@ showRedeemerPointer ptr = show ptr.redeemerTag <> ":" <> show ptr.redeemerIndex
 
 type ExecutionUnits = { memory :: BigNum, steps :: BigNum }
 
+type OgmiosRedeemerPtr = { index :: UInt, purpose :: String }
+
 newtype TxEvaluationR = TxEvaluationR
   (Either TxEvaluationFailure TxEvaluationResult)
 
@@ -790,16 +796,21 @@ instance DecodeAeson TxEvaluationResult where
       :: Aeson -> Either JsonDecodeError (RedeemerPointer /\ ExecutionUnits)
     decodeRdmrPtrExUnitsItem elem = do
       res
-        :: { validator :: String
+        :: { validator :: OgmiosRedeemerPtr
            , budget :: { memory :: BigNum, cpu :: BigNum }
            } <- decodeAeson elem
-      redeemerPtr <- decodeRedeemerPointer res.validator
+      redeemerPtr <- decodeRedeemerPointer_ res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
 
 redeemerPtrTypeMismatch :: JsonDecodeError
 redeemerPtrTypeMismatch = TypeMismatch
   "Expected redeemer pointer to be encoded as: \
-  \^(spend|mint|certificate|withdrawal):[0-9]+$"
+  \^(spend|mint|publish|withdraw):[0-9]+$"
+
+redeemerTypeMismatch :: JsonDecodeError
+redeemerTypeMismatch = TypeMismatch
+  "Expected redeemer pointer to be encoded as: \
+  \^(spend|mint|publish|withdraw)"
 
 decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
 decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
@@ -810,12 +821,19 @@ decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
         <*> UInt.fromString indexRaw
     _ -> Nothing
 
+decodeRedeemerPointer_
+  :: { index :: UInt, purpose :: String }
+  -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer_ { index: redeemerIndex, purpose } =
+  note redeemerTypeMismatch $ { redeemerTag: _, redeemerIndex } <$>
+    redeemerTagFromString purpose
+
 redeemerTagFromString :: String -> Maybe RedeemerTag
 redeemerTagFromString = case _ of
   "spend" -> Just RedeemerTag.Spend
   "mint" -> Just RedeemerTag.Mint
-  "certificate" -> Just RedeemerTag.Cert
-  "withdrawal" -> Just RedeemerTag.Reward
+  "publish" -> Just RedeemerTag.Cert
+  "withdraw" -> Just RedeemerTag.Reward
   _ -> Nothing
 
 type OgmiosDatum = String
@@ -870,8 +888,9 @@ instance DecodeAeson ScriptFailure where
     errorData <- maybe (Left (AtKey "data" MissingValue)) pure error.data
     case error.code of
       3011 -> do
-        res :: { missingScripts :: Array String } <- decodeAeson errorData
-        missing <- traverse decodeRedeemerPointer res.missingScripts
+        res :: { missingScripts :: Array OgmiosRedeemerPtr } <- decodeAeson
+          errorData
+        missing <- traverse decodeRedeemerPointer_ res.missingScripts
         pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
         res :: { validationError :: String, traces :: Array String } <-
@@ -888,8 +907,9 @@ instance DecodeAeson ScriptFailure where
           , txId: res.unsuitableOutputReference.transaction.id
           }
       3110 -> do
-        res :: { extraneousRedeemers :: Array String } <- decodeAeson errorData
-        ExtraRedeemers <$> traverse decodeRedeemerPointer
+        res :: { extraneousRedeemers :: Array OgmiosRedeemerPtr } <- decodeAeson
+          errorData
+        ExtraRedeemers <$> traverse decodeRedeemerPointer_
           res.extraneousRedeemers
       3111 -> do
         res :: { missingDatums :: Array String } <- decodeAeson errorData
@@ -939,8 +959,9 @@ instance DecodeAeson TxEvaluationFailure where
 
     where
     parseElem elem = do
-      res :: { validator :: String, error :: ScriptFailure } <- decodeAeson elem
-      (_ /\ res.error) <$> decodeRedeemerPointer res.validator
+      res :: { validator :: OgmiosRedeemerPtr, error :: ScriptFailure } <-
+        decodeAeson elem
+      (_ /\ res.error) <$> decodeRedeemerPointer_ res.validator
 
     collectIntoMap :: forall k v. Ord k => Array (k /\ v) -> Map k (List v)
     collectIntoMap = foldl
@@ -983,24 +1004,20 @@ rationalToSubcoin (PParamRational rat) = do
   denominator <- BigNum.fromBigInt $ Rational.denominator rat
   pure $ UnitInterval { numerator, denominator }
 
+type OgmiosAdaLovelace = { "ada" :: { "lovelace" :: BigNum } }
+type OgmiosBytes = { "bytes" :: UInt }
+
 -- | A type that corresponds to Ogmios response.
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
-  , "minFeeConstant" ::
-      { "lovelace" :: UInt }
+  , "minFeeConstant" :: OgmiosAdaLovelace
   , "minUtxoDepositCoefficient" :: BigNum
-  , "maxBlockBodySize" ::
-      { "bytes" :: UInt }
-  , "maxBlockHeaderSize" ::
-      { "bytes" :: UInt }
-  , "maxTransactionSize" ::
-      { "bytes" :: UInt }
-  , "maxValueSize" ::
-      { "bytes" :: UInt }
-  , "stakeCredentialDeposit" ::
-      { "lovelace" :: BigNum }
-  , "stakePoolDeposit" ::
-      { "lovelace" :: BigNum }
+  , "maxBlockBodySize" :: OgmiosBytes
+  , "maxBlockHeaderSize" :: OgmiosBytes
+  , "maxTransactionSize" :: OgmiosBytes
+  , "maxValueSize" :: OgmiosBytes
+  , "stakeCredentialDeposit" :: OgmiosAdaLovelace
+  , "stakePoolDeposit" :: OgmiosAdaLovelace
   , "stakePoolRetirementEpochBound" :: UInt
   , "desiredNumberOfStakePools" :: UInt
   , "stakePoolPledgeInfluence" :: PParamRational
@@ -1010,8 +1027,7 @@ type ProtocolParametersRaw =
       { "major" :: UInt
       , "minor" :: UInt
       }
-  , "minStakePoolCost" ::
-      { "lovelace" :: BigNum }
+  , "minStakePoolCost" :: OgmiosAdaLovelace
   , "plutusCostModels" ::
       { "plutus:v1" :: Array Cardano.Int
       , "plutus:v2" :: Maybe (Array Cardano.Int)
@@ -1052,11 +1068,11 @@ instance DecodeAeson OgmiosProtocolParameters where
       , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
       , maxBlockBodySize: ps.maxBlockBodySize.bytes
       , maxTxSize: ps.maxTransactionSize.bytes
-      , txFeeFixed: ps.minFeeConstant.lovelace
+      , txFeeFixed: wrap ps.minFeeConstant.ada.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: wrap ps.stakeCredentialDeposit.lovelace
-      , stakePoolDeposit: wrap ps.stakePoolDeposit.lovelace
-      , minPoolCost: wrap ps.minStakePoolCost.lovelace
+      , stakeAddressDeposit: wrap ps.stakeCredentialDeposit.ada.lovelace
+      , stakePoolDeposit: wrap ps.stakePoolDeposit.ada.lovelace
+      , minPoolCost: wrap ps.minStakePoolCost.ada.lovelace
       , poolRetireMaxEpoch: wrap ps.stakePoolRetirementEpochBound
       , stakePoolTargetNum: ps.desiredNumberOfStakePools
       , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
