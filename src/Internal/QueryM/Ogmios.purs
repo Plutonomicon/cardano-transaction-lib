@@ -648,8 +648,10 @@ instance DecodeOgmios PoolParametersR where
 decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
 decodePoolParameters objParams = do
   vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrfVerificationKeyHash"
-  pledge <- objParams .: "pledge" >>= aesonObject (\obj -> obj .: "lovelace")
-  cost <- objParams .: "cost" >>= aesonObject (\obj -> obj .: "lovelace")
+  pledge <- objParams .: "pledge" >>= aesonObject \obj ->
+    obj .: "ada" >>= flip getField "lovelace"
+  cost <- objParams .: "cost" >>= aesonObject \obj ->
+    obj .: "ada" >>= flip getField "lovelace"
   margin <- decodeUnitInterval =<< objParams .: "margin"
   rewardAccount <- objParams .: "rewardAccount" >>=
     RewardAddress.fromBech32 >>> note (TypeMismatch "RewardAddress")
