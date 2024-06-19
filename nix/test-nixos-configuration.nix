@@ -1,4 +1,4 @@
-{ config, modulesPath, pkgs, cardano-configurations, ... }:
+{ config, modulesPath, pkgs, cardano-configurations, ogmios, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
@@ -34,6 +34,8 @@
 
   services.ogmios = {
     enable = true;
+    package = ogmios;
+    host = "0.0.0.0";
     nodeSocketPath = "/var/run/cardano-node/node.socket";
     nodeConfigPath = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
   };

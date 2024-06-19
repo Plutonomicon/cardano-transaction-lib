@@ -506,7 +506,7 @@
         };
       };
 
-      nixosConfigurations.test = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.test = nixpkgs.lib.nixosSystem rec {
         system = "x86_64-linux";
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
@@ -516,6 +516,7 @@
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
+          ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
         };
       };
 
