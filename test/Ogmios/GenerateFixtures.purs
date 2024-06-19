@@ -119,7 +119,7 @@ main =
     WebSocket ws listeners <- mkWebSocketAff logLevel defaultOgmiosWsConfig
 
     let
-      queries = 
+      queries =
         [ mkQuery' "queryNetwork/tip"
         , mkQuery' "queryNetwork/startTime"
         , mkQuery' "queryLedgerState/epoch"

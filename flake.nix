@@ -510,7 +510,7 @@
         system = "x86_64-linux";
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
-          inputs.ogmios-nixos.nixosModules.ogmios
+          inputs.cardano-nix.nixosModules.ogmios
           inputs.kupo-nixos.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];

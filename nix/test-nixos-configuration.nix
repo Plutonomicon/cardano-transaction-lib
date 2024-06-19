@@ -34,8 +34,8 @@
 
   services.ogmios = {
     enable = true;
-    host = "0.0.0.0";
-    nodeSocket = "/var/run/cardano-node/node.socket";
+    nodeSocketPath = "/var/run/cardano-node/node.socket";
+    nodeConfigPath = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
   };
 
   services.kupo = {
