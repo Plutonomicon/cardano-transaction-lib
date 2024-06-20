@@ -41,20 +41,20 @@ create-html-entrypoint:
 	</html>
 	EOF
 
-esbuild-bundle: spago-build create-bundle-entrypoint
+esbuild-bundle: build create-bundle-entrypoint
 	@mkdir -p dist/
 	BROWSER_RUNTIME=${browser-runtime} node esbuild/bundle.js ./dist/entrypoint.js dist/index.js
 	@make delete-bundle-entrypoint
 
-esbuild-serve: spago-build create-bundle-entrypoint create-html-entrypoint
+esbuild-serve: build create-bundle-entrypoint create-html-entrypoint
 	BROWSER_RUNTIME=1 node esbuild/serve.js ./dist/entrypoint.js dist/index.js dist/ ${serve-port}
 
-webpack-bundle: spago-build create-bundle-entrypoint
+webpack-bundle: build create-bundle-entrypoint
 	BROWSER_RUNTIME=${browser-runtime} webpack --mode=production \
 		-o dist/ --env entry=./dist/entrypoint.js
 	@make delete-bundle-entrypoint
 
-webpack-serve: spago-build create-bundle-entrypoint create-html-entrypoint
+webpack-serve: build create-bundle-entrypoint create-html-entrypoint
 	BROWSER_RUNTIME=1 webpack-dev-server --progress \
 		--port ${serve-port} \
 		-o dist/ --env entry=./dist/entrypoint.js

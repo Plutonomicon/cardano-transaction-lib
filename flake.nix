@@ -43,7 +43,10 @@
     };
 
     # Get Ogmios and Kupo from cardano-nix
-    cardano-nix.url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios";
+    cardano-nix = {
+      url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Get Ogmios test fixtures
     ogmios = {
@@ -495,16 +498,17 @@
         };
       };
 
-      nixosConfigurations.test = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.test = nixpkgs.lib.nixosSystem rec {
         system = "x86_64-linux";
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
-          inputs.ogmios-nixos.nixosModules.ogmios
+          inputs.cardano-nix.nixosModules.ogmios
           inputs.kupo-nixos.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
+          ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
         };
       };
 

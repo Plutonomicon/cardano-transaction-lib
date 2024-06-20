@@ -68,8 +68,6 @@ module Ctl.Internal.QueryM.Ogmios
   , parseIpv6String
   , rationalToSubcoin
   , showRedeemerPointer
-  , decodeRedeemerPointer
-  , redeemerPtrTypeMismatch
   ) where
 
 import Prelude
@@ -186,7 +184,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.String (Pattern(Pattern), Replacement(Replacement), split)
+import Data.String (Pattern(Pattern), Replacement(Replacement))
 import Data.String (replaceAll) as String
 import Data.String.Common (split) as String
 import Data.String.Utils as StringUtils
@@ -649,8 +647,10 @@ instance DecodeOgmios PoolParametersR where
 decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
 decodePoolParameters objParams = do
   vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrfVerificationKeyHash"
-  pledge <- objParams .: "pledge" >>= aesonObject (\obj -> obj .: "lovelace")
-  cost <- objParams .: "cost" >>= aesonObject (\obj -> obj .: "lovelace")
+  pledge <- objParams .: "pledge" >>= aesonObject \obj ->
+    obj .: "ada" >>= flip getField "lovelace"
+  cost <- objParams .: "cost" >>= aesonObject \obj ->
+    obj .: "ada" >>= flip getField "lovelace"
   margin <- decodeUnitInterval =<< objParams .: "margin"
   rewardAccount <- objParams .: "rewardAccount" >>=
     RewardAddress.fromBech32 >>> note (TypeMismatch "RewardAddress")
@@ -800,32 +800,18 @@ instance DecodeAeson TxEvaluationResult where
         :: { validator :: OgmiosRedeemerPtr
            , budget :: { memory :: BigNum, cpu :: BigNum }
            } <- decodeAeson elem
-      redeemerPtr <- decodeRedeemerPointer_ res.validator
+      redeemerPtr <- decodeRedeemerPointer res.validator
       pure $ redeemerPtr /\ { memory: res.budget.memory, steps: res.budget.cpu }
-
-redeemerPtrTypeMismatch :: JsonDecodeError
-redeemerPtrTypeMismatch = TypeMismatch
-  "Expected redeemer pointer to be encoded as: \
-  \^(spend|mint|publish|withdraw|vote|propose):[0-9]+$"
 
 redeemerTypeMismatch :: JsonDecodeError
 redeemerTypeMismatch = TypeMismatch
   "Expected redeemer to be one of: \
   \(spend|mint|publish|withdraw|vote|propose)"
 
-decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
-decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
-  case split (Pattern ":") redeemerPtrRaw of
-    [ tagRaw, indexRaw ] ->
-      { redeemerTag: _, redeemerIndex: _ }
-        <$> redeemerTagFromString tagRaw
-        <*> UInt.fromString indexRaw
-    _ -> Nothing
-
-decodeRedeemerPointer_
+decodeRedeemerPointer
   :: { index :: UInt, purpose :: String }
   -> Either JsonDecodeError RedeemerPointer
-decodeRedeemerPointer_ { index: redeemerIndex, purpose } =
+decodeRedeemerPointer { index: redeemerIndex, purpose } =
   note redeemerTypeMismatch $ { redeemerTag: _, redeemerIndex } <$>
     redeemerTagFromString purpose
 
@@ -893,7 +879,7 @@ instance DecodeAeson ScriptFailure where
       3011 -> do
         res :: { missingScripts :: Array OgmiosRedeemerPtr } <- decodeAeson
           errorData
-        missing <- traverse decodeRedeemerPointer_ res.missingScripts
+        missing <- traverse decodeRedeemerPointer res.missingScripts
         pure $ MissingRequiredScripts { missing: missing, resolved: Nothing }
       3012 -> do
         res :: { validationError :: String, traces :: Array String } <-
@@ -912,7 +898,7 @@ instance DecodeAeson ScriptFailure where
       3110 -> do
         res :: { extraneousRedeemers :: Array OgmiosRedeemerPtr } <- decodeAeson
           errorData
-        ExtraRedeemers <$> traverse decodeRedeemerPointer_
+        ExtraRedeemers <$> traverse decodeRedeemerPointer
           res.extraneousRedeemers
       3111 -> do
         res :: { missingDatums :: Array String } <- decodeAeson errorData
@@ -964,7 +950,7 @@ instance DecodeAeson TxEvaluationFailure where
     parseElem elem = do
       res :: { validator :: OgmiosRedeemerPtr, error :: ScriptFailure } <-
         decodeAeson elem
-      (_ /\ res.error) <$> decodeRedeemerPointer_ res.validator
+      (_ /\ res.error) <$> decodeRedeemerPointer res.validator
 
     collectIntoMap :: forall k v. Ord k => Array (k /\ v) -> Map k (List v)
     collectIntoMap = foldl

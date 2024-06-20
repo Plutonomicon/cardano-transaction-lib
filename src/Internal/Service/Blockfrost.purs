@@ -91,6 +91,7 @@ import Cardano.Types
   , PlutusData
   , PoolPubKeyHash
   , RawBytes
+  , RedeemerTag
   , ScriptHash
   , StakePubKeyHash
   , Transaction
@@ -129,6 +130,7 @@ import Cardano.Types.NetworkId (NetworkId)
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum, OutputDatumHash))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.PoolPubKeyHash as PoolPubKeyHash
+import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward)) as RedeemerTag
 import Cardano.Types.RewardAddress as RewardAddress
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Cardano.Types.Value (assetToValue, lovelaceValueOf, sum) as Value
@@ -162,7 +164,6 @@ import Ctl.Internal.QueryM.Ogmios
   , TxEvaluationFailure(ScriptFailures, UnparsedError)
   , TxEvaluationR
   , TxEvaluationResult(TxEvaluationResult)
-  , decodeRedeemerPointer
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
@@ -220,12 +221,14 @@ import Data.MediaType.Common (applicationJSON) as MediaType
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (infinity)
 import Data.Show.Generic (genericShow)
-import Data.String (splitAt) as String
+import Data.String (Pattern(Pattern))
+import Data.String (split, splitAt) as String
 import Data.Time.Duration (Seconds(Seconds), convertDuration)
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(Tuple), fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
+import Data.UInt (fromString) as UInt
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -914,6 +917,28 @@ decodeBlockfrostTxEvaluationResult = aesonObject $ \obj -> do
       memory <- getField exUnitsObj "memory"
       steps <- getField exUnitsObj "steps"
       pure $ redeemerPtr /\ { memory, steps }
+
+decodeRedeemerPointer :: String -> Either JsonDecodeError RedeemerPointer
+decodeRedeemerPointer redeemerPtrRaw = note redeemerPtrTypeMismatch
+  case String.split (Pattern ":") redeemerPtrRaw of
+    [ tagRaw, indexRaw ] ->
+      { redeemerTag: _, redeemerIndex: _ }
+        <$> redeemerTagFromString tagRaw
+        <*> UInt.fromString indexRaw
+    _ -> Nothing
+
+redeemerTagFromString :: String -> Maybe RedeemerTag
+redeemerTagFromString = case _ of
+  "spend" -> Just RedeemerTag.Spend
+  "mint" -> Just RedeemerTag.Mint
+  "certificate" -> Just RedeemerTag.Cert
+  "withdrawal" -> Just RedeemerTag.Reward
+  _ -> Nothing
+
+redeemerPtrTypeMismatch :: JsonDecodeError
+redeemerPtrTypeMismatch = TypeMismatch
+  "Expected redeemer pointer to be encoded as: \
+  \^(spend|mint|certificate|withdrawal):[0-9]+$"
 
 data OldScriptFailure
   = ExtraRedeemers (Array RedeemerPointer)
