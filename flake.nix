@@ -503,12 +503,13 @@
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
           inputs.cardano-nix.nixosModules.ogmios
-          inputs.kupo-nixos.nixosModules.kupo
+          inputs.cardano-nix.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
           ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
+          kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
         };
       };
 

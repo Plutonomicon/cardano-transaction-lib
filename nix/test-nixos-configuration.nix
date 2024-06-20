@@ -1,4 +1,4 @@
-{ config, modulesPath, pkgs, cardano-configurations, ogmios, ... }:
+{ config, modulesPath, pkgs, cardano-configurations, ogmios, kupo, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
@@ -42,10 +42,11 @@
 
   services.kupo = {
     enable = true;
-    host = "0.0.0.0";
+    package = kupo;
     user = "kupo";
     group = "kupo";
-    nodeConfig = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
-    nodeSocket = "/var/run/cardano-node/node.socket";
+    host = "0.0.0.0";
+    nodeSocketPath = "/var/run/cardano-node/node.socket";
+    nodeConfigPath = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
   };
 }
