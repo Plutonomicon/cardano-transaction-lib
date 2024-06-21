@@ -340,7 +340,7 @@ let
     runPursTest (
       args // {
         buildInputs = with pkgs; [
-          ogmios
+          ogmios-plutip
           plutip-server
           kupo
         ]

@@ -34,6 +34,9 @@
 
     cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-sancho";
 
+    # TODO: Replace Plutip with cardano-testnet and remove this input
+    cardano-node-plutip.url = "github:IntersectMBO/cardano-node/8.1.1";
+
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
@@ -80,7 +83,7 @@
         iohk-nix.follows = "iohk-nix";
         haskell-nix.follows = "haskell-nix";
         hackage-nix.follows = "hackage-nix";
-        cardano-node.follows = "cardano-node";
+        cardano-node.follows = "cardano-node-plutip";
       };
     };
 
@@ -265,8 +268,9 @@
         in
         import ./plutip-server {
           inherit pkgs;
-          inherit (inputs) plutip CHaP cardano-node;
+          inherit (inputs) plutip CHaP;
           inherit (pkgs) system;
+          cardano-node = inputs.cardano-node-plutip;
           src = ./plutip-server;
         };
     in
@@ -315,6 +319,7 @@
               {
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
+                ogmios-plutip = cardano-nix.packages.${system}."ogmios-6.0.3";
                 ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 # kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
