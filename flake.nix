@@ -48,6 +48,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # TODO: Remove this input as soon as a new version compatible with
+    # the latest node is released. Use Kupo from cardano-nix.
+    kupo-nixos = {
+      url = "github:Fourierlabs/kupo-nixos/add-conway";
+      inputs = {
+        CHaP.follows = "CHaP";
+      };
+    };
+
     # Get Ogmios test fixtures
     ogmios = {
       url = "github:CardanoSolutions/ogmios/v6.4.0";
@@ -215,7 +224,8 @@
               name = "ctl-e2e-test";
               runnerMain = "Test.Ctl.E2E";
               testMain = "Ctl.Examples.ByUrl";
-              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
+              buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
+              # buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
             };
             ctl-plutip-test = project.runPlutipTest {
               name = "ctl-plutip-test";
@@ -306,7 +316,8 @@
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
                 ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
-                kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
+                kupo = inputs.kupo-nixos.packages.${system}.kupo;
+                # kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
@@ -503,13 +514,14 @@
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
           inputs.cardano-nix.nixosModules.ogmios
-          inputs.cardano-nix.nixosModules.kupo
+          inputs.kupo-nixos.nixosModules.kupo
+          # inputs.cardano-nix.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
           ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
-          kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
+          # kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
         };
       };
 
