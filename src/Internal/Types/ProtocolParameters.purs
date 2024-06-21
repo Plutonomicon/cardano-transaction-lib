@@ -35,7 +35,7 @@ newtype ProtocolParameters = ProtocolParameters
   , maxBlockHeaderSize :: UInt
   , maxBlockBodySize :: UInt
   , maxTxSize :: UInt
-  , txFeeFixed :: UInt
+  , txFeeFixed :: Coin
   , txFeePerByte :: UInt
   , stakeAddressDeposit :: Coin
   , stakePoolDeposit :: Coin

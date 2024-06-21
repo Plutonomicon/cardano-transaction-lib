@@ -75,6 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- Bumped Ogmios to version 6.0.3 ([#1626](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1626))
+
 ### Fixed
 
 ## [v8.0.0]

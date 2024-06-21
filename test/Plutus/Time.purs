@@ -43,13 +43,13 @@ import Ctl.Internal.Types.Interval
 import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Data.UInt as UInt
 import Effect.Aff (Aff)
 import JS.BigInt as BigInt
 import Mote (group)
 import Mote.TestPlanM (TestPlanM)
-import Test.Ctl.Utils (toFromAesonTest, toFromAesonTestWith)
+import Test.Ctl.Utils (toFromAesonTest)
 
 slotFixture :: Slot
 slotFixture = mkSlot 34892625
@@ -217,21 +217,6 @@ eraSummariesFixture = EraSummaries
       }
   ]
 
-eraSummaryLengthToSeconds :: EraSummary -> EraSummary
-eraSummaryLengthToSeconds old@(EraSummary { parameters }) =
-  let
-    newSlotLength :: SlotLength
-    newSlotLength = wrap $ 1e-3 * unwrap (unwrap parameters).slotLength
-
-    newParameters :: EraSummaryParameters
-    newParameters = wrap $ (unwrap parameters) { slotLength = newSlotLength }
-  in
-    wrap (unwrap old) { parameters = newParameters }
-
-eraSummariesLengthToSeconds :: OgmiosEraSummaries -> OgmiosEraSummaries
-eraSummariesLengthToSeconds (OgmiosEraSummaries values) =
-  wrap $ wrap (eraSummaryLengthToSeconds <$> unwrap values)
-
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
   group "Time-related Aeson representation tests" do
@@ -260,7 +245,6 @@ suite = do
       toFromAesonTest "AbsTime" absTimeFixture
       toFromAesonTest "RelSlot" relSlotFixture
       toFromAesonTest "RelTime" relTimeFixture
-      toFromAesonTestWith "EraSummaries" eraSummariesLengthToSeconds $
-        OgmiosEraSummaries eraSummariesFixture
+      toFromAesonTest "EraSummaries" $ OgmiosEraSummaries eraSummariesFixture
       toFromAesonTest "SystemStart" systemStartFixture
       toFromAesonTest "CurrentEpoch" currentEpochFixture
