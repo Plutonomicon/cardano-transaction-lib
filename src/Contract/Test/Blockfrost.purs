@@ -142,6 +142,7 @@ executeContractTestsWithBlockfrost testConfig contractParams suite = do
       { blockfrostConfig
       , blockfrostApiKey
       , confirmTxDelay
+      , hardcodedProtocolParams: Nothing
       }
   interpretWithConfig testConfig $
     runContractTestsWithBlockfrost contractParams backendParams

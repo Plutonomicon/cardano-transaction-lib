@@ -41,6 +41,7 @@ blockfrostBackend = do
     { blockfrostConfig
     , blockfrostApiKey: Just blockfrostApiKey
     , confirmTxDelay: defaultConfirmTxDelay
+    , hardcodedProtocolParams: Nothing
     }
 
 contractParams :: Effect ContractParams
@@ -54,6 +55,7 @@ contractParams = do
           { blockfrostConfig
           , blockfrostApiKey: Just blockfrostApiKey
           , confirmTxDelay: defaultConfirmTxDelay
+          , hardcodedProtocolParams: Nothing
           }
     , logLevel = Info
     , walletSpec = Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
