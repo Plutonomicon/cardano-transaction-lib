@@ -419,7 +419,7 @@ realizeEndpoint endpoint =
         encodedTokenName = byteArrayToHex $ getTokenName name
       in
         "/assets/" <> encodedCurrencySymbol <> encodedTokenName <> "/addresses"
-          <> "/utxos?page="
+          <> "?page="
           <> show page
           <> ("&count=" <> show count)
           <> "&order=asc"

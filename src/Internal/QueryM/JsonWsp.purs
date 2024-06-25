@@ -1,8 +1,7 @@
 -- | Provides basics types and operations for working with JSON RPC protocol
 -- | used by Ogmios
 module Ctl.Internal.QueryM.JsonWsp
-  ( JsonWspRequest
-  , JsonWspResponse
+  ( JsonWspResponse
   , JsonWspCall
   , mkCallType
   , buildRequest
@@ -24,32 +23,10 @@ import Aeson
   )
 import Ctl.Internal.QueryM.UniqueId (ListenerId, uniqueId)
 import Data.Either (Either(Left))
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing))
 import Effect (Effect)
 import Foreign.Object (Object)
 import Record as Record
-
--- | Structure of all json wsp websocket requests
--- described in: https://ogmios.dev/getting-started/basics/
-type JsonWspRequest (a :: Type) =
-  { jsonrpc :: String
-  , method :: String
-  , params :: a
-  , id :: ListenerId
-  }
-
--- | Convenience helper function for creating `JsonWspRequest a` objects
-mkJsonWspRequest
-  :: forall (a :: Type)
-   . { method :: String
-     , params :: a
-     }
-  -> Effect (JsonWspRequest a)
-mkJsonWspRequest method = do
-  id <- uniqueId $ method.method <> "-"
-  pure
-    $ Record.merge { id }
-    $ Record.merge {jsonrpc: "2.0"} method
 
 -- | Structure of all json wsp websocket responses
 -- described in: https://ogmios.dev/getting-started/basics/
@@ -71,12 +48,21 @@ newtype JsonWspCall (i :: Type) (o :: Type) = JsonWspCall
 -- | along with a way to create a request object.
 mkCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeAeson (JsonWspRequest a)
-  => { method :: String, params :: i -> a }
+   . EncodeAeson a
+  => { method :: String, params :: Maybe (i -> a) }
   -> JsonWspCall i o
 mkCallType { method, params } = JsonWspCall $ \i -> do
-  req <- mkJsonWspRequest { method, params: params i }
-  pure { body: encodeAeson req, id: req.id }
+  id <- uniqueId $ method <> "-"
+
+  -- I just bypass all the type hassle by passing around Aeson valuse
+  -- this is pretty sinful, but whatever
+  let
+    req =
+      case params of
+        Nothing -> encodeAeson {id, jsonrpc: "2.0", method }
+        Just f -> encodeAeson {id, jsonrpc: "2.0", method, params: f i }
+
+  pure { body: req, id }
 
 -- | Create a JsonWsp request body and id
 buildRequest

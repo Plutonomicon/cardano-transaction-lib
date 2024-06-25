@@ -774,13 +774,10 @@ mkAddMessageListener dispatcher =
   \reflection handler ->
     flip Ref.modify_ dispatcher $
       Map.insert reflection \aeson -> do
-        log $ show aeson
-        log $ show $ Aeson.isObject aeson
         handler $
-          case (aesonObject (flip getFieldOptional "result") aeson) of
+          case (decodeAeson aeson) of
             Left err -> Left (JsonError err)
-            Right (Just result) -> Right result
-            Right Nothing -> Left (FaultError aeson)
+            Right result -> Right result
 
 mkRemoveMessageListener
   :: forall (requestData :: Type)
@@ -876,10 +873,8 @@ mkRequestAff
   -> request
   -> Aff response
 mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
-  liftEffect $ log "AAAA"
   { body, id } <-
     liftEffect $ JsonWsp.buildRequest jsonWspCall input
-  liftEffect $ log "BBB"
   let
     respLs :: ListenerSet request response
     respLs = getLs listeners'
@@ -889,20 +884,15 @@ mkRequestAff listeners' webSocket logger jsonWspCall getLs input = do
 
     affFunc :: (Either Error response -> Effect Unit) -> Effect Canceler
     affFunc cont = do
-      liftEffect $ log "CCC"
       _ <- respLs.addMessageListener id
         ( \result -> do
-            liftEffect $ log "DDD"
             respLs.removeMessageListener id
-            liftEffect $ log "EEE"
             case result of
               Left (ListenerCancelled _) -> pure unit
               _ -> cont (lmap dispatchErrorToError result)
         )
-      liftEffect $ log "FFF"
       respLs.addRequest id (sBody /\ input)
       _wsSend webSocket (logger Debug) sBody
-      liftEffect $ log "GGG"
       -- Uncomment this code fragment to test `SubmitTx` request resend logic:
       -- let method = aesonObject (flip getFieldOptional "methodname") body
       -- when (method == Right (Just "SubmitTx")) do

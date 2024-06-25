@@ -137,7 +137,7 @@ import Ctl.Internal.Cardano.Types.Value
   )
 import Ctl.Internal.Deserialization.FromBytes (fromBytes)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
-import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, JsonWspRequest, mkCallType)
+import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (BigNum)
@@ -239,24 +239,18 @@ queryCurrentEpochCall = mkOgmiosCallType
 
 -- | Queries Ogmios for an array of era summaries, used for Slot arithmetic.
 queryEraSummariesCall :: JsonWspCall Unit OgmiosEraSummaries
-queryEraSummariesCall = mkOgmiosCallType
-  { method: "Query"
-  , params: const { query: "eraSummaries" }
-  }
+queryEraSummariesCall = mkOgmiosCallTypeNoArgs "queryLedgerState/eraSummaries"
 
 -- | Queries Ogmios for the current protocol parameters
 queryProtocolParametersCall :: JsonWspCall Unit OgmiosProtocolParameters
 queryProtocolParametersCall = mkOgmiosCallType
-  { method: "Query"
-  , params: const { query: "currentProtocolParameters" }
+  { method: "queryLedgerState/protocolParameters"
+  , params: const {}
   }
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
-queryChainTipCall = mkOgmiosCallType
-  { method: "Query"
-  , params: const { query: "queryNetwork/tip" }
-  }
+queryChainTipCall = mkOgmiosCallTypeNoArgs "queryNetwork/tip"
 
 queryPoolIdsCall :: JsonWspCall Unit PoolIdsR
 queryPoolIdsCall = mkOgmiosCallType
@@ -284,8 +278,8 @@ type OgmiosAddress = String
 
 --------------------------------------------------------------------------------
 -- Local Tx Submission Protocol
--- https://ogmios.dev/mini-protocols/local-tx-submission/
---------------------------------------------------------------------------------
+-- https://ogmios.dev/mini-protocols/local-tx-submission/-
+------------------------------------------------------------------------------
 
 -- | Sends a serialized signed transaction with its full witness through the
 -- | Cardano network via Ogmios.
@@ -398,21 +392,23 @@ instance DecodeAeson MempoolTransaction where
 
 mkOgmiosCallTypeNoArgs
   :: forall (o :: Type). String -> JsonWspCall Unit o
-mkOgmiosCallTypeNoArgs methodname =
-  mkOgmiosCallType { method: methodname, params: const {} }
+mkOgmiosCallTypeNoArgs method =
+  mkCallType
+    ({ method: method, params: Nothing } :: {method :: String, params :: Maybe (Unit -> {})})
 
 mkOgmiosCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
-   . EncodeAeson (JsonWspRequest a)
-  => { method :: String, params :: i -> a }
+   . EncodeAeson a
+  => { method :: String, params :: (i -> a) }
   -> JsonWspCall i o
-mkOgmiosCallType = mkCallType
+mkOgmiosCallType { method, params } =
+  mkCallType { method, params: Just params }
 
 ---------------- TX SUBMISSION QUERY RESPONSE & PARSING
 
 data SubmitTxR
   = SubmitTxSuccess TxHash
-  | SubmitFail (Array Aeson)
+  | SubmitFail Aeson
 
 derive instance Generic SubmitTxR _
 
@@ -422,12 +418,17 @@ instance Show SubmitTxR where
 type TxHash = ByteArray
 
 instance DecodeAeson SubmitTxR where
-  decodeAeson = aesonObject $
-    \o ->
-      ( getField o "SubmitSuccess" >>= flip getField "txId" >>= hexToByteArray
-          >>> maybe (Left (TypeMismatch "Expected hexstring"))
-            (pure <<< SubmitTxSuccess)
-      ) <|> (SubmitFail <$> getField o "SubmitFail")
+  decodeAeson x =
+    success x <|> failure x
+    where
+      success = aesonObject $ \o -> do
+        result :: {transaction :: {id :: String}} <- getField o "result"
+        maybe
+          (Left (TypeMismatch "Invalid TransactionHash"))
+          (pure <<< SubmitTxSuccess)
+          $ hexToByteArray result.transaction.id
+      failure = aesonObject $ \o ->
+        SubmitFail <$> getField o "failure"
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
@@ -472,7 +473,10 @@ instance Show OgmiosEraSummaries where
   show = genericShow
 
 instance DecodeAeson OgmiosEraSummaries where
-  decodeAeson = aesonArray (map (wrap <<< wrap) <<< traverse decodeEraSummary)
+  decodeAeson = aesonObject $ \o -> do
+    arr :: Array Aeson <- getField o "result"
+
+    wrap <<< wrap <$> traverse decodeEraSummary arr
     where
     decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
     decodeEraSummary = aesonObject \o -> do
@@ -487,11 +491,13 @@ instance DecodeAeson OgmiosEraSummaries where
       pure $ wrap { start, end, parameters }
 
     decodeEraSummaryParameters
-      :: Object Aeson -> Either JsonDecodeError EraSummaryParameters
-    decodeEraSummaryParameters o = do
-      epochLength <- getField o "epochLength"
-      slotLength <- wrap <$> ((*) slotLengthFactor <$> getField o "slotLength")
-      safeZone <- fromMaybe zero <$> getField o "safeZone"
+      :: {epochLength :: BigInt, slotLength :: {milliseconds :: BigInt}, safeZone :: Maybe BigInt}
+      -> Either JsonDecodeError EraSummaryParameters
+    decodeEraSummaryParameters xs = do
+      let
+        epochLength = wrap $ xs.epochLength
+        slotLength = wrap $ BigInt.toNumber $ xs.slotLength.milliseconds
+        safeZone = wrap $ fromMaybe zero xs.safeZone
       pure $ wrap { epochLength, slotLength, safeZone }
 
 instance EncodeAeson OgmiosEraSummaries where
@@ -514,8 +520,6 @@ instance EncodeAeson OgmiosEraSummaries where
         , "safeZone": params.safeZone
         }
 
--- Ogmios returns `slotLength` in seconds, and we use milliseconds,
--- so we need to convert between them.
 slotLengthFactor :: Number
 slotLengthFactor = 1000.0
 
@@ -695,6 +699,7 @@ instance Show TxEvaluationR where
 instance DecodeAeson TxEvaluationR where
   decodeAeson aeson =
     (wrap <<< Right <$> decodeAeson aeson)
+    <|> (wrap <<< Left <$> decodeAeson aeson)
 
 newtype TxEvaluationResult = TxEvaluationResult
   (Map RedeemerPointer ExecutionUnits)
@@ -706,8 +711,8 @@ instance Show TxEvaluationResult where
   show = genericShow
 
 instance DecodeAeson TxEvaluationResult where
-  decodeAeson =
-    aesonArray $ \arr -> do
+  decodeAeson = aesonObject $ \o -> do
+    arr :: Array Aeson <- getField o "result"
     let
       f a = do
         x :: {validator :: {index :: Natural, purpose :: String}, budget :: ExecutionUnits} <- decodeAeson a
@@ -838,39 +843,10 @@ instance DecodeAeson ScriptFailure where
       pure $ NoCostModelForLanguage o
 
 instance DecodeAeson TxEvaluationFailure where
-  decodeAeson = aesonObject $ runReaderT cases
-    where
-    cases :: ObjectParser TxEvaluationFailure
-    cases = decodeScriptFailures <|> decodeAdditionalUtxoOverlap <|> defaultCase
+  decodeAeson = aesonObject $ \o -> do
+    err :: Aeson <- getField o "failure"
 
-    defaultCase :: ObjectParser TxEvaluationFailure
-    defaultCase = ReaderT \o ->
-      pure (UnparsedError (stringifyAeson (encodeAeson o)))
-
-    decodeScriptFailures :: ObjectParser TxEvaluationFailure
-    decodeScriptFailures = ReaderT \o -> do
-      scriptFailuresKV <- ForeignObject.toUnfoldable
-        <$> (getField o "EvaluationFailure" >>= flip getField "ScriptFailures")
-      scriptFailures <- Map.fromFoldable <$> for (scriptFailuresKV :: Array _)
-        \(k /\ v) -> do
-          v' <- decodeAeson v
-          (_ /\ v') <$> decodeRedeemerPointer k
-      pure $ ScriptFailures scriptFailures
-
-    decodeAdditionalUtxoOverlap :: ObjectParser TxEvaluationFailure
-    decodeAdditionalUtxoOverlap = ReaderT \o -> do
-      refObjs <-
-        ( getField o "EvaluationFailure" >>= flip getField
-            "AdditionalUtxoOverlap"
-        )
-      refs <- for (refObjs :: Array _)
-        \obj -> do
-          txId <-
-            decodeAeson =<< note MissingValue (ForeignObject.lookup "txId" obj)
-          index <-
-            decodeAeson =<< note MissingValue (ForeignObject.lookup "index" obj)
-          pure { txId, index }
-      pure $ AdditionalUtxoOverlap refs
+    pure $ UnparsedError $ show err
 
 ---------------- PROTOCOL PARAMETERS QUERY RESPONSE & PARSING
 
@@ -1021,9 +997,21 @@ instance Show ChainTipQR where
   show = genericShow
 
 instance DecodeAeson ChainTipQR where
-  decodeAeson j = do
-    r :: (ChainOrigin |+| ChainPoint) <- decodeAeson j
-    pure $ either CtChainOrigin CtChainPoint $ toEither1 r
+  decodeAeson = aesonObject $ \o -> do
+    res <- getField o "result"
+
+    point res <|> origin res
+    where
+      point x = do
+        {slot, id} :: {slot :: Slot, id :: OgmiosBlockHeaderHash} <- decodeAeson x
+        pure $ CtChainPoint $ {slot, hash: id}
+
+      origin =
+        aesonString
+          (case _ of
+              "origin" -> pure $ CtChainOrigin $ ChainOrigin "origin"
+              s -> Left $ TypeMismatch $ "Expected value \"origin\", got " <> s
+              )
 
 -- | A Blake2b 32-byte digest of an era-independent block header, serialized as
 -- CBOR in base16
