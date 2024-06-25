@@ -32,43 +32,34 @@ import Record as Record
 -- | Structure of all json wsp websocket requests
 -- described in: https://ogmios.dev/getting-started/basics/
 type JsonWspRequest (a :: Type) =
-  { type :: String
-  , version :: String
-  , servicename :: String
-  , methodname :: String
-  , args :: a
-  , mirror :: ListenerId
+  { jsonrpc :: String
+  , method :: String
+  , params :: a
+  , id :: ListenerId
   }
 
 -- | Convenience helper function for creating `JsonWspRequest a` objects
 mkJsonWspRequest
   :: forall (a :: Type)
-   . { type :: String
-     , version :: String
-     , servicename :: String
-     }
-  -> { methodname :: String
-     , args :: a
+   . { method :: String
+     , params :: a
      }
   -> Effect (JsonWspRequest a)
-mkJsonWspRequest service method = do
-  id <- uniqueId $ method.methodname <> "-"
+mkJsonWspRequest method = do
+  id <- uniqueId $ method.method <> "-"
   pure
-    $ Record.merge { mirror: id }
-    $
-      Record.merge service method
+    $ Record.merge { id }
+    $ Record.merge {jsonrpc: "2.0"} method
 
 -- | Structure of all json wsp websocket responses
 -- described in: https://ogmios.dev/getting-started/basics/
 type JsonWspResponse (a :: Type) =
-  { type :: String
-  , version :: String
-  , servicename :: String
+  { jsonrpc :: String
   -- methodname is not always present if `fault` is not empty
-  , methodname :: Maybe String
+  , method :: Maybe String
   , result :: Maybe a
-  , fault :: Maybe Aeson
-  , reflection :: ListenerId
+  , error :: Maybe Aeson
+  , id :: ListenerId
   }
 
 -- | A wrapper for tying arguments and response types to request building.
@@ -81,15 +72,11 @@ newtype JsonWspCall (i :: Type) (o :: Type) = JsonWspCall
 mkCallType
   :: forall (a :: Type) (i :: Type) (o :: Type)
    . EncodeAeson (JsonWspRequest a)
-  => { type :: String
-     , version :: String
-     , servicename :: String
-     }
-  -> { methodname :: String, args :: i -> a }
+  => { method :: String, params :: i -> a }
   -> JsonWspCall i o
-mkCallType service { methodname, args } = JsonWspCall $ \i -> do
-  req <- mkJsonWspRequest service { methodname, args: args i }
-  pure { body: encodeAeson req, id: req.mirror }
+mkCallType { method, params } = JsonWspCall $ \i -> do
+  req <- mkJsonWspRequest { method, params: params i }
+  pure { body: encodeAeson req, id: req.id }
 
 -- | Create a JsonWsp request body and id
 buildRequest
@@ -106,21 +93,17 @@ parseJsonWspResponse
   => Aeson
   -> Either JsonDecodeError (JsonWspResponse a)
 parseJsonWspResponse = aesonObject $ \o -> do
-  typeField <- getField o "type"
-  version <- getField o "version"
-  servicename <- getField o "servicename"
-  methodname <- getFieldOptional o "methodname"
+  jsonrpc <- getField o "jsonrpc"
+  method <- getFieldOptional o "method"
   result <- getFieldOptional o "result"
-  fault <- getFieldOptional o "fault"
-  reflection <- getField o "reflection"
+  error <- getFieldOptional o "error"
+  id <- getField o "id"
   pure
-    { "type": typeField
-    , version
-    , servicename
-    , methodname
+    { jsonrpc
+    , method
     , result
-    , fault
-    , reflection
+    , error
+    , id
     }
 
 -- | Parse just ID from the response
@@ -128,7 +111,7 @@ parseJsonWspResponseId
   :: Aeson
   -> Either JsonDecodeError ListenerId
 parseJsonWspResponseId =
-  aesonObject $ flip getField "reflection"
+  aesonObject $ flip getField "id"
 
 -- | Helper for assuming we get an object
 aesonObject

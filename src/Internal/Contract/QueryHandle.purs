@@ -161,6 +161,6 @@ queryHandleForSelfHostedBlockfrostBackend
       { evaluateTx = ctlQueryHandle.evaluateTx
       , submitTx = ctlQueryHandle.submitTx
       , doesTxExist = ctlQueryHandle.doesTxExist
-      , getEraSummaries = ctlQueryHandle.getEraSummaries
-      , getChainTip = ctlQueryHandle.getChainTip
+--      , getEraSummaries = ctlQueryHandle.getEraSummaries
+--      , getChainTip = ctlQueryHandle.getChainTip
       }
