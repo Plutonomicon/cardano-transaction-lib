@@ -61,7 +61,7 @@ defaultPlutipConfig =
       , secure: false
       , path: Nothing
       }
-  , suppressLogs: true
+  , suppressLogs: false
   , customLogger: Nothing
   , hooks: emptyHooks
   , clusterConfig:

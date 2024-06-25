@@ -6,30 +6,49 @@ module Ctl.Internal.Plutip.Spawn
   , OnSignalRef
   , ManagedProcess(ManagedProcess)
   , spawn
+  , exec
   , stop
   , waitForStop
   , cleanupTmpDir
   , cleanupOnSigint
   , removeOnSignal
+  , waitForSignal
+  , killProcessWithPort
+  , _rmdirSync
   ) where
 
-import Prelude
+import Contract.Prelude
 
-import Control.Monad.Error.Class (throwError)
+import Control.Monad.Error.Class
+  ( liftMaybe
+  , throwError
+  )
+import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
 import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Posix.Signal (Signal(SIGINT))
 import Data.Posix.Signal as Signal
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect (Effect)
 import Effect.AVar (AVar)
 import Effect.AVar (empty, tryPut) as AVar
 import Effect.Aff (Aff, Canceler(Canceler), makeAff)
+import Effect.Aff as Aff
 import Effect.Aff.AVar (isEmpty, read, status) as AVar
+import Effect.Aff.Retry
+  ( RetryPolicy
+  , constantDelay
+  , limitRetriesByCumulativeDelay
+  , recovering
+  )
 import Effect.Class (liftEffect)
-import Effect.Exception (Error, error)
+import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
+import Node.Buffer as Node.Buffer
 import Node.ChildProcess
   ( ChildProcess
   , SpawnOptions
@@ -37,7 +56,9 @@ import Node.ChildProcess
   , stdout
   )
 import Node.ChildProcess as ChildProcess
+import Node.ChildProcess as Node.ChildProcess
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
+import Node.Stream as Node.Stream
 
 -- | Carry along an `AVar` which resolves when the process closes.
 -- | Necessary due to `child_process` having no way to query if a process has
@@ -79,8 +100,11 @@ spawn' cmd args opts mbFilter cont = do
     RL.close interface
     void $ AVar.tryPut code closedAVar
     output <- Ref.read outputRef
-    cont $ Left $ error $
-      "Process " <> fullCmd <> " exited. Output:\n" <> output
+    cont $ Left $ error
+      $ "Process "
+      <> fullCmd
+      <> " exited. Output:\n"
+      <> output
 
   -- Ideally we call `RL.close interface` instead of detaching the listener
   -- via `clearLineHandler interface`, but it causes issues with the output
@@ -101,10 +125,51 @@ spawn' cmd args opts mbFilter cont = do
               kill SIGINT child
               clearLineHandler interface
               cont $ Left $ error
-                $ "Process cancelled because output received: " <> str
+                $ "Process cancelled because output received: "
+                <> str
             _ -> pure unit
 
   pure $ Canceler $ const $ liftEffect $ kill SIGINT child
+
+exec
+  :: String
+  -> Aff
+       { channels ::
+           { stdout :: Node.Stream.Readable ()
+           , stderr :: Node.Stream.Readable ()
+           }
+       , process :: Node.ChildProcess.ChildProcess
+       }
+exec cmd = Aff.makeAff \cont -> do
+  processRef <- Ref.new Nothing
+  isCanceledRef <- Ref.new false
+  let
+    isCanceled = Ref.read isCanceledRef
+    markCanceled = Ref.write true isCanceledRef
+  log $ show { exec: cmd }
+  process <- Node.ChildProcess.exec
+    cmd
+    Node.ChildProcess.defaultExecOptions
+    ( \{ error: err, stderr, stdout } -> isCanceled >>= flip unless do
+        process <-
+          liftMaybe (error "Couldn't find executed process" :: Error)
+            =<< Ref.read processRef
+        stderrStream <- readableFromBuffer stderr
+        stdoutStream <- readableFromBuffer stdout
+        let
+          result =
+            { channels: { stderr: stderrStream, stdout: stdoutStream }
+            , process
+            }
+        cont $ maybe (Right result) Left err
+    )
+  Ref.write (Just process) processRef
+  pure $ Aff.Canceler \err -> liftEffect do
+    markCanceled
+    cont $ Left err
+
+foreign import readableFromBuffer
+  :: Node.Buffer.Buffer -> Effect (Node.Stream.Readable ())
 
 foreign import clearLineHandler :: RL.Interface -> Effect Unit
 
@@ -131,12 +196,45 @@ foreign import removeOnSignal :: OnSignalRef -> Effect Unit
 onSignal :: Signal -> Effect Unit -> Effect OnSignalRef
 onSignal sig = onSignalImpl (Signal.toString sig)
 
+-- | Just as onSignal, but Aff.
+waitForSignal :: Signal -> Aff Unit
+waitForSignal signal = makeAff \cont -> do
+  isCanceledRef <- Ref.new false
+  onSignalRef <- onSignal signal
+    $ Ref.read isCanceledRef
+    >>= flip unless (cont $ Right unit)
+  pure $ Canceler \err -> liftEffect do
+    Ref.write true isCanceledRef
+    removeOnSignal onSignalRef
+    cont $ Left err
+
 cleanupOnSigint :: FilePath -> FilePath -> Effect OnSignalRef
 cleanupOnSigint workingDir testClusterDir = do
   sig <- onSignal SIGINT do
     _rmdirSync workingDir
     _rmdirSync testClusterDir
   pure sig
+
+killByPort :: UInt -> Effect Unit
+killByPort port =
+  void $ Node.ChildProcess.exec
+    ("fuser -k " <> show (UInt.toInt port) <> "/tcp")
+    Node.ChildProcess.defaultExecOptions
+    \{ error } -> maybe (pure unit) throwError error
+
+-- | Kill a process and wait for it to stop listening on a specific port.
+killProcessWithPort :: UInt -> Aff Unit
+killProcessWithPort port = do
+  liftEffect $ killByPort port
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
+
+defaultRetryPolicy :: RetryPolicy
+defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+  constantDelay (Milliseconds 100.0)
 
 cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit
 cleanupTmpDir (ManagedProcess _ child _) workingDir = do

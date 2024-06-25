@@ -32,16 +32,14 @@
       flake = false;
     };
 
-    cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-sancho";
-
-    # TODO: Replace Plutip with cardano-testnet and remove this input
-    cardano-node-plutip.url = "github:IntersectMBO/cardano-node/8.1.1";
+    # FIXME: cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-sancho";
+    cardano-node.url = "github:input-output-hk/cardano-node/8.7.2";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=692010ed0f454bfbb566c06443227c79e2f4dbab";
+      url = "github:input-output-hk/cardano-configurations?rev=d952529afdfdf6d53ce190b1bf8af990a7ae9590";
       flake = false;
     };
 
@@ -62,7 +60,7 @@
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.4.0";
+      url = "github:CardanoSolutions/ogmios/v6.0.3";
       flake = false;
     };
 
@@ -83,7 +81,7 @@
         iohk-nix.follows = "iohk-nix";
         haskell-nix.follows = "haskell-nix";
         hackage-nix.follows = "hackage-nix";
-        cardano-node.follows = "cardano-node-plutip";
+        cardano-node.follows = "cardano-node";
       };
     };
 
@@ -94,6 +92,7 @@
     { self
     , nixpkgs
     , cardano-configurations
+    , cardano-node
     , ...
     }@inputs:
     let
@@ -104,7 +103,7 @@
         "aarch64-darwin"
       ];
 
-      ogmiosVersion = "6.4.0";
+      ogmiosVersion = "6.0.3"; # FIXME
       kupoVersion = "2.8.0";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
@@ -192,6 +191,9 @@
                 nodePackages.eslint
                 nodePackages.prettier
                 blockfrost-backend-ryo
+                cardano-node.packages.${system}.cardano-testnet
+                cardano-node.packages.${system}.cardano-cli
+                cardano-node.packages.${system}.cardano-node
               ];
             };
           };
@@ -270,7 +272,7 @@
           inherit pkgs;
           inherit (inputs) plutip CHaP;
           inherit (pkgs) system;
-          cardano-node = inputs.cardano-node-plutip;
+          cardano-node = inputs.cardano-node;
           src = ./plutip-server;
         };
     in

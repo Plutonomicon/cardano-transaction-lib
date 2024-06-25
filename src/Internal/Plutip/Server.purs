@@ -1,16 +1,23 @@
 module Ctl.Internal.Plutip.Server
   ( checkPlutipServer
+  , execDistribution
   , runPlutipContract
   , runPlutipTestPlan
+  , startOgmios
+  , startKupo
   , startPlutipCluster
   , startPlutipServer
   , stopChildProcessWithPort
   , stopPlutipCluster
   , testPlutipContracts
   , withPlutipContractEnv
+  , makeNaiveClusterContractEnv
+  , makeClusterContractEnv
+  , mkLogging
+  , checkPortsAreFree
   ) where
 
-import Prelude
+import Contract.Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
 import Affjax (defaultRequest) as Affjax
@@ -21,9 +28,9 @@ import Cardano.Types (NetworkId(MainnetId))
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
 import Contract.Chain (waitNSlots)
-import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
+import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
-import Control.Monad.Error.Class (liftEither, throwError)
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
@@ -41,10 +48,7 @@ import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Spawn
   ( ManagedProcess
   , NewOutputAction(Success, NoOp)
-  , OnSignalRef
-  , cleanupOnSigint
-  , cleanupTmpDir
-  , removeOnSignal
+  , _rmdirSync
   , spawn
   , stop
   )
@@ -57,8 +61,15 @@ import Ctl.Internal.Plutip.Types
   , StopClusterRequest(StopClusterRequest)
   , StopClusterResponse
   )
-import Ctl.Internal.Plutip.Utils (tmpdir)
+import Ctl.Internal.Plutip.Utils
+  ( addCleanup
+  , after
+  , runCleanup
+  , tmpdir
+  , whenError
+  )
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Service.Error
   ( ClientError(ClientDecodeJsonError, ClientHttpError)
   , pprintClientError
@@ -81,7 +92,7 @@ import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
 import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, isLeft)
+import Data.Either (Either(Left, Right), either)
 import Data.Foldable (fold)
 import Data.HTTP.Method as Method
 import Data.Log.Level (LogLevel)
@@ -91,7 +102,7 @@ import Data.Newtype (over, unwrap, wrap)
 import Data.Set as Set
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
-import Data.Traversable (foldMap, for, for_, sequence_, traverse_)
+import Data.Traversable (foldMap, for, for_, traverse_)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
@@ -115,7 +126,7 @@ import Mote.Monad (MoteT(MoteT), mapTest)
 import Mote.TestPlanM (TestPlanM)
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.FS.Sync (exists, mkdir) as FSSync
-import Node.Path (FilePath, dirname)
+import Node.Path (FilePath)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
 import Type.Prelude (Proxy(Proxy))
@@ -146,8 +157,9 @@ withPlutipContractEnv plutipCfg distr cont = do
   Aff.bracket
     (try $ startPlutipContractEnv plutipCfg distr cleanupRef)
     (const $ runCleanup cleanupRef)
-    $ liftEither >=> \{ env, wallets, printLogs } ->
-        whenError printLogs (cont env wallets)
+    $ liftEither
+    >=> \{ env, wallets, printLogs } ->
+      whenError printLogs (cont env wallets)
 
 -- | Run several `Contract`s in tests in a (single) Plutip environment (plutip-server and cluster, kupo, etc.).
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
@@ -202,18 +214,6 @@ runPlutipTestPlan plutipCfg (ContractTestPlan runContractTestPlan) = do
     Mote.bracket { before, after } $ flip mapTest act \t -> do
       result <- liftEffect $ Ref.read resultRef >>= liftEither
       t result
-
-runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
-runCleanup cleanupRef = do
-  cleanups <- liftEffect $ Ref.read cleanupRef
-  sequence_ (try <$> cleanups)
-
--- Similar to `catchError` but preserves the error
-whenError :: forall (a :: Type). Aff Unit -> Aff a -> Aff a
-whenError whenErrorAction action = do
-  res <- try action
-  when (isLeft res) whenErrorAction
-  liftEither res
 
 -- | Lifts the UTxO distributions of each test out of Mote, into a combined
 -- | distribution. Adapts the tests to pick their distribution out of the
@@ -292,7 +292,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     "Could not start Plutip cluster"
   tryWithReport (startOgmios' response) "Could not start Ogmios"
   tryWithReport (startKupo' response) "Could not start Kupo"
-  { env, printLogs, clearLogs } <- mkContractEnv'
+  { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef plutipCfg
   wallets <- mkWallets' env ourKey response
   void $ try $ liftEffect do
     for_ env.hooks.onClusterStartup \clusterParamsCb -> do
@@ -320,23 +320,11 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       Left err -> throwError $ error $ prefix <> ": " <> message err
       Right result' -> pure result'
 
-  -- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
-  -- later.
-  bracket
-    :: forall (a :: Type) (b :: Type)
-     . Aff a
-    -> (a -> Aff Unit)
-    -> (a -> Aff b)
-    -> Aff b
-  bracket before after action = do
-    Aff.bracket
-      before
-      (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
-      action
-
   startPlutipServer' :: Aff Unit
   startPlutipServer' =
-    bracket (startPlutipServer plutipCfg)
+    cleanupBracket
+      cleanupRef
+      (startPlutipServer plutipCfg)
       (stopChildProcessWithPort plutipCfg.port)
       (const $ checkPlutipServer plutipCfg)
 
@@ -347,28 +335,28 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       distrArray =
         encodeDistribution $
           ourInitialUtxos (encodeDistribution distr) /\
-            distr
+          distr
     for_ distrArray $ traverse_ \n -> when (n < BigNum.fromInt 1_000_000) do
       liftEffect $ throw $ "UTxO is too low: " <> BigNum.toString n <>
         ", must be at least 1_000_000 Lovelace"
-    bracket
+    cleanupBracket
+      cleanupRef
       (startPlutipCluster plutipCfg distrArray)
       (const $ void $ stopPlutipCluster plutipCfg)
       pure
 
   startOgmios' :: ClusterStartupParameters -> Aff Unit
   startOgmios' response =
-    bracket (startOgmios plutipCfg response)
-      (stopChildProcessWithPort plutipCfg.ogmiosConfig.port)
-      (const $ pure unit)
+    void
+      $ after (startOgmios plutipCfg response)
+      $ stopChildProcessWithPort plutipCfg.ogmiosConfig.port
 
   startKupo' :: ClusterStartupParameters -> Aff Unit
   startKupo' response =
-    bracket (startKupo plutipCfg response)
-      (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
-      \(process /\ workdir /\ _) -> do
-        liftEffect $ cleanupTmpDir process workdir
-        pure unit
+    void
+      $ after (startKupo plutipCfg response cleanupRef)
+      $ fst
+      >>> stopChildProcessWithPort plutipCfg.kupoConfig.port
 
   mkWallets'
     :: ContractEnv
@@ -388,62 +376,75 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
         transferFundsFromEnterpriseToBase ourKey walletsArray
         pure wallets
 
-  mkContractEnv'
-    :: Aff
-         { env :: ContractEnv
-         , printLogs :: Aff Unit
-         , clearLogs :: Aff Unit
-         }
-  mkContractEnv' | plutipCfg.suppressLogs = do
-    -- if logs should be suppressed, setup the machinery and continue with
-    -- the bracket
-    { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
-      liftEffect $ setupLogs plutipCfg.logLevel plutipCfg.customLogger
-    let
-      configLogger = Just $ map liftEffect <<< addLogEntry
+-- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
+-- later.
+cleanupBracket
+  :: forall (a :: Type) (b :: Type)
+   . Ref (Array (Aff Unit))
+  -> Aff a
+  -> (a -> Aff Unit)
+  -> (a -> Aff b)
+  -> Aff b
+cleanupBracket cleanupRef before after action = do
+  Aff.bracket
+    before
+    (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
+    action
 
-    bracket
-      ( mkClusterContractEnv
-          plutipCfg { customLogger = configLogger }
-          suppressedLogger
-          configLogger
-      )
-      stopContractEnv
-      \env -> pure
-        { env
+mkLogging
+  :: forall r
+   . Record (LogParams r)
+  -> Effect
+       { updatedConfig :: Record (LogParams r)
+       , logger :: Logger
+       , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+       , printLogs :: Aff Unit
+       , clearLogs :: Aff Unit
+       }
+mkLogging cfg
+  | cfg.suppressLogs = ado
+      -- if logs should be suppressed, setup the machinery and continue with
+      -- the bracket
+      { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
+        setupLogs cfg.logLevel cfg.customLogger
+      let
+        configLogger = Just $ map liftEffect <<< addLogEntry
+      in
+        { updatedConfig: cfg { customLogger = configLogger }
+        , logger: suppressedLogger
+        , customLogger: configLogger
         , printLogs: liftEffect printLogs
         , clearLogs: liftEffect clearLogs
         }
-  mkContractEnv' =
-    -- otherwise, proceed with the env setup and provide a normal logger
-    bracket
-      ( mkClusterContractEnv plutipCfg
-          (mkLogger plutipCfg.logLevel plutipCfg.customLogger)
-          plutipCfg.customLogger
-      )
-      stopContractEnv
-      \env -> pure
-        { env
-        , printLogs: pure unit
-        , clearLogs: pure unit
-        }
+  | otherwise = pure
+      -- otherwise, proceed with the env setup and provide a normal logger
+      { updatedConfig: cfg
+      , logger: mkLogger cfg.logLevel cfg.customLogger
+      , customLogger: cfg.customLogger
+      , printLogs: pure unit
+      , clearLogs: pure unit
+      }
 
 -- | Throw an exception if `PlutipConfig` contains ports that are occupied.
 configCheck :: PlutipConfig -> Aff Unit
-configCheck cfg = do
-  let
-    services :: Array (UInt /\ String)
-    services =
-      [ cfg.port /\ "plutip-server"
-      , cfg.ogmiosConfig.port /\ "ogmios"
-      , cfg.kupoConfig.port /\ "kupo"
-      ]
-  occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
+configCheck cfg =
+  checkPortsAreFree
+    [ { port: cfg.port, service: "plutip-server" }
+    , { port: cfg.ogmiosConfig.port, service: "ogmios" }
+    , { port: cfg.kupoConfig.port, service: "kupo" }
+    ]
+
+-- | Throw an exception if any of the given ports is occupied.
+checkPortsAreFree :: Array { port :: UInt, service :: String } -> Aff Unit
+checkPortsAreFree ports = do
+  occupiedServices <- Array.catMaybes <$> for ports \{ port, service } -> do
     isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
   unless (Array.null occupiedServices) do
-    liftEffect $ throw $
-      "Unable to run the following services, because the ports are occupied:\
-      \\n" <> foldMap printServiceEntry occupiedServices
+    liftEffect $ throw
+      $
+        "Unable to run the following services, because the ports are occupied:\
+        \\n"
+      <> foldMap printServiceEntry occupiedServices
   where
   printServiceEntry :: UInt /\ String -> String
   printServiceEntry (port /\ service) =
@@ -493,8 +494,9 @@ startPlutipCluster cfg keysToGenerate = do
   either (liftEffect <<< throw <<< pprintClientError) pure res >>=
     case _ of
       ClusterStartupFailure reason -> do
-        liftEffect $ throw $
-          "Failed to start up cluster. Reason: " <> show reason
+        liftEffect $ throw
+          $ "Failed to start up cluster. Reason: "
+          <> show reason
       ClusterStartupSuccess response@{ privateKeys } ->
         case Array.uncons privateKeys of
           Nothing ->
@@ -543,12 +545,19 @@ stopPlutipCluster cfg = do
             body
   either (liftEffect <<< throw <<< show) pure res
 
-startOgmios :: PlutipConfig -> ClusterStartupParameters -> Aff ManagedProcess
+startOgmios
+  :: forall r r'
+   . { ogmiosConfig :: ServerConfig | r }
+  -> { nodeSocketPath :: FilePath
+     , nodeConfigPath :: FilePath
+     | r'
+     }
+  -> Aff ManagedProcess
 startOgmios cfg params = do
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
     $ String.indexOf (Pattern "networkParameters")
-        >>> maybe NoOp (const Success)
+    >>> maybe NoOp (const Success)
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -564,22 +573,32 @@ startOgmios cfg params = do
     ]
 
 startKupo
-  :: PlutipConfig
-  -> ClusterStartupParameters
-  -> Aff (ManagedProcess /\ String /\ OnSignalRef)
-startKupo cfg params = do
+  :: forall r r'
+   . { kupoConfig :: ServerConfig | r }
+  -> { nodeSocketPath :: FilePath
+     , nodeConfigPath :: FilePath
+     | r'
+     }
+  -> Ref (Array (Aff Unit))
+  -> Aff (ManagedProcess /\ String)
+startKupo cfg params cleanupRef = do
   tmpDir <- liftEffect tmpdir
   randomStr <- liftEffect $ uniqueId ""
   let
     workdir = tmpDir <</>> randomStr <> "-kupo-db"
-    testClusterDir = (dirname <<< dirname) params.nodeConfigPath
   liftEffect do
     workdirExists <- FSSync.exists workdir
     unless workdirExists (FSSync.mkdir workdir)
-  childProcess <- spawnKupoProcess workdir
-  -- here we also set the SIGINT handler for the whole process
-  sig <- liftEffect $ cleanupOnSigint workdir testClusterDir
-  pure (childProcess /\ workdir /\ sig)
+  childProcess <-
+    after
+      (spawnKupoProcess workdir)
+      -- set up cleanup
+      $ const
+      $ liftEffect
+      $ addCleanup cleanupRef
+      $ liftEffect
+      $ _rmdirSync workdir
+  pure (childProcess /\ workdir)
   where
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
   spawnKupoProcess workdir =
@@ -633,40 +652,45 @@ stopChildProcessWithPort port childProcess = do
       unless isAvailable do
         liftEffect $ throw "retry"
 
-stopChildProcessWithPortAndRemoveOnSignal
-  :: UInt -> (ManagedProcess /\ String /\ OnSignalRef) -> Aff Unit
-stopChildProcessWithPortAndRemoveOnSignal port (childProcess /\ _ /\ sig) = do
-  stop $ childProcess
-  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
-    \_ -> do
-      isAvailable <- isPortAvailable port
-      unless isAvailable do
-        liftEffect $ throw "retry"
-  liftEffect $ removeOnSignal sig
+type ClusterConfig r =
+  ( ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
+  , hooks :: Hooks
+  | LogParams r
+  )
 
-mkClusterContractEnv
-  :: PlutipConfig
+-- | TODO: Replace original log params with the row type
+type LogParams r =
+  ( logLevel :: LogLevel
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+  , suppressLogs :: Boolean
+  | r
+  )
+
+makeNaiveClusterContractEnv
+  :: forall r
+   . Record (ClusterConfig r)
   -> Logger
   -> Maybe (LogLevel -> Message -> Aff Unit)
   -> Aff ContractEnv
-mkClusterContractEnv plutipCfg logger customLogger = do
+makeNaiveClusterContractEnv cfg logger customLogger = do
   usedTxOuts <- newUsedTxOuts
   backend <- buildBackend logger $ mkCtlBackendParams
-    { ogmiosConfig: plutipCfg.ogmiosConfig
-    , kupoConfig: plutipCfg.kupoConfig
+    { ogmiosConfig: cfg.ogmiosConfig
+    , kupoConfig: cfg.kupoConfig
     }
   ledgerConstants <- getLedgerConstants
-    plutipCfg { customLogger = customLogger }
+    cfg { customLogger = customLogger }
     backend
   backendKnownTxs <- liftEffect $ Ref.new Set.empty
   pure
     { backend
-    , handle: mkQueryHandle plutipCfg backend
+    , handle: mkQueryHandle cfg backend
     , networkId: MainnetId
-    , logLevel: plutipCfg.logLevel
+    , logLevel: cfg.logLevel
     , customLogger: customLogger
-    , suppressLogs: plutipCfg.suppressLogs
-    , hooks: plutipCfg.hooks
+    , suppressLogs: cfg.suppressLogs
+    , hooks: cfg.hooks
     , wallet: Nothing
     , usedTxOuts
     , ledgerConstants
@@ -675,6 +699,30 @@ mkClusterContractEnv plutipCfg logger customLogger = do
     , synchronizationParams: defaultSynchronizationParams
     , knownTxs: { backend: backendKnownTxs }
     }
+
+-- | Makes cluster ContractEnv with configured logs suppression and cleanup scheduled.
+makeClusterContractEnv
+  :: forall r
+   . Ref (Array (Aff Unit))
+  -> Record (ClusterConfig r)
+  -> Aff
+       { env :: ContractEnv
+       , clearLogs :: Aff Unit
+       , printLogs :: Aff Unit
+       }
+makeClusterContractEnv cleanupRef cfg = do
+  { updatedConfig
+  , logger
+  , customLogger
+  , printLogs
+  , clearLogs
+  } <- liftEffect $ mkLogging cfg
+  cleanupBracket
+    cleanupRef
+    (makeNaiveClusterContractEnv updatedConfig logger customLogger)
+    stopContractEnv
+    $ pure
+    <<< { env: _, printLogs, clearLogs }
 
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
