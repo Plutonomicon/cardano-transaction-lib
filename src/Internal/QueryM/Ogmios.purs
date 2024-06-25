@@ -428,7 +428,7 @@ instance DecodeAeson SubmitTxR where
           (pure <<< SubmitTxSuccess)
           $ hexToByteArray result.transaction.id
       failure = aesonObject $ \o ->
-        SubmitFail <$> getField o "failure"
+        SubmitFail <$> getField o "error"
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
@@ -844,7 +844,7 @@ instance DecodeAeson ScriptFailure where
 
 instance DecodeAeson TxEvaluationFailure where
   decodeAeson = aesonObject $ \o -> do
-    err :: Aeson <- getField o "failure"
+    err :: Aeson <- getField o "error"
 
     pure $ UnparsedError $ show err
 
