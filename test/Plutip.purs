@@ -207,4 +207,3 @@ main = (interruptOnSignal SIGINT =<< _) $ launchAff $ void do
 --       stopRes `shouldSatisfy` case _ of
 --         StopClusterSuccess -> true
 --         _ -> false
-

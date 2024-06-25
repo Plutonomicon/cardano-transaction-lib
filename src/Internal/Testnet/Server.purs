@@ -133,7 +133,6 @@ newtype StartedTestnetCluster = MkStartedTestnetCluster
 
 derive instance Newtype StartedTestnetCluster _
 
-
 -- | Start the plutip cluster, initializing the state with the given
 -- | UTxO distribution. Also initializes an extra payment key (aka
 -- | `ourKey`) with some UTxOs for use with further plutip
