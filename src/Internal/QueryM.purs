@@ -333,13 +333,11 @@ evaluateTxOgmios cbor additionalUtxos = do
   ws <- asks $ underlyingWebSocket <<< _.ogmiosWs <<< _.runtime
   listeners' <- asks $ listeners <<< _.ogmiosWs <<< _.runtime
   cfg <- asks _.config
-  logInfo' "here"
   TxEvaluationR result <- liftAff $
     mkRequestAff listeners' ws (mkLogger cfg.logLevel cfg.customLogger)
       Ogmios.evaluateTxCall
       _.evaluate
       (cbor /\ additionalUtxos)
-  logInfo' "there"
   case result of
     Left (AdditionalUtxoOverlap refs) ->
       evaluateTxOgmios cbor <<< wrap $
