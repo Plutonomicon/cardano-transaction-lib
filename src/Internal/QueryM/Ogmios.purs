@@ -190,6 +190,7 @@ import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (fold, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
+import Ctl.Internal.Types.Int as InternalInt
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, maybe)
@@ -225,10 +226,7 @@ import Untagged.Union (type (|+|), toEither1)
 
 -- | Queries Ogmios for the system start Datetime
 querySystemStartCall :: JsonWspCall Unit OgmiosSystemStart
-querySystemStartCall = mkOgmiosCallType
-  { method: "Query"
-  , params: const { query: "systemStart" }
-  }
+querySystemStartCall = mkOgmiosCallTypeNoArgs "queryNetwork/startTime"
 
 -- | Queries Ogmios for the current epoch
 queryCurrentEpochCall :: JsonWspCall Unit CurrentEpoch
@@ -243,10 +241,7 @@ queryEraSummariesCall = mkOgmiosCallTypeNoArgs "queryLedgerState/eraSummaries"
 
 -- | Queries Ogmios for the current protocol parameters
 queryProtocolParametersCall :: JsonWspCall Unit OgmiosProtocolParameters
-queryProtocolParametersCall = mkOgmiosCallType
-  { method: "queryLedgerState/protocolParameters"
-  , params: const {}
-  }
+queryProtocolParametersCall = mkOgmiosCallTypeNoArgs "queryLedgerState/protocolParameters"
 
 -- | Queries Ogmios for the chain’s current tip.
 queryChainTipCall :: JsonWspCall Unit ChainTipQR
@@ -441,9 +436,12 @@ instance Show OgmiosSystemStart where
   show = genericShow
 
 instance DecodeAeson OgmiosSystemStart where
-  decodeAeson =
-    caseAesonString (Left (TypeMismatch "Timestamp string"))
+  decodeAeson = aesonObject $ \o -> do
+    res <- getField o "result"
+    caseAesonString
+      (Left (TypeMismatch "Timestamp string"))
       (map wrap <<< lmap TypeMismatch <<< sysStartFromOgmiosTimestamp)
+      res
 
 instance EncodeAeson OgmiosSystemStart where
   encodeAeson = encodeAeson <<< sysStartToOgmiosTimestamp <<< unwrap
@@ -883,41 +881,40 @@ rationalToSubcoin (PParamRational rat) = do
 -- | A type that corresponds to Ogmios response.
 type ProtocolParametersRaw =
   { "minFeeCoefficient" :: UInt
-  , "minFeeConstant" :: UInt
-  , "maxBlockBodySize" :: UInt
-  , "maxBlockHeaderSize" :: UInt
-  , "maxTxSize" :: UInt
-  , "stakeKeyDeposit" :: BigInt
-  , "poolDeposit" :: BigInt
-  , "poolRetirementEpochBound" :: BigInt
-  , "desiredNumberOfPools" :: UInt
-  , "poolInfluence" :: PParamRational
+  , "minFeeConstant" :: { "ada" :: { "lovelace" :: UInt } }
+  , "maxBlockBodySize" :: { "bytes" :: UInt }
+  , "maxBlockHeaderSize" :: { "bytes" :: UInt }
+  , "maxTransactionSize" :: { "bytes" :: UInt }
+  , "stakeCredentialDeposit" :: { "ada" :: { "lovelace" :: BigInt } }
+  , "stakePoolDeposit" :: { "ada" :: { "lovelace" :: BigInt } }
+  , "stakePoolRetirementEpochBound" :: BigInt
+  , "desiredNumberOfStakePools" :: UInt
+  , "stakePoolPledgeInfluence" :: PParamRational
   , "monetaryExpansion" :: PParamRational
   , "treasuryExpansion" :: PParamRational
-  , "protocolVersion" ::
+  , "version" ::
       { "major" :: UInt
       , "minor" :: UInt
       }
-  , "minPoolCost" :: BigInt
-  , "coinsPerUtxoByte" :: Maybe BigInt
-  , "coinsPerUtxoWord" :: Maybe BigInt
-  , "costModels" ::
-      { "plutus:v1" :: { | CostModelV1 }
-      , "plutus:v2" :: Maybe { | CostModelV2 }
+  , "minStakePoolCost" :: { "ada" :: { "lovelace" :: BigInt } }
+  , "minUtxoDepositCoefficient" :: BigInt
+  , "plutusCostModels" ::
+      { "plutus:v1" :: Array InternalInt.Int
+      , "plutus:v2" :: Array InternalInt.Int
       }
-  , "prices" ::
+  , "scriptExecutionPrices" ::
       { "memory" :: PParamRational
-      , "steps" :: PParamRational
+      , "cpu" :: PParamRational
       }
   , "maxExecutionUnitsPerTransaction" ::
       { "memory" :: BigInt
-      , "steps" :: BigInt
+      , "cpu" :: BigInt
       }
   , "maxExecutionUnitsPerBlock" ::
       { "memory" :: BigInt
-      , "steps" :: BigInt
+      , "cpu" :: BigInt
       }
-  , "maxValueSize" :: UInt
+  , "maxValueSize" :: { "bytes" :: UInt }
   , "collateralPercentage" :: UInt
   , "maxCollateralInputs" :: UInt
   }
@@ -932,57 +929,49 @@ instance Show OgmiosProtocolParameters where
   show = genericShow
 
 instance DecodeAeson OgmiosProtocolParameters where
-  decodeAeson aeson = do
-    ps :: ProtocolParametersRaw <- decodeAeson aeson
+  decodeAeson = aesonObject $ \o -> do
+    ps :: ProtocolParametersRaw <- getField o "result"
     prices <- decodePrices ps
-    coinsPerUtxoUnit <-
-      maybe
-        (Left $ AtKey "coinsPerUtxoByte or coinsPerUtxoWord" $ MissingValue)
-        pure
-        $ (CoinsPerUtxoByte <<< Coin <$> ps.coinsPerUtxoByte) <|>
-            (CoinsPerUtxoWord <<< Coin <$> ps.coinsPerUtxoWord)
     pure $ OgmiosProtocolParameters $ ProtocolParameters
-      { protocolVersion: ps.protocolVersion.major /\ ps.protocolVersion.minor
+      { protocolVersion: ps.version.major /\ ps.version.minor
       -- The following two parameters were removed from Babbage
       , decentralization: zero
       , extraPraosEntropy: Nothing
-      , maxBlockHeaderSize: ps.maxBlockHeaderSize
-      , maxBlockBodySize: ps.maxBlockBodySize
-      , maxTxSize: ps.maxTxSize
-      , txFeeFixed: ps.minFeeConstant
+      , maxBlockHeaderSize: ps.maxBlockHeaderSize.bytes
+      , maxBlockBodySize: ps.maxBlockBodySize.bytes
+      , maxTxSize: ps.maxTransactionSize.bytes
+      , txFeeFixed: ps.minFeeConstant.ada.lovelace
       , txFeePerByte: ps.minFeeCoefficient
-      , stakeAddressDeposit: Coin ps.stakeKeyDeposit
-      , stakePoolDeposit: Coin ps.poolDeposit
-      , minPoolCost: Coin ps.minPoolCost
-      , poolRetireMaxEpoch: Epoch ps.poolRetirementEpochBound
-      , stakePoolTargetNum: ps.desiredNumberOfPools
-      , poolPledgeInfluence: unwrap ps.poolInfluence
+      , stakeAddressDeposit: Coin ps.stakeCredentialDeposit.ada.lovelace
+      , stakePoolDeposit: Coin ps.stakePoolDeposit.ada.lovelace
+      , minPoolCost: Coin ps.minStakePoolCost.ada.lovelace
+      , poolRetireMaxEpoch: Epoch ps.stakePoolRetirementEpochBound
+      , stakePoolTargetNum: ps.desiredNumberOfStakePools
+      , poolPledgeInfluence: unwrap ps.stakePoolPledgeInfluence
       , monetaryExpansion: unwrap ps.monetaryExpansion
       , treasuryCut: unwrap ps.treasuryExpansion -- Rational
-      , coinsPerUtxoUnit: coinsPerUtxoUnit
-      , costModels: Costmdls $ Map.fromFoldable $ catMaybes
-          [ pure
-              (PlutusV1 /\ convertPlutusV1CostModel ps.costModels."plutus:v1")
-          , (PlutusV2 /\ _) <<< convertPlutusV2CostModel <$>
-              ps.costModels."plutus:v2"
+      , coinsPerUtxoUnit: CoinsPerUtxoByte $ Coin ps.minUtxoDepositCoefficient
+      , costModels: Costmdls $ Map.fromFoldable
+          [ (PlutusV1 /\ wrap ps.plutusCostModels."plutus:v1")
+          , (PlutusV2 /\ wrap ps.plutusCostModels."plutus:v2")
           ]
       , prices: prices
       , maxTxExUnits: decodeExUnits ps.maxExecutionUnitsPerTransaction
       , maxBlockExUnits: decodeExUnits ps.maxExecutionUnitsPerBlock
-      , maxValueSize: ps.maxValueSize
+      , maxValueSize: ps.maxValueSize.bytes
       , collateralPercent: ps.collateralPercentage
       , maxCollateralInputs: ps.maxCollateralInputs
       }
     where
     decodeExUnits
-      :: { memory :: BigInt, steps :: BigInt } -> ExUnits
-    decodeExUnits { memory, steps } = { mem: memory, steps }
+      :: { memory :: BigInt, cpu :: BigInt } -> ExUnits
+    decodeExUnits { memory, cpu } = { mem: memory, steps: cpu }
 
     decodePrices
       :: ProtocolParametersRaw -> Either JsonDecodeError ExUnitPrices
     decodePrices ps = note (TypeMismatch "ExUnitPrices") do
-      memPrice <- rationalToSubcoin ps.prices.memory
-      stepPrice <- rationalToSubcoin ps.prices.steps
+      memPrice <- rationalToSubcoin ps.scriptExecutionPrices.memory
+      stepPrice <- rationalToSubcoin ps.scriptExecutionPrices.cpu
       pure { memPrice, stepPrice } -- ExUnits
 
 ---------------- CHAIN TIP QUERY RESPONSE & PARSING
