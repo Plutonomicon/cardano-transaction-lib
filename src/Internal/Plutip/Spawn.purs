@@ -45,6 +45,7 @@ import Effect.Aff.Retry
   )
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
+import Effect.Exception (message) as Error
 import Effect.Ref as Ref
 import Node.Buffer as Node.Buffer
 import Node.ChildProcess (ChildProcess, SpawnOptions, kill, stderr, stdout)
@@ -216,7 +217,7 @@ killByPort port =
   void $ Node.ChildProcess.exec
     ("fuser -k " <> show (UInt.toInt port) <> "/tcp")
     Node.ChildProcess.defaultExecOptions
-    \{ error } -> maybe (pure unit) throwError error
+    (maybe (pure unit) (log <<< Error.message) <<< _.error)
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 killProcessWithPort :: UInt -> Aff Unit
