@@ -1565,6 +1565,19 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "uplc-apply-args" = pkgs.stdenv.mkDerivation {
+        name = "uplc-apply-args";
+        version = "master";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-uplc-apply-args.git";
+          rev = "aa528d5310cbfbd01b4d94557f404d95cfb6bb3c";
+          sha256 = "1r064ca2m16hkbcswrvlng032ax1ygbpr2gxrlaqmjlf2gnin280";
+
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "variant" = pkgs.stdenv.mkDerivation {
         name = "variant";
         version = "v8.0.0";

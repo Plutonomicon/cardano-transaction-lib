@@ -12,6 +12,7 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
@@ -28,7 +29,7 @@ import Contract.Monad
   )
 import Contract.PlutusData (PlutusData, toData)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (PlutusScript, applyArgs)
+import Contract.Scripts (PlutusScript)
 import Contract.Test.Assert
   ( ContractCheck
   , checkLossInWallet
