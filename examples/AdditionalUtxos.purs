@@ -5,6 +5,7 @@ module Ctl.Examples.AdditionalUtxos
 
 import Contract.Prelude
 
+import Cardano.Types (Transaction)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential (Credential(ScriptHashCredential))
 import Cardano.Types.PlutusScript as PlutusScript
@@ -15,7 +16,7 @@ import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum, PlutusData(Integer), unitRedeemer)
-import Contract.ScriptLookups (ScriptLookups, UnbalancedTx)
+import Contract.ScriptLookups (ScriptLookups)
 import Contract.ScriptLookups (datum, unspentOutputs, validator) as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Sync (withoutSync)
@@ -23,7 +24,7 @@ import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
   , TransactionInput
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , createAdditionalUtxos
   , signTransaction
   , submit
@@ -45,7 +46,7 @@ import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (fromFoldable) as Array
-import Data.Map (difference, filter, keys) as Map
+import Data.Map (difference, empty, filter, keys) as Map
 import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
@@ -63,7 +64,7 @@ contract testAdditionalUtxoOverlap = withoutSync do
   validator <- alwaysSucceedsScriptV2
   let vhash = validatorHash validator
   { unbalancedTx, datum } <- payToValidator vhash
-  withBalancedTx unbalancedTx \balancedTx -> do
+  withBalancedTx unbalancedTx Map.empty mempty \balancedTx -> do
     balancedSignedTx <- signTransaction balancedTx
     txHash <- submit balancedSignedTx
     when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
@@ -73,7 +74,7 @@ contract testAdditionalUtxoOverlap = withoutSync do
     spendFromValidator validator additionalUtxos datum
 
 payToValidator
-  :: ValidatorHash -> Contract { unbalancedTx :: UnbalancedTx, datum :: Datum }
+  :: ValidatorHash -> Contract { unbalancedTx :: Transaction, datum :: Datum }
 payToValidator vhash = do
   scriptRef <- liftEffect (NativeScriptRef <$> randomSampleOne arbitrary)
   let
@@ -128,7 +129,7 @@ spendFromValidator validator additionalUtxos datum = do
       BalancerConstraints.mustUseAdditionalUtxos additionalUtxos
 
   unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTxWithConstraints unbalancedTx balancerConstraints
+  balancedTx <- balanceTx unbalancedTx Map.empty balancerConstraints
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
 

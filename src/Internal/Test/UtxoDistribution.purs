@@ -219,7 +219,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     unbalancedTx <- mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< balanceTx unbalancedTx
+        signTransaction =<< balanceTx unbalancedTx Map.empty mempty
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx

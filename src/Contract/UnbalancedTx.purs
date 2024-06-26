@@ -3,11 +3,11 @@
 module Contract.UnbalancedTx
   ( mkUnbalancedTx
   , mkUnbalancedTxE
-  , module X
   ) where
 
 import Prelude
 
+import Cardano.Types (Transaction)
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.ProcessConstraints as PC
@@ -15,35 +15,6 @@ import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
   , explainMkUnbalancedTxError
   )
-import Ctl.Internal.ProcessConstraints.Error
-  ( MkUnbalancedTxError
-      ( CannotFindDatum
-      , CannotQueryDatum
-      , CannotConvertPOSIXTimeRange
-      , CannotSolveTimeConstraints
-      , CannotGetMintingPolicyScriptIndex
-      , CannotGetValidatorHashFromAddress
-      , CannotMakeValue
-      , CannotWithdrawRewardsPubKey
-      , CannotWithdrawRewardsPlutusScript
-      , CannotWithdrawRewardsNativeScript
-      , DatumNotFound
-      , DatumWrongHash
-      , MintingPolicyHashNotCurrencySymbol
-      , MintingPolicyNotFound
-      , OwnPubKeyAndStakeKeyMissing
-      , TxOutRefNotFound
-      , TxOutRefWrongType
-      , WrongRefScriptHash
-      , ValidatorHashNotFound
-      , CannotSatisfyAny
-      , ExpectedPlutusScriptGotNativeScript
-      , CannotMintZero
-      )
-  , explainMkUnbalancedTxError
-  ) as X
-import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
-import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx)) as X
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Data.Either (Either(Left, Right))
@@ -58,11 +29,11 @@ import Effect.Exception (error)
 mkUnbalancedTxE
   :: ScriptLookups
   -> TxConstraints
-  -> Contract (Either MkUnbalancedTxError UnbalancedTx)
+  -> Contract (Either MkUnbalancedTxError Transaction)
 mkUnbalancedTxE = PC.mkUnbalancedTxImpl
 
 -- | As `mkUnbalancedTxE`, but 'throwing'.
-mkUnbalancedTx :: ScriptLookups -> TxConstraints -> Contract UnbalancedTx
+mkUnbalancedTx :: ScriptLookups -> TxConstraints -> Contract Transaction
 mkUnbalancedTx lookups constraints =
   mkUnbalancedTxE lookups constraints >>= case _ of
     Left err -> throwError $ error $ explainMkUnbalancedTxError err

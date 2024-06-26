@@ -110,9 +110,9 @@ import Cardano.Types
   )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.RedeemerDatum (RedeemerDatum)
+import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Ctl.Internal.Types.Interval (POSIXTimeRange)
-import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
-import Ctl.Internal.Types.RedeemerDatum as RedeemerDatum
 import Data.Array (singleton)
 import Data.Array (singleton) as X
 import Data.Array as Array

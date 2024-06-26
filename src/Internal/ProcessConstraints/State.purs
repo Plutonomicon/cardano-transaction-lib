@@ -20,10 +20,10 @@ module Ctl.Internal.ProcessConstraints.State
 
 import Prelude hiding (join)
 
+import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (CostModel, Language, PlutusData, Transaction, UtxoMap)
 import Cardano.Types.Value (Value)
 import Control.Monad.State.Trans (StateT)
-import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.Val (Val, split)
@@ -58,7 +58,7 @@ type ConstraintProcessingState =
   -- ^ Balance of the values produced and required for the transaction's outputs
   , datums :: Array PlutusData
   -- ^ Ordered accumulation of datums we can use to `setScriptDataHash`
-  , redeemers :: Array UnindexedRedeemer
+  , redeemers :: Array DetachedRedeemer
   -- ^ Unindexed redeemers that will be attached to the Tx later, on balancing
   -- stage.
   , lookups :: ScriptLookups
@@ -94,7 +94,7 @@ _costModels
 _costModels = prop (Proxy :: Proxy "costModels")
 
 _redeemers
-  :: Lens' ConstraintProcessingState (Array UnindexedRedeemer)
+  :: Lens' ConstraintProcessingState (Array DetachedRedeemer)
 _redeemers = prop (Proxy :: Proxy "redeemers")
 
 _lookups

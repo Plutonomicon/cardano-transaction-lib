@@ -1,15 +1,13 @@
 module Test.Ctl.BalanceTx.Time (suite) where
 
 import Contract.Prelude
+import Data.Lens
 
-import Cardano.Types.BigNum (BigNum)
+import Cardano.Types (BigNum, Transaction, _body)
 import Cardano.Types.BigNum (fromInt, toInt) as BigNum
 import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
-import Contract.ScriptLookups
-  ( ScriptLookups
-  , UnbalancedTx
-  )
+import Contract.ScriptLookups (ScriptLookups)
 import Contract.Time
   ( POSIXTime
   , Slot
@@ -146,10 +144,8 @@ unsafeSubtractOne value = wrap <<< fromJust
 --------------------------------------------------------------------------------
 
 getTimeFromUnbalanced
-  :: UnbalancedTx -> Contract (Interval POSIXTime)
-getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
-  where
-  body = (unwrap utx) # _.transaction >>> unwrap >>> _.body
+  :: Transaction -> Contract (Interval POSIXTime)
+getTimeFromUnbalanced tx = validityToPosixTime $ unwrap $ tx ^. _body
 
 toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do

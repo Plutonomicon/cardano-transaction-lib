@@ -39,6 +39,7 @@ import Cardano.Types
   ( Address
   , AuxiliaryData
   , AuxiliaryDataHash
+  , BootstrapWitness
   , Certificate
   , Coin
   , Ed25519KeyHash
@@ -176,3 +177,6 @@ _nativeScripts = _Newtype <<< prop (Proxy :: Proxy "nativeScripts")
 
 _vkeys :: Lens' TransactionWitnessSet (Array Vkeywitness)
 _vkeys = _Newtype <<< prop (Proxy :: Proxy "vkeys")
+
+_bootstraps :: Lens' TransactionWitnessSet (Array BootstrapWitness)
+_bootstraps = _Newtype <<< prop (Proxy :: Proxy "bootstraps")

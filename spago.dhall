@@ -110,5 +110,6 @@ You can edit this file as you like.
   , "templates/ctl-scaffold/src/**/*.purs"
   , "templates/ctl-scaffold/test/**/*.purs"
   , "templates/ctl-scaffold/exe/**/*.purs"
+  , "../purescript-cardano-transaction-builder/src/**/*.purs"
   ]
 }

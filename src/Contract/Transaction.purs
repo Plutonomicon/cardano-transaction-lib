@@ -3,10 +3,7 @@
 module Contract.Transaction
   ( balanceTx
   , balanceTxE
-  , balanceTxWithConstraints
-  , balanceTxWithConstraintsE
   , balanceTxs
-  , balanceTxsWithConstraints
   , createAdditionalUtxos
   , getTxMetadata
   , module BalanceTxError
@@ -14,18 +11,21 @@ module Contract.Transaction
   , submit
   , submitE
   , submitTxFromConstraints
-  , submitTxFromConstraintsReturningFee
   , withBalancedTx
-  , withBalancedTxWithConstraints
   , withBalancedTxs
-  , withBalancedTxsWithConstraints
   , lookupTxHash
   , mkPoolPubKeyHash
   , hashTransaction
+  , buildTx
   ) where
 
 import Prelude
 
+import Cardano.Transaction.Builder
+  ( TransactionBuilderStep
+  , buildTransaction
+  , explainTxBuildError
+  )
 import Cardano.Types
   ( Bech32String
   , Coin
@@ -37,6 +37,9 @@ import Cardano.Types
   , TransactionOutput
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , UtxoMap
+  , _body
+  , _fee
+  , _outputs
   )
 import Cardano.Types
   ( DataHash(DataHash)
@@ -86,7 +89,6 @@ import Ctl.Internal.BalanceTx.Error
   , Expected(Expected)
   , explainBalanceTxError
   ) as BalanceTxError
-import Ctl.Internal.BalanceTx.UnattachedTx (UnindexedTx)
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -139,8 +141,6 @@ import Ctl.Internal.Lens
   , _withdrawals
   , _witnessSet
   ) as X
-import Ctl.Internal.Lens (_body, _fee, _outputs)
-import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx))
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
@@ -172,8 +172,21 @@ import Prim.Coerce (class Coercible)
 import Prim.TypeError (class Warn, Text)
 import Safe.Coerce (coerce)
 
+buildTx
+  :: Array TransactionBuilderStep
+  -> Contract Transaction
+buildTx steps = do
+  id <- asks _.networkId
+  let
+    eiRes = buildTransaction id steps
+  case eiRes of
+    Left err -> do
+      throwError (error $ explainTxBuildError err)
+    Right res -> pure res
+
 hashTransaction
-  :: Warn (Text "Deprecated: Validator. Use Cardano.Types.PlutusData.hash")
+  :: Warn
+       (Text "Deprecated: hashTransaction. Use Cardano.Types.Transaction.hash")
   => Transaction
   -> TransactionHash
 hashTransaction = Transaction.hash
@@ -251,19 +264,13 @@ withSingleTransaction prepare extract utx action =
 -- | in any other context.
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
-withBalancedTxsWithConstraints
-  :: forall (a :: Type)
-   . Array (UnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> (Array Transaction -> Contract a)
-  -> Contract a
-withBalancedTxsWithConstraints =
-  withTransactions balanceTxsWithConstraints identity
-
--- | Same as `withBalancedTxsWithConstraints`, but uses the default balancer
--- | constraints.
 withBalancedTxs
   :: forall (a :: Type)
-   . Array UnbalancedTx
+   . Array
+       { transaction :: Transaction
+       , extraUtxos :: UtxoMap
+       , balancerConstraints :: BalanceTxConstraintsBuilder
+       }
   -> (Array Transaction -> Contract a)
   -> Contract a
 withBalancedTxs = withTransactions balanceTxs identity
@@ -274,78 +281,42 @@ withBalancedTxs = withTransactions balanceTxs identity
 -- | used in any other context.
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
-withBalancedTxWithConstraints
-  :: forall (a :: Type)
-   . UnbalancedTx
-  -> BalanceTxConstraintsBuilder
-  -> (Transaction -> Contract a)
-  -> Contract a
-withBalancedTxWithConstraints unbalancedTx =
-  withSingleTransaction balanceAndLockWithConstraints identity
-    <<< Tuple unbalancedTx
-
--- | Same as `withBalancedTxWithConstraints`, but uses the default balancer
--- | constraints.
 withBalancedTx
   :: forall (a :: Type)
-   . UnbalancedTx
+   . Transaction
+  -> UtxoMap
+  -> BalanceTxConstraintsBuilder
   -> (Transaction -> Contract a)
   -> Contract a
-withBalancedTx = withSingleTransaction balanceAndLock identity
+withBalancedTx tx extraUtxos balancerConstraints =
+  withSingleTransaction
+    ( \transaction -> balanceAndLock
+        { transaction, extraUtxos, balancerConstraints }
+    )
+    identity
+    tx
 
-unUnbalancedTx
-  :: UnbalancedTx -> UnindexedTx /\ Map TransactionInput TransactionOutput
-unUnbalancedTx
-  ( UnbalancedTx
-      { transaction
-      , redeemers
-      , usedUtxos
-      }
-  ) =
-  { transaction, redeemers } /\ usedUtxos
-
--- | Attempts to balance an `UnbalancedTx` using the specified
--- | balancer constraints.
--- |
--- | `balanceTxWithConstraints` is a throwing variant.
-balanceTxWithConstraintsE
-  :: UnbalancedTx
-  -> BalanceTxConstraintsBuilder
-  -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTxWithConstraintsE tx =
-  let
-    tx' /\ ix = unUnbalancedTx tx
-  in
-    B.balanceTxWithConstraints tx' ix
-
--- | Attempts to balance an `UnbalancedTx` using the specified
--- | balancer constraints.
--- |
--- | 'Throwing' variant of `balanceTxWithConstraintsE`.
-balanceTxWithConstraints
-  :: UnbalancedTx
-  -> BalanceTxConstraintsBuilder
-  -> Contract Transaction
-balanceTxWithConstraints tx bcb = do
-  result <- balanceTxWithConstraintsE tx bcb
-  case result of
-    Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
-    Right ftx -> pure ftx
-
--- | Balance a transaction without providing balancer constraints.
--- |
--- | `balanceTx` is a throwing variant.
+-- | A variant of `balanceTx` that returns a balancer error value.
 balanceTxE
-  :: UnbalancedTx
+  :: Transaction
+  -> UtxoMap
+  -> BalanceTxConstraintsBuilder
   -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTxE = flip balanceTxWithConstraintsE mempty
+balanceTxE tx utxos = B.balanceTxWithConstraints tx utxos
 
--- | Balance a transaction without providing balancer constraints.
+-- | Balance a single transaction.
 -- |
 -- | `balanceTxE` is a non-throwing version of this function.
-balanceTx :: UnbalancedTx -> Contract Transaction
-balanceTx utx = do
-  result <- balanceTxE utx
+-- |
+-- | Use `balanceTxs` to balance multiple transactions and prevent them from
+-- | using the same input UTxOs.
+balanceTx
+  :: Transaction
+  -> UtxoMap
+  -> BalanceTxConstraintsBuilder
+  -> Contract Transaction
+balanceTx utx utxos constraints = do
+  result <- balanceTxE utx utxos constraints
   case result of
     Left err -> throwError $ error $ BalanceTxError.explainBalanceTxError err
     Right ftx -> pure ftx
@@ -353,44 +324,32 @@ balanceTx utx = do
 -- | Balances each transaction using specified balancer constraint sets and
 -- | locks the used inputs so that they cannot be reused by subsequent
 -- | transactions.
-balanceTxsWithConstraints
-  :: forall (t :: Type -> Type)
-   . Traversable t
-  => t (UnbalancedTx /\ BalanceTxConstraintsBuilder)
-  -> Contract (t Transaction)
-balanceTxsWithConstraints unbalancedTxs =
-  unlockAllOnError $ traverse balanceAndLockWithConstraints unbalancedTxs
+balanceTxs
+  :: Array
+       { transaction :: Transaction
+       , extraUtxos :: UtxoMap
+       , balancerConstraints :: BalanceTxConstraintsBuilder
+       }
+  -> Contract (Array Transaction)
+balanceTxs unbalancedTxs =
+  unlockAllOnError $ traverse balanceAndLock unbalancedTxs
   where
   unlockAllOnError :: forall (a :: Type). Contract a -> Contract a
   unlockAllOnError f = catchError f $ \e -> do
     for_ unbalancedTxs $
-      withUsedTxOuts <<< unlockTransactionInputs <<< uutxToTx <<< fst
+      withUsedTxOuts <<< unlockTransactionInputs <<< _.transaction
     throwError e
 
-  uutxToTx :: UnbalancedTx -> Transaction
-  uutxToTx = _.transaction <<< unwrap
-
--- | Same as `balanceTxsWithConstraints`, but uses the default balancer
--- | constraints.
-balanceTxs
-  :: forall (t :: Type -> Type)
-   . Traversable t
-  => t UnbalancedTx
-  -> Contract (t Transaction)
-balanceTxs = balanceTxsWithConstraints <<< map (flip Tuple mempty)
-
-balanceAndLockWithConstraints
-  :: UnbalancedTx /\ BalanceTxConstraintsBuilder
+balanceAndLock
+  :: { transaction :: Transaction
+     , extraUtxos :: UtxoMap
+     , balancerConstraints :: BalanceTxConstraintsBuilder
+     }
   -> Contract Transaction
-balanceAndLockWithConstraints (unbalancedTx /\ constraints) = do
-  balancedTx <- balanceTxWithConstraints unbalancedTx constraints
+balanceAndLock { transaction, extraUtxos, balancerConstraints } = do
+  balancedTx <- balanceTx transaction extraUtxos balancerConstraints
   void $ withUsedTxOuts $ lockTransactionInputs balancedTx
   pure balancedTx
-
-balanceAndLock
-  :: UnbalancedTx
-  -> Contract Transaction
-balanceAndLock = balanceAndLockWithConstraints <<< flip Tuple mempty
 
 -- | Fetch transaction metadata.
 -- | Returns `Right` when the transaction exists and metadata was non-empty
@@ -423,23 +382,15 @@ createAdditionalUtxos tx = do
   pure $ txOutputs #
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
 
-submitTxFromConstraintsReturningFee
-  :: ScriptLookups
-  -> TxConstraints
-  -> Contract { txHash :: TransactionHash, txFinalFee :: Coin }
-submitTxFromConstraintsReturningFee lookups constraints = do
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx
-  balancedSignedTx <- signTransaction balancedTx
-  txHash <- submit balancedSignedTx
-  pure { txHash, txFinalFee: view (_body <<< _fee) balancedSignedTx }
-
 submitTxFromConstraints
   :: ScriptLookups
   -> TxConstraints
   -> Contract TransactionHash
-submitTxFromConstraints lookups constraints =
-  _.txHash <$> submitTxFromConstraintsReturningFee lookups constraints
+submitTxFromConstraints lookups constraints = do
+  unbalancedTx <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx Map.empty mempty
+  balancedSignedTx <- signTransaction balancedTx
+  submit balancedSignedTx
 
 lookupTxHash
   :: TransactionHash -> UtxoMap -> Array TransactionUnspentOutput

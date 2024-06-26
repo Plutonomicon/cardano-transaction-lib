@@ -16,7 +16,7 @@ import Contract.Transaction
   ( _body
   , _outputs
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , signTransaction
   , submit
   )
@@ -28,6 +28,7 @@ import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Data.Array (fold, length, replicate, take, zip)
 import Data.Lens ((^.))
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Tuple (Tuple(Tuple))
 import JS.BigInt (fromInt) as BigInt
@@ -64,7 +65,7 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
       lookups :: Lookups.ScriptLookups
       lookups = mempty
     unbalancedTx <- mkUnbalancedTx lookups constraints
-    balancedTx <- balanceTxWithConstraints unbalancedTx
+    balancedTx <- balanceTx unbalancedTx Map.empty
       -- just to check that attaching datums works
       ( mustSendChangeWithDatum $ OutputDatum $ Integer $ BigInt.fromInt
           1000

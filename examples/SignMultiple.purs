@@ -38,6 +38,7 @@ import Contract.Wallet
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.Map (Map, filter)
+import Data.Map as Map
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
@@ -75,11 +76,21 @@ contract = do
   unbalancedTx0 <- mkUnbalancedTx lookups constraints
   unbalancedTx1 <- mkUnbalancedTx lookups constraints
 
-  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
-    locked <- getLockedInputs
-    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
-      <> show locked
-    traverse (submitAndLog <=< signTransaction) balancedTxs
+  txIds <-
+    withBalancedTxs
+      [ { transaction: unbalancedTx0
+        , extraUtxos: Map.empty
+        , balancerConstraints: mempty
+        }
+      , { transaction: unbalancedTx1
+        , extraUtxos: Map.empty
+        , balancerConstraints: mempty
+        }
+      ] $ \balancedTxs -> do
+      locked <- getLockedInputs
+      logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+        <> show locked
+      traverse (submitAndLog <=< signTransaction) balancedTxs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked

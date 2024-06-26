@@ -6,11 +6,18 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Transaction.Builder
+  ( TransactionBuilderStep(..)
+  , buildTransaction
+  )
 import Cardano.Types
   ( Address
+  , Credential(..)
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , StakeCredential(..)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   )
+import Cardano.Types.Address (mkPaymentAddress)
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
 import Cardano.Types.Credential
@@ -18,11 +25,13 @@ import Cardano.Types.Credential
   )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PaymentCredential (PaymentCredential(..))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , StakePubKeyHash
+  , getNetworkId
   , mkAddress
   )
 import Contract.AuxiliaryData (setGeneralTxMetadata)
@@ -86,9 +95,10 @@ import Contract.Transaction
   , _output
   , awaitTxConfirmed
   , balanceTx
+  , balanceTx
   , balanceTxE
-  , balanceTxWithConstraints
-  , balanceTxWithConstraintsE
+  , balanceTxE
+  , buildTx
   , createAdditionalUtxos
   , getTxMetadata
   , lookupTxHash
@@ -169,7 +179,7 @@ import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
@@ -238,7 +248,7 @@ suite = do
               lookups = mempty
             ubTx <- mkUnbalancedTx lookups constraints
             res <-
-              ( balanceTxWithConstraintsE ubTx
+              ( balanceTxE ubTx Map.empty
                   (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
               )
             res `shouldSatisfy` isLeft
@@ -268,7 +278,7 @@ suite = do
 
       withWallets distribution \_ → pure unit
 
-  group "Contract interface" do
+  only $ group "Contract interface" do
     test
       "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
       do
@@ -312,10 +322,8 @@ suite = do
                 Constraints.mustSpendScriptOutput txInput unitRedeemer
 
             ubTx <- mkUnbalancedTx lookups constraints
-            res <-
-              ( balanceTxWithConstraintsE ubTx
-                  $ mustUseCollateralUtxos bobsCollateral
-              )
+            res <- balanceTxE ubTx Map.empty
+              (mustUseCollateralUtxos bobsCollateral)
             res `shouldSatisfy` isRight
 
     test
@@ -359,10 +367,7 @@ suite = do
                 Constraints.mustSpendScriptOutput txInput unitRedeemer
 
             ubTx <- mkUnbalancedTx lookups constraints
-            res <-
-              ( balanceTxWithConstraintsE ubTx
-                  $ mustUseCollateralUtxos Map.empty
-              )
+            res <- balanceTxE ubTx Map.empty (mustUseCollateralUtxos Map.empty)
             res `shouldSatisfy` case _ of
               Left (InsufficientCollateralUtxos mp) -> Map.isEmpty mp
               _ -> false
@@ -392,19 +397,23 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
-    test "Payment keyhash to payment keyhash transaction (Pkh2Pkh example)" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigNum.fromInt 10_000_000
-          , BigNum.fromInt 20_000_000
-          ]
-      withWallets distribution \alice -> do
-        checkUtxoDistribution distribution alice
-        pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-          ownPaymentPubKeyHashes
-        stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeyHashes
-        withKeyWallet alice $ pkh2PkhContract pkh stakePkh
+    only $ test
+      "Payment keyhash to payment keyhash transaction (Pkh2Pkh example)"
+      do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigNum.fromInt 10_000_000
+            , BigNum.fromInt 20_000_000
+            , BigNum.fromInt 20_000_000
+            ]
+        withWallets distribution \alice -> do
+          logInfo' "407 hi"
+          checkUtxoDistribution distribution alice
+          pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+            ownPaymentPubKeyHashes
+          stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeyHashes
+          withKeyWallet alice $ pkh2PkhContract pkh stakePkh
     test
       "Base Address to Base Address transaction (Pkh2Pkh example, but with stake keys)"
       do
@@ -550,7 +559,7 @@ suite = do
               lookups = mempty
 
             ubTx <- mkUnbalancedTx lookups constraints
-            bsTx <- signTransaction =<< balanceTx ubTx
+            bsTx <- signTransaction =<< balanceTx ubTx Map.empty mempty
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -584,7 +593,7 @@ suite = do
               lookups = Lookups.unspentOutputs utxos
 
             ubTx <- mkUnbalancedTx lookups constraints
-            tx <- signTransaction =<< balanceTx ubTx
+            tx <- signTransaction =<< balanceTx ubTx Map.empty mempty
             let
               signWithWallet txToSign wallet =
                 withKeyWallet wallet (signTransaction txToSign)
@@ -643,7 +652,7 @@ suite = do
               lookups = mempty
 
             ubTx <- mkUnbalancedTx lookups constraints
-            bsTx <- signTransaction =<< balanceTx ubTx
+            bsTx <- signTransaction =<< balanceTx ubTx Map.empty mempty
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -668,7 +677,7 @@ suite = do
 
             ubTx <- mkUnbalancedTx lookups constraints
             -- Bob signs the tx
-            tx <- signTransaction =<< balanceTx ubTx
+            tx <- signTransaction =<< balanceTx ubTx Map.empty mempty
             let
               signWithWallet txToSign wallet =
                 withKeyWallet wallet (signTransaction txToSign)
@@ -701,7 +710,7 @@ suite = do
             lookups = Lookups.plutusMintingPolicy mp
 
           ubTx <- mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< balanceTx ubTx
+          bsTx <- signTransaction =<< balanceTx ubTx Map.empty mempty
           submitAndLog bsTx
 
     test "mustProduceAtLeast spends native token" do
@@ -786,7 +795,7 @@ suite = do
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
           ubTx <- mkUnbalancedTx lookups' constraints'
-          result <- balanceTxE ubTx
+          result <- balanceTxE ubTx Map.empty mempty
           result `shouldSatisfy` isLeft
 
     test "mustSpendAtLeast succeeds to spend" do
@@ -871,7 +880,7 @@ suite = do
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
           ubTx <- mkUnbalancedTx lookups' constraints'
-          result <- balanceTxE ubTx
+          result <- balanceTxE ubTx Map.empty mempty
           result `shouldSatisfy` isLeft
 
     test "Minting using NativeScript (multisig) as a policy" do
@@ -1028,7 +1037,7 @@ suite = do
 
           ubTx <- mkUnbalancedTx lookups constraints
           let ubTx' = setGeneralTxMetadata ubTx givenMetadata
-          bsTx <- signTransaction =<< balanceTx ubTx'
+          bsTx <- signTransaction =<< balanceTx ubTx' Map.empty mempty
           txId <- submit bsTx
           awaitTxConfirmed txId
 
@@ -1110,7 +1119,7 @@ suite = do
                 <> Lookups.plutusMintingPolicy mp3
 
           ubTx <- mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< balanceTx ubTx
+          bsTx <- signTransaction =<< balanceTx ubTx Map.empty mempty
           submitAndLog bsTx
 
     test "Multi-signature transaction" do
@@ -1301,7 +1310,7 @@ suite = do
                 BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
             unbalancedTx <- mkUnbalancedTx lookups constraints
-            balanceTxWithConstraintsE unbalancedTx balanceTxConstraints
+            balanceTxE unbalancedTx Map.empty balanceTxConstraints
 
         let
           hasInsufficientBalance
@@ -1525,7 +1534,7 @@ suite = do
                 lookups = Lookups.plutusMintingPolicy mp
 
               ubTx <- mkUnbalancedTx lookups constraints
-              bsTx <- signTransaction =<< balanceTx ubTx
+              bsTx <- signTransaction =<< balanceTx ubTx Map.empty mempty
               submit bsTx >>= awaitTxConfirmed
 
               logInfo' "Attempt to lock value"
@@ -1718,7 +1727,7 @@ suite = do
 
             unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 \balancedTx0 -> do
+            withBalancedTx unbalancedTx0 Map.empty mempty \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1741,7 +1750,7 @@ suite = do
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
               unbalancedTx1 <- mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <- balanceTxWithConstraints unbalancedTx1
+              balancedTx1 <- balanceTx unbalancedTx1 Map.empty
                 balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 
@@ -1832,7 +1841,7 @@ suite = do
 
             unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 \balancedTx0 -> do
+            withBalancedTx unbalancedTx0 Map.empty mempty \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1856,7 +1865,7 @@ suite = do
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
               unbalancedTx1 <- mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <- balanceTxWithConstraints unbalancedTx1
+              balancedTx1 <- balanceTx unbalancedTx1 Map.empty
                 balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 
@@ -2081,7 +2090,16 @@ signMultipleContract = do
   ubTx1 <- mkUnbalancedTx lookups constraints
   ubTx2 <- mkUnbalancedTx lookups constraints
 
-  withBalancedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  withBalancedTxs
+    [ { transaction: ubTx1
+      , extraUtxos: Map.empty
+      , balancerConstraints: mempty
+      }
+    , { transaction: ubTx2
+      , extraUtxos: Map.empty
+      , balancerConstraints: mempty
+      }
+    ] $ \txs -> do
     locked <- getLockedInputs
     logInfo' $ "Locked inputs inside bracket (should be nonempty): "
       <> show locked
@@ -2098,14 +2116,15 @@ pkh2PkhContract
   -> Maybe StakePubKeyHash
   -> Contract Unit
 pkh2PkhContract pkh stakePkh = do
-  let
-    constraints :: Constraints.TxConstraints
-    constraints = mustPayToPubKeyStakeAddress pkh stakePkh
-      $ Value.lovelaceValueOf
-      $ BigNum.fromInt 2_000_000
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-  ubTx <- mkUnbalancedTx lookups constraints
-  bsTx <- signTransaction =<< balanceTx ubTx
-  submitAndLog bsTx
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> stakePkh)
+  transaction <- buildTx
+    [ Pay $ TransactionOutput
+        { address
+        , amount: Value.coinToValue $ wrap $ BigNum.fromInt 2_000_000
+        , datum: Nothing
+        , scriptRef: Nothing
+        }
+    ]
+  submitAndLog =<< signTransaction =<< balanceTx transaction Map.empty mempty

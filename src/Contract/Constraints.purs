@@ -3,21 +3,24 @@ module Contract.Constraints where
 import Prelude
 
 import Cardano.Types (Slot)
+import Cardano.Types.AssetName (AssetName)
 import Cardano.Types.Certificate (Certificate)
 import Cardano.Types.Coin (Coin)
 import Cardano.Types.Epoch (Epoch)
+import Cardano.Types.Int as Int
 import Cardano.Types.NativeScript (NativeScript)
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PoolParams (PoolParams)
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
+import Cardano.Types.RedeemerDatum (RedeemerDatum)
+import Cardano.Types.ScriptHash (ScriptHash)
 import Cardano.Types.StakeCredential (StakeCredential)
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionOutput (TransactionOutput)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
-import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Show.Generic (genericShow)
@@ -26,11 +29,12 @@ type Constraints = Array Constraint
 
 -- TODO: consider using Maybe for witnesses
 data Constraint
-  = SpendOutput TransactionUnspentOutput OutputWitness
-  | PayTo TransactionOutput
+  = SpendOutput TransactionUnspentOutput (Maybe OutputWitness)
+  | Pay TransactionOutput
+  | MintAsset ScriptHash AssetName Int.Int CredentialWitness
   | RegisterStake StakeCredential
-  | IssueCertificate Certificate CredentialWitness
-  | WithdrawStake StakeCredential Coin CredentialWitness
+  | IssueCertificate Certificate (Maybe CredentialWitness)
+  | WithdrawStake StakeCredential Coin (Maybe CredentialWitness)
   | RequireSignature PaymentPubKeyHash
   | RegisterPool PoolParams
   | RetirePool PoolPubKeyHash Epoch
@@ -47,8 +51,7 @@ instance Show Constraint where
 -- | output. It must correspond to a `TransactionUnspentOutput` address'
 -- | payment credential to unlock it.
 data OutputWitness
-  = PubKeyOutput
-  | NativeScriptOutput (ScriptWitness NativeScript)
+  = NativeScriptOutput (ScriptWitness NativeScript)
   | PlutusScriptOutput (ScriptWitness PlutusScript) RedeemerDatum
       (Maybe DatumWitness)
 
@@ -66,8 +69,7 @@ instance Show OutputWitness where
 -- | Unlike `OutputWitness`, it does not include a `DatumWitness`, because
 -- | minting policies and stake scripts do not have a datum.
 data CredentialWitness
-  = PubKeyCredential
-  | NativeScriptCredential (ScriptWitness NativeScript)
+  = NativeScriptCredential (ScriptWitness NativeScript)
   | PlutusScriptCredential (ScriptWitness PlutusScript) RedeemerDatum
 
 derive instance Generic CredentialWitness _

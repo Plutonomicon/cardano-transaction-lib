@@ -12,8 +12,7 @@ module Ctl.Internal.BalanceTx.Types
 
 import Prelude
 
-import Cardano.Types (Coin, CostModel, Language, NetworkId)
-import Cardano.Types.Address as Csl
+import Cardano.Types (Address, Coin, CostModel, Language, NetworkId)
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
@@ -36,7 +35,7 @@ import Data.Set (Set)
 import Data.Set (fromFoldable, member) as Set
 
 type BalanceTxMContext =
-  { constraints :: BalanceTxConstraints, ownAddresses :: Set Csl.Address }
+  { constraints :: BalanceTxConstraints, ownAddresses :: Set Address }
 
 type BalanceTxM (a :: Type) =
   ExceptT BalanceTxError (ReaderT BalanceTxMContext Contract) a

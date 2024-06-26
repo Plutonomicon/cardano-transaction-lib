@@ -12,10 +12,12 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
+import Cardano.Types (Coin, TransactionHash, UtxoMap, _body, _fee)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
+import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -27,6 +29,7 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
+import Contract.ScriptLookups (ScriptLookups)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (PlutusScript, applyArgs)
 import Contract.Test.Assert
@@ -35,23 +38,25 @@ import Contract.Test.Assert
   , checkTokenGainInWallet'
   , runChecks
   )
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptFromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , submitTxFromConstraintsReturningFee
+  , balanceTx
+  , signTransaction
+  , submit
   )
+import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
+import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (AssetName, ScriptHash)
 import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head, singleton) as Array
-import Data.Map (toUnfoldable) as Map
+import Data.Lens (view)
+import Data.Map (empty, toUnfoldable) as Map
 import Effect.Exception (error, throw)
 import JS.BigInt (BigInt)
 
@@ -107,11 +112,28 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   let checks = mkChecks (cs /\ tn /\ one)
   void $ runChecks checks $ lift do
     { txHash, txFinalFee } <-
-      submitTxFromConstraintsReturningFee lookups constraints
+      submitTxFromConstraintsReturningFee lookups constraints Map.empty mempty
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
     pure { txFinalFee: BigNum.toBigInt $ unwrap txFinalFee }
+
+submitTxFromConstraintsReturningFee
+  :: ScriptLookups
+  -> TxConstraints
+  -> UtxoMap
+  -> BalanceTxConstraintsBuilder
+  -> Contract { txHash :: TransactionHash, txFinalFee :: Coin }
+submitTxFromConstraintsReturningFee
+  lookups
+  constraints
+  extraUtxos
+  balancerConstraints = do
+  unbalancedTx <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx extraUtxos balancerConstraints
+  balancedSignedTx <- signTransaction balancedTx
+  txHash <- submit balancedSignedTx
+  pure { txHash, txFinalFee: view (_body <<< _fee) balancedSignedTx }
 
 oneShotMintingPolicyScript :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScript txInput = do

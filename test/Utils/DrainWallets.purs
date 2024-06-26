@@ -122,7 +122,7 @@ run privateKey walletsDir = runContract config do
 
   unbalancedTx <- mkUnbalancedTx lookups constraints
 
-  balancedTx <- balanceTx unbalancedTx
+  balancedTx <- balanceTx unbalancedTx Map.empty mempty
   balancedSignedTx <- Array.foldM
     (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
     (wrap $ unwrap balancedTx)

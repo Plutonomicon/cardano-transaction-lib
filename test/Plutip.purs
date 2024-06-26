@@ -20,6 +20,7 @@ import Ctl.Internal.Plutip.Server
   , stopPlutipCluster
   )
 import Ctl.Internal.Plutip.Types (StopClusterResponse(StopClusterSuccess))
+import Data.Log.Level (LogLevel(..))
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -36,7 +37,7 @@ import Mote.Monad (mapTest)
 import Mote.TestPlanM (TestPlanM)
 import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
-import Test.Ctl.Plutip.Common (config)
+import Test.Ctl.Plutip.Common (config) as Config
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
 import Test.Ctl.Plutip.Contract.ClusterParameters as ClusterParameters
@@ -49,6 +50,8 @@ import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Spec.Assertions (shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
+
+config = Config.config { suppressLogs = false, logLevel = Trace }
 
 -- Run with `npm run plutip-test`
 main :: Effect Unit
