@@ -47,7 +47,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Node.Buffer as Node.Buffer
-import Node.ChildProcess (ChildProcess, SpawnOptions, kill, stdout, stderr)
+import Node.ChildProcess (ChildProcess, SpawnOptions, kill, stderr, stdout)
 import Node.ChildProcess as ChildProcess
 import Node.ChildProcess as Node.ChildProcess
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL

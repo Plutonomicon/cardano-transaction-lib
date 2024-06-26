@@ -90,7 +90,7 @@ suppressAndLogErrors location = flip catchError $ message
   >>> log
 
 -- | Waits until processe's stdout closes.
--- Assuming this means that process is closed as well. 
+-- Assuming this means that process is closed as well.
 waitForClose :: ManagedProcess -> Aff Unit
 waitForClose (ManagedProcess _ child _) = do
   interface <- liftEffect
@@ -104,7 +104,7 @@ waitForClose (ManagedProcess _ child _) = do
       cont $ Left $ appendErrorMessage "waitForClose has been canceled" err
 
 -- | Waits until processe's stdout closes.
--- Assuming this means that process is closed as well. 
+-- Assuming this means that process is closed as well.
 waitForError :: ManagedProcess -> Aff Error
 waitForError (ManagedProcess _ child _) = do
   interface <- liftEffect

@@ -174,7 +174,7 @@ readNodes { nodeDirs, testnetDirectory } = do
     port <- getNodePort { nodeDir: workdir }
     pure { idx, socket: socketPath, port, workdir, name }
 
--- | Changes TextEnvelope type to match private payment key one and tries to read that. 
+-- | Changes TextEnvelope type to match private payment key one and tries to read that.
 readTextEnvelopeAsPaymentSkey
   :: FilePath
   -> Effect Contract.Config.PrivatePaymentKey

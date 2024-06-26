@@ -31,7 +31,7 @@ type GetUtxoByOrefQuery =
   -> Aff (Either Contract.ClientError.ClientError (Maybe TransactionOutput))
 
 -- | Adds to the utxosAt results UTxOs found by cardano-cli but not found by the current 'utxosAt' query.
--- UTxOs found by cardano-cli assumed to have no datum or script ref. 
+-- UTxOs found by cardano-cli assumed to have no datum or script ref.
 withCardanoCliCompletion
   :: forall a
    . CardanoCli.CardanoNodeInstance
@@ -50,7 +50,7 @@ getUtxoByOrefL = prop (Proxy :: _ "handle") <<< prop
   (Proxy :: _ "getUtxoByOref")
 
 -- | Adds to the results UTxOs found by cardano-cli but not found by the given 'utxosAt' query.
--- UTxOs found by cardano-cli assumed to have no datum or script ref.  
+-- UTxOs found by cardano-cli assumed to have no datum or script ref.
 completeUtxosAt
   :: CardanoCli.CardanoNodeInstance
   -> UtxosAtQuery
@@ -70,8 +70,8 @@ completeUtxosAt node utxosAt address = runExceptT do
   kupoUtxos <- ExceptT $ utxosAt address
   pure $ Map.union kupoUtxos cardanoCliUtxos
 
--- | Adds to the results UTxOs found by cardano-cli but not found by the given 'utxosAt' query.
--- UTxOs found by cardano-cli assumed to have no datum or script ref.  
+-- | Adds to the results UTxOs found by cardano-cli but not found by the given 'getUtxoByOref' query.
+-- UTxOs found by cardano-cli assumed to have no datum or script ref.
 completeGetUtxoByOref -- FIXME
   :: CardanoCli.CardanoNodeInstance
   -> Address

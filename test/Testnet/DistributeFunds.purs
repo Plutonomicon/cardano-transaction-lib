@@ -15,7 +15,7 @@ import Ctl.Internal.Testnet.DistributeFunds
 import Ctl.Internal.Testnet.DistributeFunds as Distribute
 import Data.Bifunctor (lmap)
 import Data.Lens (over, set, view, (%~), (+~), (-~), (.~), (^.))
-import Data.List (List(..))
+import Data.List (List(Cons))
 import Data.List as List
 import Mote (group, test)
 import Test.Spec.Assertions (shouldEqual)
