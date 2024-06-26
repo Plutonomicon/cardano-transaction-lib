@@ -28,7 +28,7 @@ import Contract.Prelude
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (class MonadError, catchError, throwError)
 import Control.Monad.Rec.Class
-  ( Step(..)
+  ( Step(Done, Loop)
   , tailRecM
   )
 import Control.Parallel
@@ -36,7 +36,7 @@ import Control.Parallel
   , sequential
   )
 import Ctl.Internal.Plutip.Spawn
-  ( ManagedProcess(..)
+  ( ManagedProcess(ManagedProcess)
   , OnSignalRef
   , removeOnSignal
   , waitForSignal
@@ -44,7 +44,7 @@ import Ctl.Internal.Plutip.Spawn
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Data.Array as Array
 import Data.Map as Map
-import Data.Posix.Signal (Signal(..))
+import Data.Posix.Signal (Signal(SIGINT))
 import Data.Time.Duration (Milliseconds)
 import Effect (Effect)
 import Effect.Aff (try)

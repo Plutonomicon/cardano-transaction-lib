@@ -1,6 +1,6 @@
 module Ctl.Internal.Testnet.Utils
-  ( findNodeDirs
-  , waitForTestnet872Workdir
+  ( find811TestnetWorkir
+  , findNodeDirs
   , findTestnetPaths
   , getNodePort
   , getRuntime
@@ -8,8 +8,9 @@ module Ctl.Internal.Testnet.Utils
   , onTestnetEvent
   , parseEvent
   , readNodes
-  , waitFor
   , read872GenesisKey
+  , waitFor
+  , waitForTestnet872Workdir
   ) where
 
 import Contract.Prelude
@@ -29,7 +30,7 @@ import Control.Monad.Error.Class
   , throwError
   )
 import Control.Monad.Except (lift, runExceptT)
-import Control.Monad.Rec.Class (Step(..), tailRecM)
+import Control.Monad.Rec.Class (Step(Done, Loop), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Plutip.Utils
   ( EventSource
@@ -37,17 +38,17 @@ import Ctl.Internal.Plutip.Utils
   , waitForEvent
   )
 import Ctl.Internal.Testnet.Types
-  ( Event(..)
+  ( Event(Ready872, Finished, StartupFailed)
   , GenesisUtxoKeyLocation
   , Node
   , NodeLocation
-  , StartupFailure(..)
+  , StartupFailure(InitializationFailed, SpawnFailed)
   , TestnetPaths
   , TestnetRuntime
   )
 import Data.Array as Array
 import Data.Int as Int
-import Data.String (Pattern(..))
+import Data.String (Pattern(Pattern))
 import Data.String as String
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -231,7 +232,7 @@ findNodeDirs { workdir } = ado
       idx <- Int.fromString =<< node872 dirname
       in { idx, workdir: workdir <</>> dirname, name: dirname }
   where
-  node881 x =
+  _node881 x =
     String.stripPrefix (Pattern "node-bft") x
       <|> String.stripPrefix (Pattern "node-pool") x
   node872 = String.stripPrefix (Pattern "node-spo")
@@ -241,7 +242,7 @@ findTestnetPaths
 findTestnetPaths { workdir } = runExceptT do
   let
     nodeConfigPath = workdir <</>> "configuration.yaml"
-    firstNode811 = "socket/node-pool1"
+    _firstNode811 = "socket/node-pool1"
     firstNode872 = "socket/node-spo1"
     nodeSocketPath = workdir <</>> firstNode872
   workdirExists <- lift $ Node.FS.exists workdir

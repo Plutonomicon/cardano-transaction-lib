@@ -24,7 +24,7 @@ import Data.Bifunctor (class Bifunctor, bimap)
 import Data.Lens (Lens', view, (%~), (+~), (-~), (.~), (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
-import Data.List (List(..))
+import Data.List (List(Cons, Nil))
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map

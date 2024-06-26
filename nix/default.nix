@@ -333,7 +333,7 @@ let
   #
   #  - `ogmios`
   #  - `kupo`
-  #  - `plutip-server`
+  #  - `cardano-testnet`
   #
   runPlutipTest =
     args:
@@ -341,8 +341,12 @@ let
       args // {
         buildInputs = with pkgs; [
           ogmios-plutip
-          plutip-server
           kupo
+          cardano-testnet
+          cardano-node
+          cardano-cli
+          psmisc
+          plutip-server
         ]
         ++ (args.buildInputs or [ ]);
       }

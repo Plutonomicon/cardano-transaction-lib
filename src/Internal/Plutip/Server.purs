@@ -556,8 +556,10 @@ startOgmios
 startOgmios cfg params = do
   spawn "ogmios" ogmiosArgs defaultSpawnOptions
     $ Just
-    $ String.indexOf (Pattern "networkParameters")
+    $ _.output
+    >>> String.indexOf (Pattern "networkParameters")
     >>> maybe NoOp (const Success)
+    >>> pure
   where
   ogmiosArgs :: Array String
   ogmiosArgs =
@@ -603,7 +605,11 @@ startKupo cfg params cleanupRef = do
   spawnKupoProcess :: FilePath -> Aff ManagedProcess
   spawnKupoProcess workdir =
     spawn "kupo" (kupoArgs workdir) defaultSpawnOptions $
-      Just (String.indexOf outputString >>> maybe NoOp (const Success))
+      Just
+        ( _.output >>> String.indexOf outputString
+            >>> maybe NoOp (const Success)
+            >>> pure
+        )
     where
     outputString :: Pattern
     outputString = Pattern "ConfigurationCheckpointsForIntersection"

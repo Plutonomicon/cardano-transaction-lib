@@ -1,45 +1,32 @@
 module Ctl.Internal.Testnet.Server
-  ( checkTestnet
-  , runTestnetTestPlan
-  , redirectChannels
-  , startTestnet
-  , stopTestnet
-  , startCardanoTestnet
-  , testTestnetContracts
-  , startTestnetCluster
+  ( Channels
   , StartedTestnetCluster(MkStartedTestnetCluster)
-  , Channels
+  , startTestnetCluster
   ) where
 
 import Contract.Prelude
 
-import Contract.Test.Mote (TestPlanM)
 import Control.Alt ((<|>))
 import Control.Apply (applySecond)
-import Control.Monad.Error.Class (liftMaybe, throwError, try)
-import Control.Monad.Rec.Class (Step(..), tailRecM)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Rec.Class (Step(Loop), tailRecM)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Server (execDistribution, startKupo, startOgmios)
-import Ctl.Internal.Plutip.Spawn (ManagedProcess(..), _rmdirSync, killProcessWithPort, spawn, stop)
-import Ctl.Internal.Plutip.Types (ClusterStartupParameters, PlutipConfig, StopClusterResponse)
-import Ctl.Internal.Plutip.Utils (EventSource, addCleanup, annotateError, mkDirIfNotExists, onLine, runCleanup, scheduleCleanup, suppressAndLogErrors, tmpdir, tryAndLogErrors, waitForClose, waitForError, waitForEvent, waitUntil)
-import Ctl.Internal.Test.ContractTest (ContractTest, ContractTestPlan(ContractTestPlan))
-import Ctl.Internal.Test.UtxoDistribution (InitialUTxODistribution)
+import Ctl.Internal.Plutip.Server (startKupo, startOgmios, stopChildProcessWithPort)
+import Ctl.Internal.Plutip.Spawn (ManagedProcess(ManagedProcess), NewOutputAction(NoOp, Success), _rmdirSync, killProcessWithPort, spawn)
+import Ctl.Internal.Plutip.Utils (EventSource, addCleanup, annotateError, onLine, runCleanup, scheduleCleanup, suppressAndLogErrors, tmpdir, tryAndLogErrors, waitForClose, waitForError, waitForEvent, waitUntil)
 import Ctl.Internal.Testnet.Types (CardanoTestnetStartupParams, KupmiosConfig, Node, TestnetPaths)
-import Ctl.Internal.Testnet.Types as Testnet.Types
-import Ctl.Internal.Testnet.Utils (findNodeDirs, findTestnetPaths, getRuntime, readNodes, waitForTestnet872Workdir)
-import Ctl.Internal.Wallet.Key (PrivatePaymentKey)
+import Ctl.Internal.Testnet.Utils (findNodeDirs, findTestnetPaths, getRuntime, readNodes)
 import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Time.Duration (Milliseconds(..))
-import Data.Tuple.Nested (type (/\))
+import Data.String (Pattern(Pattern))
+import Data.String (stripPrefix, trim) as String
+import Data.Time.Duration (Milliseconds(Milliseconds))
 import Debug (spy)
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
 import Effect.Exception (Error, error)
-import Effect.Exception.Unsafe (unsafeThrow)
-import Effect.Random (randomInt)
 import Effect.Ref (Ref)
+import Effect.Ref (new, read, write) as Ref
 import Foreign.Object as Object
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.ChildProcess as Node.ChildProcess
@@ -47,67 +34,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 import Node.Process as Node.Process
-
--- | Run several `Contract`s in tests in a (single) Testnet environment (cardano-testnet, kupo, etc.).
--- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
--- |       Namely, brackets are run for each of the top-level groups and tests
--- |       inside the bracket.
--- |       If you wish to only set up Testnet once, ensure all tests that are passed
--- |       to `testTestnetContracts` are wrapped in a single group.
-testTestnetContracts
-  :: PlutipConfig
-  -> TestPlanM ContractTest Unit
-  -> TestPlanM (Aff Unit) Unit
-testTestnetContracts testnetCfg tp = unsafeThrow "testTestnetContracts"
-  -- tp' <- lift $ execDistribution tp
-
--- | Run a `ContractTestPlan` in a (single) Testnet environment.
--- | Supports wallet reuse - see docs on sharing wallet state between
--- | wallets in `doc/plutip-testing.md`.
-runTestnetTestPlan
-  :: PlutipConfig
-  -> ContractTestPlan
-  -> TestPlanM (Aff Unit) Unit
-runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) =
-  unsafeThrow "runTestnetTestPlan"
-    startCardanoTestnet
-
-{-
--- | Run a `ContractTestPlan` in a (single) Testnet environment.
--- | Supports wallet reuse - see docs on sharing wallet state between
--- | wallets in `doc/plutip-testing.md`.
-runTestnetTestPlan
-  :: PlutipConfig
-  -> ContractTestPlan
-  -> TestPlanM (Aff Unit) Unit
-runTestnetTestPlan plutipCfg (ContractTestPlan runContractTestPlan) =
-  runContractTestPlan \distr tests ->
-    moteBracket (startTestnet
-
-  where
-  -- `MoteT`'s bracket doesn't support supplying the constructed resource into
-  -- the main action, so we use a `Ref` to store and read the result.
-  moteBracket
-    :: forall (a :: Type) (b :: Type)
-     . Aff a
-    -> Aff Unit
-    -> TestPlanM (a -> Aff b) Unit
-    -> TestPlanM (Aff b) Unit
-  moteBracket before' after' act = do
-    resultRef <- liftEffect $ Ref.new (Left $ error "Plutip not initialized")
-    let
-      before = do
-        res <- try $ before'
-        liftEffect $ Ref.write res resultRef
-        pure res
-      after = const $ after'
-    Mote.bracket { before, after } $ flip mapTest act \t -> do
-      result <- liftEffect $ Ref.read resultRef >>= liftEither
-      t result
--}
-
-checkTestnet :: PlutipConfig -> Aff Unit
-checkTestnet cfg = unsafeThrow "checkTestnet"
 
 type Channels a =
   { stderr :: EventSource a
@@ -151,14 +77,7 @@ startTestnetCluster startupParams cleanupRef = do
   } <- annotateError "Could not start cardano-testnet"
     $ startCardanoTestnet startupParams cleanupRef
 
-  -- testnetEvents <- liftEffect $ onTestnetEvent channels.stdout
-  -- it will crash right here uncatchable if testnet process will die
-  log "Waiting for Ready state"
-  -- waitFor testnetEvents case _ of
-  --   Testnet.Types.Ready -> Just unit
-  --   _ -> Nothing
-
-  { runtime, paths } <- waitUntil (Milliseconds 4000.0)
+  { paths } <- waitUntil (Milliseconds 4000.0)
     $ map hush
     $ tryAndLogErrors "Waiting for ready state"
     $ liftEffect do
@@ -166,8 +85,6 @@ startTestnetCluster startupParams cleanupRef = do
         paths <- liftEither =<< findTestnetPaths { workdir: workdirAbsolute }
         runtime <- getRuntime paths
         pure { runtime, paths }
-
-  log "Testnet is ready"
 
   ogmios <- annotateError "Could not start ogmios"
     $ startOgmios' { paths, workdir: workdirAbsolute }
@@ -187,13 +104,9 @@ startTestnetCluster startupParams cleanupRef = do
       scheduleCleanup
         cleanupRef
         (startKupo startupParams paths cleanupRef)
-        $ fst
-        >>> stop
+        (stopChildProcessWithPort startupParams.kupoConfig.port <<< fst)
 
-    _ <- Aff.forkAff do
-      waitForClose kupo
-      runCleanup cleanupRef
-      throwError $ error "kupo process has exited"
+    void $ Aff.forkAff (waitForClose kupo *> runCleanup cleanupRef)
 
     kupoChannels <- liftEffect $ getChannels kupo
     _ <- redirectChannels
@@ -208,14 +121,13 @@ startTestnetCluster startupParams cleanupRef = do
     pure { process: kupo, workdir: kupoWorkdir, channels: kupoChannels }
 
   startOgmios' { paths, workdir } = do
-    ogmios <- scheduleCleanup
-      cleanupRef
-      (startOgmios startupParams paths)
-      stop
-    _ <- Aff.forkAff do
-      waitForClose ogmios
-      runCleanup cleanupRef
-      throwError $ error "ogmios process has exited"
+    ogmios <-
+      scheduleCleanup
+        cleanupRef
+        (startOgmios startupParams paths)
+        (stopChildProcessWithPort startupParams.ogmiosConfig.port)
+
+    void $ Aff.forkAff (waitForClose ogmios *> runCleanup cleanupRef)
 
     ogmiosChannels <- liftEffect $ getChannels ogmios
     _ <- redirectChannels
@@ -229,29 +141,20 @@ startTestnetCluster startupParams cleanupRef = do
       }
     pure { process: ogmios, channels: ogmiosChannels }
 
-startTestnet
-  :: PlutipConfig
-  -> InitialUTxODistribution
-  -> Aff (ManagedProcess /\ PrivatePaymentKey /\ ClusterStartupParameters)
-startTestnet _ = unsafeThrow "startTestnet"
-
-stopTestnet :: PlutipConfig -> Aff StopClusterResponse
-stopTestnet cfg = unsafeThrow "stopTestnet"
-
 -- | Runs cardano-testnet executable with provided params.
 spawnCardanoTestnet
   :: forall r
    . { cwd :: FilePath }
   -> { | CardanoTestnetStartupParams r }
-  -> Aff ManagedProcess
+  -> Aff { testnet :: ManagedProcess, workspace :: FilePath }
 spawnCardanoTestnet { cwd } params = do
   env <- liftEffect Node.Process.getEnv
-  initCwd <- liftMaybe (error "Couldn't find INIT_CWD env variable")
-    $ Object.lookup "INIT_CWD" env
+  -- initCwd <- liftMaybe (error "Couldn't find INIT_CWD env variable")
+  --   $ Object.lookup "INIT_CWD" env
   let
     env' = Object.fromFoldable
       [ "TMPDIR" /\ cwd -- only for 8.1.1; 8.7.2 puts it's testnet directory into cwd instead
-      , "CARDANO_NODE_SRC" /\ (initCwd <</>> "cardano-testnet-files")
+      -- , "CARDANO_NODE_SRC" /\ (initCwd <</>> "cardano-testnet-files")
       , "CARDANO_CLI" /\ "cardano-cli"
       , "CREATE_SCRIPT_CONTEXT" /\ "create-script-context"
       , "CARDANO_NODE" /\ "cardano-node"
@@ -260,12 +163,18 @@ spawnCardanoTestnet { cwd } params = do
       ]
     opts = defaultSpawnOptions
       { cwd = Just cwd, env = Just $ Object.union env' env }
-  -- log $ show env
-  spawn
-    "cardano-testnet"
-    (spy "cardano-testnet options: " options)
-    opts
-    Nothing
+  workspaceRef <- liftEffect $ Ref.new mempty
+  ps <- spawn "cardano-testnet" (spy "cardano-testnet options: " options) opts $
+    Just
+      ( \{ line } ->
+          case String.stripPrefix (Pattern "Workspace: ") (String.trim line) of
+            Nothing -> pure NoOp
+            Just workspace -> do
+              void $ Ref.write workspace workspaceRef
+              pure Success
+      )
+  workspace <- liftEffect $ Ref.read workspaceRef
+  pure { testnet: ps, workspace }
   where
   flag :: String -> String
   flag name = "--" <> name
@@ -303,68 +212,28 @@ startCardanoTestnet
        , nodes :: Array { | Node () }
        }
 startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
-
-  testDir <- liftEffect do
-    tmp <- tmpdir
-    log $ show { tmp }
-    testId <- randomInt 0 999 -- FIXME:
-    let dir = tmp <</>> "testnet-" <> show testId
-    mkDirIfNotExists dir
-    log $ show { dir }
-    pure dir
-
-  let
-    tmpLogDir = testDir <</>> "logs"
-    tmpStdoutLogs = tmpLogDir <</>> "cardano-testnet.stdout.tmp.log"
-    tmpStderrLogs = tmpLogDir <</>> "cardano-testnet.stderr.tmp.log"
-    cleanupTmpLogs = do
-      void $ try $ Node.FS.rm tmpStdoutLogs
-      void $ try $ Node.FS.rm tmpStderrLogs
-
-  testnet <- spawnCardanoTestnet { cwd: testDir } params
+  tmpDir <- liftEffect tmpdir
+  { testnet, workspace } <- spawnCardanoTestnet { cwd: tmpDir } params
   channels <- liftEffect $ getChannels testnet
 
-  -- Additional logging channels
-  _ <- Aff.forkAff $ annotateError "startCardanoTestnet:waitForFail" do
-    let
-      waitError = Just <$> waitForError testnet
-      waitClose = Nothing <$ waitForClose testnet
-    cause <- waitError <|> waitClose
-    runCleanup cleanupRef
-    throwError $ fromMaybe (error "cardano-testnet process has exited") cause
+  void $ Aff.forkAff $ annotateError "startCardanoTestnet:waitForErrorOrClose"
+    do
+      let
+        waitError = Just <$> waitForError testnet
+        waitClose = Nothing <$ waitForClose testnet
+      cause <- waitError <|> waitClose
+      runCleanup cleanupRef
+      throwError $ fromMaybe (error "cardano-testnet process has exited") cause
 
-  liftEffect $ mkDirIfNotExists tmpLogDir
-  tempOutput <- redirectChannels
-    { stderr: channels.stderr, stdout: channels.stdout }
-    { stdoutTo: { log: Just tmpStdoutLogs, console: Just "[node][stdout]" }
-    , stderrTo: { log: Just tmpStderrLogs, console: Just "[node][stderr]" }
-    }
-  log "Redirected logs"
+  nodes <-
+    waitUntil (Milliseconds 3000.0) $ liftEffect do
+      hush <$> tryAndLogErrors "startCardanoTestnet:waitForNodes" do
+        nodeDirs <- findNodeDirs { workdir: workspace }
+        readNodes { testnetDirectory: workspace, nodeDirs }
 
-  -- -- It may not create an own directory until show any signs of life 
-  -- _ <- waitForEvent channels.stdout
-  log "Waiting until testnet create it's own workdir"
-  -- forward node's stdout
-  workdirAbsolute <-
-    map (_.workdir >>> (testDir <</>> _)) -- workdir name to abs path
-
-      $ waitForTestnet872Workdir channels.stdout { tmpdir: testDir }
-  Aff.killFiber (error "Temp output is not needed anymore") tempOutput
-
-  -- cardano-testnet doesn't kill cardano-nodes it spawns, so we do it ourselves
-  log "Waiting for node sockets"
-  nodes <- waitUntil (Milliseconds 3000.0)
-    $ liftEffect
-    $ map hush
-    $ tryAndLogErrors "waiting until nodes are there" do
-
-        nodeDirs <- findNodeDirs { workdir: workdirAbsolute }
-        readNodes { testnetDirectory: workdirAbsolute, nodeDirs }
-
-  for_ nodes \{ port } -> do
-    liftEffect
-      $ addCleanup cleanupRef
-      $ killProcessWithPort port
+  liftEffect $
+    for_ nodes \{ port } ->
+      addCleanup cleanupRef (killProcessWithPort port)
 
   -- clean up on SIGINT
   do
@@ -378,22 +247,22 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
       $ addCleanup cleanupRef
       $ liftEffect do
           log "Cleaning up workidr"
-          cleanupTmpLogs
-          _rmdirSync workdirAbsolute
+          _rmdirSync workspace
 
   _ <- redirectChannels
     { stderr: channels.stderr, stdout: channels.stdout }
     { stdoutTo:
-        { log: Just $ workdirAbsolute <</>> "cardano-testnet.stdout.log"
+        { log: Just $ workspace <</>> "cardano-testnet.stdout.log"
         , console: Nothing
         }
     , stderrTo:
-        { log: Just $ workdirAbsolute <</>> "cardano-testnet.stderr.log"
+        { log: Just $ workspace <</>> "cardano-testnet.stderr.log"
         , console: Nothing
         }
     }
+
   log "startCardanoTestnet:done"
-  pure { testnet, workdirAbsolute, channels, nodes }
+  pure { testnet, workdirAbsolute: workspace, channels, nodes }
 
 getChannels
   :: ManagedProcess

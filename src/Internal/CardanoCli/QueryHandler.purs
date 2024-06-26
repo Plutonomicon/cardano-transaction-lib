@@ -6,13 +6,13 @@ import Contract.Prelude
 
 import Cardano.Types as Cardano.Types
 import Cardano.Types.Address (Address)
-import Cardano.Types.TransactionInput (TransactionInput(..))
-import Cardano.Types.TransactionOutput (TransactionOutput(..))
+import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionOutput (TransactionOutput)
 import Contract.ClientError as Contract.ClientError
 import Contract.Monad (Contract, ContractEnv)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (try)
-import Control.Monad.Except (ExceptT(..), runExceptT)
+import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad.Reader (local)
 import Ctl.Internal.CardanoCli as CardanoCli
 import Data.Bifunctor (bimap)
@@ -20,7 +20,7 @@ import Data.Lens (Lens', (%~))
 import Data.Lens.Record (prop)
 import Data.Map as Map
 import Effect.Exception (Error, message)
-import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(Proxy))
 
 type UtxosAtQuery =
   Cardano.Types.Address
@@ -39,13 +39,15 @@ withCardanoCliCompletion
   -> Contract a
   -> Contract a
 withCardanoCliCompletion node genesisAddr =
-  local $ (utxosAtL %~ completeUtxosAt node) >>> (getUtxoByOrefL %~ completeGetUtxoByOref node genesisAddr) 
+  local $ (utxosAtL %~ completeUtxosAt node) >>>
+    (getUtxoByOrefL %~ completeGetUtxoByOref node genesisAddr)
 
 utxosAtL :: Lens' ContractEnv UtxosAtQuery
 utxosAtL = prop (Proxy :: _ "handle") <<< prop (Proxy :: _ "utxosAt")
 
 getUtxoByOrefL :: Lens' ContractEnv GetUtxoByOrefQuery
-getUtxoByOrefL = prop (Proxy :: _ "handle") <<< prop (Proxy :: _ "getUtxoByOref") 
+getUtxoByOrefL = prop (Proxy :: _ "handle") <<< prop
+  (Proxy :: _ "getUtxoByOref")
 
 -- | Adds to the results UTxOs found by cardano-cli but not found by the given 'utxosAt' query.
 -- UTxOs found by cardano-cli assumed to have no datum or script ref.  
@@ -88,4 +90,4 @@ completeGetUtxoByOref node address getUtxoByOref oref = runExceptT do
     $ try
     $ CardanoCli.queryUtxosViaCardanoCli node address
   mUtxo <- ExceptT $ getUtxoByOref oref
-  pure $ mUtxo <|> Map.lookup oref cardanoCliUtxos 
+  pure $ mUtxo <|> Map.lookup oref cardanoCliUtxos

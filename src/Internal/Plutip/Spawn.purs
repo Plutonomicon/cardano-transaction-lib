@@ -19,10 +19,7 @@ module Ctl.Internal.Plutip.Spawn
 
 import Contract.Prelude
 
-import Control.Monad.Error.Class
-  ( liftMaybe
-  , throwError
-  )
+import Control.Monad.Error.Class (liftMaybe, throwError)
 import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
 import Ctl.Internal.Plutip.Types (FilePath)
 import Data.Either (Either(Left))
@@ -33,6 +30,7 @@ import Data.Posix.Signal as Signal
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt as UInt
+import Debug (traceM)
 import Effect (Effect)
 import Effect.AVar (AVar)
 import Effect.AVar (empty, tryPut) as AVar
@@ -49,12 +47,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref as Ref
 import Node.Buffer as Node.Buffer
-import Node.ChildProcess
-  ( ChildProcess
-  , SpawnOptions
-  , kill
-  , stdout
-  )
+import Node.ChildProcess (ChildProcess, SpawnOptions, kill, stdout, stderr)
 import Node.ChildProcess as ChildProcess
 import Node.ChildProcess as Node.ChildProcess
 import Node.ReadLine (Interface, close, createInterface, setLineHandler) as RL
@@ -78,7 +71,7 @@ spawn
   :: String
   -> Array String
   -> SpawnOptions
-  -> Maybe (String -> NewOutputAction)
+  -> Maybe ({ output :: String, line :: String } -> Effect NewOutputAction)
   -> Aff ManagedProcess
 spawn cmd args opts mbFilter =
   makeAff (spawn' cmd args opts mbFilter)
@@ -87,7 +80,7 @@ spawn'
   :: String
   -> Array String
   -> SpawnOptions
-  -> Maybe (String -> NewOutputAction)
+  -> Maybe ({ output :: String, line :: String } -> Effect NewOutputAction)
   -> (Either Error ManagedProcess -> Effect Unit)
   -> Effect Canceler
 spawn' cmd args opts mbFilter cont = do
@@ -95,6 +88,9 @@ spawn' cmd args opts mbFilter cont = do
   let fullCmd = cmd <> foldMap (" " <> _) args
   closedAVar <- AVar.empty
   interface <- RL.createInterface (stdout child) mempty
+  stderrInterface <- RL.createInterface (stderr child) mempty
+  flip RL.setLineHandler stderrInterface \str -> do
+    traceM $ "stderr: " <> str
   outputRef <- Ref.new ""
   ChildProcess.onClose child \code -> do
     RL.close interface
@@ -117,7 +113,7 @@ spawn' cmd args opts mbFilter cont = do
       flip RL.setLineHandler interface
         \str -> do
           output <- Ref.modify (_ <> str <> "\n") outputRef
-          case filter output of
+          filter { output, line: str } >>= case _ of
             Success -> do
               clearLineHandler interface
               cont (pure mp)
@@ -146,7 +142,7 @@ exec cmd = Aff.makeAff \cont -> do
   let
     isCanceled = Ref.read isCanceledRef
     markCanceled = Ref.write true isCanceledRef
-  log $ show { exec: cmd }
+  -- log $ show { exec: cmd }
   process <- Node.ChildProcess.exec
     cmd
     Node.ChildProcess.defaultExecOptions

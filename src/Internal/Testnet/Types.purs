@@ -1,10 +1,10 @@
 module Ctl.Internal.Testnet.Types
   ( CardanoTestnetStartupParams
-  , Era(..)
-  , LoggingFormat(..)
+  , Era(Byron, Shelley, Allegra, Mary, Alonzo, Babbage)
+  , LoggingFormat(LogAsJson, LogAsText)
   , TestnetPaths
-  , Event(..)
-  , StartupFailure(..)
+  , Event(Ready872, Finished, Failed, StartupFailed)
+  , StartupFailure(SpawnFailed, InitializationFailed)
   , KupmiosConfig
   , NodeLocation
   , Node

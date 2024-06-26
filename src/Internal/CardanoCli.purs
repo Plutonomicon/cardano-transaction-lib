@@ -140,7 +140,7 @@ execCardanoCli
        }
 execCardanoCli params = annotateError "execCardanoCli" do
   let cmd = "cardano-cli " <> intercalate " " params
-  log $ show { execCardanoCli: cmd }
+  -- log $ show { execCardanoCli: cmd }
   { channels, process } <- Ctl.Internal.Plutip.Spawn.exec cmd
   let
     bufferToLines =

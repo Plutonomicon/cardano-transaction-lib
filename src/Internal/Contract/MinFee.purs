@@ -31,7 +31,9 @@ calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
   pparams <- getProtocolParameters
-  append (wrap $ BigNum.fromInt 1_000_000) <$> calculateMinFeeCsl pparams selfSigners tx
+  append (wrap $ BigNum.fromInt 1_000_000) <$> calculateMinFeeCsl pparams
+    selfSigners
+    tx
 
 -- | This function estimates the set of keys that must be used
 -- | for signing to make the transaction valid for the network.

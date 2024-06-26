@@ -187,6 +187,7 @@
               packages = with pkgs; [
                 arion
                 fd
+                psmisc
                 nixpkgs-fmt
                 nodePackages.eslint
                 nodePackages.prettier
@@ -323,6 +324,9 @@
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
                 ogmios-plutip = cardano-nix.packages.${system}."ogmios-6.0.3";
                 ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
+                cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
+                cardano-node = cardano-node.packages.${system}.cardano-node;
+                cardano-cli = cardano-node.packages.${system}.cardano-cli;
                 kupo = inputs.kupo-nixos.packages.${system}.kupo;
                 # kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
