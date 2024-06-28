@@ -30,9 +30,7 @@ defaultTestnetConfig =
   , clusterConfig:
       { testnetMagic: 2
       , era: Babbage
-      , slotLength: Seconds 0.1 -- FIXME
-      , epochSize: Nothing -- FIXME
-      , maxTxSize: Nothing -- FIXME
-      , raiseExUnitsToMax: false -- FIXME
+      , slotLength: Seconds 0.1
+      , epochSize: Nothing
       }
   }

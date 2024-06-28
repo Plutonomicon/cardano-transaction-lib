@@ -233,11 +233,11 @@
               buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
               # buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
             };
-            ctl-plutip-test = project.runPlutipTest {
+            ctl-testnet-test = project.runLocalTestnetTest {
               name = "ctl-plutip-test";
               testMain = "Test.Ctl.Plutip";
             };
-            ctl-staking-test = project.runPlutipTest {
+            ctl-staking-test = project.runLocalTestnetTest {
               name = "ctl-staking-test";
               testMain = "Test.Ctl.Plutip.Staking";
             };
@@ -322,7 +322,6 @@
               {
                 plutip-server =
                   (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
-                ogmios-plutip = cardano-nix.packages.${system}."ogmios-6.0.3";
                 ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
                 cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
                 cardano-node = cardano-node.packages.${system}.cardano-node;

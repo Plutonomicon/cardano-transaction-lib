@@ -29,14 +29,14 @@ import Contract.Staking
   , getValidatorHashDelegationsAndRewards
   )
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Contract.Test.Plutip (runPlutipContract, withStakeKey)
+import Contract.Test.Plutip (withStakeKey)
+import Contract.Test.Testnet (defaultTestnetConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getCurrentEpoch)
 import Contract.Transaction
   ( Epoch(Epoch)
   , PoolPubKeyHash(PoolPubKeyHash)
   , balanceTx
-  , mkPoolPubKeyHash
   , signTransaction
   )
 import Contract.TxConstraints
@@ -68,7 +68,8 @@ import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.Helpers (submitAndLog)
 import Ctl.Examples.IncludeDatum (only42Script)
-import Data.Array (head, (!!))
+import Ctl.Internal.Testnet.Contract (runTestnetContract)
+import Data.Array (head)
 import Data.Array as Array
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -88,10 +89,8 @@ import Effect.Aff
   , launchAff
   )
 import Effect.Aff.Class (liftAff)
-import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Mote (group, skip, test)
-import Test.Ctl.Plutip.Common (config) as Common
 import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
@@ -105,15 +104,8 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 suite :: TestPlanM (Aff Unit) Unit
 suite = do
-  -- We must never select this pool, because it retires at the third epoch
-  -- (this is Plutip internal knowledge)
-  -- https://github.com/mlabs-haskell/plutip/blob/7f2d59abd911dd11310404863cdedb2886902ebf/src/Test/Plutip/Internal/Cluster.hs#L692
-  retiringPoolId <- liftEffect $ liftM (error "unable to decode poolId bech32")
-    $ mkPoolPubKeyHash
-        "pool1rv7ur8r2hz02lly9q8ehtwcrcydl3m2arqmndvwcqsfavgaemt6"
   let
-    -- A routine function that filters out retiring pool from the list of available
-    -- pools
+    -- A routine function that selects a pool from the list of available pools
     selectPoolId :: Contract PoolPubKeyHash
     selectPoolId = do
       pools <- getPoolIds
@@ -122,8 +114,7 @@ suite = do
       for_ pools \poolId -> do
         logInfo' "Pool parameters"
         logInfo' <<< show =<< getPoolParameters poolId
-      liftM (error "unable to get any pools")
-        (Array.filter (_ /= retiringPoolId) pools !! 1)
+      liftM (error "unable to get any pools") $ head pools
   group "Staking" do
     group "Stake keys: register & deregister" do
       test "PubKey" do
@@ -132,7 +123,7 @@ suite = do
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
-        runPlutipContract config distribution $ flip withKeyWallet do
+        runTestnetContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
               <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
@@ -172,7 +163,7 @@ suite = do
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
-        runPlutipContract config distribution $ flip withKeyWallet do
+        runTestnetContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
               <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
@@ -222,7 +213,7 @@ suite = do
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
-        runPlutipContract config distribution $ flip withKeyWallet do
+        runTestnetContract config distribution $ flip withKeyWallet do
           alicePkh /\ aliceStakePkh <- do
             Tuple
               <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
@@ -266,7 +257,7 @@ suite = do
           [ BigNum.fromInt 1_000_000_000
           , BigNum.fromInt 2_000_000_000
           ]
-      runPlutipContract config distribution \alice -> withKeyWallet alice do
+      runTestnetContract config distribution \alice -> withKeyWallet alice do
         alicePkh /\ aliceStakePkh <- Tuple
           <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
           <*> liftedM "Failed to get Stake PKH"
@@ -385,7 +376,7 @@ suite = do
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
-        runPlutipContract config distribution \alice ->
+        runTestnetContract config distribution \alice ->
           withKeyWallet alice do
             alicePkh /\ aliceStakePkh <- Tuple
               <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
@@ -494,7 +485,7 @@ suite = do
                 [ BigNum.fromInt 1_000_000_000
                 , BigNum.fromInt 2_000_000_000
                 ]
-        runPlutipContract config distribution \(alice /\ bob) -> do
+        runTestnetContract config distribution \(alice /\ bob) -> do
           bobPkh /\ bobStakePkh <- withKeyWallet bob do
             Tuple
               <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
@@ -604,7 +595,7 @@ suite = do
           [ BigNum.fromInt 1_000_000_000
           , BigNum.fromInt 2_000_000_000
           ]
-      runPlutipContract config distribution \alice ->
+      runTestnetContract config distribution \alice ->
         withKeyWallet alice do
           alicePkh /\ aliceStakePkh <- Tuple
             <$> liftedM "Failed to get PKH" (head <$> ownPaymentPubKeyHashes)
@@ -687,11 +678,9 @@ suite = do
             rewardsAfter `shouldSatisfy` \after -> after < rewardsBefore
   where
   config =
-    Common.config
+    defaultTestnetConfig
       { clusterConfig =
-          Common.config.clusterConfig
-            -- changing these constants breaks rewards
-            -- https://github.com/mlabs-haskell/plutip/issues/149
+          defaultTestnetConfig.clusterConfig
             { slotLength = Seconds 0.05
             , epochSize = Just $ UInt.fromInt 80
             }

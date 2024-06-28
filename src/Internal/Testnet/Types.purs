@@ -44,8 +44,8 @@ type TestnetClusterConfig =
   , era :: Era
   , slotLength :: Seconds
   , epochSize :: Maybe UInt
-  , maxTxSize :: Maybe UInt
-  , raiseExUnitsToMax :: Boolean
+  -- FIXME: , maxTxSize :: Maybe UInt
+  -- FIXME: , raiseExUnitsToMax :: Boolean
   }
 
 data Era

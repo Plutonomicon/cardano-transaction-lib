@@ -50,11 +50,11 @@ import Ctl.Internal.Testnet.Utils
   , getRuntime
   , readNodes
   )
-import Data.Array as Array
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.String (Pattern(Pattern))
 import Data.String (stripPrefix, trim) as String
 import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.UInt (toString) as UInt
 import Debug (spy)
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
@@ -212,26 +212,16 @@ spawnCardanoTestnet { cwd } params = do
   option :: forall a. Show a => String -> a -> Array String
   option name value = [ flag name, show value ]
 
-  _moption :: forall a. Show a => String -> Maybe a -> Array String
-  _moption name value = option name =<< Array.fromFoldable value
-
-  -- FIXME
   options :: Array String
   options = join
     [ [ "cardano" ]
     , option "testnet-magic" params.testnetMagic
     , [ flag $ show params.era ]
+    , option "slot-length" $ unwrap params.slotLength
+    , maybe mempty
+        (\epochSize -> [ flag "epoch-length", UInt.toString epochSize ])
+        params.epochSize
     ]
-
-{-
-, moption "active-slots-coeff" params.activeSlotsCoeff
-, moption "enable-p2p" params.enableP2p
-, moption "nodeLoggingFormat" params.nodeLoggingFormat
-, moption "num-pool-nodes" params.numPoolNodes
-, moption "epoch-length" params.epochLength
-, moption "slot-length" params.slotLength
-]
--}
 
 startCardanoTestnet
   :: TestnetClusterConfig

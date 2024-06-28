@@ -89,10 +89,10 @@ let
     , packageLockOnly ? false
       # If `true`, all of CTL's runtime dependencies will be added to the
       # shell's `packages`. These packages are *required* if you plan on running
-      # Plutip tests in your local shell environment (that is, not using Nix
-      # directly as with `runPlutipTest`). Make sure you have applied
-      # `overlays.runtime` or otherwise added the runtime packages to your
-      # package set if you select this option!
+      # cardano-testnet tests in your local shell environment (that is, not
+      # using Nix directly as with `runLocalTestnetTest`). Make sure you have
+      # applied `overlays.runtime` or otherwise added the runtime packages to
+      # your package set if you select this option!
     , withRuntime ? true
       # If `true`, the `chromium` package from your package set will be made
       # available in the shell environment. This can help with ensuring that
@@ -332,7 +332,7 @@ let
         touch $out
       '';
 
-  # Runs a test using Plutip. Takes the same arguments as `runPursTest`
+  # Runs a test using cardano-testnet. Takes the same arguments as `runPursTest`
   #
   # NOTE: You *must* either use CTL's `overlays.runtime` or otherwise make the
   # the following required `buildInputs` available in your own package set:
@@ -340,19 +340,20 @@ let
   #  - `ogmios`
   #  - `kupo`
   #  - `cardano-testnet`
+  #  - `cardano-node`
+  #  - `cardano-cli`
   #
-  runPlutipTest =
+  runLocalTestnetTest =
     args:
     runPursTest (
       args // {
         buildInputs = with pkgs; [
-          ogmios-plutip
+          ogmios
           kupo
           cardano-testnet
           cardano-node
           cardano-cli
           psmisc
-          plutip-server
         ]
         ++ (args.buildInputs or [ ]);
       }
@@ -622,7 +623,7 @@ let
 in
 {
   inherit
-    buildPursProject buildPursDependencies runPursTest runPlutipTest runE2ETest
+    buildPursProject buildPursDependencies runPursTest runLocalTestnetTest runE2ETest
     bundlePursProjectEsbuild bundlePursProjectWebpack
     buildPursDocs
     # TODO: restore buildSearchablePursDocs and launchSearchablePursDocs
