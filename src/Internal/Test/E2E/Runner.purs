@@ -19,8 +19,6 @@ import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
 import Ctl.Internal.Helpers (liftedM, unsafeFromJust, (<</>>))
-import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
-import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
@@ -73,6 +71,8 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiSign
   )
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
+import Ctl.Internal.Testnet.Contract (withTestnetContractEnv)
+import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
   , keyWalletPrivatePaymentKey
@@ -195,11 +195,9 @@ runE2ETests opts rt = do
     )
     (testPlan opts rt)
 
-buildPlutipConfig :: TestOptions -> PlutipConfig
-buildPlutipConfig options =
-  { host: "127.0.0.1"
-  , port: fromMaybe (UInt.fromInt defaultPorts.plutip) options.plutipPort
-  , logLevel: Trace
+buildLocalTestnetConfig :: TestOptions -> TestnetConfig
+buildLocalTestnetConfig options =
+  { logLevel: Trace
   , ogmiosConfig:
       { port: fromMaybe (UInt.fromInt defaultPorts.ogmios) options.ogmiosPort
       , host: "127.0.0.1"
@@ -216,10 +214,10 @@ buildPlutipConfig options =
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.05
+      { testnetMagic: 2
+      , era: Babbage
+      , slotLength: Seconds 0.05
       , epochSize: Nothing
-      , maxTxSize: Nothing
-      , raiseExUnitsToMax: false
       }
   }
 
@@ -261,7 +259,7 @@ testPlan opts@{ tests } rt@{ wallets } =
             ]
         -- TODO: don't connect to services in ContractEnv, just start them
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
-        liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
+        liftAff $ withTestnetContractEnv (buildLocalTestnetConfig opts) distr
           \env wallet -> do
             (clusterSetup :: ClusterSetup) <- case env.backend of
               CtlBackend backend _ -> pure
