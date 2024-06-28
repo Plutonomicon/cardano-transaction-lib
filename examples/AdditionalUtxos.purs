@@ -46,7 +46,7 @@ import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (fromFoldable) as Array
-import Data.Map (difference, empty, filter, keys) as Map
+import Data.Map (difference, filter, keys) as Map
 import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
@@ -63,8 +63,8 @@ contract testAdditionalUtxoOverlap = withoutSync do
   logInfo' "Running Examples.AdditionalUtxos"
   validator <- alwaysSucceedsScriptV2
   let vhash = validatorHash validator
-  { unbalancedTx, datum } <- payToValidator vhash
-  withBalancedTx unbalancedTx Map.empty mempty \balancedTx -> do
+  { unbalancedTx, usedUtxos, datum } <- payToValidator vhash
+  withBalancedTx unbalancedTx usedUtxos mempty \balancedTx -> do
     balancedSignedTx <- signTransaction balancedTx
     txHash <- submit balancedSignedTx
     when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
@@ -74,7 +74,12 @@ contract testAdditionalUtxoOverlap = withoutSync do
     spendFromValidator validator additionalUtxos datum
 
 payToValidator
-  :: ValidatorHash -> Contract { unbalancedTx :: Transaction, datum :: Datum }
+  :: ValidatorHash
+  -> Contract
+       { unbalancedTx :: Transaction
+       , usedUtxos :: UtxoMap
+       , datum :: Datum
+       }
 payToValidator vhash = do
   scriptRef <- liftEffect (NativeScriptRef <$> randomSampleOne arbitrary)
   let
@@ -93,8 +98,8 @@ payToValidator vhash = do
     lookups :: ScriptLookups
     lookups = Lookups.datum datum
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  pure { unbalancedTx, datum }
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+  pure { unbalancedTx, usedUtxos, datum }
 
 spendFromValidator :: Validator -> UtxoMap -> Datum -> Contract Unit
 spendFromValidator validator additionalUtxos datum = do
@@ -128,8 +133,8 @@ spendFromValidator validator additionalUtxos datum = do
     balancerConstraints =
       BalancerConstraints.mustUseAdditionalUtxos additionalUtxos
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx Map.empty balancerConstraints
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx usedUtxos balancerConstraints
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
 

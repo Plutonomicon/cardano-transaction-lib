@@ -31,7 +31,9 @@ import Cardano.Types
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , UtxoMap
   , Value(Value)
+  , _witnessSet
   )
+import Cardano.Types as Cardano
 import Cardano.Types.Address
   ( Address(BaseAddress, EnterpriseAddress)
   , getPaymentCredential
@@ -150,7 +152,7 @@ import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
-import Data.Lens ((%=), (.=), (<>=))
+import Data.Lens ((%=), (.=), (.~), (<>=))
 import Data.Lens.Getter (use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.List (List(Nil, Cons))
@@ -269,7 +271,7 @@ addFakeScriptDataHash = runExceptT do
     CannotAttachRedeemer
   tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
     Right
-  _cpsTransaction .= tx'
+  _cpsTransaction .= (tx' # _witnessSet <<< Cardano._redeemers .~ reds)
 
 -- | Add the remaining balance of the total value that the tx must spend.
 -- | See note [Balance of value spent]

@@ -56,7 +56,7 @@ import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head, singleton) as Array
 import Data.Lens (view)
-import Data.Map (empty, toUnfoldable) as Map
+import Data.Map (empty, toUnfoldable, union) as Map
 import Effect.Exception (error, throw)
 import JS.BigInt (BigInt)
 
@@ -129,8 +129,9 @@ submitTxFromConstraintsReturningFee
   constraints
   extraUtxos
   balancerConstraints = do
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx extraUtxos balancerConstraints
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx (Map.union extraUtxos usedUtxos)
+    balancerConstraints
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
   pure { txHash, txFinalFee: view (_body <<< _fee) balancedSignedTx }

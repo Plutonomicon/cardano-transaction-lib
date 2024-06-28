@@ -394,8 +394,9 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
-        balancedTx <- balanceTx unbalancedTx Map.empty mempty
+        unbalancedTx /\ usedUtxos <- liftedE $ mkUnbalancedTxImpl lookups
+          constraints
+        balancedTx <- balanceTx unbalancedTx usedUtxos mempty
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)

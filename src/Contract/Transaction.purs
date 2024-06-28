@@ -387,8 +387,8 @@ submitTxFromConstraints
   -> TxConstraints
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints = do
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx Map.empty mempty
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx usedUtxos mempty
   balancedSignedTx <- signTransaction balancedTx
   submit balancedSignedTx
 

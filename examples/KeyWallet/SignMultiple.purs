@@ -43,17 +43,17 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  unbalancedTx0 <- mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- mkUnbalancedTx lookups constraints
+  unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups constraints
+  unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
 
   txIds <-
     withBalancedTxs
       [ { transaction: unbalancedTx0
-        , extraUtxos: Map.empty
+        , extraUtxos: usedUtxos0
         , balancerConstraints: mempty
         }
       , { transaction: unbalancedTx1
-        , extraUtxos: Map.empty
+        , extraUtxos: usedUtxos1
         , balancerConstraints: mempty
         }
       ] $ \balancedTxs -> do

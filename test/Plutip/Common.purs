@@ -15,7 +15,7 @@ import Data.Newtype (wrap)
 import Partial.Unsafe (unsafePartial)
 
 config :: PlutipConfig
-config = defaultPlutipConfig { suppressLogs = false }
+config = defaultPlutipConfig
 
 privateStakeKey :: PrivateStakeKey
 privateStakeKey = wrap $ unsafePartial $ fromJust

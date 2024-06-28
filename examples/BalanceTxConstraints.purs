@@ -176,9 +176,9 @@ contract (ContractParams p) = do
         <> BalanceTxConstraints.mustUseCollateralUtxos bobsCollateral
 
   void $ runChecks checks $ lift do
-    unbalancedTx <- mkUnbalancedTx lookups constraints
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
 
-    balancedTx <- balanceTx unbalancedTx Map.empty balanceTxConstraints
+    balancedTx <- balanceTx unbalancedTx usedUtxos balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

@@ -159,8 +159,8 @@ mkContract p = do
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.plutusMintingPolicy p.mintingPolicy
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx Map.empty mempty
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx usedUtxos mempty
   balancedSignedTx <- signTransaction balancedTx
 
   txId <- submit balancedSignedTx

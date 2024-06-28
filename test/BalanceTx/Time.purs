@@ -1,7 +1,6 @@
 module Test.Ctl.BalanceTx.Time (suite) where
 
 import Contract.Prelude
-import Data.Lens
 
 import Cardano.Types (BigNum, Transaction, _body)
 import Cardano.Types.BigNum (fromInt, toInt) as BigNum
@@ -26,6 +25,7 @@ import Contract.TxConstraints (mustValidateIn)
 import Contract.UnbalancedTx (mkUnbalancedTxE)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Types.Interval (Interval)
+import Data.Lens ((^.))
 import Effect.Aff (Aff)
 import Effect.Exception (error)
 import JS.BigInt (fromString) as BigInt
@@ -83,7 +83,7 @@ mkTestFromSingleInterval interval = do
   mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left e -> fail $ show e
-    Right utx ->
+    Right (utx /\ _) ->
       do
         returnedInterval <- getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` interval
@@ -118,7 +118,7 @@ mkTestMultipleInterval intervals expected = do
   mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left e -> fail $ show e
-    Right utx ->
+    Right (utx /\ _) ->
       do
         returnedInterval <- getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` expected

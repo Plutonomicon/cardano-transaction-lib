@@ -376,8 +376,7 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
     -> Aff wallets
   mkWallets' env ourKey response = do
     runContractInEnv
-      -- TODO: uncomment me
-      env -- { customLogger = Just (\_ _ -> pure unit) }
+      env { customLogger = Just (\_ _ -> pure unit) }
       do
         wallets <-
           liftContractM

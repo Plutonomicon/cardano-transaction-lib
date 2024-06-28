@@ -75,9 +75,9 @@ contract = do
     lookups = mempty
 
   void $ runChecks checks $ lift do
-    unbalancedTx <- mkUnbalancedTx lookups constraints
-    balancedSignedTx <- signTransaction =<< balanceTx unbalancedTx Map.empty
-      mempty
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+    balancedSignedTx <- signTransaction
+      =<< balanceTx unbalancedTx usedUtxos mempty
     txHash <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
