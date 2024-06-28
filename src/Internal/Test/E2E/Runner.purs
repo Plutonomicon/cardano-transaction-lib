@@ -257,8 +257,6 @@ testPlan opts@{ tests } rt@{ wallets } =
             , amount
             , amount
             ]
-        -- TODO: don't connect to services in ContractEnv, just start them
-        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
         liftAff $ withTestnetContractEnv (buildLocalTestnetConfig opts) distr
           \env wallet -> do
             (clusterSetup :: ClusterSetup) <- case env.backend of

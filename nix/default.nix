@@ -445,6 +445,9 @@ let
           nodeModules
           ogmios
           kupo
+          cardano-testnet
+          cardano-node
+          cardano-cli
           chromium
           python38 # To serve bundled CTL
           # Utils needed by E2E test code
