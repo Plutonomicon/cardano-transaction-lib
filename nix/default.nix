@@ -497,6 +497,8 @@ let
         cp -r $src/* .
         chmod -R +rw .
 
+        export LC_ALL=C.UTF-8
+
         ${nodejs}/bin/node \
           --enable-source-maps \
           -e 'import("./output/${runnerMain}/index.js").then(m => m.${runnerPsEntryPoint}())' \

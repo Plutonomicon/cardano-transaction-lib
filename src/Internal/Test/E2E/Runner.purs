@@ -43,7 +43,7 @@ import Ctl.Internal.Test.E2E.Types
   , ChromeUserDataDir
   , E2ETest
   , E2ETestRuntime
-  , E2EWallet(NoWallet, PlutipCluster, WalletExtension)
+  , E2EWallet(NoWallet, LocalTestnet, WalletExtension)
   , ExtensionParams
   , Extensions
   , RunningE2ETest
@@ -244,12 +244,11 @@ testPlan opts@{ tests } rt@{ wallets } =
           do
             withE2ETest true (wrap url) browser \{ page } -> do
               subscribeToTestStatusUpdates opts.passBrowserLogs page
-      -- Plutip in E2E tests
-      { url, wallet: PlutipCluster } -> do
+      -- cardano-testnet in E2E tests
+      { url, wallet: LocalTestnet } -> do
         let
-          amount = unsafeFromJust "testPlan: integer overflow" $ BigNum.mul
-            (BigNum.fromInt 2_000_000_000)
-            (BigNum.fromInt 100)
+          amount = unsafeFromJust "testPlan: integer overflow" $
+            BigNum.fromString "5000000000" -- 5k ADA
           distr = withStakeKey privateStakeKey
             [ amount
             , amount

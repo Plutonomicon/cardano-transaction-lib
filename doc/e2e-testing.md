@@ -327,4 +327,4 @@ Full example can be found [in the template](../templates/ctl-scaffold/test/E2E.p
 There are a few important caveats/limitations:
 
 - We only allow base addresses (with a stake pubkey hash present) to be used. If there's a need to use enterprise addresses, the users should move some ada to their own enterprise address, e.g. with `mustPayToPubKey`
-- The amount of tAda is fixed to `1000000000000` and divided into 5 UTxOs equally
+- The amount of tAda is fixed to `25_000_000_000` lovelace and divided into 5 UTxOs equally

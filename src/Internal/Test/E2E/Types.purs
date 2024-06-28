@@ -20,7 +20,7 @@ module Ctl.Internal.Test.E2E.Types
   , mkE2ETest
   , RunningE2ETest
   , SomeWallet
-  , E2EWallet(NoWallet, PlutipCluster, WalletExtension)
+  , E2EWallet(NoWallet, LocalTestnet, WalletExtension)
   , getE2EWalletExtension
   ) where
 
@@ -120,7 +120,7 @@ type SettingsRuntime =
   , settingsArchive :: SettingsArchive
   }
 
-data E2EWallet = NoWallet | PlutipCluster | WalletExtension WalletExt
+data E2EWallet = NoWallet | LocalTestnet | WalletExtension WalletExt
 
 derive instance Generic E2EWallet _
 derive instance Eq E2EWallet
@@ -149,7 +149,7 @@ mkE2ETest str =
     <|> (tryWalletPrefix "lode" <#> mkTestEntry (WalletExtension LodeExt))
     <|> (tryWalletPrefix "nami" <#> mkTestEntry (WalletExtension NamiExt))
     <|> (tryWalletPrefix "lace" <#> mkTestEntry (WalletExtension LaceExt))
-    <|> (tryWalletPrefix "plutip" <#> mkTestEntry PlutipCluster)
+    <|> (tryWalletPrefix "plutip" <#> mkTestEntry LocalTestnet)
     <|> (pure $ mkTestEntry NoWallet str)
   where
   tryWalletPrefix :: String -> Maybe String
