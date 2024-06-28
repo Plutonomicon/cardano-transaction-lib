@@ -72,19 +72,6 @@
     blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
     db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
 
-    # Plutip server related inputs
-    plutip = {
-      url = "github:mlabs-haskell/plutip?ref=gergely/version-bump";
-      # TODO(bladyjoker): Why are we overriding inputs here?
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        iohk-nix.follows = "iohk-nix";
-        haskell-nix.follows = "haskell-nix";
-        hackage-nix.follows = "hackage-nix";
-        cardano-node.follows = "cardano-node";
-      };
-    };
-
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
 
@@ -258,24 +245,6 @@
             # };
           };
         };
-
-      plutipServerFor = system:
-        let
-          pkgs = import inputs.nixpkgs {
-            inherit system;
-            overlays = [
-              inputs.haskell-nix.overlay
-              inputs.iohk-nix.overlays.crypto
-            ];
-          };
-        in
-        import ./plutip-server {
-          inherit pkgs;
-          inherit (inputs) plutip CHaP;
-          inherit (pkgs) system;
-          cardano-node = inputs.cardano-node;
-          src = ./plutip-server;
-        };
     in
     {
       overlay = builtins.trace
@@ -320,8 +289,6 @@
                 inherit (prev) system;
               in
               {
-                plutip-server =
-                  (plutipServerFor system).hsPkgs.plutip-server.components.exes.plutip-server;
                 ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
                 cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
                 cardano-node = cardano-node.packages.${system}.cardano-node;
@@ -337,21 +304,14 @@
           );
       };
 
-      # flake from haskell.nix project
-      hsFlake = perSystem (system: (plutipServerFor system).flake { });
-
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
         default = (psProjectFor (nixpkgsFor system)).devShell;
-
-        # This can be used with `nix develop .#devPlutipServer` to work with `./plutip-server`
-        devPlutipServer = ((plutipServerFor system).flake { }).devShell;
       });
 
       packages = perSystem (system:
         (psProjectFor (nixpkgsFor system)).packages
-        // ((plutipServerFor system).flake { }).packages
       );
 
       apps = perSystem (system:

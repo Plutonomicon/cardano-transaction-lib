@@ -132,7 +132,6 @@ let
               lists.optional withRuntime (
                 [
                   pkgs.ogmios
-                  pkgs.plutip-server
                   pkgs.kupo
                 ]
               )
@@ -446,7 +445,6 @@ let
           nodeModules
           ogmios
           kupo
-          plutip-server
           chromium
           python38 # To serve bundled CTL
           # Utils needed by E2E test code
