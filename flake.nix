@@ -233,8 +233,8 @@
               buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
               # buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
             };
-            ctl-testnet-test = project.runLocalTestnetTest {
-              name = "ctl-plutip-test";
+            ctl-local-testnet-test = project.runLocalTestnetTest {
+              name = "ctl-local-testnet-test";
               testMain = "Test.Ctl.Plutip";
             };
             ctl-staking-test = project.runLocalTestnetTest {

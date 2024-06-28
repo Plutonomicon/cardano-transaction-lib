@@ -105,7 +105,7 @@ run-ci-actions:
 	nix build -L .#checks.x86_64-linux.template-version
 	nix build -L .#checks.x86_64-linux.ctl-unit-test
 	nix build -L .#checks.x86_64-linux.ctl-e2e-test
-	nix build -L .#checks.x86_64-linux.ctl-plutip-test
+	nix build -L .#checks.x86_64-linux.ctl-local-testnet-test
 	nix build -L .#checks.x86_64-linux.ctl-staking-test
 	nix build -L .#checks.x86_64-linux.examples-imports-check
 
