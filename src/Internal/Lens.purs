@@ -13,6 +13,7 @@ module Ctl.Internal.Lens
   , _inputs
   , _isValid
   , _mint
+  , _nativeScripts
   , _networkId
   , _output
   , _outputs
@@ -38,10 +39,12 @@ import Cardano.Types
   ( Address
   , AuxiliaryData
   , AuxiliaryDataHash
+  , BootstrapWitness
   , Certificate
   , Coin
   , Ed25519KeyHash
   , Mint
+  , NativeScript
   , NetworkId
   , OutputDatum
   , PlutusData
@@ -169,5 +172,11 @@ _plutusData = _Newtype <<< prop (Proxy :: Proxy "plutusData")
 _plutusScripts :: Lens' TransactionWitnessSet (Array PlutusScript)
 _plutusScripts = _Newtype <<< prop (Proxy :: Proxy "plutusScripts")
 
+_nativeScripts :: Lens' TransactionWitnessSet (Array NativeScript)
+_nativeScripts = _Newtype <<< prop (Proxy :: Proxy "nativeScripts")
+
 _vkeys :: Lens' TransactionWitnessSet (Array Vkeywitness)
 _vkeys = _Newtype <<< prop (Proxy :: Proxy "vkeys")
+
+_bootstraps :: Lens' TransactionWitnessSet (Array BootstrapWitness)
+_bootstraps = _Newtype <<< prop (Proxy :: Proxy "bootstraps")

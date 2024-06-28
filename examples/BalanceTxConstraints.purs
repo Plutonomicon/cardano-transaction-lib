@@ -35,7 +35,7 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , signTransaction
   , submit
   )
@@ -56,7 +56,7 @@ import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
 import Data.Array (sort) as Array
-import Data.Map (fromFoldable, keys, member) as Map
+import Data.Map (empty, fromFoldable, keys, member) as Map
 import Data.Set (findMin) as Set
 import JS.BigInt as BigInt
 
@@ -176,9 +176,9 @@ contract (ContractParams p) = do
         <> BalanceTxConstraints.mustUseCollateralUtxos bobsCollateral
 
   void $ runChecks checks $ lift do
-    unbalancedTx <- mkUnbalancedTx lookups constraints
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
 
-    balancedTx <- balanceTxWithConstraints unbalancedTx balanceTxConstraints
+    balancedTx <- balanceTx unbalancedTx usedUtxos balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

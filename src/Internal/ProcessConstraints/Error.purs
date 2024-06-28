@@ -4,6 +4,7 @@ import Prelude
 
 import Cardano.AsCbor (encodeCbor)
 import Cardano.Serialization.Lib (toBytes)
+import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (DataHash, NativeScript)
 import Cardano.Types.Address (Address)
 import Cardano.Types.Address as Address
@@ -59,6 +60,7 @@ data MkUnbalancedTxError
   | ExpectedPlutusScriptGotNativeScript ScriptHash
   | CannotMintZero ScriptHash AssetName
   | NumericOverflow
+  | CannotAttachRedeemer DetachedRedeemer
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -155,6 +157,10 @@ explainMkUnbalancedTxError = case _ of
       <> " of currency "
       <> byteArrayToHex (unwrap $ encodeCbor cs)
   NumericOverflow -> "Numeric overflow"
+  CannotAttachRedeemer redeemer -> do
+    "Can't attach a redeemer: " <> show redeemer
+      <> "\nPlease report this as a bug here: "
+      <> bugTrackerLink
   where
 
   prettyAssetName :: AssetName -> String

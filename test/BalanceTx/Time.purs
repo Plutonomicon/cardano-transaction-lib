@@ -2,14 +2,11 @@ module Test.Ctl.BalanceTx.Time (suite) where
 
 import Contract.Prelude
 
-import Cardano.Types.BigNum (BigNum)
+import Cardano.Types (BigNum, Transaction, _body)
 import Cardano.Types.BigNum (fromInt, toInt) as BigNum
 import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
-import Contract.ScriptLookups
-  ( ScriptLookups
-  , UnbalancedTx
-  )
+import Contract.ScriptLookups (ScriptLookups)
 import Contract.Time
   ( POSIXTime
   , Slot
@@ -28,6 +25,7 @@ import Contract.TxConstraints (mustValidateIn)
 import Contract.UnbalancedTx (mkUnbalancedTxE)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.Types.Interval (Interval)
+import Data.Lens ((^.))
 import Effect.Aff (Aff)
 import Effect.Exception (error)
 import JS.BigInt (fromString) as BigInt
@@ -85,7 +83,7 @@ mkTestFromSingleInterval interval = do
   mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left e -> fail $ show e
-    Right utx ->
+    Right (utx /\ _) ->
       do
         returnedInterval <- getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` interval
@@ -120,7 +118,7 @@ mkTestMultipleInterval intervals expected = do
   mutx <- mkUnbalancedTxE emptyLookup constraint
   case mutx of
     Left e -> fail $ show e
-    Right utx ->
+    Right (utx /\ _) ->
       do
         returnedInterval <- getTimeFromUnbalanced utx
         returnedInterval `shouldEqual` expected
@@ -146,10 +144,8 @@ unsafeSubtractOne value = wrap <<< fromJust
 --------------------------------------------------------------------------------
 
 getTimeFromUnbalanced
-  :: UnbalancedTx -> Contract (Interval POSIXTime)
-getTimeFromUnbalanced utx = validityToPosixTime $ unwrap body
-  where
-  body = (unwrap utx) # _.transaction >>> unwrap >>> _.body
+  :: Transaction -> Contract (Interval POSIXTime)
+getTimeFromUnbalanced tx = validityToPosixTime $ unwrap $ tx ^. _body
 
 toPosixTime :: Slot -> Contract POSIXTime
 toPosixTime time = do

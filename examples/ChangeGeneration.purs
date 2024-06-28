@@ -16,7 +16,7 @@ import Contract.Transaction
   ( _body
   , _outputs
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , signTransaction
   , submit
   )
@@ -29,7 +29,7 @@ import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Data.Array (fold, length, replicate, take, zip)
 import Data.Lens ((^.))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Tuple (Tuple(Tuple))
+import Data.Tuple.Nested ((/\))
 import JS.BigInt (fromInt) as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
@@ -49,7 +49,7 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
       constraintsToSelf :: TxConstraints
       constraintsToSelf = fold <<< take outputsToSelf <<< fold
         $ replicate outputsToSelf
-        $ zip pkhs skhs <#> \(Tuple pkh mbSkh) -> case mbSkh of
+        $ zip pkhs skhs <#> \(pkh /\ mbSkh) -> case mbSkh of
             Nothing -> Constraints.mustPayToPubKey pkh value
             Just skh -> Constraints.mustPayToPubKeyAddress pkh skh value
 
@@ -63,8 +63,8 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
 
       lookups :: Lookups.ScriptLookups
       lookups = mempty
-    unbalancedTx <- mkUnbalancedTx lookups constraints
-    balancedTx <- balanceTxWithConstraints unbalancedTx
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+    balancedTx <- balanceTx unbalancedTx usedUtxos
       -- just to check that attaching datums works
       ( mustSendChangeWithDatum $ OutputDatum $ Integer $ BigInt.fromInt
           1000

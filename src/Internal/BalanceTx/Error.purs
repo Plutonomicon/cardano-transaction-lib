@@ -25,13 +25,14 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
+import Cardano.AsCbor (encodeCbor)
+import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (Coin, Redeemer(Redeemer), Transaction)
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionInput (TransactionInput(TransactionInput))
 import Cardano.Types.TransactionOutput (TransactionOutput)
 import Cardano.Types.UtxoMap (UtxoMap, pprintUtxoMap)
 import Cardano.Types.Value (Value)
-import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
 import Ctl.Internal.Lens (_redeemers, _witnessSet)
 import Ctl.Internal.QueryM.Ogmios
@@ -52,6 +53,7 @@ import Ctl.Internal.QueryM.Ogmios
 import Ctl.Internal.Types.Val (Val, pprintVal)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
+import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either(Left, Right), either, isLeft)
 import Data.Foldable (find, fold, foldMap, foldl, length)
 import Data.FoldableWithIndex (foldMapWithIndex)
@@ -59,8 +61,9 @@ import Data.Function (applyN)
 import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
 import Data.Lens ((^.))
+import Data.Log.Tag (TagSet, tag)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
@@ -80,8 +83,8 @@ data BalanceTxError
   | CollateralReturnMinAdaValueCalcError Coin TransactionOutput
   | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
   | InsufficientUtxoBalanceToCoverAsset String
-  | ReindexRedeemersError UnindexedRedeemer
-  | UtxoLookupFailedFor TransactionInput
+  | ReindexRedeemersError DetachedRedeemer
+  | UtxoLookupFailedFor TransactionInput UtxoMap
   | UtxoMinAdaValueCalculationFailed
   | NumericOverflowError (Maybe Val)
 
@@ -129,11 +132,12 @@ explainBalanceTxError = case _ of
       <> show uir
       <> "\nThis should be impossible: please report this as a bug to "
       <> bugTrackerLink
-  UtxoLookupFailedFor ti ->
-    "Could not look up UTxO for "
-      <> show ti
-      <> " from a given set of UTxOs.\n"
-      <> "This should be impossible: please report this as a bug to "
+  UtxoLookupFailedFor ti mp ->
+    "Could not look up UTxO "
+      <> pprintTagSet "for" (pprintTransactionInput ti)
+      <> " from a "
+      <> pprintTagSet "given set of UTxOs:" (pprintUtxoMap mp)
+      <> "\nThis should be impossible: please report this as a bug to "
       <> bugTrackerLink
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
@@ -143,6 +147,13 @@ explainBalanceTxError = case _ of
   where
   prettyVal :: String -> Val -> String
   prettyVal str = pprintVal >>> pprintTagSet str
+
+  pprintTransactionInput :: TransactionInput -> TagSet
+  pprintTransactionInput (TransactionInput { transactionId, index }) =
+    "TransactionInput" `tag`
+      ( byteArrayToHex (unwrap (encodeCbor transactionId)) <> "#" <>
+          show (UInt.toInt index)
+      )
 
 newtype Actual = Actual Value
 

@@ -13,4 +13,5 @@ import Ctl.Internal.Service.Error
       ( ServiceBlockfrostError
       , ServiceOtherError
       )
+  , pprintClientError
   ) as X

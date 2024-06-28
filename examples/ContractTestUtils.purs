@@ -63,6 +63,7 @@ import Contract.Wallet
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.Lens (_1, _2, view, (%~))
+import Data.Map as Map
 import Effect.Exception (throw)
 
 type ContractParams =
@@ -158,8 +159,8 @@ mkContract p = do
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.plutusMintingPolicy p.mintingPolicy
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTx unbalancedTx
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+  balancedTx <- balanceTx unbalancedTx usedUtxos mempty
   balancedSignedTx <- signTransaction balancedTx
 
   txId <- submit balancedSignedTx

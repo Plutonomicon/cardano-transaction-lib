@@ -1351,7 +1351,7 @@ redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer
   { tag: Spend
   , index: BigNum.fromInt 0
-  , data: plutusDataFixture7
+  , data: wrap plutusDataFixture7
   , exUnits: ExUnits
       { mem: BigNum.fromInt 1
       , steps: BigNum.fromInt 1

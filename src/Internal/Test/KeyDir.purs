@@ -68,10 +68,9 @@ import Ctl.Internal.Types.TxConstraints
   , mustBeSignedBy
   , mustPayToPubKeyAddress
   , mustSpendPubKeyOutput
-  , singleton
   )
 import Ctl.Internal.Wallet.Key (KeyWallet)
-import Data.Array (catMaybes)
+import Data.Array (catMaybes, singleton)
 import Data.Array as Array
 import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, sum)
@@ -395,8 +394,9 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
-        balancedTx <- balanceTx unbalancedTx
+        unbalancedTx /\ usedUtxos <- liftedE $ mkUnbalancedTxImpl lookups
+          constraints
+        balancedTx <- balanceTx unbalancedTx usedUtxos mempty
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)

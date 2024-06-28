@@ -368,7 +368,6 @@ startPlutipContractEnv plutipCfg distr cleanupRef = do
       (stopChildProcessWithPortAndRemoveOnSignal plutipCfg.kupoConfig.port)
       \(process /\ workdir /\ _) -> do
         liftEffect $ cleanupTmpDir process workdir
-        pure unit
 
   mkWallets'
     :: ContractEnv

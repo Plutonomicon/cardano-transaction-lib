@@ -42,7 +42,7 @@ import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (elem, head) as Array
 import Data.Lens.Getter ((^.))
-import Data.Map (member, toUnfoldable) as Map
+import Data.Map (empty, member, toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -75,8 +75,9 @@ contract = do
     lookups = mempty
 
   void $ runChecks checks $ lift do
-    unbalancedTx <- mkUnbalancedTx lookups constraints
-    balancedSignedTx <- signTransaction =<< balanceTx unbalancedTx
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+    balancedSignedTx <- signTransaction
+      =<< balanceTx unbalancedTx usedUtxos mempty
     txHash <- submit balancedSignedTx
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash

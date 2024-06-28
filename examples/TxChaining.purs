@@ -21,7 +21,7 @@ import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , createAdditionalUtxos
   , signTransaction
   , submit
@@ -33,6 +33,7 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Array (head)
+import Data.Map as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -53,9 +54,9 @@ contract = do
     lookups0 :: Lookups.ScriptLookups
     lookups0 = mempty
 
-  unbalancedTx0 <- mkUnbalancedTx lookups0 constraints
+  unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups0 constraints
 
-  withBalancedTx unbalancedTx0 \balancedTx0 -> do
+  withBalancedTx unbalancedTx0 usedUtxos0 mempty \balancedTx0 -> do
     balancedSignedTx0 <- signTransaction balancedTx0
 
     additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -69,8 +70,8 @@ contract = do
       balanceTxConstraints =
         BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-    unbalancedTx1 <- mkUnbalancedTx lookups1 constraints
-    balancedTx1 <- balanceTxWithConstraints unbalancedTx1 balanceTxConstraints
+    unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups1 constraints
+    balancedTx1 <- balanceTx unbalancedTx1 usedUtxos1 balanceTxConstraints
     balancedSignedTx1 <- signTransaction balancedTx1
 
     txId0 <- submit balancedSignedTx0
