@@ -57,10 +57,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , keyWallets
   )
 import Ctl.Internal.Testnet.Server (StartedTestnetCluster, startTestnetCluster)
-import Ctl.Internal.Testnet.Types
-  ( CardanoTestnetStartupParams
-  , TestnetClusterConfig
-  )
+import Ctl.Internal.Testnet.Types (TestnetConfig)
 import Ctl.Internal.Testnet.Utils (read872GenesisKey)
 import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
 import Data.Array (head, zip) as Array
@@ -80,9 +77,9 @@ import Type.Proxy (Proxy(Proxy))
 
 -- | Run a single `Contract` in cardano-testnet environment.
 runTestnetContract
-  :: forall (distr :: Type) (wallets :: Type) (r :: Row Type) (a :: Type)
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
    . UtxoDistribution distr wallets
-  => Record (TestnetClusterConfig (CardanoTestnetStartupParams r))
+  => TestnetConfig
   -> distr
   -> (wallets -> Contract a)
   -> Aff a
@@ -93,9 +90,9 @@ runTestnetContract cfg distr cont =
 -- | Provide a `ContractEnv` connected to cardano-testnet.
 -- | Can be used to run multiple `Contract`s using `runContractInEnv`.
 withTestnetContractEnv
-  :: forall (distr :: Type) (wallets :: Type) (r :: Row Type) (a :: Type)
+  :: forall (distr :: Type) (wallets :: Type) (a :: Type)
    . UtxoDistribution distr wallets
-  => Record (TestnetClusterConfig (CardanoTestnetStartupParams r))
+  => TestnetConfig
   -> distr
   -> (ContractEnv -> wallets -> Aff a)
   -> Aff a
@@ -116,8 +113,7 @@ withTestnetContractEnv cfg distr cont = do
 -- |       to `testPlutipContracts` are wrapped in a single group.
 -- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote FIXME
 testTestnetContracts
-  :: forall (r :: Row Type)
-   . Record (TestnetClusterConfig (CardanoTestnetStartupParams r))
+  :: TestnetConfig
   -> TestPlanM ContractTest Unit
   -> TestPlanM (Aff Unit) Unit
 testTestnetContracts cfg tp = do
@@ -128,8 +124,7 @@ testTestnetContracts cfg tp = do
 -- | Supports wallet reuse - see docs on sharing wallet state between
 -- | wallets in `doc/plutip-testing.md`. FIXME
 runTestnetTestPlan
-  :: forall (r :: Row Type)
-   . Record (TestnetClusterConfig (CardanoTestnetStartupParams r))
+  :: TestnetConfig
   -> ContractTestPlan
   -> TestPlanM (Aff Unit) Unit
 runTestnetTestPlan cfg (ContractTestPlan runContractTestPlan) = do
@@ -219,9 +214,9 @@ execDistribution (MoteT mote) = execWriterT mote <#> go
 -- | Provide a `ContractEnv` connected to cardano-testnet.
 -- | can be used to run multiple `Contract`s using `runContractInEnv`.
 startTestnetContractEnv
-  :: forall (distr :: Type) (wallets :: Type) (r :: Row Type)
+  :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
-  => Record (TestnetClusterConfig (CardanoTestnetStartupParams r))
+  => TestnetConfig
   -> distr
   -> Ref (Array (Aff Unit))
   -> Aff
@@ -265,7 +260,7 @@ startTestnetContractEnv cfg distr cleanupRef = do
         let
           nodeCfg =
             { socketPath: (unwrap cluster).paths.nodeSocketPath
-            , testnetMagic: cfg.testnetMagic
+            , testnetMagic: cfg.clusterConfig.testnetMagic
             }
         withCardanoCliCompletion nodeCfg genesisAddr do
           let walletsAmounts = Array.zip kws distrArray

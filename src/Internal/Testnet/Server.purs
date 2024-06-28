@@ -39,9 +39,9 @@ import Ctl.Internal.Plutip.Utils
   , waitUntil
   )
 import Ctl.Internal.Testnet.Types
-  ( CardanoTestnetStartupParams
-  , KupmiosConfig
-  , Node
+  ( Node
+  , TestnetClusterConfig
+  , TestnetConfig
   , TestnetPaths
   )
 import Ctl.Internal.Testnet.Utils
@@ -100,16 +100,13 @@ derive instance Newtype StartedTestnetCluster _
 -- | UTxOs in the passed distribution, so it can be used to handle
 -- | transaction fees.
 startTestnetCluster
-  :: forall r
-   . Record (CardanoTestnetStartupParams (KupmiosConfig r))
+  :: TestnetConfig
   -> Ref (Array (Aff Unit))
   -> Aff StartedTestnetCluster
-startTestnetCluster startupParams cleanupRef = do
-  { testnet
-  , channels
-  , workdirAbsolute
-  } <- annotateError "Could not start cardano-testnet"
-    $ startCardanoTestnet startupParams cleanupRef
+startTestnetCluster cfg cleanupRef = do
+  { testnet, channels, workdirAbsolute } <-
+    annotateError "Could not start cardano-testnet" $
+      startCardanoTestnet cfg.clusterConfig cleanupRef
 
   { paths } <- waitUntil (Milliseconds 4000.0)
     $ map hush
@@ -137,8 +134,8 @@ startTestnetCluster startupParams cleanupRef = do
     kupo /\ kupoWorkdir <-
       scheduleCleanup
         cleanupRef
-        (startKupo startupParams paths cleanupRef)
-        (stopChildProcessWithPort startupParams.kupoConfig.port <<< fst)
+        (startKupo cfg paths cleanupRef)
+        (stopChildProcessWithPort cfg.kupoConfig.port <<< fst)
 
     void $ Aff.forkAff (waitForClose kupo *> runCleanup cleanupRef)
 
@@ -158,8 +155,8 @@ startTestnetCluster startupParams cleanupRef = do
     ogmios <-
       scheduleCleanup
         cleanupRef
-        (startOgmios startupParams paths)
-        (stopChildProcessWithPort startupParams.ogmiosConfig.port)
+        (startOgmios cfg paths)
+        (stopChildProcessWithPort cfg.ogmiosConfig.port)
 
     void $ Aff.forkAff (waitForClose ogmios *> runCleanup cleanupRef)
 
@@ -177,9 +174,8 @@ startTestnetCluster startupParams cleanupRef = do
 
 -- | Runs cardano-testnet executable with provided params.
 spawnCardanoTestnet
-  :: forall r
-   . { cwd :: FilePath }
-  -> { | CardanoTestnetStartupParams r }
+  :: { cwd :: FilePath }
+  -> TestnetClusterConfig
   -> Aff { testnet :: ManagedProcess, workspace :: FilePath }
 spawnCardanoTestnet { cwd } params = do
   env <- liftEffect Node.Process.getEnv
@@ -216,25 +212,29 @@ spawnCardanoTestnet { cwd } params = do
   option :: forall a. Show a => String -> a -> Array String
   option name value = [ flag name, show value ]
 
-  moption :: forall a. Show a => String -> Maybe a -> Array String
-  moption name value = option name =<< Array.fromFoldable value
+  _moption :: forall a. Show a => String -> Maybe a -> Array String
+  _moption name value = option name =<< Array.fromFoldable value
 
+  -- FIXME
   options :: Array String
   options = join
     [ [ "cardano" ]
     , option "testnet-magic" params.testnetMagic
-    , Array.fromFoldable $ flag <<< show <$> params.era
-    , moption "active-slots-coeff" params.activeSlotsCoeff
-    , moption "enable-p2p" params.enableP2p
-    , moption "nodeLoggingFormat" params.nodeLoggingFormat
-    , moption "num-pool-nodes" params.numPoolNodes
-    , moption "epoch-length" params.epochLength
-    , moption "slot-length" params.slotLength
+    , [ flag $ show params.era ]
     ]
 
+{-
+, moption "active-slots-coeff" params.activeSlotsCoeff
+, moption "enable-p2p" params.enableP2p
+, moption "nodeLoggingFormat" params.nodeLoggingFormat
+, moption "num-pool-nodes" params.numPoolNodes
+, moption "epoch-length" params.epochLength
+, moption "slot-length" params.slotLength
+]
+-}
+
 startCardanoTestnet
-  :: forall r
-   . { | CardanoTestnetStartupParams r }
+  :: TestnetClusterConfig
   -> Ref (Array (Aff Unit))
   -> Aff
        { testnet :: ManagedProcess

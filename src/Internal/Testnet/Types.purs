@@ -5,13 +5,13 @@ module Ctl.Internal.Testnet.Types
   , TestnetPaths
   , Event(Ready872, Finished, Failed, StartupFailed)
   , StartupFailure(SpawnFailed, InitializationFailed)
-  , KupmiosConfig
   , NodeLocation
   , Node
   , GenesisUtxoKeyLocation
   , OptionalStartupParams
   , TestnetRuntime
   , TestnetClusterConfig
+  , TestnetConfig
   , LogParams
   , defaultOptionalStartupParams
   , defaultStartupParams
@@ -20,10 +20,33 @@ module Ctl.Internal.Testnet.Types
 import Contract.Prelude
 
 import Contract.Config as Config
+import Ctl.Internal.Contract.Hooks (Hooks)
+import Ctl.Internal.ServerConfig (ServerConfig)
+import Data.Log.Message (Message)
 import Data.Time.Duration (Milliseconds, Seconds)
 import Data.UInt (UInt)
 import Node.Path (FilePath)
 import Record as Record
+
+type TestnetConfig =
+  { logLevel :: LogLevel
+  -- Server configs are used to deploy the corresponding services:
+  , ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+  , suppressLogs :: Boolean
+  , hooks :: Hooks
+  , clusterConfig :: TestnetClusterConfig
+  }
+
+type TestnetClusterConfig =
+  { testnetMagic :: Int
+  , era :: Era
+  , slotLength :: Seconds
+  , epochSize :: Maybe UInt
+  , maxTxSize :: Maybe UInt
+  , raiseExUnitsToMax :: Boolean
+  }
 
 data Era
   = Byron
@@ -129,10 +152,12 @@ type GenesisUtxoKeyLocation r =
   | r
   )
 
+{-
 type TestnetClusterConfig r =
   ( hooks :: Config.Hooks
   | KupmiosConfig (LogParams r)
   )
+-}
 
 type LogParams r =
   ( logLevel :: LogLevel
@@ -141,11 +166,13 @@ type LogParams r =
   | r
   )
 
+{-
 type KupmiosConfig r =
   ( kupoConfig :: Config.ServerConfig
   , ogmiosConfig :: Config.ServerConfig
   | r
   )
+-}
 
 type TestnetRuntime r =
   ( nodes :: Array { | Node () }

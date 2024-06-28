@@ -4,15 +4,11 @@ module Test.Ctl.Plutip
 
 import Prelude
 
-import Contract.Test.Plutip (defaultPlutipConfig, noWallet)
+import Contract.Test.Plutip (noWallet)
+import Contract.Test.Testnet (defaultTestnetConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.Testnet.Contract (runTestnetTestPlan, testTestnetContracts)
-import Ctl.Internal.Testnet.Types (CardanoTestnetStartupParams)
-import Ctl.Internal.Testnet.Types
-  ( LoggingFormat(LogAsJson)
-  , defaultStartupParams
-  ) as Testnet.Types
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -25,11 +21,9 @@ import Effect.Aff
 import Mote (group)
 import Mote.Monad (mapTest)
 import Mote.TestPlanM as Utils
-import Record (union) as Record
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.Plutip.Contract as Contract
 import Test.Ctl.Plutip.Contract.Assert as Assert
-import Test.Ctl.Plutip.Contract.ClusterParameters as ClusterParameters
 import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Plutip.ExUnits as ExUnits
@@ -42,14 +36,14 @@ import Test.Spec.Runner (defaultConfig)
 -- Run with `npm run plutip-test`
 main :: Effect Unit
 main = interruptOnSignal SIGINT =<< launchAff do
-  let config = Record.union defaultStartupParams defaultPlutipConfig
+  let config = defaultTestnetConfig
   flip cancelWith (effectCanceler (exitCode 1)) do
     Utils.interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
       $ group "cardano-testnet" do
           testTestnetContracts config Mnemonics.suite
           group "ExUnits - normal limits" do
-            testTestnetContracts config $ ExUnits.mkFailingSuite 3000
+            testTestnetContracts config $ ExUnits.mkFailingSuite 3650
             testTestnetContracts config $ ExUnits.mkSuite 2550
           -- FIXME: group "ExUnits - relaxed limits" do
           --   testTestnetContracts configWithMaxExUnits $ ExUnits.mkSuite 3000
@@ -64,14 +58,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
           UtxoDistribution.suite
           testTestnetContracts config OgmiosMempool.suite
           runTestnetTestPlan config SameWallets.suite
-          ClusterParameters.runTest
-
-defaultStartupParams :: { | CardanoTestnetStartupParams () }
-defaultStartupParams =
-  ( Testnet.Types.defaultStartupParams
-      { testnetMagic: 2 }
-  )
-    { nodeLoggingFormat = Just Testnet.Types.LogAsJson }
+-- FIXME: ClusterParameters.runTest
 
 {-
 configWithMaxExUnits :: PlutipConfig

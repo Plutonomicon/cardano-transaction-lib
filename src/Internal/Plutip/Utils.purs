@@ -203,7 +203,6 @@ waitForExit :: Aff Int
 waitForExit = Aff.makeAff \cont -> do
   { cancel } <- withOneShotHandler \{ justOnce } -> onExit \exitcode -> justOnce
     do
-      log "ON EXIT"
       cont $ Right exitcode
   pure $ Aff.Canceler \err -> liftEffect do
     cancel
