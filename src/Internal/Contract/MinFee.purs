@@ -4,7 +4,6 @@ import Prelude
 
 import Cardano.Types (Coin, Ed25519KeyHash, Transaction, UtxoMap)
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
-import Cardano.Types.BigNum (fromInt) as BigNum
 import Cardano.Types.Credential (asPubKeyHash)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Contract (getProtocolParameters)
@@ -19,7 +18,7 @@ import Data.Either (hush)
 import Data.Lens.Getter ((^.))
 import Data.Map (keys, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.Set (difference, fromFoldable, intersection, mapMaybe, union) as Set
 import Data.Traversable (for)
@@ -31,9 +30,7 @@ calculateMinFee :: Transaction -> UtxoMap -> Contract Coin
 calculateMinFee tx additionalUtxos = do
   selfSigners <- getSelfSigners tx additionalUtxos
   pparams <- getProtocolParameters
-  append (wrap $ BigNum.fromInt 1_000_000) <$> calculateMinFeeCsl pparams
-    selfSigners
-    tx
+  calculateMinFeeCsl pparams selfSigners tx
 
 -- | This function estimates the set of keys that must be used
 -- | for signing to make the transaction valid for the network.

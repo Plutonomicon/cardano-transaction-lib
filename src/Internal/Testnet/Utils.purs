@@ -24,7 +24,6 @@ import Contract.TextEnvelope
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromTextEnvelope
   )
-import Control.Alt ((<|>))
 import Control.Monad.Error.Class
   ( liftMaybe
   , throwError
@@ -106,48 +105,6 @@ waitFor source f = flip tailRecM unit \_ -> do
 onTestnetEvent :: EventSource String -> Effect (EventSource Event)
 onTestnetEvent = narrowEventSource parseEvent
 
--- type GenesisKeyFile = Int /\ FilePath
-
--- parseGenesisKeyFileName
---   :: FilePath
---   -> Maybe
---        (Either { vkey :: GenesisKeyFile } { skey :: GenesisKeyFile })
--- parseGenesisKeyFileName filename = do
---   idWithExt <- String.stripPrefix (Pattern "genesis") filename
---   let
---     vkey = do
---       idx <- parseIdx ".vkey" idWithExt
---       pure { vkey: idx /\ filename }
---     skey = do
---       idx <- parseIdx ".skey" idWithExt
---       pure { skey: idx /\ filename }
---   choose vkey skey
---   where
---   parseIdx ext =
---     Int.fromString <=< String.stripSuffix (Pattern ext)
-
--- readGenesisKeyPaths
---   :: { workdir :: FilePath }
---   -> Effect (Map.Map Int { skey :: FilePath, vkey :: FilePath })
--- readGenesisKeyPaths { workdir } = do
---   keyfiles <- Node.FS.readdir $ workdir <</>> "genesis-keys"
---   genesis <- liftMaybe (error $ "Can't parse genesis-keys filenames")
---     $ traverse parseGenesisKeyFileName keyfiles
---   let
---     empty :: forall k v. Ord k => Map.Map k v
---     empty = Map.fromFoldable []
---     vkeys /\ skeys = fold $ genesis <#>
---       either
---         (\{ vkey: elem } -> Map.fromFoldable [ elem ] /\ empty)
---         (\{ skey: elem } -> empty /\ Map.fromFoldable [ elem ])
---     keys = Map.intersectionWith { vkey: _, skey: _ } vkeys skeys
---     toFullPath filename = workdir <</>> "genesis-keys" <</>> filename
-
---   pure $ keys <#> \{ skey, vkey } ->
---     { skey: toFullPath skey
---     , vkey: toFullPath vkey
---     }
-
 getRuntime :: TestnetPaths -> Effect (Record (TestnetRuntime ()))
 getRuntime paths = do
   nodes <- readNodes paths
@@ -196,27 +153,27 @@ parse872UtxoKeyFilename path =
         <<< note (error "Can't parse genesis key index")
         <<< Int.fromString
     )
-    $ String.stripSuffix (Pattern ".skey")
-    =<< String.stripPrefix (Pattern "utxo") path
+    (String.stripPrefix (Pattern "utxo") path)
 
 read872GenesisKeyLocations
   :: { workdir :: FilePath }
   -> Effect (Array { | GenesisUtxoKeyLocation () })
 read872GenesisKeyLocations { workdir } = do
-  let
-    keysDir = workdir <</>> "utxo-keys"
+  let keysDir = workdir <</>> "utxo-keys"
   filenames <- Node.FS.readdir keysDir
   map Array.catMaybes
     $ liftEither
     $ for filenames \filename ->
         parse872UtxoKeyFilename filename <#> map \{ idx } ->
-          { idx, path: keysDir <</>> filename }
+          { idx
+          , path: keysDir <</>> filename <</>> "utxo.skey"
+          }
 
 read872GenesisKey
   :: forall r
    . { | GenesisUtxoKeyLocation r }
   -> Effect Contract.Config.PrivatePaymentKey
-read872GenesisKey { path } = readTextEnvelopeAsPaymentSkey path
+read872GenesisKey = readTextEnvelopeAsPaymentSkey <<< _.path
 
 getNodePort :: { nodeDir :: FilePath } -> Effect UInt
 getNodePort { nodeDir } =
@@ -225,26 +182,20 @@ getNodePort { nodeDir } =
     =<< Node.FS.readTextFile UTF8 (nodeDir <</>> "/port")
 
 findNodeDirs :: { workdir :: FilePath } -> Effect (Array { | NodeLocation () })
-findNodeDirs { workdir } = ado
-  subdirs <- Node.FS.readdir workdir
-  in
-    flip Array.mapMaybe subdirs \dirname -> ado
-      idx <- Int.fromString =<< node872 dirname
-      in { idx, workdir: workdir <</>> dirname, name: dirname }
-  where
-  _node881 x =
-    String.stripPrefix (Pattern "node-bft") x
-      <|> String.stripPrefix (Pattern "node-pool") x
-  node872 = String.stripPrefix (Pattern "node-spo")
+findNodeDirs { workdir } =
+  Node.FS.readdir workdir <#> \subdirs ->
+    flip Array.mapMaybe subdirs \dirname -> do
+      idx <- Int.fromString =<< String.stripPrefix (Pattern "pools-keys/pool1")
+        dirname
+      pure { idx, workdir: workdir <</>> dirname, name: dirname }
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
 findTestnetPaths { workdir } = runExceptT do
   let
     nodeConfigPath = workdir <</>> "configuration.yaml"
-    _firstNode811 = "socket/node-pool1"
-    firstNode872 = "socket/node-spo1"
-    nodeSocketPath = workdir <</>> firstNode872
+    firstNode = "socket/pool1/sock"
+    nodeSocketPath = workdir <</>> firstNode
   workdirExists <- lift $ Node.FS.exists workdir
   configPathExists <- lift $ Node.FS.exists nodeConfigPath
   socketPathExists <- lift $ Node.FS.exists nodeSocketPath
@@ -256,7 +207,7 @@ findTestnetPaths { workdir } = runExceptT do
       "'configuration.yaml' not found in cardano-testnet working directory."
   unless socketPathExists do
     throwError $ error
-      $ firstNode872
+      $ firstNode
       <> " not found in cardano-testnet working directory."
   nodeDirs <- lift $ findNodeDirs { workdir }
   genesisKeys <- lift $ read872GenesisKeyLocations { workdir }
