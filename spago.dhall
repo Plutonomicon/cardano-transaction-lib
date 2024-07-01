@@ -19,6 +19,7 @@ You can edit this file as you like.
   , "bytearrays"
   , "cardano-hd-wallet"
   , "cardano-message-signing"
+  , "uplc-apply-args"
   , "cardano-plutus-data-schema"
   , "cardano-serialization-lib"
   , "cardano-types"

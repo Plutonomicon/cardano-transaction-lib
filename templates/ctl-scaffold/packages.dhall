@@ -318,6 +318,31 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-plutus-types"
         , version = "v1.0.1"
         }
+      , uplc-apply-args =
+        { dependencies =
+          [ "aff"
+          , "bytearrays"
+          , "cardano-serialization-lib"
+          , "cardano-types"
+          , "effect"
+          , "either"
+          , "foldable-traversable"
+          , "foreign-object"
+          , "js-bigints"
+          , "lists"
+          , "maybe"
+          , "mote"
+          , "mote-testplan"
+          , "partial"
+          , "prelude"
+          , "profunctor"
+          , "spec"
+          , "transformers"
+          , "tuples"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-uplc-apply-args"
+        , version = "v1.0.0"
+        }
       , cardano-types =
         { dependencies =
           [ "aeson"

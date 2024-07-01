@@ -391,7 +391,9 @@
               nativeBuildInputs = [ pkgs.jq ];
             } ''
             cd ${self}
-            diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+            diff \
+              <(jq -S .dependencies <<< $ctlPackageJson) \
+              <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
             # We don't want to include `doctoc` in the template dev dependencies.
             diff \
               <(jq -S '.devDependencies | del(.jssha) | del(.blakejs) | del(.doctoc)' <<< $ctlPackageJson) \
@@ -403,7 +405,7 @@
             let
               ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
               ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
-              ctlPs = attrValues ctlPkgsExp.inputs;
+              ctlPs = (attrValues ctlPkgsExp.inputs);
               ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
                 (attrValues ctlScaffoldPkgsExp.inputs);
               intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;

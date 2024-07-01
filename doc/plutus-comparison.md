@@ -135,7 +135,7 @@ As noted above, all scripts and various script newtypes (`Validator`, `MintingPo
 
 #### Applying arguments to parameterized scripts
 
-We support applying arguments to parameterized scripts with `Contract.Scripts.applyArgs`. It allows you to apply a list of `PlutusData` arguments to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
+We support applying arguments to parameterized scripts with `Cardano.Plutus.ApplyArgs.applyArgs` (from [purescript-uplc-apply-args](https://github.com/mlabs-haskell/purescript-uplc-apply-args)). It allows you to apply a list of `PlutusData` arguments to a `PlutusScript`. Using this allows you to dynamically apply arguments during contract execution, but also implies the following:
 
 - All of your domain types must have `Contract.PlutusData.ToData` instances (or some other way of converting them to `PlutusData`)
 - You must employ a workaround, illustrated by the following examples, in your off-chain code to ensure that the applied scripts are valid for both on- and off-chain code. This essentially consists of creating an wrapper which accepts `Data` arguments for your parameterized scripts:
