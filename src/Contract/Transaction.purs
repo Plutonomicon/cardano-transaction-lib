@@ -8,7 +8,7 @@ module Contract.Transaction
   , balanceTxs
   , balanceTxsWithConstraints
   , createAdditionalUtxos
-  , getTxMetadata
+  , getTxAuxiliaryData
   , module BalanceTxError
   , module X
   , submit
@@ -29,7 +29,6 @@ import Prelude
 import Cardano.Types
   ( Bech32String
   , Coin
-  , GeneralTransactionMetadata
   , PoolPubKeyHash(PoolPubKeyHash)
   , Transaction(Transaction)
   , TransactionHash
@@ -54,6 +53,7 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   ) as X
+import Cardano.Types.AuxiliaryData (AuxiliaryData)
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum, OutputDatumHash)) as X
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash(PoolPubKeyHash)) as X
@@ -391,14 +391,14 @@ balanceAndLock
   -> Contract Transaction
 balanceAndLock = balanceAndLockWithConstraints <<< flip Tuple mempty
 
--- | Fetch transaction metadata.
--- | Returns `Right` when the transaction exists and metadata was non-empty
-getTxMetadata
+-- | Fetch transaction auxiliary data.
+-- | Returns `Right` when the transaction exists and auxiliary data is not empty
+getTxAuxiliaryData
   :: TransactionHash
-  -> Contract (Either GetTxMetadataError GeneralTransactionMetadata)
-getTxMetadata th = do
+  -> Contract (Either GetTxMetadataError AuxiliaryData)
+getTxAuxiliaryData txHash = do
   queryHandle <- getQueryHandle
-  liftAff $ queryHandle.getTxMetadata th
+  liftAff $ queryHandle.getTxAuxiliaryData txHash
 
 -- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the

@@ -100,7 +100,7 @@ mkFakeVkeyWitness n = Vkeywitness
         ( let
             nHex = Int.toStringAs Radix.hexadecimal n
           in
-            unsafeFromJust "Ctl.Internal.Serialization.MinFee.mkFakeVkeywitness"
+            unsafeFromJust "Ctl.Internal.Serialization.MinFee.mkFakeVkeyWitness"
               ( fold (Array.replicate (64 - String.length nHex) "0") <> nHex #
                   ( PublicKey.fromRawBytes
                       <=< hexToRawBytes
