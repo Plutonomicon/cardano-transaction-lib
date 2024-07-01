@@ -17,6 +17,7 @@ import Cardano.Types.ExUnitPrices as ExUnitPrices
 import Cardano.Types.NativeScript (NativeScript(ScriptAll))
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.Transaction as Transaction
+import Contract.Prim.ByteArray (hexToRawBytes)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Helpers (unsafeFromJust)
 import Ctl.Internal.Lens (_vkeys, _witnessSet)
@@ -24,12 +25,16 @@ import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )
-import Data.Array as Array
+import Data.Array (length, range, replicate) as Array
+import Data.Foldable (fold)
+import Data.Int (hexadecimal) as Radix
+import Data.Int (toStringAs) as Int
 import Data.Lens ((.~))
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
-import Data.Set as Set
+import Data.Set (fromFoldable, size) as Set
+import Data.String (length) as String
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Partial.Unsafe (unsafePartial)
@@ -81,21 +86,27 @@ addFakeSignatures selfSigners tx =
 
     nSelfSigners = let n = Set.size selfSigners in if n == 0 then 1 else n
 
+    nFakeSigs = nRequiredSigners + nsPossibleSigners + nSelfSigners
   in
-    tx # _witnessSet <<< _vkeys .~
-      ( Array.replicate (nRequiredSigners + nsPossibleSigners + nSelfSigners)
-          fakeVkeywitness
-      )
+    -- Generate unique vkeys because Vkeywitnesses now has Set
+    -- semantics.
+    tx # _witnessSet <<< _vkeys .~ map mkFakeVkeyWitness
+      (Array.range one nFakeSigs)
 
-fakeVkeywitness :: Vkeywitness
-fakeVkeywitness = Vkeywitness
+mkFakeVkeyWitness :: Int -> Vkeywitness
+mkFakeVkeyWitness n = Vkeywitness
   { vkey:
-      ( Vkey
-          ( unsafePartial $ fromJust $ PublicKey.fromBech32
-              -- This should not fail assuming the hardcoded bech32 key is valid.
-              "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
-          )
-      )
+      Vkey
+        ( let
+            nHex = Int.toStringAs Radix.hexadecimal n
+          in
+            unsafeFromJust "Ctl.Internal.Serialization.MinFee.mkFakeVkeywitness"
+              ( fold (Array.replicate (64 - String.length nHex) "0") <> nHex #
+                  ( PublicKey.fromRawBytes
+                      <=< hexToRawBytes
+                  )
+              )
+        )
   , signature:
       ( unsafePartial $ fromJust $ Ed25519Signature.fromBech32
           "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
