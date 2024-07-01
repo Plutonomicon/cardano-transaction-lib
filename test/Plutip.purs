@@ -43,7 +43,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
       $ group "cardano-testnet" do
           testTestnetContracts config Mnemonics.suite
           group "ExUnits - normal limits" do
-            testTestnetContracts config $ ExUnits.mkFailingSuite 3650
+            testTestnetContracts config $ ExUnits.mkFailingSuite 8000
             testTestnetContracts config $ ExUnits.mkSuite 2550
           -- FIXME: group "ExUnits - relaxed limits" do
           --   testTestnetContracts configWithMaxExUnits $ ExUnits.mkSuite 3000
