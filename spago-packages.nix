@@ -1567,7 +1567,7 @@ let
 
     "uplc-apply-args" = pkgs.stdenv.mkDerivation {
         name = "uplc-apply-args";
-        version = "master";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-uplc-apply-args.git";
           rev = "aa528d5310cbfbd01b4d94557f404d95cfb6bb3c";

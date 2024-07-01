@@ -341,7 +341,7 @@ let additions =
           , "tuples"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-uplc-apply-args"
-        , version = "master"
+        , version = "v1.0.0"
         }
       , cardano-types =
         { dependencies =
