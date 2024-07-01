@@ -30,6 +30,7 @@ import Contract.Transaction
   , submit
   )
 import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints (mustPayToPubKey, mustPayToPubKeyAddress) as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
@@ -41,7 +42,6 @@ import Contract.Wallet
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
-import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress)
 import Ctl.Internal.Plutip.Server (makeClusterContractEnv)
 import Ctl.Internal.Plutip.Utils (cleanupOnExit, runCleanup, whenError)
 import Ctl.Internal.Test.ContractTest
@@ -302,12 +302,16 @@ startTestnetContractEnv cfg distr cleanupRef = do
   mustPayToAddress :: Address -> Value -> TxConstraints
   mustPayToAddress addr =
     let
-      skh = case getStakeCredential addr of
+      mSkh = case getStakeCredential addr of
         Just (StakeCredential (PubKeyHashCredential skh')) -> Just $
           StakePubKeyHash skh'
         _ -> Nothing
     in
       case getPaymentCredential addr of
         Just (PaymentCredential (PubKeyHashCredential pkh)) ->
-          mustPayToPubKeyStakeAddress (wrap pkh) skh
+          case mSkh of
+            Nothing ->
+              Constraints.mustPayToPubKey $ wrap pkh
+            Just skh ->
+              Constraints.mustPayToPubKeyAddress (wrap pkh) skh
         _ -> mempty
