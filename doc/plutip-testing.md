@@ -272,7 +272,7 @@ For more complex checks you can use the [assertions library](./test-utils.md).
 ### Note on running clusters
 
 The communication with Plutip happens via the `plutip-server`'s HTTP interface, which allows to start or stop a cluster.
-[`plutip-server`](../plutip-server) allows only once active cluster at a time.
+`plutip-server` allows only once active cluster at a time.
 CTL currently launches `plutip-server` and `kupo` on pre-defined ports, so you won't be able to launch multiple environments to get parallel cluster.
 
 <!-- TODO: uncomment and update this in case CTL adds support for configuring ports for kupo, plutip-server, etc. -->
