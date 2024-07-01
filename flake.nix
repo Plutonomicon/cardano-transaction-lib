@@ -391,9 +391,8 @@
               nativeBuildInputs = [ pkgs.jq ];
             } ''
             cd ${self}
-            # We don't want to include `uplc-apply-args` in the template dependencies.
             diff \
-              <(jq -S '.dependencies | del(."@mlabs-haskell/uplc-apply-args")' <<< $ctlPackageJson) \
+              <(jq -S .dependencies <<< $ctlPackageJson) \
               <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
             # We don't want to include `doctoc` in the template dev dependencies.
             diff \
@@ -406,9 +405,7 @@
             let
               ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
               ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
-              # We don't include `uplc-apply-args` in the template dependencies.
-              ctlPs = filter (p: p.name != "uplc-apply-args")
-                (attrValues ctlPkgsExp.inputs);
+              ctlPs = (attrValues ctlPkgsExp.inputs);
               ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
                 (attrValues ctlScaffoldPkgsExp.inputs);
               intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;

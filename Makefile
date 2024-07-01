@@ -1,6 +1,6 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint delete-bundle-entrypoint
+.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint delete-bundle-entrypoint  run-template-checks
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
@@ -107,6 +107,11 @@ run-ci-actions:
 	nix build -L .#checks.x86_64-linux.ctl-plutip-test
 	nix build -L .#checks.x86_64-linux.ctl-staking-test
 	nix build -L .#checks.x86_64-linux.examples-imports-check
+
+run-template-checks:
+	nix build -L .#checks.x86_64-linux.template-deps-json
+	nix build -L .#checks.x86_64-linux.template-dhall-diff
+	nix build -L .#checks.x86_64-linux.template-version
 
 clean:
 	@ rm -r .psc-ide-port || true
