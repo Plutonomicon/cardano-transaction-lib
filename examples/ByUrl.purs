@@ -67,6 +67,7 @@ import Data.Time.Duration (Seconds(Seconds))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Console as Console
+import Test.Ctl.ApplyArgs as ApplyArgs
 import Web.HTML (window)
 import Web.HTML.Window (localStorage)
 import Web.Storage.Storage (getItem)
@@ -216,6 +217,7 @@ examples = addSuccessLog <$> Map.fromFoldable
   , "ReferenceInputs" /\ ReferenceInputsV2.contract
   , "ReferenceInputsAndScripts" /\ ReferenceInputsAndScriptsV2.contract
   , "Utxos" /\ Utxos.contract
+  , "ApplyArgs" /\ ApplyArgs.contract
   , "Schnorr" /\ Schnorr.contract
   , "ECDSA" /\ ECDSA.contract
   , "PaysWithDatum" /\ PaysWithDatum.contract

@@ -11,6 +11,7 @@ import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
 import Mote.Monad (mapTest)
+import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
 import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
 import Test.Ctl.CoinSelection as CoinSelection
@@ -46,6 +47,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
 
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
+  ApplyArgs.suite
   Ipv6.suite
   NativeScript.suite
   Bip32.suite
