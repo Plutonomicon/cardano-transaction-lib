@@ -247,11 +247,11 @@ let
 
     "cardano-serialization-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-serialization-lib";
-        version = "26d437c3f398172c839b93b57c30eb43a7fa7ca0";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib";
-          rev = "26d437c3f398172c839b93b57c30eb43a7fa7ca0";
-          sha256 = "1ikz6j3jvls3cvl6znrw55f59abzdaf7ggd2x7j3f81m5cvkxggr";
+          rev = "903bf0adeefedc4d065ad6523ad079433bdd8e32";
+          sha256 = "0jlfxrx037hyd4v0j7l2b16yxlm6nw6qlnr992hj9nzip36vbpfg";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -259,11 +259,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "423e27b3f56b1a66db8d3126c22cea9bda7e50da";
+        version = "dc47aa3238dbdf9ad590483b305e70c948083b7e";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "423e27b3f56b1a66db8d3126c22cea9bda7e50da";
-          sha256 = "0s3j719mvwl1r149xgig4zs8y775v0zx31p15k2rxfi4df6xyw2r";
+          rev = "dc47aa3238dbdf9ad590483b305e70c948083b7e";
+          sha256 = "025yrsxv4a461x8kna2a04x0rls49rxbvjpkkblyyv7kyf5bvxiz";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -271,11 +271,11 @@ let
 
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
-        version = "v1.0.1";
+        version = "56877b43ea392ef6486e37d52e1c37d8c2b8c42d";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-types";
-          rev = "715d4b2dcf8b29cb45001209ee562f758a513261";
-          sha256 = "1xcrdmpwd3qcdiyjfrj0z2dh56l4z1s97r25b6nhlqwmwz7qz19z";
+          rev = "56877b43ea392ef6486e37d52e1c37d8c2b8c42d";
+          sha256 = "04h78kivkm9nnz5pxjqvgsf7g9gfzzjn6crwj3lh1m7kxgb1yxds";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -1008,6 +1008,18 @@ let
           url = "https://github.com/purescript-node/purescript-node-streams.git";
           rev = "8395652f9f347101fe042f58726edc592ae5086c";
           sha256 = "1cgkh3dwnhv90r7dak3x4dq698gh30ghfxncrw0ngwrv5pismn0x";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "node-streams-aff" = pkgs.stdenv.mkDerivation {
+        name = "node-streams-aff";
+        version = "v4.0.1";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-node/purescript-node-streams-aff.git";
+          rev = "5c9b6937d14d6fed2273e3ac8780e3d256763e7d";
+          sha256 = "1vm5s6mlawdpqamnqfyh1vbsybjm2s972m02h8mza4m47zlca948";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
