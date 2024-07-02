@@ -120,6 +120,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Monoid (guard)
 import Data.Newtype (class Newtype, over, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -387,8 +388,9 @@ mustPayToScript
   -> DatumPresence
   -> Value
   -> TxConstraints
-mustPayToScript vhash dat datp =
-  singleton <<< MustPayToScript vhash Nothing dat datp Nothing
+mustPayToScript vh dt dtp vl =
+  singleton (MustPayToScript vh Nothing dt dtp Nothing vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToScriptAddress
   :: ScriptHash
@@ -397,8 +399,9 @@ mustPayToScriptAddress
   -> DatumPresence
   -> Value
   -> TxConstraints
-mustPayToScriptAddress vhash cred dat datp =
-  singleton <<< MustPayToScript vhash (Just cred) dat datp Nothing
+mustPayToScriptAddress vh credential dt dtp vl =
+  singleton (MustPayToScript vh (Just credential) dt dtp Nothing vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 -- | Lock the value, datum and reference script with a script.
 -- | Note that the provided reference script does *not* necessarily need to
@@ -410,8 +413,9 @@ mustPayToScriptWithScriptRef
   -> ScriptRef
   -> Value
   -> TxConstraints
-mustPayToScriptWithScriptRef vhash dat datp scriptRef =
-  singleton <<< MustPayToScript vhash Nothing dat datp (Just scriptRef)
+mustPayToScriptWithScriptRef vh dt dtp scriptRef vl =
+  singleton (MustPayToScript vh Nothing dt dtp (Just scriptRef) vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 -- | Lock the value, datum and reference script with a script.
 -- | Note that the provided reference script does *not* necessarily need to
@@ -425,8 +429,9 @@ mustPayToScriptAddressWithScriptRef
   -> ScriptRef
   -> Value
   -> TxConstraints
-mustPayToScriptAddressWithScriptRef vhash cred dat datp scriptRef =
-  singleton <<< MustPayToScript vhash (Just cred) dat datp (Just scriptRef)
+mustPayToScriptAddressWithScriptRef vh credential dt dtp scriptRef vl =
+  singleton (MustPayToScript vh (Just credential) dt dtp (Just scriptRef) vl)
+    <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToNativeScript
   :: forall (i :: Type) (o :: Type)
