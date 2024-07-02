@@ -1,4 +1,4 @@
-{ config, modulesPath, pkgs, cardano-configurations, ... }:
+{ config, modulesPath, pkgs, cardano-configurations, ogmios, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
@@ -28,14 +28,16 @@
   services.cardano-node = {
     enable = true;
     systemdSocketActivation = true;
-    nodeConfigFile = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
-    topology = "${cardano-configurations}/network/mainnet/cardano-node/topology.json";
+    nodeConfigFile = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
+    topology = "${cardano-configurations}/network/sanchonet/cardano-node/topology.json";
   };
 
   services.ogmios = {
     enable = true;
+    package = ogmios;
     host = "0.0.0.0";
-    nodeSocket = "/var/run/cardano-node/node.socket";
+    nodeSocketPath = "/var/run/cardano-node/node.socket";
+    nodeConfigPath = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
   };
 
   services.kupo = {
@@ -43,7 +45,19 @@
     host = "0.0.0.0";
     user = "kupo";
     group = "kupo";
-    nodeConfig = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
+    nodeConfig = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
     nodeSocket = "/var/run/cardano-node/node.socket";
   };
+
+  /*
+    services.kupo = {
+    enable = true;
+    package = kupo;
+    user = "kupo";
+    group = "kupo";
+    host = "0.0.0.0";
+    nodeSocketPath = "/var/run/cardano-node/node.socket";
+    nodeConfigPath = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
+    };
+  */
 }

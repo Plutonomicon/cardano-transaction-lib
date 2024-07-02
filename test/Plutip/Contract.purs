@@ -8,7 +8,7 @@ import Cardano.AsCbor (decodeCbor)
 import Cardano.Serialization.Lib (fromBytes)
 import Cardano.Types
   ( Address
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , GeneralTransactionMetadata
   , TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Cardano.Types.AssetName as AssetName
@@ -90,7 +90,7 @@ import Contract.Transaction
   , balanceTxWithConstraints
   , balanceTxWithConstraintsE
   , createAdditionalUtxos
-  , getTxMetadata
+  , getTxAuxiliaryData
   , lookupTxHash
   , signTransaction
   , submit
@@ -1023,8 +1023,11 @@ suite = do
 
             lookups :: Lookups.ScriptLookups
             lookups = mempty
-            givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
-              [ BigNum.fromInt 8 /\ Metadatum.Text "foo" ]
+
+            givenMetadata :: GeneralTransactionMetadata
+            givenMetadata =
+              wrap $ Map.fromFoldable
+                [ BigNum.fromInt 8 /\ Metadatum.Text "foo" ]
 
           ubTx <- mkUnbalancedTx lookups constraints
           let ubTx' = setGeneralTxMetadata ubTx givenMetadata
@@ -1032,8 +1035,8 @@ suite = do
           txId <- submit bsTx
           awaitTxConfirmed txId
 
-          mMetadata <- getTxMetadata txId
-          mMetadata `shouldEqual` Right givenMetadata
+          mMetadata <- map (_.metadata <<< unwrap) <$> getTxAuxiliaryData txId
+          mMetadata `shouldEqual` Right (Just givenMetadata)
 
     test "Minting zero of a token fails" do
       let

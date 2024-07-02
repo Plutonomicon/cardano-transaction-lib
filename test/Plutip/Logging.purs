@@ -5,7 +5,8 @@ module Test.Ctl.Plutip.Logging
 import Prelude
 
 import Contract.Log (logWarn')
-import Contract.Test.Plutip (runPlutipContract)
+import Contract.Test.Testnet (defaultTestnetConfig)
+import Ctl.Internal.Testnet.Contract (runTestnetContract)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
@@ -14,7 +15,6 @@ import Effect.Exception (throw)
 import Effect.Ref as Ref
 import Mote (group, test)
 import Mote.TestPlanM (TestPlanM)
-import Test.Ctl.Plutip.Common (config)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -24,12 +24,12 @@ suite = do
       hasLogged <- liftEffect $ Ref.new false
       let
         config' =
-          config
+          defaultTestnetConfig
             { customLogger = Just
                 \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = false
             }
-      runPlutipContract config' unit \_ -> do
+      runTestnetContract config' unit \_ -> do
         logWarn' ""
       hasLoggedResult <- liftEffect $ Ref.read hasLogged
       hasLoggedResult `shouldEqual` true
@@ -37,12 +37,12 @@ suite = do
       hasLogged <- liftEffect $ Ref.new false
       let
         config' =
-          config
+          defaultTestnetConfig
             { customLogger = Just
                 \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = true
             }
-      runPlutipContract config' unit \_ -> do
+      runTestnetContract config' unit \_ -> do
         logWarn' ""
       hasLoggedResult <- liftEffect $ Ref.read hasLogged
       hasLoggedResult `shouldEqual` false
@@ -50,12 +50,12 @@ suite = do
       hasLogged <- liftEffect $ Ref.new false
       let
         config' =
-          config
+          defaultTestnetConfig
             { customLogger = Just
                 \_ _ -> liftEffect $ Ref.write true hasLogged
             , suppressLogs = true
             }
-      void $ try $ runPlutipContract config' unit \_ -> do
+      void $ try $ runTestnetContract config' unit \_ -> do
         logWarn' ""
         liftEffect $ throw "Exception"
       hasLoggedResult <- liftEffect $ Ref.read hasLogged
@@ -64,14 +64,14 @@ suite = do
       hasLogged <- liftEffect $ Ref.new false
       let
         config' =
-          config
+          defaultTestnetConfig
             { customLogger = Just writeLog
             , suppressLogs = false
             , logLevel = Error
             }
         writeLog lgl m = liftEffect $ when (m.level >= lgl) $ do
           Ref.write true hasLogged
-      runPlutipContract config' unit \_ -> do
+      runTestnetContract config' unit \_ -> do
         logWarn' ""
       hasLoggedResult <- liftEffect $ Ref.read hasLogged
       hasLoggedResult `shouldEqual` false

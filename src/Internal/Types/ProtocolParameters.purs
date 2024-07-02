@@ -2,8 +2,10 @@ module Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   , CostModelV1
   , CostModelV2
+  , CostModelV3
   , convertPlutusV1CostModel
   , convertPlutusV2CostModel
+  , convertPlutusV3CostModel
   ) where
 
 import Prelude
@@ -17,14 +19,22 @@ import Cardano.Types.Int as Cardano
 import Cardano.Types.Language (Language)
 import Ctl.Internal.Types.Rational (Rational)
 import Data.Array (reverse)
+import Data.Array (sortWith) as Array
+import Data.Bitraversable (ltraverse)
 import Data.Generic.Rep (class Generic)
+import Data.Int (fromString) as Int
 import Data.List (List)
 import Data.List as List
 import Data.Map (Map)
+import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
 import Data.Show.Generic (genericShow)
+import Data.Traversable (traverse)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\))
 import Data.UInt (UInt)
+import Foreign.Object (Object)
+import Foreign.Object (toUnfoldable) as Object
 import Heterogeneous.Folding (class HFoldl, hfoldl)
 
 -- Based on `Cardano.Api.ProtocolParameters.ProtocolParameters` from
@@ -35,7 +45,7 @@ newtype ProtocolParameters = ProtocolParameters
   , maxBlockHeaderSize :: UInt
   , maxBlockBodySize :: UInt
   , maxTxSize :: UInt
-  , txFeeFixed :: UInt
+  , txFeeFixed :: Coin
   , txFeePerByte :: UInt
   , stakeAddressDeposit :: Coin
   , stakePoolDeposit :: Coin
@@ -245,6 +255,8 @@ type CostModelV2 =
   | CostModelV1
   )
 
+type CostModelV3 = Object Cardano.Int
+
 -- This assumes that cost models are stored in lexicographical order
 convertCostModel
   :: forall costModel
@@ -268,3 +280,8 @@ convertPlutusV1CostModel = convertCostModel
 
 convertPlutusV2CostModel :: Record CostModelV2 -> CostModel
 convertPlutusV2CostModel = convertCostModel
+
+convertPlutusV3CostModel :: CostModelV3 -> Maybe CostModel
+convertPlutusV3CostModel costModelRaw =
+  wrap <<< map snd <<< Array.sortWith fst <$>
+    traverse (ltraverse Int.fromString) (Object.toUnfoldable costModelRaw)

@@ -65,7 +65,7 @@ suite =
     SelectionState.suite
     UtxoIndex.suite
     group "performMultiAssetSelection" do
-      test "Performs a selection with zero outputs" do
+      test "Performs selection with zero outputs" do
         quickCheck' 30 prop_performMultiAssetSelection_empty
       runSelectionTestWithFixture selFixture0
         "Selects only from the 'singletons' subset if possible"

@@ -29,9 +29,9 @@ import Contract.Test.Plutip
   ( class UtxoDistribution
   , InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
-  , runPlutipContract
   , withStakeKey
   )
+import Contract.Test.Testnet (defaultTestnetConfig)
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet
@@ -43,6 +43,7 @@ import Contract.Wallet
   )
 import Control.Lazy (fix)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
+import Ctl.Internal.Testnet.Contract (runTestnetContract)
 import Data.Array (foldl, head, replicate, zip)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.Foldable (intercalate)
@@ -59,7 +60,7 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Plutip.Common (config, privateStakeKey)
+import Test.Ctl.Plutip.Common (privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
@@ -80,7 +81,8 @@ suite = group "UtxoDistribution" do
       let
         distribution :: Array InitialUTxOs
         distribution = replicate 2 [ BigNum.fromInt 1_000_000_000 ]
-      runPlutipContract config distribution $ checkUtxoDistribution distribution
+      runTestnetContract defaultTestnetConfig distribution $
+        checkUtxoDistribution distribution
 
   test
     "stake key transfers with distribution: stake + [[1000000000,1000000000]]"
@@ -89,7 +91,8 @@ suite = group "UtxoDistribution" do
         distribution :: Array InitialUTxOsWithStakeKey
         distribution = withStakeKey privateStakeKey <$> replicate 2
           [ BigNum.fromInt 1_000_000_000 ]
-      runPlutipContract config distribution $ checkUtxoDistribution distribution
+      runTestnetContract defaultTestnetConfig distribution $
+        checkUtxoDistribution distribution
 
   test
     "stake key transfers with distribution: ([[1000000000,1000000000]], stake + [[1000000000,1000000000]])"
@@ -100,7 +103,8 @@ suite = group "UtxoDistribution" do
 
         distribution = distribution1 /\
           (withStakeKey privateStakeKey <$> distribution1)
-      runPlutipContract config distribution $ checkUtxoDistribution distribution
+      runTestnetContract defaultTestnetConfig distribution $
+        checkUtxoDistribution distribution
 
   distrs <- liftEffect $ randomSample' 5 arbitrary
   for_ distrs $ \distr ->
@@ -111,7 +115,7 @@ suite = group "UtxoDistribution" do
       $
         withArbUtxoDistr
           distr
-          \randDistr -> runPlutipContract config randDistr $
+          \randDistr -> runTestnetContract defaultTestnetConfig randDistr $
             checkUtxoDistribution randDistr
 
 checkUtxoDistribution

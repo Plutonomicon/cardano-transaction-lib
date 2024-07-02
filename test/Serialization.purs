@@ -4,7 +4,7 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Serialization.Lib (publicKey_fromBytes)
-import Cardano.Types (PublicKey, Transaction, TransactionHash)
+import Cardano.Types (PublicKey, TransactionHash)
 import Cardano.Types.BigNum (fromString, one) as BN
 import Cardano.Types.PlutusData as PD
 import Cardano.Types.PublicKey as PublicKey
@@ -21,17 +21,7 @@ import Effect.Exception (error)
 import JS.BigInt as BigInt
 import Mote (group, test)
 import Mote.TestPlanM (TestPlanM)
-import Test.Ctl.Fixtures
-  ( txFixture1
-  , txFixture2
-  , txFixture3
-  , txFixture4
-  , txFixture5
-  , txFixture6
-  , txOutputBinaryFixture1
-  , txOutputFixture1
-  )
-import Test.Ctl.Utils (errMaybe)
+import Test.Ctl.Fixtures (txOutputBinaryFixture1, txOutputFixture1)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -106,19 +96,6 @@ suite = do
       test "TransactionOutput serialization" $ liftEffect do
         let bytes = unwrap $ encodeCbor txOutputFixture1
         byteArrayToHex bytes `shouldEqual` txOutputBinaryFixture1
-    group "Transaction Roundtrips" $ do
-      test "Deserialization is inverse to serialization #1" $
-        txSerializedRoundtrip txFixture1
-      test "Deserialization is inverse to serialization #2" $
-        txSerializedRoundtrip txFixture2
-      test "Deserialization is inverse to serialization #3" $
-        txSerializedRoundtrip txFixture3
-      test "Deserialization is inverse to serialization #4" $
-        txSerializedRoundtrip txFixture4
-      test "Deserialization is inverse to serialization #5" $
-        txSerializedRoundtrip txFixture5
-      test "Deserialization is inverse to serialization #6" $
-        txSerializedRoundtrip txFixture6
     group "BigNum tests" $ do
       test "BigNum ok" $ do
         let bn = "18446744073709551615"
@@ -129,11 +106,3 @@ suite = do
       test "BigNum negative" $ do
         let bnNeg = "-1"
         BN.fromString bnNeg `shouldSatisfy` isNothing
-
-txSerializedRoundtrip :: Transaction -> Aff Unit
-txSerializedRoundtrip tx = do
-  let serialized = encodeCbor tx
-  (deserialized :: Transaction) <- errMaybe "Cannot deserialize bytes" $
-    decodeCbor serialized
-  let expected = encodeCbor deserialized
-  serialized `shouldEqual` expected

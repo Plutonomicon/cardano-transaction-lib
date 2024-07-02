@@ -19,8 +19,6 @@ import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
 import Ctl.Internal.Helpers (liftedM, unsafeFromJust, (<</>>))
-import Ctl.Internal.Plutip.Server (withPlutipContractEnv)
-import Ctl.Internal.Plutip.Types (PlutipConfig)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
@@ -45,7 +43,7 @@ import Ctl.Internal.Test.E2E.Types
   , ChromeUserDataDir
   , E2ETest
   , E2ETestRuntime
-  , E2EWallet(NoWallet, PlutipCluster, WalletExtension)
+  , E2EWallet(NoWallet, LocalTestnet, WalletExtension)
   , ExtensionParams
   , Extensions
   , RunningE2ETest
@@ -73,6 +71,8 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiSign
   )
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
+import Ctl.Internal.Testnet.Contract (withTestnetContractEnv)
+import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
   , keyWalletPrivatePaymentKey
@@ -195,11 +195,9 @@ runE2ETests opts rt = do
     )
     (testPlan opts rt)
 
-buildPlutipConfig :: TestOptions -> PlutipConfig
-buildPlutipConfig options =
-  { host: "127.0.0.1"
-  , port: fromMaybe (UInt.fromInt defaultPorts.plutip) options.plutipPort
-  , logLevel: Trace
+buildLocalTestnetConfig :: TestOptions -> TestnetConfig
+buildLocalTestnetConfig options =
+  { logLevel: Trace
   , ogmiosConfig:
       { port: fromMaybe (UInt.fromInt defaultPorts.ogmios) options.ogmiosPort
       , host: "127.0.0.1"
@@ -216,10 +214,10 @@ buildPlutipConfig options =
   , customLogger: Just \_ _ -> pure unit
   , hooks: emptyHooks
   , clusterConfig:
-      { slotLength: Seconds 0.05
+      { testnetMagic: 2
+      , era: Babbage
+      , slotLength: Seconds 0.05
       , epochSize: Nothing
-      , maxTxSize: Nothing
-      , raiseExUnitsToMax: false
       }
   }
 
@@ -246,12 +244,11 @@ testPlan opts@{ tests } rt@{ wallets } =
           do
             withE2ETest true (wrap url) browser \{ page } -> do
               subscribeToTestStatusUpdates opts.passBrowserLogs page
-      -- Plutip in E2E tests
-      { url, wallet: PlutipCluster } -> do
+      -- cardano-testnet in E2E tests
+      { url, wallet: LocalTestnet } -> do
         let
-          amount = unsafeFromJust "testPlan: integer overflow" $ BigNum.mul
-            (BigNum.fromInt 2_000_000_000)
-            (BigNum.fromInt 100)
+          amount = unsafeFromJust "testPlan: integer overflow" $
+            BigNum.fromString "5000000000" -- 5k ADA
           distr = withStakeKey privateStakeKey
             [ amount
             , amount
@@ -259,9 +256,7 @@ testPlan opts@{ tests } rt@{ wallets } =
             , amount
             , amount
             ]
-        -- TODO: don't connect to services in ContractEnv, just start them
-        -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
-        liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
+        liftAff $ withTestnetContractEnv (buildLocalTestnetConfig opts) distr
           \env wallet -> do
             (clusterSetup :: ClusterSetup) <- case env.backend of
               CtlBackend backend _ -> pure

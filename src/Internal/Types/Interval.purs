@@ -100,7 +100,7 @@ import Ctl.Internal.Helpers
   , showWithParens
   , unsafeFromJust
   )
-import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
+import Ctl.Internal.QueryM.Ogmios (aesonObject)
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -831,6 +831,9 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
     (throwError $ EndTimeLessThanTime absTime)
 
   wrap <$> (liftM CannotGetBigIntFromNumber $ BigInt.fromNumber absTime)
+
+slotLengthFactor :: Number
+slotLengthFactor = 1000.0
 
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to

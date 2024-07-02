@@ -24,6 +24,7 @@ import Ctl.Internal.Contract.QueryBackend
   , defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   )
+import Ctl.Internal.ServerConfig (blockfrostPublicSanchonetServerConfig)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String (take) as String
 import Effect.Exception (throw)
@@ -68,6 +69,8 @@ blockfrostConfigFromApiKey = String.take networkPrefixLength >>> case _ of
     pure blockfrostPublicPreviewServerConfig
   "preprod" ->
     pure blockfrostPublicPreprodServerConfig
+  "sanchon" ->
+    pure blockfrostPublicSanchonetServerConfig
   _ ->
     throw "Failed to derive server config from Blockfrost API key"
   where
