@@ -22,11 +22,12 @@ import Cardano.Types.NetworkId (NetworkId(MainnetId, TestnetId))
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput
+import Cardano.Wallet.Cip30Mock (Cip30Mock, injectCip30Mock)
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
-import Control.Promise (Promise, fromAff)
+import Control.Promise (fromAff)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Wallet
@@ -51,12 +52,11 @@ import Data.Array as Array
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
-import Data.Function.Uncurried (Fn2, mkFn2)
+import Data.Function.Uncurried (mkFn2)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.UInt as UInt
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -118,24 +118,6 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockNuFi -> "nufi"
     MockGenericCip30 name -> name
 
-type Cip30Mock =
-  { getNetworkId :: Effect (Promise Int)
-  -- we ignore both the amount parameter and pagination:
-  , getUtxos :: Effect (Promise (Array String))
-  -- we ignore the amount parameter:
-  , getCollateral :: Effect (Promise (Array String))
-  , getBalance :: Effect (Promise String)
-  -- we ignore pagination parameter:
-  , getUsedAddresses :: Effect (Promise (Array String))
-  , getUnusedAddresses :: Effect (Promise (Array String))
-  , getChangeAddress :: Effect (Promise String)
-  , getRewardAddresses :: Effect (Promise (Array String))
-  -- we ignore the 'isPartial' parameter
-  , signTx :: String -> Promise String
-  , signData ::
-      Fn2 String String (Promise { key :: String, signature :: String })
-  }
-
 mkCip30Mock
   :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Cip30Mock
 mkCip30Mock pKey mSKey = do
@@ -148,22 +130,22 @@ mkCip30Mock pKey mSKey = do
         coinsPerUtxoByte = pparams.coinsPerUtxoByte
         maxCollateralInputs = UInt.toInt $
           pparams.maxCollateralInputs
-        mbCollateral = fold $
-          (unwrap keyWallet).selectCollateral coinsPerUtxoByte
-            maxCollateralInputs
-            utxos
-      pure mbCollateral
+      coll <- liftAff $
+        (unwrap keyWallet).selectCollateral coinsPerUtxoByte
+          maxCollateralInputs
+          utxos
+      pure $ fold coll
     ownUtxos = do
-      let ownAddress = (unwrap keyWallet).address env.networkId
+      ownAddress <- liftAff $ (unwrap keyWallet).address env.networkId
       liftMaybe (error "No UTxOs at address") <<< hush =<< do
         queryHandle.utxosAt ownAddress
 
     keyWallet = privateKeysToKeyWallet pKey mSKey
 
-    addressHex =
-      byteArrayToHex $ unwrap $ encodeCbor
-        ((unwrap keyWallet).address env.networkId :: Address)
-
+  addressHex <- liftAff $
+    (byteArrayToHex <<< unwrap <<< encodeCbor) <$>
+      ((unwrap keyWallet).address env.networkId :: Aff Address)
+  let
     mbRewardAddressHex = mSKey <#> \stakeKey ->
       let
         stakePubKey = PrivateKey.toPublicKey (unwrap stakeKey)
@@ -223,6 +205,3 @@ mkCip30Mock pKey mSKey = do
           , signature: byteArrayToHex $ unwrap signature
           }
     }
-
--- returns an action that removes the mock.
-foreign import injectCip30Mock :: String -> Cip30Mock -> Effect (Effect Unit)

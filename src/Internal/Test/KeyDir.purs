@@ -235,8 +235,8 @@ markAsInactive :: FilePath -> Array KeyWallet -> Contract Unit
 markAsInactive backup wallets = do
   flip parTraverse_ wallets \wallet -> do
     networkId <- asks _.networkId
+    address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address networkId
     let
-      address = Address.toBech32 $ (unwrap wallet).address networkId
       inactiveFlagFile = Path.concat [ backup, address, "inactive" ]
     liftAff $ writeTextFile UTF8 inactiveFlagFile $
       "This address was marked as inactive. "
@@ -285,8 +285,9 @@ backupWallets :: FilePath -> ContractEnv -> Array KeyWallet -> Aff Unit
 backupWallets backup env walletsArray =
   liftAff $ flip parTraverse_ walletsArray \wallet ->
     do
+      address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address
+        env.networkId
       let
-        address = Address.toBech32 $ (unwrap wallet).address env.networkId
         payment = keyWalletPrivatePaymentKey wallet
         mbStake = keyWalletPrivateStakeKey wallet
         folder = Path.concat [ backup, address ]

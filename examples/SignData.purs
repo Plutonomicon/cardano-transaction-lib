@@ -3,6 +3,7 @@ module Ctl.Examples.SignData (main, example, contract) where
 import Contract.Prelude
 
 import Cardano.Types (RawBytes)
+import Cardano.Wallet.Cip30.SignData (checkCip30SignDataResponse)
 import Contract.Address (Address)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -12,7 +13,6 @@ import Data.Array (head) as Array
 import Data.ByteArray (byteArrayFromAscii)
 import Data.Maybe (fromJust)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Wallet.Cip30.SignData (checkCip30SignDataResponse)
 
 main :: Effect Unit
 main = example testnetNamiConfig

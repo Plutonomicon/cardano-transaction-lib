@@ -2,6 +2,7 @@ module Test.Ctl.Unit (main, testPlan) where
 
 import Prelude
 
+import Cardano.Wallet.Cip30.SignData as Cip30SignData
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.Maybe (Maybe(Just))
@@ -34,7 +35,6 @@ import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Bip32 as Bip32
-import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Unit`
