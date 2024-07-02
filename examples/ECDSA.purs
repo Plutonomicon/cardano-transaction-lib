@@ -66,7 +66,7 @@ contract = do
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract TransactionHash
 prepTest = do
-  validator <- liftContractM "Caonnot get validator" getValidator
+  validator <- liftContractM "Cannot get validator" getValidator
   let
     valHash = validatorHash validator
 

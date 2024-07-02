@@ -32,7 +32,7 @@
       flake = false;
     };
 
-    cardano-node.url = "github:IntersectMBO/cardano-node/8.12.1";
+    cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-pre";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
