@@ -168,7 +168,8 @@ queryHandleForSelfHostedBlockfrostBackend
     blockfrostQueryHandle
       { evaluateTx = ctlQueryHandle.evaluateTx
       , submitTx = ctlQueryHandle.submitTx
-      , doesTxExist = ctlQueryHandle.doesTxExist
+-- `doesTxExist` is not Ogmios functionality. We should just use what's given from Blockfrost.
+--      , doesTxExist = ctlQueryHandle.doesTxExist
       , getEraSummaries = ctlQueryHandle.getEraSummaries
       , getChainTip = ctlQueryHandle.getChainTip
       }

@@ -57,6 +57,7 @@ main = do
           { blockfrostConfig: blockfrostPublicPreviewServerConfig
           , blockfrostApiKey: Just apiKey
           , confirmTxDelay: Nothing
+          , hardcodedProtocolParams: Nothing
           }
       )
 

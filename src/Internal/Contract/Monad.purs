@@ -302,11 +302,15 @@ getLedgerConstants params = case _ of
     { pparams: _, systemStart: _ }
       <$> (unwrap <$> getProtocolParametersAff ws logger)
       <*> getSystemStartAff ws logger
-  BlockfrostBackend backend _ ->
+  BlockfrostBackend backend Nothing ->
     runBlockfrostServiceM blockfrostLogger backend $
       { pparams: _, systemStart: _ }
         <$> withErrorOnLeft Blockfrost.getProtocolParameters
         <*> withErrorOnLeft Blockfrost.getSystemStart
+  BlockfrostBackend _ (Just {ogmios: {ws}}) ->
+    { pparams: _, systemStart: _ }
+      <$> (unwrap <$> getProtocolParametersAff ws logger)
+      <*> getSystemStartAff ws logger
   where
   withErrorOnLeft
     :: forall (a :: Type)

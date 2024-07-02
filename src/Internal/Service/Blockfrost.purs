@@ -280,6 +280,7 @@ type BlockfrostServiceParams =
   , blockfrostApiKey :: Maybe String
   , onBlockfrostRawGetResponse :: OnBlockfrostRawGetResponseHook
   , onBlockfrostRawPostResponse :: OnBlockfrostRawPostResponseHook
+  , hardcodedProtocolParams :: Maybe ProtocolParameters
   }
 
 type BlockfrostServiceM (a :: Type) = LoggerT
@@ -318,6 +319,7 @@ mkServiceParams onBlockfrostRawGetResponse onBlockfrostRawPostResponse backend =
   , blockfrostApiKey: backend.blockfrostApiKey
   , onBlockfrostRawGetResponse
   , onBlockfrostRawPostResponse
+  , hardcodedProtocolParams: backend.hardcodedProtocolParams
   }
 
 --------------------------------------------------------------------------------
@@ -423,7 +425,7 @@ realizeEndpoint endpoint =
         encodedTokenName = byteArrayToHex $ getTokenName name
       in
         "/assets/" <> encodedCurrencySymbol <> encodedTokenName <> "/addresses"
-          <> "/utxos?page="
+          <> "?page="
           <> show page
           <> ("&count=" <> show count)
           <> "&order=asc"
@@ -879,9 +881,13 @@ getCurrentEpoch =
 
 getProtocolParameters
   :: BlockfrostServiceM (Either ClientError ProtocolParameters)
-getProtocolParameters =
-  blockfrostGetRequest LatestProtocolParameters <#>
-    handleBlockfrostResponse >>> map unwrapBlockfrostProtocolParameters
+getProtocolParameters = do
+  pp <- asks (_.hardcodedProtocolParams)
+  case pp of
+    Nothing -> do
+      blockfrostGetRequest LatestProtocolParameters <#>
+        handleBlockfrostResponse >>> map unwrapBlockfrostProtocolParameters
+    Just pp' -> pure $ pure pp'
 
 --------------------------------------------------------------------------------
 -- Get blockchain information

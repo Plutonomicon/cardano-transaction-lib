@@ -93,8 +93,8 @@ mkQuery :: forall (query :: Type). EncodeAeson query => query -> String -> Query
 mkQuery query shown = Query queryCall shown
   where
   queryCall = mkOgmiosCallType
-    { methodname: "Query"
-    , args: const { query }
+    { method: "Query"
+    , params: const { query }
     }
 
 mkQuery' :: String -> Query

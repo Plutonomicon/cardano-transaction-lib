@@ -59,6 +59,9 @@ import Aeson
   , parseJsonStringToAeson
   , stringifyAeson
   )
+import Aeson as Aeson
+import Effect.Class.Console (log)
+import Contract.Log (logInfo')
 import Affjax (Error, Response, defaultRequest, request) as Affjax
 import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
@@ -768,11 +771,11 @@ mkAddMessageListener
 mkAddMessageListener dispatcher =
   \reflection handler ->
     flip Ref.modify_ dispatcher $
-      Map.insert reflection \aeson -> handler $
-        case (aesonObject (flip getFieldOptional "result") aeson) of
-          Left err -> Left (JsonError err)
-          Right (Just result) -> Right result
-          Right Nothing -> Left (FaultError aeson)
+      Map.insert reflection \aeson -> do
+        handler $
+          case (decodeAeson aeson) of
+            Left err -> Left (JsonError err)
+            Right result -> Right result
 
 mkRemoveMessageListener
   :: forall (requestData :: Type)

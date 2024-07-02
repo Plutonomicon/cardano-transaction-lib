@@ -15,6 +15,7 @@ module Ctl.Internal.Contract.QueryBackend
 
 import Prelude
 
+import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 import Ctl.Internal.QueryM (OgmiosWebSocket)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -42,6 +43,7 @@ type BlockfrostBackend =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
   , confirmTxDelay :: Maybe Seconds
+  , hardcodedProtocolParams :: Maybe ProtocolParameters
   }
 
 getCtlBackend :: QueryBackend -> Maybe CtlBackend
@@ -69,6 +71,7 @@ type BlockfrostBackendParams =
   { blockfrostConfig :: ServerConfig
   , blockfrostApiKey :: Maybe String
   , confirmTxDelay :: Maybe Seconds
+  , hardcodedProtocolParams :: Maybe ProtocolParameters
   }
 
 defaultConfirmTxDelay :: Maybe Seconds

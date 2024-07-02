@@ -15,6 +15,7 @@ import Aeson
   ( class DecodeAeson
   , class EncodeAeson
   , encodeAeson
+  , decodeAeson
   , getField
   , partialFiniteNumber
   )
@@ -23,6 +24,7 @@ import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Service.Helpers (aesonObject)
 import Ctl.Internal.Types.Epoch (Epoch)
 import Data.BigInt (BigInt)
+import Data.BigInt as BigInt
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, wrap)
@@ -138,7 +140,11 @@ derive instance Generic RelativeTime _
 derive instance Newtype RelativeTime _
 derive newtype instance Eq RelativeTime
 derive newtype instance Ord RelativeTime
-derive newtype instance DecodeAeson RelativeTime
+
+instance DecodeAeson RelativeTime where
+  decodeAeson x = do
+    { seconds } :: { seconds :: BigInt } <- decodeAeson x
+    pure $ wrap $ BigInt.toNumber $ seconds
 
 instance EncodeAeson RelativeTime where
   encodeAeson (RelativeTime rt) =
@@ -189,4 +195,3 @@ derive newtype instance EncodeAeson SafeZone
 
 instance Show SafeZone where
   show (SafeZone sz) = showWithParens "SafeZone" sz
-
