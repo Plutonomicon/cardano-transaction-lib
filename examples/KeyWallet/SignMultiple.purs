@@ -48,11 +48,11 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   txIds <-
     withBalancedTxs
       [ { transaction: unbalancedTx0
-        , extraUtxos: usedUtxos0
+        , usedUtxos: usedUtxos0
         , balancerConstraints: mempty
         }
       , { transaction: unbalancedTx1
-        , extraUtxos: usedUtxos1
+        , usedUtxos: usedUtxos1
         , balancerConstraints: mempty
         }
       ] $ \balancedTxs -> do

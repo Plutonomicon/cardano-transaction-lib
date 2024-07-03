@@ -231,7 +231,7 @@ withBalancedTxs
   :: forall (a :: Type)
    . Array
        { transaction :: Transaction
-       , extraUtxos :: UtxoMap
+       , usedUtxos :: UtxoMap
        , balancerConstraints :: BalanceTxConstraintsBuilder
        }
   -> (Array Transaction -> Contract a)
@@ -251,10 +251,10 @@ withBalancedTx
   -> BalanceTxConstraintsBuilder
   -> (Transaction -> Contract a)
   -> Contract a
-withBalancedTx tx extraUtxos balancerConstraints =
+withBalancedTx tx usedUtxos balancerConstraints =
   withSingleTransaction
     ( \transaction -> balanceAndLock
-        { transaction, extraUtxos, balancerConstraints }
+        { transaction, usedUtxos, balancerConstraints }
     )
     identity
     tx
@@ -290,7 +290,7 @@ balanceTx utx utxos constraints = do
 balanceTxs
   :: Array
        { transaction :: Transaction
-       , extraUtxos :: UtxoMap
+       , usedUtxos :: UtxoMap
        , balancerConstraints :: BalanceTxConstraintsBuilder
        }
   -> Contract (Array Transaction)
@@ -305,12 +305,12 @@ balanceTxs unbalancedTxs =
 
 balanceAndLock
   :: { transaction :: Transaction
-     , extraUtxos :: UtxoMap
+     , usedUtxos :: UtxoMap
      , balancerConstraints :: BalanceTxConstraintsBuilder
      }
   -> Contract Transaction
-balanceAndLock { transaction, extraUtxos, balancerConstraints } = do
-  balancedTx <- balanceTx transaction extraUtxos balancerConstraints
+balanceAndLock { transaction, usedUtxos, balancerConstraints } = do
+  balancedTx <- balanceTx transaction usedUtxos balancerConstraints
   void $ withUsedTxOuts $ lockTransactionInputs balancedTx
   pure balancedTx
 

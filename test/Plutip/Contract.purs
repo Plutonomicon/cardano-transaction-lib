@@ -2086,11 +2086,11 @@ signMultipleContract = do
 
   withBalancedTxs
     [ { transaction: ubTx1
-      , extraUtxos: usedUtxos1
+      , usedUtxos: usedUtxos1
       , balancerConstraints: mempty
       }
     , { transaction: ubTx2
-      , extraUtxos: usedUtxos2
+      , usedUtxos: usedUtxos2
       , balancerConstraints: mempty
       }
     ] $ \txs -> do
