@@ -405,7 +405,7 @@
             let
               ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
               ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
-              ctlPs = (attrValues ctlPkgsExp.inputs);
+              ctlPs = attrValues ctlPkgsExp.inputs;
               ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
                 (attrValues ctlScaffoldPkgsExp.inputs);
               intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;
