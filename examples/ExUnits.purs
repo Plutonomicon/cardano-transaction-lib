@@ -4,12 +4,13 @@ import Contract.Prelude
 
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Cardano.Types.PlutusData (unit) as PlutusData
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyHashCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (RedeemerDatum(RedeemerDatum), toData, unitDatum)
+import Contract.PlutusData (RedeemerDatum(RedeemerDatum), toData)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
@@ -59,14 +60,14 @@ payToExUnits vhash = do
     constraints =
       case mbStakeKeyHash of
         Nothing ->
-          Constraints.mustPayToScript vhash unitDatum
+          Constraints.mustPayToScript vhash PlutusData.unit
             Constraints.DatumWitness
             $ Value.lovelaceValueOf
             $ BigNum.fromInt 2_000_000
         Just stakeKeyHash ->
           Constraints.mustPayToScriptAddress vhash
             (PubKeyHashCredential $ unwrap stakeKeyHash)
-            unitDatum
+            PlutusData.unit
             Constraints.DatumWitness
             $ Value.lovelaceValueOf
             $ BigNum.fromInt 2_000_000
@@ -102,8 +103,11 @@ spendFromExUnits iters vhash validator txId = do
       (view _input <$> head (lookupTxHash txId utxos))
   let
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs utxos
+    lookups = mconcat
+      [ Lookups.validator validator
+      , Lookups.unspentOutputs utxos
+      , Lookups.datum PlutusData.unit
+      ]
 
     constraints :: TxConstraints
     constraints =

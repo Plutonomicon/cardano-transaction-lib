@@ -18,6 +18,7 @@ import Cardano.Types.Credential
   )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusData (unit) as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
@@ -304,8 +305,11 @@ suite = do
                 (view _input <$> head (lookupTxHash txId utxos))
             let
               lookups :: Lookups.ScriptLookups
-              lookups = Lookups.validator validator
-                <> Lookups.unspentOutputs utxos
+              lookups = mconcat
+                [ Lookups.validator validator
+                , Lookups.unspentOutputs utxos
+                , Lookups.datum PlutusData.unit
+                ]
 
               constraints :: TxConstraints
               constraints =
@@ -351,8 +355,11 @@ suite = do
                 (view _input <$> head (lookupTxHash txId utxos))
             let
               lookups :: Lookups.ScriptLookups
-              lookups = Lookups.validator validator
-                <> Lookups.unspentOutputs utxos
+              lookups = mconcat
+                [ Lookups.validator validator
+                , Lookups.unspentOutputs utxos
+                , Lookups.datum PlutusData.unit
+                ]
 
               constraints :: TxConstraints
               constraints =
@@ -929,17 +936,16 @@ suite = do
         payToTest :: ValidatorHash -> Contract TransactionHash
         payToTest vhash = do
           let
-            constraints =
-              Constraints.mustPayToScript
-                vhash
-                datum1
-                Constraints.DatumWitness
-                (Value.lovelaceValueOf $ BigNum.fromInt 1_000_000)
-                <> Constraints.mustPayToScript
-                  vhash
-                  datum2
+            constraints = mconcat
+              [ Constraints.mustPayToScript vhash datum1
                   Constraints.DatumWitness
                   (Value.lovelaceValueOf $ BigNum.fromInt 1_000_000)
+              , Constraints.mustPayToScript vhash datum2
+                  Constraints.DatumWitness
+                  (Value.lovelaceValueOf $ BigNum.fromInt 1_000_000)
+              , Constraints.mustIncludeDatum datum1
+              , Constraints.mustIncludeDatum datum2
+              ]
 
             lookups :: Lookups.ScriptLookups
             lookups = mempty

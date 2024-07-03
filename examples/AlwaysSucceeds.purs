@@ -19,7 +19,6 @@ import Cardano.Types
   , TransactionHash
   )
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.PlutusData as Datum
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as Script
 import Contract.Address (mkAddress)
@@ -80,7 +79,7 @@ payToAlwaysSucceeds vhash = do
         Just stakeKeyHash ->
           Constraints.mustPayToScriptAddress vhash
             (PubKeyHashCredential $ unwrap stakeKeyHash)
-            Datum.unit
+            PlutusData.unit
             Constraints.DatumWitness
             value
 
@@ -113,8 +112,11 @@ spendFromAlwaysSucceeds vhash validator txId = do
       (view _input <$> head (lookupTxHash txId utxos))
   let
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs utxos
+    lookups = mconcat
+      [ Lookups.validator validator
+      , Lookups.unspentOutputs utxos
+      , Lookups.datum PlutusData.unit
+      ]
 
     constraints :: TxConstraints
     constraints =

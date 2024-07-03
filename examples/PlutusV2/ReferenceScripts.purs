@@ -11,12 +11,13 @@ import Cardano.Types
   , TransactionUnspentOutput(TransactionUnspentOutput)
   )
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData (unit) as PlutusData
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Credential (Credential(PubKeyHashCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import Contract.PlutusData (unitDatum, unitRedeemer)
+import Contract.PlutusData (unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (ValidatorHash, validatorHash)
 import Contract.Transaction
@@ -77,14 +78,15 @@ payWithScriptRefToAlwaysSucceeds vhash scriptRef = do
     constraints =
       case mbStakeKeyHash of
         Nothing ->
-          Constraints.mustPayToScriptWithScriptRef vhash unitDatum DatumWitness
+          Constraints.mustPayToScriptWithScriptRef vhash PlutusData.unit
+            DatumWitness
             scriptRef
             (Value.lovelaceValueOf $ BigNum.fromInt 2_000_000)
         Just stakeKeyHash ->
           Constraints.mustPayToScriptAddressWithScriptRef
             vhash
             (PubKeyHashCredential $ unwrap stakeKeyHash)
-            unitDatum
+            PlutusData.unit
             DatumWitness
             scriptRef
             (Value.lovelaceValueOf $ BigNum.fromInt 2_000_000)
@@ -114,7 +116,7 @@ spendFromAlwaysSucceeds vhash txId = do
         (SpendInput $ TransactionUnspentOutput { input, output })
 
     lookups :: Lookups.ScriptLookups
-    lookups = mempty
+    lookups = Lookups.datum PlutusData.unit
 
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId

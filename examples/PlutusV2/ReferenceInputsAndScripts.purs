@@ -11,6 +11,7 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential (Credential(ScriptHashCredential))
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusData (unit) as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.TransactionUnspentOutput
   ( TransactionUnspentOutput(TransactionUnspentOutput)
@@ -25,7 +26,7 @@ import Contract.Monad
   , liftedM
   , runContract
   )
-import Contract.PlutusData (unitDatum, unitRedeemer)
+import Contract.PlutusData (unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (PlutusScript, Validator, ValidatorHash)
 import Contract.Transaction
@@ -51,9 +52,7 @@ import Contract.Wallet
   , ownStakePubKeyHashes
   )
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
-  ( alwaysMintsPolicyScriptV2
-  )
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (head)
 import Data.Map (toUnfoldable) as Map
@@ -103,7 +102,7 @@ payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
 
     constraints :: TxConstraints
     constraints =
-      Constraints.mustPayToScript vhash unitDatum DatumWitness value
+      Constraints.mustPayToScript vhash PlutusData.unit DatumWitness value
         <> createOutputWithScriptRef validatorRef
         <> createOutputWithScriptRef mpRef
 
@@ -155,7 +154,10 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
       ]
 
     lookups :: Lookups.ScriptLookups
-    lookups = Lookups.unspentOutputs scriptAddressUtxos
+    lookups = mconcat
+      [ Lookups.unspentOutputs scriptAddressUtxos
+      , Lookups.datum PlutusData.unit
+      ]
 
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
@@ -196,7 +198,8 @@ mintAlwaysMintsV2ToTheScript tokenName validator sum = do
       [ Constraints.mustMintValue
           $ Mint.singleton cs tokenName
           $ Int.fromInt sum
-      , Constraints.mustPayToScript vhash unitDatum Constraints.DatumWitness
+      , Constraints.mustPayToScript vhash PlutusData.unit
+          Constraints.DatumWitness
           $ Value.singleton cs tokenName
           $ BigNum.fromInt sum
       ]
