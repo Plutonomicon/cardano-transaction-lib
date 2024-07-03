@@ -33,7 +33,6 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Array (head)
-import Data.Map as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig

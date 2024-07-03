@@ -28,7 +28,6 @@ import Cardano.Transaction.Builder
   )
 import Cardano.Types
   ( Bech32String
-  , Coin
   , GeneralTransactionMetadata
   , PoolPubKeyHash(PoolPubKeyHash)
   , Transaction(Transaction)
@@ -38,7 +37,6 @@ import Cardano.Types
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , UtxoMap
   , _body
-  , _fee
   , _outputs
   )
 import Cardano.Types
@@ -107,40 +105,6 @@ import Ctl.Internal.Contract.QueryHandle.Error
   ) as X
 import Ctl.Internal.Contract.Sign (signTransaction)
 import Ctl.Internal.Contract.Sign (signTransaction) as X
-import Ctl.Internal.Lens
-  ( _address
-  , _amount
-  , _auxiliaryData
-  , _auxiliaryDataHash
-  , _body
-  , _certs
-  , _collateral
-  , _collateralReturn
-  , _datum
-  , _fee
-  , _input
-  , _inputs
-  , _isValid
-  , _mint
-  , _nativeScripts
-  , _networkId
-  , _output
-  , _outputs
-  , _plutusData
-  , _plutusScripts
-  , _redeemers
-  , _referenceInputs
-  , _requiredSigners
-  , _scriptDataHash
-  , _scriptRef
-  , _totalCollateral
-  , _ttl
-  , _update
-  , _validityStartInterval
-  , _vkeys
-  , _withdrawals
-  , _witnessSet
-  ) as X
 import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
@@ -155,14 +119,13 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right))
 import Data.Foldable (foldl, length)
 import Data.Lens.Getter (view)
-import Data.Map (Map)
 import Data.Map (empty, insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap)
 import Data.String.Utils (startsWith)
 import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple (Tuple(Tuple), fst)
-import Data.Tuple.Nested (type (/\), (/\))
+import Data.Tuple (fst)
+import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)

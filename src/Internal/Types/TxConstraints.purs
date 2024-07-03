@@ -114,7 +114,6 @@ import Cardano.Types.RedeemerDatum (RedeemerDatum)
 import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Ctl.Internal.Types.Interval (POSIXTimeRange)
 import Data.Array (singleton)
-import Data.Array (singleton) as X
 import Data.Array as Array
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep (class Generic)
@@ -122,7 +121,7 @@ import Data.Map (Map)
 import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, over, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Warn, Text)

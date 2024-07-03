@@ -4,11 +4,7 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
-import Cardano.Transaction.Edit
-  ( attachRedeemers
-  , editTransaction
-  , mkRedeemersContext
-  )
+import Cardano.Transaction.Edit (editTransaction)
 import Cardano.Types
   ( AssetClass(AssetClass)
   , Certificate(StakeDeregistration, StakeRegistration)
@@ -20,6 +16,18 @@ import Cardano.Types
   , TransactionOutput
   , UtxoMap
   , Value(Value)
+  , _amount
+  , _body
+  , _certs
+  , _fee
+  , _inputs
+  , _mint
+  , _networkId
+  , _outputs
+  , _plutusScripts
+  , _referenceInputs
+  , _withdrawals
+  , _witnessSet
   )
 import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
@@ -65,7 +73,6 @@ import Ctl.Internal.BalanceTx.Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError
       ( CouldNotGetUtxos
-      , ReindexRedeemersError
       , CouldNotGetCollateral
       , InsufficientCollateralUtxos
       , NumericOverflowError
@@ -96,20 +103,6 @@ import Ctl.Internal.Contract.Wallet
   , getWalletUtxos
   ) as Wallet
 import Ctl.Internal.Helpers (liftEither, pprintTagSet, unsafeFromJust, (??))
-import Ctl.Internal.Lens
-  ( _amount
-  , _body
-  , _certs
-  , _fee
-  , _inputs
-  , _mint
-  , _networkId
-  , _outputs
-  , _plutusScripts
-  , _referenceInputs
-  , _withdrawals
-  , _witnessSet
-  )
 import Ctl.Internal.Partition
   ( equipartition
   , equipartitionValueWithTokenQuantityUpperBound
@@ -133,7 +126,6 @@ import Data.Array.NonEmpty
   , zipWith
   ) as NEArray
 import Data.Array.NonEmpty as NEA
-import Data.Bifunctor (lmap)
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either, hush, note)
 import Data.Foldable (fold, foldMap, foldr, length, null, sum)
@@ -861,8 +853,7 @@ getStakingBalance tx depositLovelacesPerCert =
 --------------------------------------------------------------------------------
 
 logBalancerState
-  :: forall rest
-   . String
+  :: String
   -> UtxoMap
   -> BalancerState Transaction
   -> BalanceTxM Unit

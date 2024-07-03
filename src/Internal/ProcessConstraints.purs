@@ -31,6 +31,16 @@ import Cardano.Types
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , UtxoMap
   , Value(Value)
+  , _body
+  , _certs
+  , _inputs
+  , _isValid
+  , _mint
+  , _networkId
+  , _outputs
+  , _referenceInputs
+  , _requiredSigners
+  , _withdrawals
   , _witnessSet
   )
 import Cardano.Types as Cardano
@@ -60,19 +70,31 @@ import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
 import Ctl.Internal.Helpers (liftEither, liftM, unsafeFromJust)
-import Ctl.Internal.Lens
-  ( _body
-  , _certs
-  , _inputs
-  , _isValid
-  , _mint
-  , _networkId
-  , _outputs
-  , _referenceInputs
-  , _requiredSigners
-  , _withdrawals
+import Ctl.Internal.ProcessConstraints.Error
+  ( MkUnbalancedTxError
+      ( CannotSatisfyAny
+      , CannotWithdrawRewardsNativeScript
+      , CannotWithdrawRewardsPlutusScript
+      , CannotWithdrawRewardsPubKey
+      , DatumWrongHash
+      , CannotMintZero
+      , ExpectedPlutusScriptGotNativeScript
+      , CannotFindDatum
+      , CannotQueryDatum
+      , CannotGetValidatorHashFromAddress
+      , TxOutRefWrongType
+      , CannotConvertPOSIXTimeRange
+      , WrongRefScriptHash
+      , ValidatorHashNotFound
+      , MintingPolicyNotFound
+      , DatumNotFound
+      , TxOutRefNotFound
+      , CannotSolveTimeConstraints
+      , NumericOverflow
+      , OwnPubKeyAndStakeKeyMissing
+      , CannotAttachRedeemer
+      )
   )
-import Ctl.Internal.ProcessConstraints.Error (MkUnbalancedTxError(..))
 import Ctl.Internal.ProcessConstraints.State
   ( ConstraintProcessingState
   , ConstraintsM

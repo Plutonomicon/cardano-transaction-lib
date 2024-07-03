@@ -4,7 +4,7 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Cardano.Types (BigNum, Value)
+import Cardano.Types (BigNum, Value, _amount)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset as MultiAsset
@@ -52,7 +52,6 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
 import Ctl.Internal.Helpers (logWithLevel, unsafeFromJust)
-import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.UtxoDistribution

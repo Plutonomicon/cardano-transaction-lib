@@ -2,6 +2,7 @@ module Ctl.Examples.ExUnits where
 
 import Contract.Prelude
 
+import Cardano.Types (_input)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential (Credential(ScriptHashCredential))
 import Contract.Address (mkAddress)
@@ -15,7 +16,6 @@ import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
-  , _input
   , awaitTxConfirmed
   , lookupTxHash
   , submitTxFromConstraints

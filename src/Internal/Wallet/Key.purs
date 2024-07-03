@@ -19,6 +19,7 @@ import Aeson
   )
 import Cardano.MessageSigning (DataSignature)
 import Cardano.MessageSigning (signData) as MessageSigning
+import Cardano.Types (_vkeys)
 import Cardano.Types.Address (Address(BaseAddress, EnterpriseAddress))
 import Cardano.Types.Coin (Coin)
 import Cardano.Types.Credential (Credential(PubKeyHashCredential))
@@ -35,7 +36,6 @@ import Cardano.Types.TransactionWitnessSet (TransactionWitnessSet)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Contract.Prelude (class Newtype)
 import Ctl.Internal.BalanceTx.Collateral.Select as Collateral
-import Ctl.Internal.Lens (_vkeys)
 import Data.Array (fromFoldable)
 import Data.Either (note)
 import Data.Foldable (fold)

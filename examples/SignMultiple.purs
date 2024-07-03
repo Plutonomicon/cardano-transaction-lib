@@ -38,7 +38,6 @@ import Contract.Wallet
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.Map (Map, filter)
-import Data.Map as Map
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref

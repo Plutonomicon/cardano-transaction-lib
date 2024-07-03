@@ -2,6 +2,10 @@ module Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution) where
 
 import Prelude
 
+import Cardano.Types
+  ( _body
+  , _outputs
+  )
 import Cardano.Types.BigNum as BigNum
 import Contract.BalanceTxConstraints (mustSendChangeWithDatum)
 import Contract.Monad (Contract)
@@ -13,9 +17,7 @@ import Contract.PlutusData
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts (validatorHash)
 import Contract.Transaction
-  ( _body
-  , _outputs
-  , awaitTxConfirmed
+  ( awaitTxConfirmed
   , balanceTx
   , signTransaction
   , submit

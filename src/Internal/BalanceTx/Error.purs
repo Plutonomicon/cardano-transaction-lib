@@ -27,14 +27,19 @@ import Prelude
 
 import Cardano.AsCbor (encodeCbor)
 import Cardano.Transaction.Edit (DetachedRedeemer)
-import Cardano.Types (Coin, Redeemer(Redeemer), Transaction)
+import Cardano.Types
+  ( Coin
+  , Redeemer(Redeemer)
+  , Transaction
+  , _redeemers
+  , _witnessSet
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.TransactionInput (TransactionInput(TransactionInput))
 import Cardano.Types.TransactionOutput (TransactionOutput)
 import Cardano.Types.UtxoMap (UtxoMap, pprintUtxoMap)
 import Cardano.Types.Value (Value)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
-import Ctl.Internal.Lens (_redeemers, _witnessSet)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
   , ScriptFailure

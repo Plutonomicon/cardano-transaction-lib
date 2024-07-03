@@ -18,6 +18,9 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet
   , UtxoMap
+  , _body
+  , _isValid
+  , _witnessSet
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.ScriptRef as ScriptRef
@@ -38,7 +41,6 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (unsafeFromJust)
-import Ctl.Internal.Lens (_body, _isValid, _witnessSet)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , TxEvaluationFailure(AdditionalUtxoOverlap)

@@ -2,7 +2,11 @@ module Ctl.Examples.PlutusV2.ReferenceInputs (contract, example, main) where
 
 import Contract.Prelude
 
-import Cardano.Types (Transaction)
+import Cardano.Types
+  ( Transaction
+  , _body
+  , _referenceInputs
+  )
 import Cardano.Types.BigNum as BigNum
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
@@ -23,8 +27,6 @@ import Contract.Test.Assert
   )
 import Contract.Transaction
   ( TransactionInput
-  , _body
-  , _referenceInputs
   , awaitTxConfirmed
   , balanceTx
   , signTransaction
@@ -42,7 +44,7 @@ import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (elem, head) as Array
 import Data.Lens.Getter ((^.))
-import Data.Map (empty, member, toUnfoldable) as Map
+import Data.Map (member, toUnfoldable) as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig

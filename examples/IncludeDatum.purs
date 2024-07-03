@@ -12,7 +12,10 @@ module Ctl.Examples.IncludeDatum
 
 import Contract.Prelude
 
-import Cardano.Types (Credential(ScriptHashCredential))
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , _input
+  )
 import Cardano.Types.BigNum as BigNum
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
@@ -24,7 +27,6 @@ import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
-  , _input
   , awaitTxConfirmed
   , lookupTxHash
   , submitTxFromConstraints

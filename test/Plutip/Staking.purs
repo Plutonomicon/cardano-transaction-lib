@@ -74,7 +74,6 @@ import Data.Array (head, (!!))
 import Data.Array as Array
 import Data.Either (hush)
 import Data.Foldable (for_)
-import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Posix.Signal (Signal(SIGINT))

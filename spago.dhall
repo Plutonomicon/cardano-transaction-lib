@@ -21,6 +21,7 @@ You can edit this file as you like.
   , "cardano-message-signing"
   , "cardano-plutus-data-schema"
   , "cardano-serialization-lib"
+  , "cardano-transaction-builder"
   , "cardano-types"
   , "checked-exceptions"
   , "cip30"
@@ -110,6 +111,5 @@ You can edit this file as you like.
   , "templates/ctl-scaffold/src/**/*.purs"
   , "templates/ctl-scaffold/test/**/*.purs"
   , "templates/ctl-scaffold/exe/**/*.purs"
-  , "../purescript-cardano-transaction-builder/src/**/*.purs"
   ]
 }

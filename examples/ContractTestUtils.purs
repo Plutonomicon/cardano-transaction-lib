@@ -11,7 +11,16 @@ module Ctl.Examples.ContractTestUtils
 
 import Contract.Prelude
 
-import Cardano.Types (BigNum, Coin, ExUnits(ExUnits), TransactionOutput)
+import Cardano.Types
+  ( BigNum
+  , Coin
+  , ExUnits(ExUnits)
+  , TransactionOutput
+  , _body
+  , _datum
+  , _fee
+  , _output
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential (Credential(PubKeyHashCredential))
 import Cardano.Types.Int as Int
@@ -39,10 +48,6 @@ import Contract.Test.Assert
 import Contract.Transaction
   ( TransactionHash
   , TransactionUnspentOutput
-  , _body
-  , _datum
-  , _fee
-  , _output
   , awaitTxConfirmed
   , balanceTx
   , lookupTxHash
@@ -63,7 +68,6 @@ import Contract.Wallet
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.Lens (_1, _2, view, (%~))
-import Data.Map as Map
 import Effect.Exception (throw)
 
 type ContractParams =

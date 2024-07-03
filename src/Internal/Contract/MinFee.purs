@@ -2,7 +2,15 @@ module Ctl.Internal.Contract.MinFee (calculateMinFee) where
 
 import Prelude
 
-import Cardano.Types (Coin, Ed25519KeyHash, Transaction, UtxoMap)
+import Cardano.Types
+  ( Coin
+  , Ed25519KeyHash
+  , Transaction
+  , UtxoMap
+  , _body
+  , _collateral
+  , _inputs
+  )
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.Credential (asPubKeyHash)
 import Cardano.Types.TransactionInput (TransactionInput)
@@ -10,7 +18,6 @@ import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Ctl.Internal.Helpers (liftM, liftedM)
-import Ctl.Internal.Lens (_body, _collateral, _inputs)
 import Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array

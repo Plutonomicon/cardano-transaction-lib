@@ -19,7 +19,6 @@ import Contract.Value (lovelaceValueOf) as Value
 import Control.Monad.Reader (asks)
 import Ctl.Examples.KeyWallet.Internal.Pkh2PkhContract (runKeyWalletContract_)
 import Data.Map (Map)
-import Data.Map as Map
 import Data.Newtype (unwrap)
 import Data.Set (Set)
 import Data.UInt (UInt)

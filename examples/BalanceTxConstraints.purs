@@ -56,7 +56,7 @@ import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
 import Data.Array (sort) as Array
-import Data.Map (empty, fromFoldable, keys, member) as Map
+import Data.Map (fromFoldable, keys, member) as Map
 import Data.Set (findMin) as Set
 import JS.BigInt as BigInt
 

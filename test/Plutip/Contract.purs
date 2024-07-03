@@ -6,15 +6,14 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Serialization.Lib (fromBytes)
-import Cardano.Transaction.Builder
-  ( TransactionBuilderStep(..)
-  , buildTransaction
-  )
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
 import Cardano.Types
   ( Address
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , StakeCredential(StakeCredential)
   , TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , _output
   )
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
@@ -23,7 +22,7 @@ import Cardano.Types.Credential
   )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
-import Cardano.Types.PaymentCredential (PaymentCredential(..))
+import Cardano.Types.PaymentCredential (PaymentCredential(PaymentCredential))
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
@@ -88,8 +87,6 @@ import Contract.Transaction
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
-  , _input
-  , _output
   , awaitTxConfirmed
   , balanceTx
   , balanceTxE
@@ -174,7 +171,7 @@ import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
@@ -243,7 +240,7 @@ suite = do
               lookups = mempty
             ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
             res <-
-              ( balanceTxE ubTx Map.empty
+              ( balanceTxE ubTx usedUtxos
                   (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
               )
             res `shouldSatisfy` isLeft
@@ -362,7 +359,7 @@ suite = do
                 Constraints.mustSpendScriptOutput txInput unitRedeemer
 
             ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
-            res <- balanceTxE ubTx Map.empty (mustUseCollateralUtxos Map.empty)
+            res <- balanceTxE ubTx usedUtxos (mustUseCollateralUtxos Map.empty)
             res `shouldSatisfy` case _ of
               Left (InsufficientCollateralUtxos mp) -> Map.isEmpty mp
               _ -> false
@@ -790,7 +787,7 @@ suite = do
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
           ubTx /\ usedUtxos <- mkUnbalancedTx lookups' constraints'
-          result <- balanceTxE ubTx Map.empty mempty
+          result <- balanceTxE ubTx usedUtxos mempty
           result `shouldSatisfy` isLeft
 
     test "mustSpendAtLeast succeeds to spend" do
@@ -1032,7 +1029,7 @@ suite = do
 
           ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
           let ubTx' = setGeneralTxMetadata ubTx givenMetadata
-          bsTx <- signTransaction =<< balanceTx ubTx' Map.empty mempty
+          bsTx <- signTransaction =<< balanceTx ubTx' usedUtxos mempty
           txId <- submit bsTx
           awaitTxConfirmed txId
 
@@ -1720,9 +1717,9 @@ suite = do
               lookups0 :: Lookups.ScriptLookups
               lookups0 = mempty
 
-            unbalancedTx0 /\ usedUtxos <- mkUnbalancedTx lookups0 constraints0
+            unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 usedUtxos mempty \balancedTx0 -> do
+            withBalancedTx unbalancedTx0 usedUtxos0 mempty \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1744,8 +1741,9 @@ suite = do
                 balanceTxConstraints =
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-              unbalancedTx1 /\ usedUtxos <- mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <- balanceTx unbalancedTx1 usedUtxos
+              unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups1
+                constraints1
+              balancedTx1 <- balanceTx unbalancedTx1 usedUtxos1
                 balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 

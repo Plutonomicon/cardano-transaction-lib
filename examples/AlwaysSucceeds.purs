@@ -17,6 +17,7 @@ import Cardano.Types
   , PlutusScript
   , ScriptHash
   , TransactionHash
+  , _input
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData as Datum
@@ -30,8 +31,7 @@ import Contract.PlutusData (unitRedeemer)
 import Contract.ScriptLookups as Lookups
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
-  ( _input
-  , awaitTxConfirmed
+  ( awaitTxConfirmed
   , lookupTxHash
   , submitTxFromConstraints
   )

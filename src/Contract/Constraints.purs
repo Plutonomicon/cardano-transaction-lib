@@ -1,6 +1,7 @@
 module Contract.Constraints where
 
 import Prelude
+import Prim hiding (Constraint)
 
 import Cardano.Types (Slot)
 import Cardano.Types.AssetName (AssetName)
