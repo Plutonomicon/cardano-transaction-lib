@@ -5,6 +5,7 @@ module Test.Ctl.Plutip.Contract
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Cardano.Serialization.Lib (fromBytes)
 import Cardano.Types
   ( Address
@@ -59,7 +60,6 @@ import Contract.Prim.ByteArray
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( ValidatorHash
-  , applyArgs
   , getScriptByHash
   , getScriptsByHashes
   , validatorHash
