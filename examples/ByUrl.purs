@@ -37,6 +37,7 @@ import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.DropTokens as DropTokens
 import Ctl.Examples.ECDSA as ECDSA
+import Ctl.Examples.IncludeDatum (contract) as IncludeDatum
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
 import Ctl.Examples.OneShotMinting as OneShotMinting
@@ -223,6 +224,7 @@ examples = addSuccessLog <$> Map.fromFoldable
       ChangeGeneration.checkChangeOutputsDistribution 3 1 5
   , "ChangeGeneration1-3" /\
       ChangeGeneration.checkChangeOutputsDistribution 1 3 7
+  , "IncludeDatum" /\ IncludeDatum.contract
   ]
 
 addSuccessLog :: Contract Unit -> Contract Unit
