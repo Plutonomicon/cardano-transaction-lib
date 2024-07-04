@@ -10,6 +10,9 @@ import Contract.Prelude
 import Cardano.Serialization.Lib (privateKey_generateEd25519) as Csl
 import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
+import Cardano.Types.BigInt (BigInt)
+import Cardano.Types.BigInt (fromInt) as BigInt
+import Cardano.Types.BigNum (fromBigInt, toBigInt) as BigNum
 import Cardano.Types.Credential (Credential(PubKeyHashCredential))
 import Cardano.Types.PaymentCredential (PaymentCredential(PaymentCredential))
 import Cardano.Types.StakeCredential (StakeCredential(StakeCredential))
@@ -19,6 +22,7 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , ContractEnv
+  , liftContractE
   , liftContractM
   , liftedM
   , runContractInEnv
@@ -33,15 +37,17 @@ import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints (mustPayToPubKey, mustPayToPubKeyAddress) as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (Value)
-import Contract.Value (lovelaceValueOf) as Value
+import Contract.Value (getCoin, lovelaceValueOf) as Value
 import Contract.Wallet
   ( getWalletAddress
+  , getWalletUtxos
   , mkKeyWalletFromPrivateKeys
   , withKeyWallet
   )
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Plutip.Server (makeClusterContractEnv)
 import Ctl.Internal.Plutip.Utils (cleanupOnExit, runCleanup, whenError)
 import Ctl.Internal.Test.ContractTest
@@ -51,17 +57,18 @@ import Ctl.Internal.Test.ContractTest
   )
 import Ctl.Internal.Test.UtxoDistribution
   ( class UtxoDistribution
-  , UtxoAmount
   , decodeWallets
   , encodeDistribution
   , keyWallets
   )
+import Ctl.Internal.Testnet.DistributeFundsV2 (DistrFundsParams)
+import Ctl.Internal.Testnet.DistributeFundsV2 (Tx(Tx), makeDistributionPlan) as DistrFunds
 import Ctl.Internal.Testnet.Server (StartedTestnetCluster, startTestnetCluster)
 import Ctl.Internal.Testnet.Types (TestnetConfig)
 import Ctl.Internal.Testnet.Utils (read872GenesisKey)
-import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
-import Data.Array (head, zip) as Array
-import Data.Maybe (fromJust)
+import Ctl.Internal.Wallet.Key (KeyWallet)
+import Data.Array (concat, fromFoldable, zip) as Array
+import Data.Map (values) as Map
 import Effect.Aff (bracket) as Aff
 import Effect.Aff (try)
 import Effect.Exception (error)
@@ -72,7 +79,6 @@ import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
 import Mote.TestPlanM (TestPlanM)
-import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
 
 -- | Run a single `Contract` in cardano-testnet environment.
@@ -245,27 +251,16 @@ startTestnetContractEnv cfg distr cleanupRef = do
     runContractInEnv env do
       genesisWallets <- liftEffect readGenesisWallets
       let
-        genesisWallet = unsafePartial fromJust $ Array.head genesisWallets -- FIXME
-      withKeyWallet genesisWallet do
-        let distrArray = encodeDistribution distr
-        privateKeys <-
-          for (encodeDistribution distr) \_ ->
-            liftEffect $ wrap <$> Csl.privateKey_generateEd25519
-        wallets <-
-          liftContractM
-            "Impossible happened: could not decode wallets. Please report as bug"
-            $ decodeWallets distr privateKeys
-        let kws = keyWallets (Proxy :: _ distr) wallets
-        genesisAddr <- liftedM "Could not get genesis address" getWalletAddress
-        let
-          nodeCfg =
-            { socketPath: (unwrap cluster).paths.nodeSocketPath
-            , testnetMagic: cfg.clusterConfig.testnetMagic
-            }
-        withCardanoCliCompletion nodeCfg genesisAddr do
-          let walletsAmounts = Array.zip kws distrArray
-          fundWalletsFromGenesis walletsAmounts
-        pure wallets
+        nodeCfg =
+          { socketPath: (unwrap cluster).paths.nodeSocketPath
+          , testnetMagic: cfg.clusterConfig.testnetMagic
+          }
+      wallets /\ distrPlan <- makeDistrFundsPlan
+        (withCardanoCliCompletion nodeCfg)
+        genesisWallets
+        distr
+      execDistrFundsPlan (withCardanoCliCompletion nodeCfg) distrPlan
+      pure wallets
     where
     readGenesisWallets :: Effect (Array KeyWallet)
     readGenesisWallets =
@@ -276,42 +271,108 @@ startTestnetContractEnv cfg distr cleanupRef = do
         )
         (unwrap cluster).paths.genesisKeys
 
-  fundWalletsFromGenesis
-    :: Array (KeyWallet /\ Array UtxoAmount) -> Contract Unit
-  fundWalletsFromGenesis walletsAmounts = do
-    network <- getNetworkId
-    let
-      constraints :: TxConstraints
-      constraints =
-        foldMap
-          ( \(KeyWallet kw /\ amounts) ->
-              foldMap
-                ( mustPayToAddress (kw.address network) <<<
-                    Value.lovelaceValueOf
-                )
-                amounts
-          )
-          walletsAmounts
-    unbalancedTx <- mkUnbalancedTx mempty constraints
-    balancedTx <- balanceTx unbalancedTx
-    balancedSignedTx <- signTransaction balancedTx
-    txHash <- submit balancedSignedTx
-    logInfo' $ "FundWalletsFromGenesis txHash: " <> show txHash
-    awaitTxConfirmed txHash
+execDistrFundsPlan
+  :: (forall a. Address -> Contract a -> Contract a)
+  -> Array (Array (DistrFunds.Tx KeyWallet BigInt))
+  -> Contract Unit
+execDistrFundsPlan withCardanoCliUtxos rounds = do
+  network <- getNetworkId
+  roundsFixed <-
+    liftContractM "Could not convert target amounts to BigNum's" $
+      traverse (traverse (traverse BigNum.fromBigInt)) rounds
+  traverse_
+    ( parTraverse
+        ( \(DistrFunds.Tx { srcWallet: genesisWallet, utxos }) -> do
+            withKeyWallet genesisWallet do
+              genesisAddr <- liftedM "Could not get genesis address"
+                getWalletAddress
+              withCardanoCliUtxos genesisAddr do
+                let
+                  constraints :: TxConstraints
+                  constraints =
+                    foldMap
+                      ( \{ wallet, amount } ->
+                          mustPayToAddress ((unwrap wallet).address network) $
+                            Value.lovelaceValueOf amount
+                      )
+                      utxos
 
-  mustPayToAddress :: Address -> Value -> TxConstraints
-  mustPayToAddress addr =
-    let
-      mSkh = case getStakeCredential addr of
-        Just (StakeCredential (PubKeyHashCredential skh')) -> Just $
-          StakePubKeyHash skh'
-        _ -> Nothing
-    in
-      case getPaymentCredential addr of
-        Just (PaymentCredential (PubKeyHashCredential pkh)) ->
-          case mSkh of
-            Nothing ->
-              Constraints.mustPayToPubKey $ wrap pkh
-            Just skh ->
-              Constraints.mustPayToPubKeyAddress (wrap pkh) skh
-        _ -> mempty
+                unbalancedTx <- mkUnbalancedTx mempty constraints
+                balancedTx <- balanceTx unbalancedTx
+                balancedSignedTx <- signTransaction balancedTx
+                txHash <- submit balancedSignedTx
+                logInfo' $ "FundWalletsFromGenesis txHash: " <> show txHash
+                awaitTxConfirmed txHash
+        )
+    )
+    roundsFixed
+
+makeDistrFundsPlan
+  :: forall (distr :: Type) (wallets :: Type)
+   . UtxoDistribution distr wallets
+  => (forall a. Address -> Contract a -> Contract a)
+  -> Array KeyWallet
+  -> distr
+  -> Contract (wallets /\ Array (Array (DistrFunds.Tx KeyWallet BigInt)))
+makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
+  let distrArray = map BigNum.toBigInt <$> encodeDistribution distr
+  privateKeys <-
+    for (encodeDistribution distr) \_ ->
+      liftEffect $ wrap <$> Csl.privateKey_generateEd25519
+  wallets <-
+    liftContractM
+      "Impossible happened: could not decode wallets. Please report as bug"
+      $ decodeWallets distr privateKeys
+  let
+    kws = keyWallets (Proxy :: _ distr) wallets
+    targets = Array.concat $ sequence <$> Array.zip kws distrArray
+  sources <- Array.concat <$>
+    parTraverse (\kw -> map (Tuple kw) <$> getGenesisUtxos kw)
+      genesisWallets
+  distrPlan <-
+    liftContractE $
+      DistrFunds.makeDistributionPlan distrFundsParams sources targets
+  pure $ wallets /\ distrPlan
+  where
+  getGenesisUtxos :: KeyWallet -> Contract (Array BigInt)
+  getGenesisUtxos genesisWallet =
+    withKeyWallet genesisWallet do
+      genesisAddr <- liftedM "Could not get genesis address" getWalletAddress
+      withCardanoCliUtxos genesisAddr do
+        liftedM "Could not get genesis wallet utxos" getWalletUtxos
+          <#> map
+            ( BigNum.toBigInt
+                <<< unwrap
+                <<< Value.getCoin
+                <<< _.amount
+                <<< unwrap
+            )
+          <<< Array.fromFoldable
+          <<< Map.values
+
+-- FIXME: adjust values
+distrFundsParams :: DistrFundsParams KeyWallet BigInt
+distrFundsParams =
+  { maxRounds: 3
+  , maxUtxosPerTx: 100
+  , getUtxoMinAdaForWallet: const zero
+  , feePerTx: BigInt.fromInt 2_000_000
+  }
+
+-- FIXME: move to helpers
+mustPayToAddress :: Address -> Value -> TxConstraints
+mustPayToAddress addr =
+  let
+    mSkh = case getStakeCredential addr of
+      Just (StakeCredential (PubKeyHashCredential skh')) -> Just $
+        StakePubKeyHash skh'
+      _ -> Nothing
+  in
+    case getPaymentCredential addr of
+      Just (PaymentCredential (PubKeyHashCredential pkh)) ->
+        case mSkh of
+          Nothing ->
+            Constraints.mustPayToPubKey $ wrap pkh
+          Just skh ->
+            Constraints.mustPayToPubKeyAddress (wrap pkh) skh
+      _ -> mempty

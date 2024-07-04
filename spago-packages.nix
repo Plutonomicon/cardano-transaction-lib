@@ -593,6 +593,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "freet" = pkgs.stdenv.mkDerivation {
+        name = "freet";
+        version = "v7.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-freet.git";
+          rev = "21be6fba22599a25812430dda6ba2ca8135920a1";
+          sha256 = "006wbr7f19k7vs1jg4wgkwyx1q4wvvs2wqscfcxsp8fzfpn2yqw8";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "functions" = pkgs.stdenv.mkDerivation {
         name = "functions";
         version = "v6.0.0";
@@ -1356,6 +1368,18 @@ let
           url = "https://github.com/purescript/purescript-safe-coerce.git";
           rev = "7fa799ae80a38b8d948efcb52608e58e198b3da7";
           sha256 = "00m4l733gpl0153cbl6n5kly7jr8ids399apza2rbczif40brp9g";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "safely" = pkgs.stdenv.mkDerivation {
+        name = "safely";
+        version = "v4.0.1";
+        src = pkgs.fetchgit {
+          url = "https://github.com/paf31/purescript-safely.git";
+          rev = "19f854737e17b4d058e5a1504a960821db36e4ab";
+          sha256 = "1mrpz19smjsamz4cci287z89q715chzxna0gpbvdgivlca4z6879";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

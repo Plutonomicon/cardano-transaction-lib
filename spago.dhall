@@ -86,6 +86,7 @@ You can edit this file as you like.
   , "record"
   , "refs"
   , "safe-coerce"
+  , "safely"
   , "spec"
   , "spec-quickcheck"
   , "strings"
