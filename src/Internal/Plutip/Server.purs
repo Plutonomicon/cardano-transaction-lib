@@ -23,6 +23,7 @@ import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
+import Control.Alternative (guard)
 import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
@@ -102,6 +103,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Aff.Retry
   ( RetryPolicy
   , constantDelay
+  , exponentialBackoff
   , limitRetriesByCumulativeDelay
   , recovering
   )
@@ -438,16 +440,22 @@ configCheck cfg = do
       , cfg.ogmiosConfig.port /\ "ogmios"
       , cfg.kupoConfig.port /\ "kupo"
       ]
-  occupiedServices <- Array.catMaybes <$> for services \(port /\ service) -> do
-    isPortAvailable port <#> if _ then Nothing else Just (port /\ service)
-  unless (Array.null occupiedServices) do
-    liftEffect $ throw $
-      "Unable to run the following services, because the ports are occupied:\
-      \\n" <> foldMap printServiceEntry occupiedServices
+    totalDelay = 10000.00
+    retryPolicy = limitRetriesByCumulativeDelay (Milliseconds totalDelay) $
+      exponentialBackoff (Milliseconds 100.0)
+  recovering retryPolicy [ \_ _ -> pure true ] \_ -> do
+    occupiedServices <- Array.catMaybes <$> for services \service@(port /\ _) ->
+      do
+        isPortAvailable port <#> \isAvailable -> Just service <* guard
+          (not isAvailable)
+    unless (Array.null occupiedServices) do
+      liftEffect $ throw $
+        "Unable to run the following services, because the ports are occupied:\
+        \\n" <> foldMap printServiceEntry occupiedServices
   where
   printServiceEntry :: UInt /\ String -> String
-  printServiceEntry (port /\ service) =
-    "- " <> service <> " (port: " <> show (UInt.toInt port) <> ")\n"
+  printServiceEntry (port /\ name) =
+    "- " <> name <> " (port: " <> show (UInt.toInt port) <> ")\n"
 
 -- | Start the plutip cluster, initializing the state with the given
 -- | UTxO distribution. Also initializes an extra payment key (aka
