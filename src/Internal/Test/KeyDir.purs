@@ -38,8 +38,8 @@ import Contract.Wallet
   , withKeyWallet
   )
 import Contract.Wallet.Key
-  ( keyWalletPrivatePaymentKey
-  , keyWalletPrivateStakeKey
+  ( getPrivatePaymentKey
+  , getPrivateStakeKey
   )
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromTextEnvelope
@@ -287,9 +287,9 @@ backupWallets backup env walletsArray =
     do
       address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address
         env.networkId
+      payment <- getPrivatePaymentKey wallet
+      mbStake <- getPrivateStakeKey wallet
       let
-        payment = keyWalletPrivatePaymentKey wallet
-        mbStake = keyWalletPrivateStakeKey wallet
         folder = Path.concat [ backup, address ]
 
       mkdir folder
@@ -303,13 +303,12 @@ fundWallets
   :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigNum
 fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   logTrace' "Funding wallets"
-  let
-    constraints = flip foldMap (Array.zip walletsArray distrArray)
-      \(wallet /\ walletDistr) -> flip foldMap walletDistr
-        \value -> mustPayToKeyWallet wallet $
-          Value.mkValue
-            (wrap value)
-            MultiAsset.empty
+  constraints <- liftAff $ flip foldMap (Array.zip walletsArray distrArray)
+    \(wallet /\ walletDistr) -> flip foldMap walletDistr
+      \value -> mustPayToKeyWallet wallet $
+        Value.mkValue
+          (wrap value)
+          MultiAsset.empty
 
   txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
@@ -446,18 +445,19 @@ mustPayToKeyWallet
   :: forall (i :: Type) (o :: Type)
    . KeyWallet
   -> Value
-  -> TxConstraints
-mustPayToKeyWallet wallet value =
+  -> Aff TxConstraints
+mustPayToKeyWallet wallet value = do
+  kwPaymentKey <- getPrivatePaymentKey wallet
+  kwMStakeKey <- getPrivateStakeKey wallet
   let
     convert = PublicKey.hash <<< PrivateKey.toPublicKey
-    payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
-    mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
-  in
-    maybe
-      -- We don't use `mustPayToPubKey payment` to avoid the compile-time
-      -- warning that is tied to it (it should not be propagated to
-      -- `runContractTestWithKeyDir`)
-      (singleton <<< MustPayToPubKeyAddress payment Nothing Nothing Nothing)
-      (mustPayToPubKeyAddress payment)
-      mbStake
-      value
+    payment = over wrap convert $ kwPaymentKey
+    mbStake = over wrap convert <$> kwMStakeKey
+  pure $ maybe
+    -- We don't use `mustPayToPubKey payment` to avoid the compile-time
+    -- warning that is tied to it (it should not be propagated to
+    -- `runContractTestWithKeyDir`)
+    (singleton <<< MustPayToPubKeyAddress payment Nothing Nothing Nothing)
+    (mustPayToPubKeyAddress payment)
+    mbStake
+    value

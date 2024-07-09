@@ -28,6 +28,7 @@ import Cardano.Types.Value (Value, valueToCoin)
 import Cardano.Types.Value (geq, lovelaceValueOf, sum) as Value
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
 import Ctl.Internal.Helpers (bugTrackerLink, liftM, liftedM)
@@ -136,7 +137,8 @@ getWalletCollateral = do
       utxos <- (liftAff $ queryHandle.utxosAt addr)
         <#> hush >>> fromMaybe Map.empty
         >>= filterLockedUtxos
-      mColl <- liftAff $ (unwrap kw).selectCollateral coinsPerUtxoByte
+      mColl <- liftAff $ (unwrap kw).selectCollateral minRequiredCollateral
+        coinsPerUtxoByte
         (UInt.toInt maxCollateralInputs)
         utxos
       pure mColl

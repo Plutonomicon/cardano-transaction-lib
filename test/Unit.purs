@@ -2,7 +2,6 @@ module Test.Ctl.Unit (main, testPlan) where
 
 import Prelude
 
-import Cardano.Wallet.Cip30.SignData as Cip30SignData
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.Maybe (Maybe(Just))
@@ -16,8 +15,6 @@ import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
 import Test.Ctl.Blockfrost.ProtocolParameters as Blockfrost.ProtocolParameters
 import Test.Ctl.CoinSelection as CoinSelection
-import Test.Ctl.CslGc as CslGc
-import Test.Ctl.Data as Data
 import Test.Ctl.Data.Interval as Ctl.Data.Interval
 import Test.Ctl.E2E.Route as E2E.Route
 import Test.Ctl.Hashing as Hashing
@@ -51,9 +48,6 @@ testPlan = do
   Ipv6.suite
   NativeScript.suite
   Bip32.suite
-  Cip30SignData.suite
-  CslGc.suite
-  Data.suite
   Hashing.suite
   Partition.suite
   Plutus.Time.suite

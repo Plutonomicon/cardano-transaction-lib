@@ -28,6 +28,7 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (fromAff)
+import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Wallet
@@ -92,8 +93,9 @@ withCip30Mock
   -> Contract a
   -> Contract a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
-  cip30Mock <- mkCip30Mock keyWallet.paymentKey
-    keyWallet.stakeKey
+  kwPaymentKey <- liftAff keyWallet.paymentKey
+  kwMStakeKey <- liftAff keyWallet.stakeKey
+  cip30Mock <- mkCip30Mock kwPaymentKey kwMStakeKey
   deleteMock <- liftEffect $ injectCip30Mock mockString cip30Mock
   wallet <- liftAff mkWalletAff'
   res <- try $ local _ { wallet = Just wallet } contract
@@ -131,7 +133,8 @@ mkCip30Mock pKey mSKey = do
         maxCollateralInputs = UInt.toInt $
           pparams.maxCollateralInputs
       coll <- liftAff $
-        (unwrap keyWallet).selectCollateral coinsPerUtxoByte
+        (unwrap keyWallet).selectCollateral minRequiredCollateral
+          coinsPerUtxoByte
           maxCollateralInputs
           utxos
       pure $ fold coll

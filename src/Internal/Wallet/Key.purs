@@ -6,8 +6,8 @@ import Cardano.Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
-  , keyWalletPrivatePaymentKey
-  , keyWalletPrivateStakeKey
+  , getPrivatePaymentKey
+  , getPrivateStakeKey
   , privateKeysToAddress
   , privateKeysToKeyWallet
   ) as KeyWallet

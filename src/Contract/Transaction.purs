@@ -132,7 +132,6 @@ import Ctl.Internal.Lens
   , _scriptRef
   , _totalCollateral
   , _ttl
-  , _update
   , _validityStartInterval
   , _vkeys
   , _withdrawals

@@ -214,8 +214,8 @@ let
         version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-collateral-select";
-          rev = "296fe978a292f36d9fd2c18a2d173772301e71b9";
-          sha256 = "09mcdjndalc9a91l0kx9s0p3bh5j58lji230b142yvgk8qmmayi9";
+          rev = "193bf49be979b42aa1f0f9cb3d7582d6bc98e3b9";
+          sha256 = "1jbl6k779brbqzf7jf80is63b23k3mqzf2mzr222qswd3wg8s5b0";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -238,8 +238,8 @@ let
         version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-key-wallet";
-          rev = "f107d3dce0a0f1f866a4682783376ea9f476fd7d";
-          sha256 = "0jxbzdjfvxvrf2nmay493x004d0y5jmnfqj06064nfihg5x0w2r8";
+          rev = "fd50834bad329b3064b602e6487e9471ea102341";
+          sha256 = "0bgizyhrpmj51lz24cnr6wvxwgvm41z24c66kk3lzhwq798n5q50";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -271,17 +271,17 @@ let
 
     "cardano-serialization-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-serialization-lib";
-        version = "26d437c3f398172c839b93b57c30eb43a7fa7ca0";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib";
-          rev = "26d437c3f398172c839b93b57c30eb43a7fa7ca0";
-          sha256 = "1ikz6j3jvls3cvl6znrw55f59abzdaf7ggd2x7j3f81m5cvkxggr";
+          rev = "903bf0adeefedc4d065ad6523ad079433bdd8e32";
+          sha256 = "0jlfxrx037hyd4v0j7l2b16yxlm6nw6qlnr992hj9nzip36vbpfg";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
       };
 
-      "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
+    "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
         version = "423e27b3f56b1a66db8d3126c22cea9bda7e50da";
         src = pkgs.fetchgit {
@@ -295,11 +295,11 @@ let
 
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
-        version = "v1.0.1";
+        version = "v2.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-types";
-          rev = "715d4b2dcf8b29cb45001209ee562f758a513261";
-          sha256 = "1xcrdmpwd3qcdiyjfrj0z2dh56l4z1s97r25b6nhlqwmwz7qz19z";
+          rev = "780c28ee27d0ba7e76884a565ad60dea0a414842";
+          sha256 = "1my7fgk218h6yllw09zf1m55hpn787mjq79whxxm9lqgarrdp66z";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

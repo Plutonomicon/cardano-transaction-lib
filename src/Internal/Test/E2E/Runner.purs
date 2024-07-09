@@ -75,8 +75,8 @@ import Ctl.Internal.Test.E2E.Wallets
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Wallet.Key
   ( PrivateStakeKey
-  , keyWalletPrivatePaymentKey
-  , keyWalletPrivateStakeKey
+  , getPrivatePaymentKey
+  , getPrivateStakeKey
   )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
@@ -263,13 +263,15 @@ testPlan opts@{ tests } rt@{ wallets } =
         -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1197
         liftAff $ withPlutipContractEnv (buildPlutipConfig opts) distr
           \env wallet -> do
+            kwPaymentKey <- liftAff $ getPrivatePaymentKey wallet
+            kwMStakeKey <- liftAff $ getPrivateStakeKey wallet
             (clusterSetup :: ClusterSetup) <- case env.backend of
               CtlBackend backend _ -> pure
                 { ogmiosConfig: backend.ogmios.config
                 , kupoConfig: backend.kupoConfig
                 , keys:
-                    { payment: keyWalletPrivatePaymentKey wallet
-                    , stake: keyWalletPrivateStakeKey wallet
+                    { payment: kwPaymentKey
+                    , stake: kwMStakeKey
                     }
                 }
               _ -> liftEffect $ throw "Unsupported backend"
