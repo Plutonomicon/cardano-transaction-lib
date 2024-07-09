@@ -11,6 +11,7 @@ import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.Value as Value
+import Cardano.Wallet.Key (KeyWallet)
 import Contract.Config (ContractParams)
 import Contract.Log (logError', logTrace')
 import Contract.Monad
@@ -70,7 +71,6 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendPubKeyOutput
   , singleton
   )
-import Cardano.Wallet.Key (KeyWallet)
 import Data.Array (catMaybes)
 import Data.Array as Array
 import Data.Either (Either(Right, Left), hush)

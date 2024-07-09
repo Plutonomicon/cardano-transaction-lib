@@ -23,6 +23,12 @@ import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput
 import Cardano.Wallet.Cip30Mock (Cip30Mock, injectCip30Mock)
+import Cardano.Wallet.Key
+  ( KeyWallet(KeyWallet)
+  , PrivatePaymentKey
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 import Contract.Monad (Contract)
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
@@ -42,12 +48,6 @@ import Ctl.Internal.Wallet
       , GenericCip30Wallet
       )
   , mkWalletAff
-  )
-import Cardano.Wallet.Key
-  ( KeyWallet(KeyWallet)
-  , PrivatePaymentKey
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
   )
 import Data.Array as Array
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
