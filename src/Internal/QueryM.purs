@@ -154,7 +154,7 @@ import Ctl.Internal.Service.Error
   )
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
+import Cardano.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
 import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either(Left, Right), either, isRight)

@@ -6,11 +6,11 @@ import Contract.Prelude
 
 import Cardano.Types.Address as Address
 import Cardano.Types.NetworkId (NetworkId(MainnetId))
+import Cardano.Wallet.Key (KeyWallet)
 import Contract.Wallet.Key
   ( StakeKeyPresence(WithStakeKey)
   , mkKeyWalletFromMnemonic
   )
-import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Lens (_Left, preview)
 import Data.UInt as UInt
 import Effect.Aff (Aff)

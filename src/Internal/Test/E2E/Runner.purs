@@ -12,6 +12,11 @@ import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Wallet.Key
+  ( PrivateStakeKey
+  , getPrivatePaymentKey
+  , getPrivateStakeKey
+  )
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
@@ -73,11 +78,6 @@ import Ctl.Internal.Test.E2E.Wallets
   , namiSign
   )
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
-import Ctl.Internal.Wallet.Key
-  ( PrivateStakeKey
-  , getPrivatePaymentKey
-  , getPrivateStakeKey
-  )
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.ByteArray (hexToByteArray)

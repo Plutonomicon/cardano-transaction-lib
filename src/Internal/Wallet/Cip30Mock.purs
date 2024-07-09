@@ -43,7 +43,7 @@ import Ctl.Internal.Wallet
       )
   , mkWalletAff
   )
-import Ctl.Internal.Wallet.Key
+import Cardano.Wallet.Key
   ( KeyWallet(KeyWallet)
   , PrivatePaymentKey
   , PrivateStakeKey

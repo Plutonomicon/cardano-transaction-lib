@@ -70,7 +70,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustSpendPubKeyOutput
   , singleton
   )
-import Ctl.Internal.Wallet.Key (KeyWallet)
+import Cardano.Wallet.Key (KeyWallet)
 import Data.Array (catMaybes)
 import Data.Array as Array
 import Data.Either (Either(Right, Left), hush)

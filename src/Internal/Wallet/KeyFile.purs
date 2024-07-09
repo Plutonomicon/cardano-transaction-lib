@@ -27,7 +27,7 @@ import Ctl.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   )
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Wallet.Key
+import Cardano.Wallet.Key
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )

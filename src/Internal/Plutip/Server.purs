@@ -20,6 +20,7 @@ import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Cardano.Types (NetworkId(MainnetId))
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey (PrivateKey(PrivateKey))
+import Cardano.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Contract.Chain (waitNSlots)
 import Contract.Config (defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (Contract, ContractEnv, liftContractM, runContractInEnv)
@@ -78,7 +79,6 @@ import Ctl.Internal.Test.UtxoDistribution
   , transferFundsFromEnterpriseToBase
   )
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
-import Ctl.Internal.Wallet.Key (PrivatePaymentKey(PrivatePaymentKey))
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isLeft)

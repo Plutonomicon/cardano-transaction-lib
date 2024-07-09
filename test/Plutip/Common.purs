@@ -8,7 +8,7 @@ import Prelude
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Test.Plutip (defaultPlutipConfig)
 import Ctl.Internal.Plutip.Types (PlutipConfig)
-import Ctl.Internal.Wallet.Key (PrivateStakeKey)
+import Cardano.Wallet.Key (PrivateStakeKey)
 import Data.ByteArray (hexToByteArray)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
