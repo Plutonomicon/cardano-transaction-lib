@@ -133,7 +133,8 @@ mkCip30Mock pKey mSKey = do
         maxCollateralInputs = UInt.toInt $
           pparams.maxCollateralInputs
       coll <- liftAff $
-        (unwrap keyWallet).selectCollateral minRequiredCollateral
+        (unwrap keyWallet).selectCollateral
+          minRequiredCollateral
           coinsPerUtxoByte
           maxCollateralInputs
           utxos

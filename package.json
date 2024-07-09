@@ -32,9 +32,7 @@
   "license": "MIT",
   "dependencies": {
     "@mlabs-haskell/cardano-message-signing": "^1.0.1",
-    "@mlabs-haskell/cardano-serialization-lib-gc": "v12.0.0-alpha.31",
-    "@emurgo/cardano-serialization-lib-nodejs": "v12.0.0-alpha.31",
-    "@emurgo/cardano-serialization-lib-browser": "v12.0.0-alpha.31",
+    "@mlabs-haskell/cardano-serialization-lib-gc": "^1.0.10",
     "@mlabs-haskell/json-bigint": "2.0.0",
     "@mlabs-haskell/uplc-apply-args": "2.0.1",
     "@noble/secp256k1": "^1.7.0",

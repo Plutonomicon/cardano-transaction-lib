@@ -86,19 +86,25 @@ import Cardano.Types
   ( AuxiliaryData(AuxiliaryData)
   , Bech32String
   , Certificate
-      ( PoolRetirement
-      , PoolRegistration
-      , StakeDelegation
+      ( StakeRegistration
       , StakeDeregistration
-      , StakeRegistration
+      , StakeDelegation
+      , PoolRegistration
+      , PoolRetirement
+      , GenesisKeyDelegation
+      , MoveInstantaneousRewardsCert
       )
   , Coin(Coin)
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
   , Epoch(Epoch)
+  , ExUnitPrices(ExUnitPrices)
   , ExUnits(ExUnits)
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , Language(PlutusV2)
+  , MIRPot(Reserves, Treasury)
+  , MIRToStakeCredentials(MIRToStakeCredentials)
+  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
   , NativeScript
       ( TimelockExpiry
       , TimelockStart
@@ -115,9 +121,12 @@ import Cardano.Types
   , PoolMetadata(PoolMetadata)
   , PoolParams(PoolParams)
   , PoolPubKeyHash(PoolPubKeyHash)
+  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , ProtocolParamUpdate(ProtocolParamUpdate)
+  , ProtocolVersion(ProtocolVersion)
   , Redeemer(Redeemer)
   , RedeemerTag(Spend)
-  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
+  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
   , RewardAddress
   , ScriptHash
   , ScriptRef(NativeScriptRef)
@@ -130,6 +139,7 @@ import Cardano.Types
   , TransactionWitnessSet(TransactionWitnessSet)
   , URL(URL)
   , UnitInterval(UnitInterval)
+  , Update(Update)
   , UtxoMap
   , Value(Value)
   , Vkey(Vkey)
@@ -167,6 +177,7 @@ import JS.BigInt as BigInt
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
+import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
@@ -243,6 +254,49 @@ bigNumOne = BigNum.fromInt 1
 rewardAddress1 :: RewardAddress
 rewardAddress1 = { networkId: TestnetId, stakeCredential: wrap stake1 }
 
+proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
+proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
+  Map.fromFoldable
+    [ ( unsafePartial $ fromJust $ decodeCbor $ wrap $ hexToByteArrayUnsafe
+          "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+      ) /\
+        ProtocolParamUpdate
+          { minfeeA: Just $ Coin $ BigNum.fromInt 1
+          , minfeeB: Just $ Coin $ BigNum.fromInt 1
+          , maxBlockBodySize: Just $ UInt.fromInt 10000
+          , maxTxSize: Just $ UInt.fromInt 10000
+          , maxBlockHeaderSize: Just $ UInt.fromInt 1000
+          , keyDeposit: Just $ Coin $ BigNum.fromInt 1
+          , poolDeposit: Just $ Coin $ BigNum.fromInt 1
+          , maxEpoch: Just $ Epoch one
+          , nOpt: Just $ UInt.fromInt 1
+          , poolPledgeInfluence: Just $ UnitInterval
+              { numerator: bigNumOne, denominator: bigNumOne }
+          , expansionRate: Just $ UnitInterval
+              { numerator: bigNumOne, denominator: bigNumOne }
+          , treasuryGrowthRate: Just $ UnitInterval
+              { numerator: bigNumOne, denominator: bigNumOne }
+          , protocolVersion: Just $ ProtocolVersion
+              { major: 1, minor: 1 }
+          , minPoolCost: Just $ wrap bigNumOne
+          , adaPerUtxoByte: Just $ wrap bigNumOne
+          , costModels: Just costModelsFixture1
+          , executionCosts: Just $ ExUnitPrices
+              { memPrice: UnitInterval
+                  { numerator: bigNumOne, denominator: bigNumOne }
+              , stepPrice: UnitInterval
+                  { numerator: bigNumOne, denominator: bigNumOne }
+              }
+          , maxTxExUnits: Just $ ExUnits
+              { mem: BigNum.fromInt 1, steps: BigNum.fromInt 1 }
+          , maxBlockExUnits: Just $ ExUnits
+              { mem: BigNum.fromInt 1, steps: BigNum.fromInt 1 }
+          , maxValueSize: Just $ UInt.fromInt 1
+          , collateralPercentage: Just $ UInt.fromInt 140
+          , maxCollateralInputs: Just $ UInt.fromInt 10
+          }
+    ]
+
 -- | Extend this for your needs.
 type SampleTxConfig =
   { inputs :: Array TransactionInput }
@@ -271,6 +325,7 @@ mkSampleTx startTx changes =
             , ttl
             , certs
             , withdrawals
+            , update
             , auxiliaryDataHash
             , validityStartInterval
             , mint
@@ -296,6 +351,7 @@ mkSampleTx startTx changes =
             , ttl
             , certs
             , withdrawals
+            , update
             , auxiliaryDataHash
             , validityStartInterval
             , mint
@@ -306,10 +362,6 @@ mkSampleTx startTx changes =
             , networkId
             , collateralReturn
             , totalCollateral
-            , votingProposals: []
-            , votingProcedures: wrap Map.empty
-            , currentTreasuryValue: Nothing
-            , donation: Nothing
             }
         , witnessSet
         , isValid
@@ -352,6 +404,7 @@ txFixture1 =
         , ttl: Nothing
         , certs: []
         , withdrawals: Map.empty
+        , update: Nothing
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -362,10 +415,6 @@ txFixture1 =
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
-        , votingProposals: []
-        , votingProcedures: wrap Map.empty
-        , currentTreasuryValue: Nothing
-        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: []
@@ -389,6 +438,7 @@ txFixture2 =
         , ttl: Nothing
         , certs: []
         , withdrawals: Map.empty
+        , update: Nothing
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -399,10 +449,6 @@ txFixture2 =
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
-        , votingProposals: []
-        , votingProcedures: wrap Map.empty
-        , currentTreasuryValue: Nothing
-        , donation: Nothing
         }
     , witnessSet: witnessSetFixture3Value
     , isValid: true
@@ -444,6 +490,7 @@ txFixture3 =
         , ttl: Nothing
         , certs: []
         , withdrawals: Map.empty
+        , update: Nothing
         , referenceInputs: [ txInputFixture1 ]
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
@@ -454,10 +501,6 @@ txFixture3 =
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
-        , votingProposals: []
-        , votingProcedures: wrap Map.empty
-        , currentTreasuryValue: Nothing
-        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: []
@@ -564,9 +607,36 @@ txFixture4 =
                 { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
                 , epoch: Epoch one
                 }
+            , GenesisKeyDelegation
+                { genesisHash: unsafePartial $ fromJust $ decodeCbor $ wrap $
+                    hexToByteArrayUnsafe
+                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , genesisDelegateHash: unsafePartial $ fromJust $ decodeCbor
+                    $ wrap
+                    $
+                      hexToByteArrayUnsafe
+                        "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
+                , vrfKeyhash: unsafePartial $ fromJust $ decodeCbor $ wrap $
+                    hexToByteArrayUnsafe
+                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
+                }
+            , MoveInstantaneousRewardsCert $ ToOtherPot
+                { pot: Reserves
+                , amount: wrap bigNumOne
+                }
+            , MoveInstantaneousRewardsCert $ ToStakeCreds
+                { pot: Treasury
+                , amounts: MIRToStakeCredentials $ Map.fromFoldable
+                    [ wrap stake1 /\ Int.newPositive bigNumOne ]
+                }
             ]
         , withdrawals: Map.fromFoldable
             [ rewardAddress1 /\ Coin BigNum.one ]
+        , update: Just $ Update
+            { proposedProtocolParameterUpdates:
+                proposedProtocolParameterUpdates1
+            , epoch: Epoch zero
+            }
         , auxiliaryDataHash: decodeCbor $ wrap
             $ byteArrayFromIntArrayUnsafe
             $ Array.replicate 32 0
@@ -583,10 +653,6 @@ txFixture4 =
         , networkId: Just MainnetId
         , collateralReturn: Just txOutputFixture1
         , totalCollateral: Just $ Coin $ BigNum.fromInt 5_000_000
-        , votingProposals: []
-        , votingProcedures: wrap Map.empty
-        , currentTreasuryValue: Nothing
-        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: []
@@ -624,6 +690,7 @@ txFixture5 =
         , ttl: Nothing
         , certs: []
         , withdrawals: Map.empty
+        , update: Nothing
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -634,10 +701,6 @@ txFixture5 =
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
-        , votingProposals: []
-        , votingProcedures: wrap Map.empty
-        , currentTreasuryValue: Nothing
-        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: []
@@ -661,6 +724,7 @@ txFixture6 =
         , ttl: Nothing
         , certs: []
         , withdrawals: Map.empty
+        , update: Nothing
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -671,10 +735,6 @@ txFixture6 =
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
-        , votingProposals: []
-        , votingProcedures: wrap Map.empty
-        , currentTreasuryValue: Nothing
-        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: []
@@ -1291,7 +1351,7 @@ redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer
   { tag: Spend
   , index: BigNum.fromInt 0
-  , data: wrap plutusDataFixture7
+  , data: plutusDataFixture7
   , exUnits: ExUnits
       { mem: BigNum.fromInt 1
       , steps: BigNum.fromInt 1

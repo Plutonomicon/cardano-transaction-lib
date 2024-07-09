@@ -137,7 +137,8 @@ getWalletCollateral = do
       utxos <- (liftAff $ queryHandle.utxosAt addr)
         <#> hush >>> fromMaybe Map.empty
         >>= filterLockedUtxos
-      mColl <- liftAff $ (unwrap kw).selectCollateral minRequiredCollateral
+      mColl <- liftAff $ (unwrap kw).selectCollateral
+        minRequiredCollateral
         coinsPerUtxoByte
         (UInt.toInt maxCollateralInputs)
         utxos

@@ -285,13 +285,12 @@ backupWallets :: FilePath -> ContractEnv -> Array KeyWallet -> Aff Unit
 backupWallets backup env walletsArray =
   liftAff $ flip parTraverse_ walletsArray \wallet ->
     do
-      address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address
-        env.networkId
       payment <- getPrivatePaymentKey wallet
       mbStake <- getPrivateStakeKey wallet
+      address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address
+        env.networkId
       let
         folder = Path.concat [ backup, address ]
-
       mkdir folder
       privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
         payment
@@ -309,7 +308,6 @@ fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
         Value.mkValue
           (wrap value)
           MultiAsset.empty
-
   txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
   let
@@ -449,6 +447,7 @@ mustPayToKeyWallet
 mustPayToKeyWallet wallet value = do
   kwPaymentKey <- getPrivatePaymentKey wallet
   kwMStakeKey <- getPrivateStakeKey wallet
+
   let
     convert = PublicKey.hash <<< PrivateKey.toPublicKey
     payment = over wrap convert $ kwPaymentKey

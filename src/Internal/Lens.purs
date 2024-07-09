@@ -25,6 +25,7 @@ module Ctl.Internal.Lens
   , _scriptRef
   , _totalCollateral
   , _ttl
+  , _update
   , _validityStartInterval
   , _vkeys
   , _withdrawals
@@ -55,6 +56,7 @@ import Cardano.Types
   , TransactionOutput
   , TransactionUnspentOutput
   , TransactionWitnessSet
+  , Update
   , Value
   , Vkeywitness
   )
@@ -126,6 +128,9 @@ _auxiliaryDataHash = _Newtype <<< prop (Proxy :: Proxy "auxiliaryDataHash")
 
 _ttl :: Lens' TransactionBody (Maybe Slot)
 _ttl = _Newtype <<< prop (Proxy :: Proxy "ttl")
+
+_update :: Lens' TransactionBody (Maybe Update)
+_update = _Newtype <<< prop (Proxy :: Proxy "update")
 
 _validityStartInterval :: Lens' TransactionBody (Maybe Slot)
 _validityStartInterval = _Newtype <<< prop

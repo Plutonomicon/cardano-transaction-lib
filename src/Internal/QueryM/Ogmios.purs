@@ -99,7 +99,7 @@ import Cardano.Serialization.Lib (fromBytes, ipv4_new)
 import Cardano.Types
   ( Bech32String
   , BigNum(BigNum)
-  , Language(PlutusV1, PlutusV2, PlutusV3)
+  , Language(PlutusV1, PlutusV2)
   , RedeemerTag
   , VRFKeyHash(VRFKeyHash)
   )
@@ -1216,11 +1216,6 @@ instance EncodeAeson AdditionalUtxoSet where
         , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
         }
     encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (_ /\ PlutusV2)))) =
-      encodeAeson
-        { "language": "plutus:v2"
-        , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
-        }
-    encodeScriptRef (PlutusScriptRef (ps@(PlutusScript (_ /\ PlutusV3)))) =
       encodeAeson
         { "language": "plutus:v2"
         , "cbor": byteArrayToHex $ unwrap $ PlutusScript.getBytes ps
