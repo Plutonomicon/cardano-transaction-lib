@@ -23,11 +23,15 @@ module Contract.Config
   , module Data.Log.Message
   , module Ctl.Internal.ServerConfig
   , module Ctl.Internal.Wallet.Spec
-  , module Ctl.Internal.Wallet.Key
+  , module Cardano.Wallet.Key
   , module X
   ) where
 
 import Cardano.Types (NetworkId(MainnetId, TestnetId))
+import Cardano.Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Ctl.Internal.BalanceTx.Sync
   ( disabledSynchronizationParams
   ) as X
@@ -66,10 +70,6 @@ import Ctl.Internal.ServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
-  )
-import Ctl.Internal.Wallet.Key
-  ( PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
   )
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath

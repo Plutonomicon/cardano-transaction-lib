@@ -7,7 +7,6 @@ You can edit this file as you like.
   [ "aff"
   , "bytearrays"
   , "cardano-hd-wallet"
-  , "cardano-message-signing"
   , "cardano-plutus-data-schema"
   , "cardano-serialization-lib"
   , "cardano-transaction-lib"

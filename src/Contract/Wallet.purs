@@ -18,6 +18,12 @@ import Cardano.Types (Address, StakePubKeyHash, UtxoMap, Value)
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value as Value
+import Cardano.Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  , privateKeysToKeyWallet
+  ) as X
 import Contract.Config (PrivatePaymentKey, PrivateStakeKey)
 import Contract.Log (logTrace')
 import Contract.Monad (Contract)
@@ -57,12 +63,6 @@ import Ctl.Internal.Wallet
       , GenericCip30Wallet
       )
   , isWalletAvailable
-  ) as X
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
-  , privateKeysToKeyWallet
   ) as X
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey) as X
 import Ctl.Internal.Wallet.Spec

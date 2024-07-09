@@ -6,10 +6,10 @@ module Contract.Wallet.Key
 
 import Cardano.Types (PrivateKey, PublicKey)
 import Cardano.Types.PrivateKey as PrivateKey
-import Ctl.Internal.Wallet.Key
+import Cardano.Wallet.Key
   ( KeyWallet(KeyWallet)
-  , keyWalletPrivatePaymentKey
-  , keyWalletPrivateStakeKey
+  , getPrivatePaymentKey
+  , getPrivateStakeKey
   , privateKeysToKeyWallet
   ) as X
 import Ctl.Internal.Wallet.Spec

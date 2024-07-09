@@ -318,6 +318,54 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-plutus-types"
         , version = "v1.0.1"
         }
+      , cip30-mock =
+        { dependencies =
+          [ "aff-promise", "console", "effect", "functions", "prelude" ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip30-mock"
+        , version = "v1.0.0"
+        }
+      , cardano-collateral-select =
+        { dependencies =
+          [ "arrays"
+          , "cardano-types"
+          , "console"
+          , "effect"
+          , "exceptions"
+          , "foldable-traversable"
+          , "lists"
+          , "maybe"
+          , "newtype"
+          , "ordered-collections"
+          , "partial"
+          , "prelude"
+          , "tuples"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-cardano-collateral-select"
+        , version = "v1.0.0"
+        }
+      , cardano-key-wallet =
+        { dependencies =
+          [ "aeson"
+          , "aff"
+          , "arrays"
+          , "cardano-collateral-select"
+          , "cardano-message-signing"
+          , "cardano-types"
+          , "console"
+          , "effect"
+          , "either"
+          , "foldable-traversable"
+          , "maybe"
+          , "newtype"
+          , "prelude"
+          , "profunctor-lenses"
+          , "typelevel-prelude"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
+        , version = "v1.0.0"
+        }
       , uplc-apply-args =
         { dependencies =
           [ "aff"
