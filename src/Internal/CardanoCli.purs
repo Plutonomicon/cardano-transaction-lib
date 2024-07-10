@@ -17,8 +17,8 @@ import Contract.Value as Contract.Value
 import Control.Alt ((<|>))
 import Control.Monad.Except (throwError)
 import Control.Parallel (parallel, sequential)
-import Ctl.Internal.Plutip.Spawn as Ctl.Internal.Plutip.Spawn
-import Ctl.Internal.Plutip.Utils (annotateError)
+import Ctl.Internal.Spawn as Ctl.Internal.Spawn
+import Ctl.Internal.Testnet.Utils (annotateError)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.ByteArray (ByteArray)
@@ -141,7 +141,7 @@ execCardanoCli
 execCardanoCli params = annotateError "execCardanoCli" do
   let cmd = "cardano-cli " <> intercalate " " params
   -- log $ show { execCardanoCli: cmd }
-  { channels, process } <- Ctl.Internal.Plutip.Spawn.exec cmd
+  { channels, process } <- Ctl.Internal.Spawn.exec cmd
   let
     bufferToLines =
       map (String.split (String.Pattern "\n") <<< String.trim)

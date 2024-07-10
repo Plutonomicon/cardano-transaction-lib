@@ -1,33 +1,57 @@
 module Ctl.Internal.Testnet.Server
   ( Channels
   , StartedTestnetCluster(MkStartedTestnetCluster)
+  , startKupo
+  , startOgmios
   , startTestnetCluster
+  , makeClusterContractEnv
   ) where
 
 import Contract.Prelude
 
+import Cardano.Types (NetworkId(MainnetId))
+import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
+import Contract.Monad (ContractEnv)
 import Control.Alt ((<|>))
 import Control.Apply (applySecond)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Rec.Class (Step(Loop), tailRecM)
-import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.Plutip.Server
-  ( startKupo
-  , startOgmios
-  , stopChildProcessWithPort
+import Ctl.Internal.Contract.Monad
+  ( buildBackend
+  , getLedgerConstants
+  , mkQueryHandle
+  , stopContractEnv
   )
-import Ctl.Internal.Plutip.Spawn
+import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
+import Ctl.Internal.Helpers ((<</>>))
+import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
+import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Ctl.Internal.ServerConfig (ServerConfig)
+import Ctl.Internal.Spawn
   ( ManagedProcess(ManagedProcess)
   , NewOutputAction(NoOp, Success)
   , _rmdirSync
+  , isPortAvailable
   , killProcessWithPort
   , spawn
+  , stop
   )
-import Ctl.Internal.Plutip.Utils
+import Ctl.Internal.Testnet.Types
+  ( Node
+  , TestnetClusterConfig
+  , TestnetConfig
+  , TestnetPaths
+  )
+import Ctl.Internal.Testnet.Utils
   ( EventSource
   , addCleanup
+  , after
   , annotateError
+  , findNodeDirs
+  , findTestnetPaths
+  , getRuntime
   , onLine
+  , readNodes
   , runCleanup
   , scheduleCleanup
   , suppressAndLogErrors
@@ -38,33 +62,33 @@ import Ctl.Internal.Plutip.Utils
   , waitForEvent
   , waitUntil
   )
-import Ctl.Internal.Testnet.Types
-  ( Node
-  , TestnetClusterConfig
-  , TestnetConfig
-  , TestnetPaths
-  )
-import Ctl.Internal.Testnet.Utils
-  ( findNodeDirs
-  , findTestnetPaths
-  , getRuntime
-  , readNodes
-  )
+import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
+import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.String (Pattern(Pattern))
+import Data.Set as Set
 import Data.String (stripPrefix, trim) as String
+import Data.String.CodeUnits (indexOf) as String
+import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.UInt (UInt)
 import Data.UInt (toString) as UInt
 import Debug (spy)
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
-import Effect.Exception (Error, error)
+import Effect.Aff.Retry
+  ( RetryPolicy
+  , constantDelay
+  , limitRetriesByCumulativeDelay
+  , recovering
+  )
+import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
-import Effect.Ref (new, read, write) as Ref
+import Effect.Ref (modify_, new, read, write) as Ref
 import Foreign.Object as Object
 import Node.ChildProcess (defaultSpawnOptions)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
+import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 import Node.Process as Node.Process
@@ -93,9 +117,96 @@ newtype StartedTestnetCluster = MkStartedTestnetCluster
 
 derive instance Newtype StartedTestnetCluster _
 
--- | Start the plutip cluster, initializing the state with the given
+startOgmios
+  :: forall r r'
+   . { ogmiosConfig :: ServerConfig | r }
+  -> { nodeSocketPath :: FilePath
+     , nodeConfigPath :: FilePath
+     | r'
+     }
+  -> Aff ManagedProcess
+startOgmios cfg params = do
+  spawn "ogmios" ogmiosArgs defaultSpawnOptions
+    $ Just
+    $ _.output
+    >>> String.indexOf (Pattern "networkParameters")
+    >>> maybe NoOp (const Success)
+    >>> pure
+  where
+  ogmiosArgs :: Array String
+  ogmiosArgs =
+    [ "--host"
+    , cfg.ogmiosConfig.host
+    , "--port"
+    , UInt.toString cfg.ogmiosConfig.port
+    , "--node-socket"
+    , params.nodeSocketPath
+    , "--node-config"
+    , params.nodeConfigPath
+    , "--include-transaction-cbor"
+    ]
+
+startKupo
+  :: forall r r'
+   . { kupoConfig :: ServerConfig | r }
+  -> { nodeSocketPath :: FilePath
+     , nodeConfigPath :: FilePath
+     | r'
+     }
+  -> Ref (Array (Aff Unit))
+  -> Aff (ManagedProcess /\ String)
+startKupo cfg params cleanupRef = do
+  tmpDir <- liftEffect tmpdir
+  randomStr <- liftEffect $ uniqueId ""
+  let
+    workdir = tmpDir <</>> randomStr <> "-kupo-db"
+  liftEffect do
+    workdirExists <- FSSync.exists workdir
+    unless workdirExists (FSSync.mkdir workdir)
+  childProcess <-
+    after
+      (spawnKupoProcess workdir)
+      -- set up cleanup
+      $ const
+      $ liftEffect
+      $ addCleanup cleanupRef
+      $ liftEffect
+      $ _rmdirSync workdir
+  pure (childProcess /\ workdir)
+  where
+  spawnKupoProcess :: FilePath -> Aff ManagedProcess
+  spawnKupoProcess workdir =
+    spawn "kupo" (kupoArgs workdir) defaultSpawnOptions $
+      Just
+        ( _.output >>> String.indexOf outputString
+            >>> maybe NoOp (const Success)
+            >>> pure
+        )
+    where
+    outputString :: Pattern
+    outputString = Pattern "ConfigurationCheckpointsForIntersection"
+
+  kupoArgs :: FilePath -> Array String
+  kupoArgs workdir =
+    [ "--match"
+    , "*/*"
+    , "--since"
+    , "origin"
+    , "--workdir"
+    , workdir
+    , "--host"
+    , cfg.kupoConfig.host
+    , "--port"
+    , UInt.toString cfg.kupoConfig.port
+    , "--node-socket"
+    , params.nodeSocketPath
+    , "--node-config"
+    , params.nodeConfigPath
+    ]
+
+-- | Start the testnet cluster, initializing the state with the given
 -- | UTxO distribution. Also initializes an extra payment key (aka
--- | `ourKey`) with some UTxOs for use with further plutip
+-- | `ourKey`) with some UTxOs for use with further testnet
 -- | setup. `ourKey` has funds proportional to the total amount of the
 -- | UTxOs in the passed distribution, so it can be used to handle
 -- | transaction fees.
@@ -352,3 +463,138 @@ redirectLogging events { handleLine, storeLogs } =
         for storeLogs \{ logFile, toString } ->
           Node.FS.appendTextFile UTF8 logFile $ toString line <> "\n"
     pure $ Loop unit
+
+type ClusterConfig r =
+  ( ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
+  , hooks :: Hooks
+  | LogParams r
+  )
+
+-- | TODO: Replace original log params with the row type
+type LogParams r =
+  ( logLevel :: LogLevel
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+  , suppressLogs :: Boolean
+  | r
+  )
+
+-- Similar to `Aff.bracket`, except cleanup is pushed onto a stack to be run
+-- later.
+cleanupBracket
+  :: forall (a :: Type) (b :: Type)
+   . Ref (Array (Aff Unit))
+  -> Aff a
+  -> (a -> Aff Unit)
+  -> (a -> Aff b)
+  -> Aff b
+cleanupBracket cleanupRef before after action = do
+  Aff.bracket
+    before
+    (\res -> liftEffect $ Ref.modify_ ([ after res ] <> _) cleanupRef)
+    action
+
+mkLogging
+  :: forall r
+   . Record (LogParams r)
+  -> Effect
+       { updatedConfig :: Record (LogParams r)
+       , logger :: Logger
+       , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+       , printLogs :: Aff Unit
+       , clearLogs :: Aff Unit
+       }
+mkLogging cfg
+  | cfg.suppressLogs = ado
+      -- if logs should be suppressed, setup the machinery and continue with
+      -- the bracket
+      { addLogEntry, suppressedLogger, printLogs, clearLogs } <-
+        setupLogs cfg.logLevel cfg.customLogger
+      let
+        configLogger = Just $ map liftEffect <<< addLogEntry
+      in
+        { updatedConfig: cfg { customLogger = configLogger }
+        , logger: suppressedLogger
+        , customLogger: configLogger
+        , printLogs: liftEffect printLogs
+        , clearLogs: liftEffect clearLogs
+        }
+  | otherwise = pure
+      -- otherwise, proceed with the env setup and provide a normal logger
+      { updatedConfig: cfg
+      , logger: mkLogger cfg.logLevel cfg.customLogger
+      , customLogger: cfg.customLogger
+      , printLogs: pure unit
+      , clearLogs: pure unit
+      }
+
+makeNaiveClusterContractEnv
+  :: forall r
+   . Record (ClusterConfig r)
+  -> Logger
+  -> Maybe (LogLevel -> Message -> Aff Unit)
+  -> Aff ContractEnv
+makeNaiveClusterContractEnv cfg logger customLogger = do
+  usedTxOuts <- newUsedTxOuts
+  backend <- buildBackend logger $ mkCtlBackendParams
+    { ogmiosConfig: cfg.ogmiosConfig
+    , kupoConfig: cfg.kupoConfig
+    }
+  ledgerConstants <- getLedgerConstants
+    cfg { customLogger = customLogger }
+    backend
+  backendKnownTxs <- liftEffect $ Ref.new Set.empty
+  pure
+    { backend
+    , handle: mkQueryHandle cfg backend
+    , networkId: MainnetId
+    , logLevel: cfg.logLevel
+    , customLogger: customLogger
+    , suppressLogs: cfg.suppressLogs
+    , hooks: cfg.hooks
+    , wallet: Nothing
+    , usedTxOuts
+    , ledgerConstants
+    -- timeParams have no effect when KeyWallet is used
+    , timeParams: defaultTimeParams
+    , synchronizationParams: defaultSynchronizationParams
+    , knownTxs: { backend: backendKnownTxs }
+    }
+
+-- | Makes cluster ContractEnv with configured logs suppression and cleanup scheduled.
+makeClusterContractEnv
+  :: forall r
+   . Ref (Array (Aff Unit))
+  -> Record (ClusterConfig r)
+  -> Aff
+       { env :: ContractEnv
+       , clearLogs :: Aff Unit
+       , printLogs :: Aff Unit
+       }
+makeClusterContractEnv cleanupRef cfg = do
+  { updatedConfig
+  , logger
+  , customLogger
+  , printLogs
+  , clearLogs
+  } <- liftEffect $ mkLogging cfg
+  cleanupBracket
+    cleanupRef
+    (makeNaiveClusterContractEnv updatedConfig logger customLogger)
+    stopContractEnv
+    $ pure
+    <<< { env: _, printLogs, clearLogs }
+
+-- | Kill a process and wait for it to stop listening on a specific port.
+stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
+stopChildProcessWithPort port childProcess = do
+  stop childProcess
+  void $ recovering defaultRetryPolicy ([ \_ _ -> pure true ])
+    \_ -> do
+      isAvailable <- isPortAvailable port
+      unless isAvailable do
+        liftEffect $ throw "retry"
+
+defaultRetryPolicy :: RetryPolicy
+defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
+  constantDelay (Milliseconds 100.0)

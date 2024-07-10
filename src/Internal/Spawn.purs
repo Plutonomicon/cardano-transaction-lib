@@ -1,7 +1,7 @@
 -- | This module provides ability to spawn a program using `spawn` and wait
 -- | for some specific output that indicates that the program has started
 -- | successfully or failed, in which case an exception is thrown.
-module Ctl.Internal.Plutip.Spawn
+module Ctl.Internal.Spawn
   ( NewOutputAction(NoOp, Success, Cancel)
   , OnSignalRef
   , ManagedProcess(ManagedProcess)
@@ -13,15 +13,16 @@ module Ctl.Internal.Plutip.Spawn
   , cleanupOnSigint
   , removeOnSignal
   , waitForSignal
+  , isPortAvailable
   , killProcessWithPort
   , _rmdirSync
+  , FilePath
   ) where
 
 import Contract.Prelude
 
 import Control.Monad.Error.Class (liftMaybe, throwError)
-import Ctl.Internal.Plutip.PortCheck (isPortAvailable)
-import Ctl.Internal.Plutip.Types (FilePath)
+import Control.Promise (Promise, toAffE)
 import Data.Either (Either(Left))
 import Data.Foldable (foldMap)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -237,3 +238,10 @@ cleanupTmpDir :: ManagedProcess -> FilePath -> Effect Unit
 cleanupTmpDir (ManagedProcess _ child _) workingDir = do
   ChildProcess.onExit child \_ -> do
     _rmdirSync workingDir
+
+type FilePath = String
+
+foreign import _isPortAvailable :: Int -> Effect (Promise Boolean)
+
+isPortAvailable :: UInt -> Aff Boolean
+isPortAvailable = toAffE <<< _isPortAvailable <<< UInt.toInt

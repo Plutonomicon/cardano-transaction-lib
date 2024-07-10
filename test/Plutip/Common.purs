@@ -6,8 +6,7 @@ module Test.Ctl.Plutip.Common
 import Prelude
 
 import Contract.Keys (privateKeyFromBytes)
-import Contract.Test.Plutip (defaultPlutipConfig)
-import Ctl.Internal.Plutip.Types (PlutipConfig)
+import Contract.Test.Plutip (PlutipConfig, defaultPlutipConfig)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.ByteArray (hexToByteArray)
 import Data.Maybe (fromJust)

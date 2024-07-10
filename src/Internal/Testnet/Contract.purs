@@ -3,6 +3,7 @@ module Ctl.Internal.Testnet.Contract
   , runTestnetTestPlan
   , testTestnetContracts
   , withTestnetContractEnv
+  , execDistribution
   ) where
 
 import Contract.Prelude
@@ -48,8 +49,6 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Plutip.Server (makeClusterContractEnv)
-import Ctl.Internal.Plutip.Utils (cleanupOnExit, runCleanup, whenError)
 import Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
   , ContractTestPlan(ContractTestPlan)
@@ -63,9 +62,18 @@ import Ctl.Internal.Test.UtxoDistribution
   )
 import Ctl.Internal.Testnet.DistributeFundsV2 (DistrFundsParams)
 import Ctl.Internal.Testnet.DistributeFundsV2 (Tx(Tx), makeDistributionPlan) as DistrFunds
-import Ctl.Internal.Testnet.Server (StartedTestnetCluster, startTestnetCluster)
+import Ctl.Internal.Testnet.Server
+  ( StartedTestnetCluster
+  , makeClusterContractEnv
+  , startTestnetCluster
+  )
 import Ctl.Internal.Testnet.Types (TestnetConfig)
-import Ctl.Internal.Testnet.Utils (read872GenesisKey)
+import Ctl.Internal.Testnet.Utils
+  ( cleanupOnExit
+  , read872GenesisKey
+  , runCleanup
+  , whenError
+  )
 import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (concat, fromFoldable, zip) as Array
 import Data.Map (values) as Map
@@ -171,7 +179,7 @@ runTestnetTestPlan cfg (ContractTestPlan runContractTestPlan) = do
 -- | combined distribution.
 -- | NOTE: Skipped tests still have their distribution generated.
 -- | This is the current method of constructing all the wallets with required distributions
--- | in one go during Plutip startup.
+-- | in one go during TestNet startup.
 execDistribution :: TestPlanM ContractTest Unit -> Aff ContractTestPlan
 execDistribution (MoteT mote) = execWriterT mote <#> go
   where
