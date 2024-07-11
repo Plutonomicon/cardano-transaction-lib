@@ -73,8 +73,8 @@ To **build** the project **without bundling and for a NodeJS environment**:
 
 - `npm run unit-test` for unit tests (no need for a runtime) -  [entry point](../test/Unit.purs)
 - `npm run integration-test` for integration tests (requires a [runtime](./runtime.md#ctl-backend)) -  [entry point](../test/Integration.purs)
-- `npm run plutip-test` for Plutip integration tests (does not require a runtime) - [entry point](../test/Plutip.purs)
-- `npm run staking-test` to run [Plutip](./plutip-testing.md)-powered tests for ADA staking functionality - [entry point](../test/Plutip/Staking.purs)
+- `npm run testnet-test` for Cardano Testnet integration tests (does not require a runtime) - [entry point](../test/Testnet.purs)
+- `npm run staking-test` to run [Cardano Testnet](./cardano-testnet-testing.md)-powered tests for ADA staking functionality - [entry point](../test/Testnet/Staking.purs)
 - `npm run blockfrost-test` for [Blockfrost-powered tests](./blockfrost.md) (does not require a runtime, but needs [some setup](./blockfrost.md#setting-up-a-blockfrost-powered-test-suite)) - [entry point](../test/Blockfrost/Contract.purs)
 - `npm run blockfrost-local-test` for self-hosted [Blockfrost-powered tests](./blockfrost.md) (requires a [local Blockfrost runtime](./blockfrost.md#running-blockfrost-locally)) - [entry point](../test/Blockfrost/Contract.purs)
 - `npm run e2e-test` for [tests with a headless browser](./e2e-testing.md) (requires a runtime and the tests served via HTTP: `npm run start-runtime` and `npm run e2e-serve` or `esbuild-serve`)
@@ -85,8 +85,8 @@ Here and below, `<SYSTEM>` should be replaced with [one of the supported systems
 
 - Unit tests: `nix build .#checks.<SYSTEM>.ctl-unit-test`
 - [E2E tests in Nix with wallet mocks](./e2e-testing.md#using-cip-30-mock-with-plutip): `nix build -L .#checks.<SYSTEM>.ctl-e2e-test`
-- Contract tests ([Plutip](./plutip-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-plutip-test`
-- [Staking](./staking.md) tests ([Plutip](./plutip-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-staking-test`
+- Contract tests ([Cardano Testnet](./cardano-testnet-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-local-testnet-test`
+- [Staking](./staking.md) tests ([Cardano Testnet](./cardano-testnet-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-staking-test`
 
 #### Nix checks
 

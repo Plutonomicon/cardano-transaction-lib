@@ -14,4 +14,4 @@ CTL supports all operations with stake:
 - Receiving rewards
 - Withdrawing rewards
 
-[Our tests](../test/Plutip/Staking.purs) include examples for each of the supported cases.
+[Our tests](../test/Testnet/Staking.purs) include examples for each of the supported cases.
