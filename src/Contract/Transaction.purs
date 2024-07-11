@@ -17,6 +17,7 @@ module Contract.Transaction
   , mkPoolPubKeyHash
   , hashTransaction
   , buildTx
+  , submitTxFromBuildPlan
   ) where
 
 import Prelude
@@ -354,6 +355,18 @@ submitTxFromConstraints lookups constraints = do
   balancedTx <- balanceTx unbalancedTx usedUtxos mempty
   balancedSignedTx <- signTransaction balancedTx
   submit balancedSignedTx
+
+submitTxFromBuildPlan
+  :: UtxoMap
+  -> BalanceTxConstraintsBuilder
+  -> Array TransactionBuilderStep
+  -> Contract Transaction
+submitTxFromBuildPlan usedUtxos balancerConstraints plan = do
+  unbalancedTx <- buildTx plan
+  balancedTx <- balanceTx unbalancedTx usedUtxos balancerConstraints
+  balancedSignedTx <- signTransaction balancedTx
+  void $ submit balancedSignedTx
+  pure balancedSignedTx
 
 lookupTxHash
   :: TransactionHash -> UtxoMap -> Array TransactionUnspentOutput

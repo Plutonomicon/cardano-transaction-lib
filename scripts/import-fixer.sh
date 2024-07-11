@@ -41,6 +41,13 @@ constrs["NetworkId"]="MainnetId, TestnetId"
 constrs["ScriptRef"]="NativeScriptRef, PlutusScriptRef"
 constrs["RedeemerTag"]="Spend, Mint, Cert, Reward"
 constrs["Maybe"]="Just, Nothing"
+constrs["PaymentCredential"]="PaymentCredential"
+constrs["TransactionBuilderStep"]="SpendOutput, Pay, MintAsset, RegisterStake, IssueCertificate, WithdrawStake, RequireSignature, RegisterPool, RetirePool, IncludeDatum, SetTTL, SetValidityStartInterval, SetIsValid"
+constrs["OutputWitness"]="NativeScriptOutput, PlutusScriptOutput"
+constrs["CredentialWitness"]="NativeScriptCredential, PlutusScriptCredential"
+constrs["ScriptWitness"]="ScriptValue, ScriptReference"
+constrs["DatumWitness"]="DatumValue, DatumReference"
+constrs["RefInputAction"]="ReferenceInput, SpendInput"
 
 for d in "src" "test" "examples"; do
     echo "processing $d"

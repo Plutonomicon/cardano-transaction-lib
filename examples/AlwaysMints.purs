@@ -11,18 +11,37 @@ module Ctl.Examples.AlwaysMints
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( CredentialWitness(NativeScriptCredential, PlutusScriptCredential)
+  , ScriptWitness(ScriptValue, ScriptReference)
+  , TransactionBuilderStep
+      ( SpendOutput
+      , Pay
+      , MintAsset
+      , RegisterStake
+      , IssueCertificate
+      , WithdrawStake
+      , RequireSignature
+      , RegisterPool
+      , RetirePool
+      , IncludeDatum
+      , SetTTL
+      , SetValidityStartInterval
+      , SetIsValid
+      )
+  )
 import Cardano.Types (PlutusScript)
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.Transaction as Transaction
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import Contract.ScriptLookups as Lookups
+import Contract.PlutusData (unitRedeemer)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
-import Contract.TxConstraints as Constraints
+import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
+import Data.Map as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -30,21 +49,17 @@ main = example testnetNamiConfig
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.AlwaysMints"
-  mp <- alwaysMintsPolicy
-  let cs = PlutusScript.hash mp
-  tn <- Helpers.mkAssetName "TheToken"
-  let
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustMintValue
-      $ Mint.singleton cs tn
-      $ Int.fromInt 100
-
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.plutusMintingPolicy mp
-
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmed txId
+  mintingPolicy <- alwaysMintsPolicy
+  let scriptHash = PlutusScript.hash mintingPolicy
+  tokenName <- Helpers.mkAssetName "TheToken"
+  awaitTxConfirmed <<< Transaction.hash =<<
+    submitTxFromBuildPlan Map.empty mempty
+      [ MintAsset
+          scriptHash
+          tokenName
+          (Int.fromInt 100)
+          (PlutusScriptCredential (ScriptValue mintingPolicy) unitRedeemer)
+      ]
   logInfo' "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

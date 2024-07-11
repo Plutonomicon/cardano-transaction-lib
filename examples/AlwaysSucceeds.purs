@@ -12,37 +12,47 @@ module Ctl.Examples.AlwaysSucceeds
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue, DatumReference)
+  , OutputWitness(NativeScriptOutput, PlutusScriptOutput)
+  , ScriptWitness(ScriptValue, ScriptReference)
+  , TransactionBuilderStep(SpendOutput, Pay)
+  )
 import Cardano.Types
   ( Credential(PubKeyHashCredential, ScriptHashCredential)
+  , OutputDatum(OutputDatum)
+  , PaymentCredential(PaymentCredential)
   , PlutusScript
   , ScriptHash
+  , StakeCredential(StakeCredential)
   , TransactionHash
-  , _input
+  , TransactionOutput(TransactionOutput)
   )
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.PlutusData as Datum
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.DataHash as PlutusData
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as Script
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (unitRedeemer)
-import Contract.ScriptLookups as Lookups
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( awaitTxConfirmed
   , lookupTxHash
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.Lens (view)
+import Data.Map as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -67,27 +77,16 @@ payToAlwaysSucceeds :: ScriptHash -> Contract TransactionHash
 payToAlwaysSucceeds vhash = do
   -- Send to own stake credential. This is used to test mustPayToScriptAddress.
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
-  let
-    value = Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-
-    constraints :: TxConstraints
-    constraints =
-      case mbStakeKeyHash of
-        Nothing ->
-          Constraints.mustPayToScript vhash PlutusData.unit
-            Constraints.DatumWitness
-            value
-        Just stakeKeyHash ->
-          Constraints.mustPayToScriptAddress vhash
-            (PubKeyHashCredential $ unwrap stakeKeyHash)
-            Datum.unit
-            Constraints.DatumWitness
-            value
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  submitTxFromConstraints lookups constraints
+  scriptAddress <- mkAddress (PaymentCredential $ ScriptHashCredential vhash)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
+  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
 
 spendFromAlwaysSucceeds
   :: ScriptHash
@@ -101,7 +100,7 @@ spendFromAlwaysSucceeds vhash validator txId = do
     (wrap $ ScriptHashCredential vhash)
     (wrap <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
-  txInput <-
+  utxo <-
     liftM
       ( error
           ( "The id "
@@ -110,17 +109,17 @@ spendFromAlwaysSucceeds vhash validator txId = do
               <> show scriptAddress
           )
       )
-      (view _input <$> head (lookupTxHash txId utxos))
-  let
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs utxos
-
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustSpendScriptOutput txInput unitRedeemer
-  spendTxId <- submitTxFromConstraints lookups constraints
-  awaitTxConfirmed spendTxId
+      $ head (lookupTxHash txId utxos)
+  spendTx <- submitTxFromBuildPlan (Map.union utxos $ toUtxoMap [ utxo ])
+    mempty
+    [ SpendOutput
+        utxo
+        ( Just $ PlutusScriptOutput (ScriptValue validator) unitRedeemer $ Just
+            $ DatumValue
+            $ PlutusData.unit
+        )
+    ]
+  awaitTxConfirmed $ Transaction.hash spendTx
   logInfo' "Successfully spent locked values."
 
 alwaysSucceedsScript :: Contract PlutusScript

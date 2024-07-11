@@ -71,7 +71,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Added
 
+- Ability to spend native script outputs using a reference input that contains an inline native script.
+
 ### Removed
+
+- `Contract.Transaction.submitTxFromConstraintsReturningFee`
+- `Contract.Transaction` lens values
 
 ### Changed
 
