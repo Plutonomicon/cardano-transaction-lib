@@ -18,7 +18,7 @@ import Node.Process as Process
 foreign import exitCode :: Int -> Effect Unit
 
 -- | Attaches a custom handler on SIGINT to kill the fiber.
--- | see https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#note-on-sigint
+-- | see https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/cardano-testnet-testing.md#note-on-sigint
 interruptOnSignal :: forall a. Signal -> Fiber a -> Effect Unit
 interruptOnSignal signal fiber = Process.onSignal signal do
   launchAff_ do

@@ -16,7 +16,7 @@
       type = "github";
       owner = "Plutonomicon";
       repo = "cardano-transaction-lib";
-      rev = "095f5bee58690fd51af3d879ce2c5cd65bce4ee4";
+      rev = "64028db993083b09ff9875a59def48e2f84de04b";
     };
     # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "ctl/nixpkgs";
@@ -158,7 +158,7 @@
           pkgs = nixpkgsFor system;
         in
         {
-          ctl-scaffold-plutip-test = (psProjectFor pkgs).runPlutipTest {
+          ctl-scaffold-local-testnet-test = (psProjectFor pkgs).runLocalTestnetTest {
             testMain = "Test.Scaffold.Main";
           };
 

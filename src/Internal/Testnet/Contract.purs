@@ -123,9 +123,9 @@ withTestnetContractEnv cfg distr cont = do
 -- | NOTE: This uses `MoteT`s bracketing, and thus has the same caveats.
 -- |       Namely, brackets are run for each of the top-level groups and tests
 -- |       inside the bracket.
--- |       If you wish to only set up Plutip once, ensure all tests that are passed
--- |       to `testPlutipContracts` are wrapped in a single group.
--- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md#testing-with-mote FIXME
+-- |       If you wish to only set up Testnet once, ensure all tests that are passed
+-- |       to `testTestnetContracts` are wrapped in a single group.
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/cardano-testnet-testing.md#testing-with-mote FIXME
 testTestnetContracts
   :: TestnetConfig
   -> TestPlanM ContractTest Unit
@@ -136,7 +136,7 @@ testTestnetContracts cfg tp = do
 
 -- | Run a `ContractTestPlan` in a (single) cardano-testnet environment.
 -- | Supports wallet reuse - see docs on sharing wallet state between
--- | wallets in `doc/plutip-testing.md`. FIXME
+-- | wallets in `doc/cardano-testnet-testing.md`. FIXME
 runTestnetTestPlan
   :: TestnetConfig
   -> ContractTestPlan
