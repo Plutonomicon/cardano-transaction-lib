@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.Contract
+module Test.Ctl.Testnet.Contract
   ( suite
   ) where
 
@@ -67,7 +67,7 @@ import Contract.Scripts
   )
 import Contract.Test (ContractTest)
 import Contract.Test.Assert (runChecks)
-import Contract.Test.Plutip
+import Contract.Test.Testnet
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey
   , withStakeKey
@@ -186,9 +186,9 @@ import Test.Ctl.Fixtures
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
-import Test.Ctl.Plutip.Common (privateStakeKey)
-import Test.Ctl.Plutip.Utils (getLockedInputs, submitAndLog)
-import Test.Ctl.Plutip.UtxoDistribution (checkUtxoDistribution)
+import Test.Ctl.Testnet.Common (privateStakeKey)
+import Test.Ctl.Testnet.Utils (getLockedInputs, submitAndLog)
+import Test.Ctl.Testnet.UtxoDistribution (checkUtxoDistribution)
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
 
 suite :: TestPlanM ContractTest Unit
@@ -196,7 +196,6 @@ suite = do
   group "WaitUntilSlot" do
     test "wait for slot far in the future" do
       withWallets unit \_ -> do
-        -- Plutip increases last known slot by 80 at a time
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 10
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161

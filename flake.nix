@@ -221,11 +221,11 @@
             };
             ctl-local-testnet-test = project.runLocalTestnetTest {
               name = "ctl-local-testnet-test";
-              testMain = "Test.Ctl.Plutip";
+              testMain = "Test.Ctl.Testnet";
             };
             ctl-staking-test = project.runLocalTestnetTest {
               name = "ctl-staking-test";
-              testMain = "Test.Ctl.Plutip.Staking";
+              testMain = "Test.Ctl.Testnet.Staking";
             };
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";

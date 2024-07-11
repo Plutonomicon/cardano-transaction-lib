@@ -1,11 +1,10 @@
-module Test.Ctl.Plutip.Contract.Mnemonics (suite) where
+module Test.Ctl.Testnet.Contract.Mnemonics (suite) where
 
 import Prelude
 
 import Contract.Address (addressFromBech32)
-import Contract.Test (ContractTest)
+import Contract.Test (ContractTest, withWallets)
 import Contract.Test.Mote (TestPlanM)
-import Contract.Test.Plutip (withWallets)
 import Contract.Wallet (getWalletAddresses, withKeyWalletFromMnemonic)
 import Contract.Wallet.Key (StakeKeyPresence(WithStakeKey))
 import Data.Array (head)

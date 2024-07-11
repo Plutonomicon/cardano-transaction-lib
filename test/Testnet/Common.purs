@@ -1,20 +1,15 @@
-module Test.Ctl.Plutip.Common
-  ( config
-  , privateStakeKey
+module Test.Ctl.Testnet.Common
+  ( privateStakeKey
   ) where
 
 import Prelude
 
 import Contract.Keys (privateKeyFromBytes)
-import Contract.Test.Plutip (PlutipConfig, defaultPlutipConfig)
 import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.ByteArray (hexToByteArray)
 import Data.Maybe (fromJust)
 import Data.Newtype (wrap)
 import Partial.Unsafe (unsafePartial)
-
-config :: PlutipConfig
-config = defaultPlutipConfig
 
 privateStakeKey :: PrivateStakeKey
 privateStakeKey = wrap $ unsafePartial $ fromJust

@@ -1,5 +1,5 @@
 -- | Testing assertions interface provided by `Contract.Test.Assert`
-module Test.Ctl.Plutip.Contract.Assert (suite) where
+module Test.Ctl.Testnet.Contract.Assert (suite) where
 
 import Prelude
 
@@ -8,14 +8,13 @@ import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Monad (liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(Integer))
-import Contract.Test (ContractTest)
+import Contract.Test (ContractTest, InitialUTxOs, withWallets)
 import Contract.Test.Assert
   ( checkExUnitsNotExceed
   , collectAssertionFailures
   , printContractAssertionFailures
   )
 import Contract.Test.Mote (TestPlanM)
-import Contract.Test.Plutip (InitialUTxOs, withWallets)
 import Contract.Wallet
   ( ownPaymentPubKeyHashes
   , ownStakePubKeyHashes

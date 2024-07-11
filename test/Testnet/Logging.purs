@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.Logging
+module Test.Ctl.Testnet.Logging
   ( suite
   ) where
 

@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.Contract.OgmiosMempool
+module Test.Ctl.Testnet.Contract.OgmiosMempool
   ( suite
   ) where
 

@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.Staking
+module Test.Ctl.Testnet.Staking
   ( main
   , suite
   ) where
@@ -29,7 +29,6 @@ import Contract.Staking
   , getValidatorHashDelegationsAndRewards
   )
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Contract.Test.Plutip (withStakeKey)
 import Contract.Test.Testnet (defaultTestnetConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getCurrentEpoch)
@@ -68,7 +67,12 @@ import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.Helpers (submitAndLog)
 import Ctl.Examples.IncludeDatum (only42Script)
+import Ctl.Internal.Test.UtxoDistribution
+  ( InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  )
 import Ctl.Internal.Testnet.Contract (runTestnetContract)
+import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Array (head)
 import Data.Array as Array
 import Data.Foldable (for_)
@@ -91,7 +95,7 @@ import Effect.Aff
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 import Mote (group, skip, test)
-import Test.Ctl.Plutip.Common (privateStakeKey)
+import Test.Ctl.Testnet.Common (privateStakeKey)
 import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
 import Test.Spec.Runner (defaultConfig)
 
@@ -119,7 +123,7 @@ suite = do
     group "Stake keys: register & deregister" do
       test "PubKey" do
         let
-          distribution = withStakeKey privateStakeKey
+          distribution = withStakeKey privateStakeKeyForDist
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
@@ -159,7 +163,7 @@ suite = do
 
       test "PlutusScript" do
         let
-          distribution = withStakeKey privateStakeKey
+          distribution = withStakeKey privateStakeKeyForDist
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
@@ -209,7 +213,7 @@ suite = do
 
       test "NativeScript" do
         let
-          distribution = withStakeKey privateStakeKey
+          distribution = withStakeKey privateStakeKeyForDist
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
@@ -253,7 +257,7 @@ suite = do
 
     test "Pool registration & retirement" do
       let
-        distribution = withStakeKey privateStakeKey
+        distribution = withStakeKey privateStakeKeyForDist
           [ BigNum.fromInt 1_000_000_000
           , BigNum.fromInt 2_000_000_000
           ]
@@ -372,7 +376,7 @@ suite = do
       "Plutus Stake script: delegate to existing pool & withdraw rewards"
       do
         let
-          distribution = withStakeKey privateStakeKey
+          distribution = withStakeKey privateStakeKeyForDist
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ]
@@ -481,7 +485,7 @@ suite = do
             [ BigNum.fromInt 1_000_000_000
             , BigNum.fromInt 2_000_000_000
             ] /\
-              withStakeKey privateStakeKey
+              withStakeKey privateStakeKeyForDist
                 [ BigNum.fromInt 1_000_000_000
                 , BigNum.fromInt 2_000_000_000
                 ]
@@ -591,7 +595,7 @@ suite = do
 
     skip $ test "PubKey: delegate to existing pool & withdraw rewards" do
       let
-        distribution = withStakeKey privateStakeKey
+        distribution = withStakeKey privateStakeKeyForDist
           [ BigNum.fromInt 1_000_000_000
           , BigNum.fromInt 2_000_000_000
           ]
@@ -685,3 +689,9 @@ suite = do
             , epochSize = Just $ UInt.fromInt 80
             }
       }
+
+withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey
+withStakeKey = InitialUTxOsWithStakeKey
+
+privateStakeKeyForDist :: PrivateStakeKey
+privateStakeKeyForDist = privateStakeKey

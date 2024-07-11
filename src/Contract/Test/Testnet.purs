@@ -1,8 +1,26 @@
 module Contract.Test.Testnet
   ( defaultTestnetConfig
+  , module X
   ) where
 
+import Contract.Monad (runContractInEnv) as X
+import Contract.Wallet (withKeyWallet) as X
 import Ctl.Internal.Contract.Hooks (emptyHooks)
+import Ctl.Internal.Test.ContractTest
+  ( ContractTest
+  , ContractTestPlan(ContractTestPlan)
+  , noWallet
+  , sameWallets
+  , withWallets
+  ) as X
+import Ctl.Internal.Test.UtxoDistribution
+  ( class UtxoDistribution
+  , InitialUTxODistribution
+  , InitialUTxOs
+  , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , UtxoAmount
+  , withStakeKey
+  ) as X
 import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing))

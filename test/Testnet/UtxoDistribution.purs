@@ -1,10 +1,10 @@
-module Test.Ctl.Plutip.UtxoDistribution
+module Test.Ctl.Testnet.UtxoDistribution
   ( ArbitraryUtxoDistr
   , assertContract
   , assertCorrectDistribution
   , assertNoUtxosAtAddress
   , assertNoUtxosAtEnterpriseAddress
-  , assertUtxosAtPlutipWalletAddress
+  , assertUtxosAtTestnetWalletAddress
   , checkUtxoDistribution
   , genInitialUtxo
   , ppArbitraryUtxoDistr
@@ -25,13 +25,13 @@ import Cardano.Types.Address (Address(EnterpriseAddress))
 import Cardano.Types.BigNum as BigNum
 import Contract.Address (Address, getNetworkId)
 import Contract.Monad (Contract, liftedM)
-import Contract.Test.Plutip
+import Contract.Test.Testnet
   ( class UtxoDistribution
   , InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , defaultTestnetConfig
   , withStakeKey
   )
-import Contract.Test.Testnet (defaultTestnetConfig)
 import Contract.Utxos (utxosAt)
 import Contract.Value (Value, lovelaceValueOf)
 import Contract.Wallet
@@ -60,7 +60,7 @@ import Effect.Exception (throw)
 import Mote (group, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Plutip.Common (privateStakeKey)
+import Test.Ctl.Testnet.Common (privateStakeKey)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen
   ( Gen
@@ -128,7 +128,7 @@ checkUtxoDistribution distr wallets = do
   let
     walletsArray = keyWallets (Proxy :: Proxy distr) wallets
     walletUtxos = encodeDistribution distr
-  for_ walletsArray assertUtxosAtPlutipWalletAddress
+  for_ walletsArray assertUtxosAtTestnetWalletAddress
   assertCorrectDistribution $ zip walletsArray walletUtxos
 
 -- TODO: minimum value of 1 ada is hardcoded, tests become flaky below
@@ -197,14 +197,14 @@ withArbUtxoDistr d f = case d of
 assertContract :: String -> Boolean -> Contract Unit
 assertContract msg cond = if cond then pure unit else liftEffect $ throw msg
 
--- | For a plutip test wallet, assert that any utxos held by the
+-- | For a testnet wallet, assert that any utxos held by the
 -- | wallet are at the expected address. If the wallet has a stake
 -- | key, this function assumes the expected address is the base
 -- | address, otherwise it assumes the expected address is the
 -- | enterprise address.
-assertUtxosAtPlutipWalletAddress
+assertUtxosAtTestnetWalletAddress
   :: KeyWallet -> Contract Unit
-assertUtxosAtPlutipWalletAddress wallet = withKeyWallet wallet do
+assertUtxosAtTestnetWalletAddress wallet = withKeyWallet wallet do
   maybeStake <- join <<< head <$> ownStakePubKeyHashes
   when (isJust maybeStake) $ assertNoUtxosAtEnterpriseAddress wallet
 

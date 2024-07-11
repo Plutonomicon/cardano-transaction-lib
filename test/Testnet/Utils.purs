@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.Utils
+module Test.Ctl.Testnet.Utils
   ( submitAndLog
   , getLockedInputs
   ) where

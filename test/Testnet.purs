@@ -1,10 +1,10 @@
-module Test.Ctl.Plutip
+module Test.Ctl.Testnet
   ( main
   ) where
 
 import Prelude
 
-import Contract.Test.Plutip (noWallet)
+import Contract.Test (noWallet)
 import Contract.Test.Testnet (defaultTestnetConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
@@ -22,18 +22,18 @@ import Mote (group)
 import Mote.Monad (mapTest)
 import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
-import Test.Ctl.Plutip.Contract as Contract
-import Test.Ctl.Plutip.Contract.Assert as Assert
-import Test.Ctl.Plutip.Contract.Mnemonics as Mnemonics
-import Test.Ctl.Plutip.Contract.OgmiosMempool as OgmiosMempool
-import Test.Ctl.Plutip.ExUnits as ExUnits
-import Test.Ctl.Plutip.Logging as Logging
-import Test.Ctl.Plutip.SameWallets as SameWallets
-import Test.Ctl.Plutip.UtxoDistribution as UtxoDistribution
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
+import Test.Ctl.Testnet.Contract as Contract
+import Test.Ctl.Testnet.Contract.Assert as Assert
+import Test.Ctl.Testnet.Contract.Mnemonics as Mnemonics
+import Test.Ctl.Testnet.Contract.OgmiosMempool as OgmiosMempool
+import Test.Ctl.Testnet.ExUnits as ExUnits
+import Test.Ctl.Testnet.Logging as Logging
+import Test.Ctl.Testnet.SameWallets as SameWallets
+import Test.Ctl.Testnet.UtxoDistribution as UtxoDistribution
 import Test.Spec.Runner (defaultConfig)
 
--- Run with `npm run plutip-test`
+-- Run with `npm run testnet-test`
 main :: Effect Unit
 main = interruptOnSignal SIGINT =<< launchAff do
   let config = defaultTestnetConfig
@@ -76,4 +76,4 @@ testStartPlutipCluster = group "Server" do
       stopRes `shouldSatisfy` case _ of
         StopClusterSuccess -> true
         _ -> false
--}
+        -}

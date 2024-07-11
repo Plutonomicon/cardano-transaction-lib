@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.SameWallets
+module Test.Ctl.Testnet.SameWallets
   ( suite
   ) where
 
@@ -11,7 +11,11 @@ import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (PaymentPubKeyHash)
 import Contract.Monad (Contract, liftedM)
 import Contract.ScriptLookups as Lookups
-import Contract.Test.Plutip (PlutipTestPlan, sameWallets, withKeyWallet)
+import Contract.Test.Testnet
+  ( ContractTestPlan
+  , sameWallets
+  , withKeyWallet
+  )
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.Value (TokenName, Value)
@@ -23,7 +27,7 @@ import Ctl.Internal.Test.UtxoDistribution (InitialUTxOs)
 import Data.Array as Array
 import Mote (group, test)
 
-suite :: PlutipTestPlan
+suite :: ContractTestPlan
 suite =
   let
     distribution :: InitialUTxOs /\ InitialUTxOs

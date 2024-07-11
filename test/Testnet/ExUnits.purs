@@ -1,4 +1,4 @@
-module Test.Ctl.Plutip.ExUnits
+module Test.Ctl.Testnet.ExUnits
   ( mkSuite
   , mkFailingSuite
   ) where

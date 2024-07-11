@@ -7,13 +7,11 @@ import Contract.Prelude
 import Contract.Numeric.BigNum as BigNum
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
-  ( InitialUTxOs
-  , PlutipTest
+  ( PlutipTest
   , defaultPlutipConfig
   , testPlutipContracts
-  , withKeyWallet
-  , withWallets
   )
+import Contract.Test.Testnet (InitialUTxOs, withKeyWallet, withWallets)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect.Aff
