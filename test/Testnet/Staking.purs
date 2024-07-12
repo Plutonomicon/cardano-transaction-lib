@@ -63,7 +63,7 @@ import Contract.Wallet
   , ownStakePubKeyHashes
   , withKeyWallet
   )
-import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
+import Contract.Wallet.Key (getPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.Helpers (submitAndLog)
 import Ctl.Examples.IncludeDatum (only42Script)
@@ -280,8 +280,9 @@ suite = do
           ubTx <- mkUnbalancedTx lookups constraints
           balanceTx ubTx >>= signTransaction >>= submitAndLog
 
-        privateStakeKey <- liftM (error "Failed to get private stake key") $
-          keyWalletPrivateStakeKey alice
+        kwMStakeKey <- liftAff $ getPrivateStakeKey alice
+        privateStakeKey <- liftM (error "Failed to get private stake key")
+          kwMStakeKey
         networkId <- getNetworkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $

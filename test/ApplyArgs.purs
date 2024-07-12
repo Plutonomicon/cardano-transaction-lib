@@ -2,17 +2,14 @@ module Test.Ctl.ApplyArgs (main, suite, contract) where
 
 import Contract.Prelude
 
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Contract.Monad (Contract, launchAff_)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(List, Map, Bytes, Constr), toData)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Scripts (PlutusScript)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptFromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Control.Monad.Error.Class (class MonadError)
-import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Cardano.TextEnvelope (TextEnvelope)
 import Data.List.Lazy (replicate)
 import Data.Profunctor.Choice (left)

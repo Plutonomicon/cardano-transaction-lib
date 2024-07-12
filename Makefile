@@ -112,6 +112,11 @@ run-ci-actions:
 	nix build -L .#checks.x86_64-linux.ctl-staking-test
 	nix build -L .#checks.x86_64-linux.examples-imports-check
 
+run-template-checks:
+	nix build -L .#checks.x86_64-linux.template-deps-json
+	nix build -L .#checks.x86_64-linux.template-dhall-diff
+	nix build -L .#checks.x86_64-linux.template-version
+
 clean:
 	@ rm -r .psc-ide-port || true
 	@ rm -rf .psci_modules || true

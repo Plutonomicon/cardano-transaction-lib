@@ -6,7 +6,7 @@ module Contract.Wallet.KeyFile
 
 import Prelude
 
-import Ctl.Internal.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
+import Cardano.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyFromTextEnvelope

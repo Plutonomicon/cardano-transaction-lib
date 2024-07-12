@@ -36,7 +36,6 @@ import Test.Ctl.Types.TokenName as Types.TokenName
 import Test.Ctl.Types.Transaction as Types.Transaction
 import Test.Ctl.UsedTxOuts as UsedTxOuts
 import Test.Ctl.Wallet.Bip32 as Bip32
-import Test.Ctl.Wallet.Cip30.SignData as Cip30SignData
 import Test.Spec.Runner (defaultConfig)
 
 -- Run with `spago test --main Test.Ctl.Unit`
@@ -55,7 +54,6 @@ testPlan = do
   Ipv6.suite
   NativeScript.suite
   Bip32.suite
-  Cip30SignData.suite
   CslGc.suite
   Data.suite
   Hashing.suite
