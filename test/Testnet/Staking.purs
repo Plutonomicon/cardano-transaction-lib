@@ -12,6 +12,7 @@ import Cardano.Types.Credential
   )
 import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Wallet.Key (PrivateStakeKey)
 import Contract.Address (getNetworkId)
 import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Hashing (publicKeyHash)
@@ -72,7 +73,6 @@ import Ctl.Internal.Test.UtxoDistribution
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
 import Ctl.Internal.Testnet.Contract (runTestnetContract)
-import Ctl.Internal.Wallet.Key (PrivateStakeKey)
 import Data.Array (head)
 import Data.Array as Array
 import Data.Foldable (for_)

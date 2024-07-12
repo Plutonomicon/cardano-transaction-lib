@@ -18,6 +18,7 @@ import Cardano.Types.Credential (Credential(PubKeyHashCredential))
 import Cardano.Types.PaymentCredential (PaymentCredential(PaymentCredential))
 import Cardano.Types.StakeCredential (StakeCredential(StakeCredential))
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash(StakePubKeyHash))
+import Cardano.Wallet.Key (KeyWallet)
 import Contract.Address (getNetworkId)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -74,7 +75,6 @@ import Ctl.Internal.Testnet.Utils
   , runCleanup
   , whenError
   )
-import Ctl.Internal.Wallet.Key (KeyWallet)
 import Data.Array (concat, fromFoldable, zip) as Array
 import Data.Map (values) as Map
 import Effect.Aff (bracket) as Aff
@@ -295,15 +295,16 @@ execDistrFundsPlan withCardanoCliUtxos rounds = do
               genesisAddr <- liftedM "Could not get genesis address"
                 getWalletAddress
               withCardanoCliUtxos genesisAddr do
+                constraintList <- liftAff $ traverse
+                  ( \{ wallet, amount } -> do
+                      addrs <- (unwrap wallet).address network
+                      pure $ mustPayToAddress addrs $ Value.lovelaceValueOf
+                        amount
+                  )
+                  utxos
                 let
                   constraints :: TxConstraints
-                  constraints =
-                    foldMap
-                      ( \{ wallet, amount } ->
-                          mustPayToAddress ((unwrap wallet).address network) $
-                            Value.lovelaceValueOf amount
-                      )
-                      utxos
+                  constraints = fold constraintList
 
                 unbalancedTx <- mkUnbalancedTx mempty constraints
                 balancedTx <- balanceTx unbalancedTx
