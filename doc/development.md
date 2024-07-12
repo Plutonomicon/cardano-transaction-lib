@@ -84,7 +84,7 @@ To **build** the project **without bundling and for a NodeJS environment**:
 Here and below, `<SYSTEM>` should be replaced with [one of the supported systems](https://github.com/Plutonomicon/cardano-transaction-lib/blob/15fd9c5b683df47134dce4a0479f1edc30d4b6f7/flake.nix#L51) that you use, e.g. `x86_64-linux`.
 
 - Unit tests: `nix build .#checks.<SYSTEM>.ctl-unit-test`
-- [E2E tests in Nix with wallet mocks](./e2e-testing.md#using-cip-30-mock-with-plutip): `nix build -L .#checks.<SYSTEM>.ctl-e2e-test`
+- [E2E tests in Nix with wallet mocks](./e2e-testing.md#using-cip-30-mock-with-cardano-testnet): `nix build -L .#checks.<SYSTEM>.ctl-e2e-test`
 - Contract tests ([Cardano Testnet](./cardano-testnet-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-local-testnet-test`
 - [Staking](./staking.md) tests ([Cardano Testnet](./cardano-testnet-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-staking-test`
 

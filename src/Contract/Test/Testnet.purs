@@ -21,6 +21,11 @@ import Ctl.Internal.Test.UtxoDistribution
   , UtxoAmount
   , withStakeKey
   ) as X
+import Ctl.Internal.Testnet.Contract
+  ( runTestnetContract
+  , runTestnetTestPlan
+  , testTestnetContracts
+  ) as X
 import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing))

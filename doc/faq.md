@@ -28,7 +28,6 @@ This document lists common problems encountered by CTL users and developers.
   - [Package 'chromium-105.0.5195.125' is not supported on 'x86_64-darwin'](#package-chromium-10505195125-is-not-supported-on-x86_64-darwin)
 - [Miscellaneous](#miscellaneous)
   - [Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?](#q-why-am-i-getting-error-atkey-coinsperutxobyte-missingvalue)
-  - [Q: Why do I get an error from `foreign.js` when running Plutip tests locally?](#q-why-do-i-get-an-error-from-foreignjs-when-running-plutip-tests-locally)
   - [Q: How can I write my own Nix derivations using the project returned by `purescriptProject`?](#q-how-can-i-write-my-own-nix-derivations-using-the-project-returned-by-purescriptproject)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -99,8 +98,6 @@ To do anything time-related, it's best to rely on local node chain tip time, ins
 
 Time/slot conversion functions depend on `eraSummaries` [Ogmios local state query](https://ogmios.dev/mini-protocols/local-state-query/), that returns era bounds and slotting parameters details, required for proper slot arithmetic. The most common source of the problem is that Ogmios does not return enough epochs into the future. [A possible symptom](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1057) is `CannotFindTimeInEraSummaries` in the error message.
 
-When using Plutip, a solution may be [to increase the `epochSize` parameter](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1057#issuecomment-1450692539).
-
 ### Q: I'm getting `Uncomputable slot arithmetic; transaction's validity bounds go beyond the foreseeable end of the current era: PastHorizon`
 
 Ensure your transaction's validity range does not go over `SafeZone` slots of the current era. The reason for this kind of errors is that time-related estimations are slot-based, and future forks may change slot lengths. So there is only a relatively small time window in the future during which it is known that forks cannot occur.
@@ -167,10 +164,6 @@ To disable, set `withChromium` to `false` in [`purescriptProject`'s `shell` argu
 ### Q: Why am I getting `Error: (AtKey "coinsPerUtxoByte" MissingValue)`?
 
 This is because the node hasn't fully synced. The protocol parameter name changed from `coinsPerUtxoWord` to `coinsPerUtxoByte` in Babbage. CTL only supports the latest era, but Ogmios returns different protocol parameters format depending on current era of a local node.
-
-### Q: Why do I get an error from `foreign.js` when running Plutip tests locally?
-
-The most likely reason for this is that spawning the external processes from `Contract.Test.Plutip` fails. Make sure that all of the required services are on your `$PATH` (see more [here](./runtime.md); you can also set `shell.withRuntime = true;` to ensure that these are always added to your shell environment when running `nix develop`).
 
 ### Q: How can I write my own Nix derivations using the project returned by `purescriptProject`?
 
