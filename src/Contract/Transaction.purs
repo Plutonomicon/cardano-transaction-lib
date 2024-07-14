@@ -140,10 +140,8 @@ buildTx
   :: Array TransactionBuilderStep
   -> Contract Transaction
 buildTx steps = do
-  id <- asks _.networkId
-  let
-    eiRes = buildTransaction id steps
-  case eiRes of
+  networkId <- asks _.networkId
+  case buildTransaction networkId steps of
     Left err -> do
       throwError (error $ explainTxBuildError err)
     Right res -> pure res

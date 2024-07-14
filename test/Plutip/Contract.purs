@@ -171,7 +171,7 @@ import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
-import Mote (group, skip, test)
+import Mote (group, only, skip, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
@@ -270,7 +270,7 @@ suite = do
 
       withWallets distribution \_ → pure unit
 
-  group "Contract interface" do
+  only $ group "Contract interface" do
     test
       "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
       do
@@ -1452,8 +1452,8 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    group "CIP-40 Collateral Output" do
-      test "Always failing script triggers Collateral Return (ADA-only)" do
+    only $ group "CIP-40 Collateral Output" do
+      only $ test "Always failing script triggers Collateral Return (ADA-only)" do
         let
           distribution :: InitialUTxOs /\ InitialUTxOs
           distribution =

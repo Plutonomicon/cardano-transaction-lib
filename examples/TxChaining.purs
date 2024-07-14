@@ -10,7 +10,17 @@ module Ctl.Examples.TxChaining
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
+import Cardano.Types
+  ( Credential(PubKeyHashCredential)
+  , OutputDatum(OutputDatumHash)
+  , PaymentCredential(PaymentCredential)
+  , TransactionOutput(TransactionOutput)
+  )
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Contract.Address (mkAddress)
 import Contract.BalanceTxConstraints
   ( BalanceTxConstraintsBuilder
   , mustUseAdditionalUtxos
@@ -18,21 +28,20 @@ import Contract.BalanceTxConstraints
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( awaitTxConfirmed
   , balanceTx
+  , buildTx
   , createAdditionalUtxos
   , signTransaction
   , submit
   , withBalancedTx
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Array (head)
+import Data.Map as Map
+import Effect.Exception (throw)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -44,33 +53,34 @@ example cfg = launchAff_ do
 contract :: Contract Unit
 contract = do
   pkh <- liftedM "Failed to get PKH" $ head <$> ownPaymentPubKeyHashes
+  address <- mkAddress (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    Nothing
   let
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustPayToPubKey pkh
-        (Value.lovelaceValueOf $ BigNum.fromInt 1_000_000)
+    plan =
+      [ Pay $ TransactionOutput
+          { address: address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 1_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      ]
 
-    lookups0 :: Lookups.ScriptLookups
-    lookups0 = mempty
+  unbalancedTx0 <- buildTx plan
 
-  unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups0 constraints
-
-  withBalancedTx unbalancedTx0 usedUtxos0 mempty \balancedTx0 -> do
+  withBalancedTx unbalancedTx0 Map.empty mempty \balancedTx0 -> do
+    logInfo' $ "balanced"
     balancedSignedTx0 <- signTransaction balancedTx0
 
     additionalUtxos <- createAdditionalUtxos balancedSignedTx0
     logInfo' $ "Additional utxos: " <> show additionalUtxos
-
+    when (Map.isEmpty additionalUtxos) do
+      liftEffect $ throw "empty utxos"
     let
-      lookups1 :: Lookups.ScriptLookups
-      lookups1 = Lookups.unspentOutputs additionalUtxos
-
       balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
       balanceTxConstraints =
         BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
-
-    unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups1 constraints
-    balancedTx1 <- balanceTx unbalancedTx1 usedUtxos1 balanceTxConstraints
+    unbalancedTx1 <- buildTx plan
+    balancedTx1 <- balanceTx unbalancedTx1 additionalUtxos balanceTxConstraints
     balancedSignedTx1 <- signTransaction balancedTx1
 
     txId0 <- submit balancedSignedTx0

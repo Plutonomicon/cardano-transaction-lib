@@ -12,32 +12,18 @@ module Ctl.Examples.AlwaysMints
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( CredentialWitness(NativeScriptCredential, PlutusScriptCredential)
-  , ScriptWitness(ScriptValue, ScriptReference)
-  , TransactionBuilderStep
-      ( SpendOutput
-      , Pay
-      , MintAsset
-      , RegisterStake
-      , IssueCertificate
-      , WithdrawStake
-      , RequireSignature
-      , RegisterPool
-      , RetirePool
-      , IncludeDatum
-      , SetTTL
-      , SetValidityStartInterval
-      , SetIsValid
-      )
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(MintAsset)
   )
 import Cardano.Types (PlutusScript)
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.Transaction as Transaction
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import Contract.PlutusData (unitRedeemer)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
@@ -58,7 +44,9 @@ contract = do
           scriptHash
           tokenName
           (Int.fromInt 100)
-          (PlutusScriptCredential (ScriptValue mintingPolicy) unitRedeemer)
+          ( PlutusScriptCredential (ScriptValue mintingPolicy)
+              RedeemerDatum.unit
+          )
       ]
   logInfo' "Tx submitted successfully!"
 

@@ -5,7 +5,21 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Cardano.Types (Transaction)
+import Cardano.Transaction.Builder
+  ( TransactionBuilderStep(Pay)
+  )
+import Cardano.Types
+  ( Credential(PubKeyHashCredential)
+  , OutputDatum(OutputDatumHash)
+  , PaymentCredential(PaymentCredential)
+  , StakeCredential(StakeCredential)
+  , Transaction
+  , TransactionOutput(TransactionOutput)
+  )
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.Transaction as Transaction
+import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo', logWarn')
 import Contract.Monad
@@ -16,18 +30,16 @@ import Contract.Monad
   , throwContractError
   )
 import Contract.Numeric.BigNum as BigNum
-import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
+  , buildTx
   , signTransaction
   , submit
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   , withBalancedTxs
   )
-import Contract.TxConstraints as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (leq)
 import Contract.Value as Value
 import Contract.Wallet
@@ -38,6 +50,7 @@ import Contract.Wallet
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.Map (Map, filter)
+import Data.Map as Map
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
@@ -55,34 +68,36 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeyHashes
+  skh <- liftedM "Failed to get own SKH" $ head <$> ownStakePubKeyHashes
 
   -- Early fail if not enough utxos present for 2 transactions
   unlessM hasSufficientUtxos do
     logWarn' "Insufficient Utxos for 2 transactions"
     createAdditionalUtxos
-
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustPayToPubKeyAddress pkh skh
-      $ Value.lovelaceValueOf
-      $ BigNum.fromInt 2_000_000
+    plan =
+      [ Pay $ TransactionOutput
+          { address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups constraints
-  unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
+  unbalancedTx0 <- buildTx plan
+  unbalancedTx1 <- buildTx plan
 
   txIds <-
     withBalancedTxs
       [ { transaction: unbalancedTx0
-        , usedUtxos: usedUtxos0
+        , usedUtxos: Map.empty
         , balancerConstraints: mempty
         }
       , { transaction: unbalancedTx1
-        , usedUtxos: usedUtxos1
+        , usedUtxos: Map.empty
         , balancerConstraints: mempty
         }
       ] $ \balancedTxs -> do
@@ -128,27 +143,29 @@ createAdditionalUtxos :: Contract Unit
 createAdditionalUtxos = do
   logInfo' "Creating additional UTxOs for SignMultiple example"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeyHashes
-
+  skh <- liftedM "Failed to get own SKH" $ head <$> ownStakePubKeyHashes
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    constraints :: Constraints.TxConstraints
-    constraints =
-      Constraints.mustPayToPubKeyAddress pkh skh
-        ( Value.lovelaceValueOf
-            $ BigNum.fromInt 2_000_000
-        ) <>
-        Constraints.mustPayToPubKeyAddress pkh skh
-          ( Value.lovelaceValueOf
-              $ BigNum.fromInt 2_000_000
-          )
+    plan =
+      [ Pay $ TransactionOutput
+          { address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      , Pay $ TransactionOutput
+          { address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
+  tx <- submitTxFromBuildPlan Map.empty mempty plan
 
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmedWithTimeout (wrap 100.0) txId
+  awaitTxConfirmedWithTimeout (wrap 100.0) $ Transaction.hash tx
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

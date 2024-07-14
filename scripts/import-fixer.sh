@@ -42,6 +42,7 @@ constrs["ScriptRef"]="NativeScriptRef, PlutusScriptRef"
 constrs["RedeemerTag"]="Spend, Mint, Cert, Reward"
 constrs["Maybe"]="Just, Nothing"
 constrs["PaymentCredential"]="PaymentCredential"
+constrs["StakeCredential"]="StakeCredential"
 constrs["TransactionBuilderStep"]="SpendOutput, Pay, MintAsset, RegisterStake, IssueCertificate, WithdrawStake, RequireSignature, RegisterPool, RetirePool, IncludeDatum, SetTTL, SetValidityStartInterval, SetIsValid"
 constrs["OutputWitness"]="NativeScriptOutput, PlutusScriptOutput"
 constrs["CredentialWitness"]="NativeScriptCredential, PlutusScriptCredential"
@@ -52,9 +53,11 @@ constrs["RefInputAction"]="ReferenceInput, SpendInput"
 for d in "src" "test" "examples"; do
     echo "processing $d"
     pushd "./$d"
+    command=''
     for key in "${!constrs[@]}"; do
-        echo -n "$key,"
-        find -type f | grep '\.purs$' --color=never | xargs -I'{}' -exec sed -i 's/'"$key"'(..)/'"$key(${constrs[$key]})"'/g;' '{}'
+        command="$command"'s/\b'"$key"'(..)/'"$key(${constrs[$key]})"'/g;'
     done
+    find -type f | grep '\.purs$' --color=never | xargs -I'{}' -exec sed -i -e "$command"  '{}'
+    echo "$command"
     popd
 done;
