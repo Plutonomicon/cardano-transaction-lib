@@ -224,7 +224,8 @@ processLookupsAndConstraints
 
   timeConstraintsSolved <- except $ resumeTimeConstraints constraints
 
-  ExceptT $ foldConstraints (processConstraint ctx) timeConstraintsSolved
+  ExceptT $ foldConstraints (processConstraint ctx) $ sortConstraints
+    timeConstraintsSolved
   ExceptT addFakeScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUsedUtxos
@@ -342,6 +343,21 @@ updateUsedUtxos = runExceptT do
       (txOutputs `union` refScriptsUtxoMap)
   -- Left bias towards original map, hence `flip`:
   _cpsUsedUtxos %= flip union cTxOutputs
+
+sortConstraints :: Array TxConstraint -> Array TxConstraint
+sortConstraints constraints =
+  let
+    { yes: includeDatumConstraints, no: otherConstraints } = partition
+      isIncludeDatumConstraint
+      constraints
+  in
+    includeDatumConstraints <> otherConstraints
+  where
+  isIncludeDatumConstraint :: TxConstraint -> Boolean
+  isIncludeDatumConstraint =
+    case _ of
+      MustIncludeDatum _ -> true
+      _ -> false
 
 resumeTimeConstraints
   :: Array TxConstraint -> Either MkUnbalancedTxError (Array TxConstraint)
