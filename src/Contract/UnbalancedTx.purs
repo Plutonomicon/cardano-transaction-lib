@@ -18,7 +18,6 @@ import Ctl.Internal.ProcessConstraints.Error
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
       ( CannotFindDatum
-      , CannotQueryDatum
       , CannotConvertPOSIXTimeRange
       , CannotSolveTimeConstraints
       , CannotGetMintingPolicyScriptIndex

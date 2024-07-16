@@ -81,7 +81,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotMintZero
       , ExpectedPlutusScriptGotNativeScript
       , CannotFindDatum
-      , CannotQueryDatum
       , CannotGetValidatorHashFromAddress
       , TxOutRefWrongType
       , CannotConvertPOSIXTimeRange
@@ -173,7 +172,7 @@ import Ctl.Internal.Types.Val as Val
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), either, hush, isRight, note)
+import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
 import Data.Lens ((%=), (%~), (.=), (.~), (<>=))
 import Data.Lens.Getter (to, use)
@@ -192,7 +191,6 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Partial.Unsafe (unsafePartial)
-import Prelude (join) as Bind
 
 -- The constraints don't precisely match those of Plutus:
 -- `forall v. (FromData (DatumType v), ToData (DatumType v), ToData (RedeemerType v))`
@@ -548,15 +546,7 @@ processConstraint
             -- Use the datum hash inside the lookup
             case datum' of
               Just (OutputDatumHash dHash) -> do
-                dat <- ExceptT do
-                  mDatumLookup <- lookupDatum dHash
-                  if isRight mDatumLookup then
-                    pure mDatumLookup
-                  else
-                    liftAff $ queryHandle.getDatumByHash dHash <#> hush
-                      >>> Bind.join
-                      >>> note
-                        (CannotQueryDatum dHash)
+                dat <- ExceptT $ lookupDatum dHash
                 lift $ addDatum dat
               Just (OutputDatum _) -> pure unit
               Nothing -> throwError CannotFindDatum
