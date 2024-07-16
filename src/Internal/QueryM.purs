@@ -742,7 +742,7 @@ type OgmiosListeners =
   , mempoolSizeAndCapcity :: ListenerSet Unit Ogmios.MempoolSizeAndCapacity
   , poolIds :: ListenerSet Unit PoolIdsR
   , poolParameters :: ListenerSet (Array PoolPubKeyHash) PoolParametersR
-  , delegationsAndRewards :: ListenerSet (Array String) DelegationsAndRewardsR
+  , delegationsAndRewards :: ListenerSet ({scripts :: Array String, keys :: Array String}) DelegationsAndRewardsR
   }
 
 -- convenience type for adding additional query types later

@@ -172,4 +172,7 @@ queryHandleForSelfHostedBlockfrostBackend
 --      , doesTxExist = ctlQueryHandle.doesTxExist
       , getEraSummaries = ctlQueryHandle.getEraSummaries
       , getChainTip = ctlQueryHandle.getChainTip
+      , getPoolIds = ctlQueryHandle.getPoolIds
+      , getPubKeyHashDelegationsAndRewards = ctlQueryHandle.getPubKeyHashDelegationsAndRewards
+      , getValidatorHashDelegationsAndRewards = ctlQueryHandle.getValidatorHashDelegationsAndRewards
       }

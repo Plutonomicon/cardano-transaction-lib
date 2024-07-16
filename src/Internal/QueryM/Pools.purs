@@ -32,7 +32,7 @@ import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Ctl.Internal.Types.PubKeyHash (StakePubKeyHash)
 import Ctl.Internal.Types.Scripts (StakeValidatorHash)
 import Data.Map as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Exception (error)
 import Record.Builder (build, merge)
@@ -41,6 +41,7 @@ getPoolIds :: QueryM (Array PoolPubKeyHash)
 getPoolIds = mkOgmiosRequest Ogmios.queryPoolIdsCall
   _.poolIds
   unit
+  <#> unwrap
 
 -- TODO: batched variant
 getPoolParameters :: PoolPubKeyHash -> QueryM PoolRegistrationParams
@@ -69,9 +70,13 @@ getValidatorHashDelegationsAndRewards
 getValidatorHashDelegationsAndRewards skh = do
   DelegationsAndRewardsR mp <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
     _.delegationsAndRewards
-    [ stringRep
-    ]
-  pure $ Map.lookup byteHex mp
+    { scripts: [ stringRep ]
+    , keys: []
+    }
+
+  -- Note(Seungheon):
+  -- I don't know why this function's return type is wrapped in Maybe multiple times, but this seem to do the trick
+  pure $ Just $ fromMaybe {rewards: Nothing, delegate: Nothing} $ Map.lookup byteHex mp
   where
   stringRep :: String
   stringRep = scriptHashToBech32Unsafe "script" $ unwrap skh
@@ -85,7 +90,9 @@ getPubKeyHashDelegationsAndRewards
 getPubKeyHashDelegationsAndRewards pkh = do
   DelegationsAndRewardsR mp <- mkOgmiosRequest Ogmios.queryDelegationsAndRewards
     _.delegationsAndRewards
-    [ stringRep ]
+    { scripts: []
+    , keys: [ stringRep ]
+    }
   pure $ Map.lookup byteHex mp
   where
   stringRep :: String

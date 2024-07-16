@@ -141,7 +141,7 @@ import Ctl.Internal.QueryM.JsonWsp (JsonWspCall, mkCallType)
 import Ctl.Internal.Serialization.Address (Slot(Slot))
 import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ed25519KeyHashFromBytes)
 import Ctl.Internal.Types.BigNum (BigNum)
-import Ctl.Internal.Types.BigNum (fromBigInt, fromString) as BigNum
+import Ctl.Internal.Types.BigNum (fromBigInt, fromString, toBigInt) as BigNum
 import Ctl.Internal.Types.ByteArray
   ( ByteArray
   , byteArrayFromIntArray
@@ -248,25 +248,18 @@ queryChainTipCall :: JsonWspCall Unit ChainTipQR
 queryChainTipCall = mkOgmiosCallTypeNoArgs "queryNetwork/tip"
 
 queryPoolIdsCall :: JsonWspCall Unit PoolIdsR
-queryPoolIdsCall = mkOgmiosCallType
-  { method: "Query"
-  , params: const { query: "poolIds" }
-  }
+queryPoolIdsCall = mkOgmiosCallTypeNoArgs "queryLedgerState/stakePools"
 
 queryPoolParameters :: JsonWspCall (Array PoolPubKeyHash) PoolParametersR
 queryPoolParameters = mkOgmiosCallType
-  { method: "Query"
-  , params: \params -> { query: { poolParameters: params } }
+  { method: "queryLedgerState/stakePools"
+  , params: \params -> { stakePools: params <#> (\x -> {id: x}) }
   }
 
-queryDelegationsAndRewards :: JsonWspCall (Array String) DelegationsAndRewardsR
+queryDelegationsAndRewards :: JsonWspCall ({scripts :: Array String, keys :: Array String}) DelegationsAndRewardsR
 queryDelegationsAndRewards = mkOgmiosCallType
-  { method: "Query"
-  , params: \skhs ->
-      { query:
-          { delegationsAndRewards: skhs
-          }
-      }
+  { method: "queryLedgerState/rewardAccountSummaries"
+  , params: \x -> x
   }
 
 type OgmiosAddress = String
@@ -534,13 +527,17 @@ derive instance Generic DelegationsAndRewardsR _
 derive instance Newtype DelegationsAndRewardsR _
 
 instance DecodeAeson DelegationsAndRewardsR where
-  decodeAeson aeson = do
-    obj :: Object (Object Aeson) <- decodeAeson aeson
-    kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
-      rewards <- map Coin <$> objParams .:? "rewards"
-      delegate <- objParams .:? "delegate"
-      pure $ k /\ { rewards, delegate }
-    pure $ DelegationsAndRewardsR $ Map.fromFoldable kvs
+  decodeAeson x =
+    success x <|> (pure $ wrap Map.empty)
+    where
+      success = aesonObject \o -> do
+        obj :: Object Aeson <- getField o "result"
+        kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
+          {delegate, rewards} :: {delegate :: {id :: PoolPubKeyHash}, rewards :: {ada :: {lovelace :: BigNum}}}
+            <- decodeAeson objParams
+          pure $
+            k /\ { rewards: Just $ wrap $ BigNum.toBigInt rewards.ada.lovelace , delegate: Just delegate.id }
+        pure $ DelegationsAndRewardsR $ Map.fromFoldable kvs
 
 ---------------- POOL PARAMETERS QUERY RESPONSE & PARSING
 
@@ -566,32 +563,41 @@ instance Show PoolParametersR where
   show = genericShow
 
 instance DecodeAeson PoolParametersR where
-  decodeAeson aeson = do
-    obj :: Object (Object Aeson) <- decodeAeson aeson
-    kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
-      poolParams <- decodePoolParameters objParams
-      pure $ k /\ poolParams
-    pure $ PoolParametersR $ Map.fromFoldable kvs
+  decodeAeson x =
+    success x <|> (pure $ wrap Map.empty)
+    where
+      success = aesonObject \o -> do
+        obj :: Object PoolParametersRaw <- getField o "result"
+        kvs <- for (Object.toUnfoldable obj :: Array _) \(Tuple k objParams) -> do
+          poolParams <- decodePoolParameters objParams
+          pure $ k /\ poolParams
+        pure $ PoolParametersR $ Map.fromFoldable kvs
 
-decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
-decodePoolParameters objParams = do
-  vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrf"
-  pledge <- objParams .: "pledge"
-  cost <- objParams .: "cost"
-  margin <- decodeUnitInterval =<< objParams .: "margin"
-  rewardAccount <- objParams .: "rewardAccount"
-  poolOwners <- objParams .: "owners"
-  relayArr <- objParams .: "relays"
-  relays <- for relayArr decodeRelay
-  poolMetadata <- objParams .:? "metadata" >>= traverse decodePoolMetadata
+type PoolParametersRaw =
+  { vrfVerificationKeyHash :: Aeson
+  , pledge :: {ada :: {lovelace :: BigNum}}
+  , cost :: {ada :: {lovelace :: BigNum}}
+  , margin :: Aeson
+  , rewardAccount :: RewardAddress
+  , owners :: Array Ed25519KeyHash
+  , relays :: Array Aeson
+  , metadata :: Maybe Aeson
+  }
+
+decodePoolParameters :: PoolParametersRaw -> Either JsonDecodeError PoolParameters
+decodePoolParameters {vrfVerificationKeyHash, pledge, cost, margin, rewardAccount, owners, relays, metadata} = do
+  vrfKeyhash <- decodeVRFKeyHash vrfVerificationKeyHash
+  margin <- decodeUnitInterval margin
+  relays' <- traverse decodeRelay relays
+  poolMetadata <- traverse decodePoolMetadata metadata
   pure
     { vrfKeyhash
-    , pledge
-    , cost
+    , pledge: pledge.ada.lovelace
+    , cost: cost.ada.lovelace
     , margin
     , rewardAccount
-    , poolOwners
-    , relays
+    , poolOwners: owners
+    , relays: relays'
     , poolMetadata
     }
 
@@ -1035,7 +1041,19 @@ type ChainPoint =
 
 ---------------- POOL ID RESPONSE
 
-type PoolIdsR = Array PoolPubKeyHash
+newtype PoolIdsR = PoolIdsR (Array PoolPubKeyHash)
+
+derive instance Generic PoolIdsR _
+derive instance Newtype PoolIdsR _
+derive newtype instance Show PoolIdsR
+
+instance DecodeAeson PoolIdsR where
+  decodeAeson x =
+    success x <|> (pure $ PoolIdsR mempty)
+    where
+      success = aesonObject $ \o -> do
+        result :: Array (Object Aeson) <- getField o "result" <#> Object.values
+        traverse (\v -> getField v "id") result <#> PoolIdsR
 
 ---------------- ADDITIONAL UTXO MAP REQUEST
 

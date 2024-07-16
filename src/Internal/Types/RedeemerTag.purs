@@ -12,14 +12,15 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Show.Generic (genericShow)
 
 -- lives in it's own module due to a name conflict with the `Mint` Type
+-- Note(Seungheon): there is also "vote" and "purpose" tag added for Chang, but I'm skipping it.
 data RedeemerTag = Spend | Mint | Cert | Reward
 
 fromString :: String -> Maybe RedeemerTag
 fromString = case _ of
   "spend" -> Just Spend
   "mint" -> Just Mint
-  "certificate" -> Just Cert
-  "withdrawal" -> Just Reward
+  "publish" -> Just Cert
+  "withdraw" -> Just Reward
   _ -> Nothing
 
 derive instance Generic RedeemerTag _
