@@ -6,6 +6,7 @@ module Test.Ctl.Plutip.Staking
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Cardano.Types (PoolParams(PoolParams), UnitInterval(UnitInterval))
 import Cardano.Types.BigInt as BigInt
 import Cardano.Types.Credential
@@ -24,7 +25,7 @@ import Contract.PlutusData (unitDatum, unitRedeemer)
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (NativeScript(ScriptPubkey, ScriptAny), applyArgs)
+import Contract.Scripts (NativeScript(ScriptPubkey, ScriptAny))
 import Contract.Staking
   ( getPoolIds
   , getPubKeyHashDelegationsAndRewards
@@ -66,7 +67,7 @@ import Contract.Wallet
   , ownStakePubKeyHashes
   , withKeyWallet
   )
-import Contract.Wallet.Key (keyWalletPrivateStakeKey, publicKeyFromPrivateKey)
+import Contract.Wallet.Key (getPrivateStakeKey, publicKeyFromPrivateKey)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.Helpers (submitAndLog)
 import Ctl.Examples.IncludeDatum (only42Script)
@@ -291,8 +292,9 @@ suite = do
           ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
           balanceTx ubTx usedUtxos mempty >>= signTransaction >>= submitAndLog
 
-        privateStakeKey <- liftM (error "Failed to get private stake key") $
-          keyWalletPrivateStakeKey alice
+        kwMStakeKey <- liftAff $ getPrivateStakeKey alice
+        privateStakeKey <- liftM (error "Failed to get private stake key")
+          kwMStakeKey
         networkId <- getNetworkId
         let
           poolOperator = PoolPubKeyHash $ publicKeyHash $

@@ -32,7 +32,6 @@ import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.ScriptRef (ScriptRef)
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.ApplyArgs (applyArgs) as X
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Service.Error (ClientError)
 import Data.Either (Either)

@@ -17,6 +17,7 @@ jobs:
         run: |
           npm install -g spago
           npm install -g purescript@0.15.8
+          rm -rf package.json # remove package.json so that we are no more in an ESM module. A hack to make 'spago docs' work
           spago docs
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.3.3

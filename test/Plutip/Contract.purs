@@ -5,6 +5,7 @@ module Test.Ctl.Plutip.Contract
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Cardano.Serialization.Lib (fromBytes)
 import Cardano.Transaction.Builder
   ( DatumWitness(DatumValue)
@@ -70,7 +71,6 @@ import Contract.Prim.ByteArray
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( ValidatorHash
-  , applyArgs
   , getScriptByHash
   , getScriptsByHashes
   , validatorHash
@@ -1467,7 +1467,8 @@ suite = do
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
     group "CIP-40 Collateral Output" do
-      test "Always failing script triggers Collateral Return (ADA-only)"
+      skip $ test
+        "Always failing script triggers Collateral Return (ADA-only) UNSKIP AFTER CONWAY"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs
@@ -1498,7 +1499,8 @@ suite = do
                     collateralLoss
                 )
 
-      test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
+      skip $ test
+        "AlwaysFails script triggers Native Asset Collateral Return (tokens) UNSKIP AFTER CONWAY"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs

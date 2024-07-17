@@ -6,8 +6,7 @@ module Ctl.Examples.AdditionalUtxos
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( DatumWitness(DatumValue)
-  , OutputWitness(PlutusScriptOutput)
+  ( OutputWitness(PlutusScriptOutput)
   , ScriptWitness(ScriptValue)
   , TransactionBuilderStep(SpendOutput, Pay)
   )
@@ -107,7 +106,7 @@ payToValidator vhash = do
   pure { unbalancedTx: tx, datum }
 
 spendFromValidator :: PlutusScript -> UtxoMap -> Datum -> Contract Unit
-spendFromValidator validator additionalUtxos datum = do
+spendFromValidator validator additionalUtxos _datum = do
   addr <- mkAddress (wrap $ ScriptHashCredential $ PlutusScript.hash validator)
     Nothing
   let

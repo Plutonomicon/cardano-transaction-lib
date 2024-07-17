@@ -28,6 +28,7 @@ import Cardano.Types.Value (Value, valueToCoin)
 import Cardano.Types.Value (geq, lovelaceValueOf, sum) as Value
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
 import Ctl.Internal.Helpers (bugTrackerLink, liftM, liftedM)
@@ -59,12 +60,16 @@ getChangeAddress = withWallet do
   actionBasedOnWallet _.getChangeAddress
     \kw -> do
       networkId <- asks _.networkId
-      pure $ (unwrap kw).address networkId
+      addr <- liftAff $ (unwrap kw).address networkId
+      pure addr
 
 getRewardAddresses :: Contract (Array Address)
 getRewardAddresses =
   withWallet $ actionBasedOnWallet _.getRewardAddresses
-    \kw -> asks _.networkId <#> Array.singleton <<< (unwrap kw).address
+    \kw -> do
+      networkId <- asks _.networkId
+      addr <- liftAff $ (unwrap kw).address networkId
+      pure $ Array.singleton addr
 
 -- | Get all `Address`es of the browser wallet.
 getWalletAddresses :: Contract (Array Address)
@@ -72,7 +77,8 @@ getWalletAddresses = withWallet do
   actionBasedOnWallet _.getUsedAddresses
     ( \kw -> do
         networkId <- asks _.networkId
-        pure $ Array.singleton $ (unwrap kw).address networkId
+        addr <- liftAff $ (unwrap kw).address networkId
+        pure $ Array.singleton $ addr
     )
 
 signData :: Address -> RawBytes -> Contract DataSignature
@@ -127,13 +133,16 @@ getWalletCollateral = do
     actionBasedOnWallet _.getCollateral \kw -> do
       queryHandle <- getQueryHandle
       networkId <- asks _.networkId
-      let addr = (unwrap kw).address networkId
+      addr <- liftAff $ (unwrap kw).address networkId
       utxos <- (liftAff $ queryHandle.utxosAt addr)
         <#> hush >>> fromMaybe Map.empty
         >>= filterLockedUtxos
-      pure $ (unwrap kw).selectCollateral coinsPerUtxoByte
+      mColl <- liftAff $ (unwrap kw).selectCollateral
+        minRequiredCollateral
+        coinsPerUtxoByte
         (UInt.toInt maxCollateralInputs)
         utxos
+      pure mColl
   let
     {- This is a workaround for the case where Eternl wallet,
        in addition to designated collateral UTxO, returns all UTxO's with

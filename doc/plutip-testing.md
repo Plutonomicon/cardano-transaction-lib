@@ -183,10 +183,10 @@ An example `Contract` with two actors using nested tuples:
 let
   distribution :: Array BigInt /\ Array BigInt
   distribution =
-    [ BigInt.fromInt 1_000_000_000
-    , BigInt.fromInt 2_000_000_000
+    [ BigNum.fromInt 1_000_000_000
+    , BigNum.fromInt 2_000_000_000
     ] /\
-      [ BigInt.fromInt 2_000_000_000 ]
+      [ BigNum.fromInt 2_000_000_000 ]
 runPlutipContract config distribution \(alice /\ bob) -> do
   withKeyWallet alice do
     pure unit -- sign, balance, submit, etc.
@@ -201,9 +201,9 @@ let
   distribution :: Array (Array BigInt)
   distribution =
     -- wallet one: two UTxOs
-    [ [ BigInt.fromInt 1_000_000_000, BigInt.fromInt 2_000_000_000]
+    [ [ BigNum.fromInt 1_000_000_000, BigNum.fromInt 2_000_000_000]
     -- wallet two: one UTxO
-    , [ BigInt.fromInt 2_000_000_000 ]
+    , [ BigNum.fromInt 2_000_000_000 ]
     ]
 runPlutipContract config distribution \wallets -> do
   traverse_ ( \wallet -> do
@@ -343,8 +343,8 @@ let
     $ privateKeyFromBytes =<< hexToRawBytes
       "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
   aliceUtxos =
-    [ BigInt.fromInt 2_000_000_000
-    , BigInt.fromInt 2_000_000_000
+    [ BigNum.fromInt 2_000_000_000
+    , BigNum.fromInt 2_000_000_000
     ]
   distribution = withStakeKey privateStakeKey aliceUtxos
 ```

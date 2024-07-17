@@ -1,4 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | This module demonstrates how `applyArgs` from `Cardano.Plutus.ApplyArgs`
+-- | (from https://github.com/mlabs-haskell/purescript-uplc-apply-args) can be
 -- | used to build scripts with the provided arguments applied. It creates a
 -- | transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.OneShotMinting
@@ -12,12 +13,17 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Cardano.Transaction.Builder
   ( CredentialWitness(PlutusScriptCredential)
   , ScriptWitness(ScriptValue)
   , TransactionBuilderStep(SpendOutput, MintAsset)
   )
-import Cardano.Types (_body, _fee, _input)
+import Cardano.Types
+  ( _body
+  , _fee
+  , _input
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
@@ -35,7 +41,7 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
-import Contract.Scripts (PlutusScript, applyArgs)
+import Contract.Scripts (PlutusScript)
 import Contract.Test.Assert
   ( ContractCheck
   , checkLossInWallet

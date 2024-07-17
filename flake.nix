@@ -391,7 +391,9 @@
               nativeBuildInputs = [ pkgs.jq ];
             } ''
             cd ${self}
-            diff <(jq -S .dependencies <<< $ctlPackageJson) <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+            diff \
+              <(jq -S .dependencies <<< $ctlPackageJson) \
+              <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
             # We don't want to include `doctoc` in the template dev dependencies.
             diff \
               <(jq -S '.devDependencies | del(.jssha) | del(.blakejs) | del(.doctoc)' <<< $ctlPackageJson) \
