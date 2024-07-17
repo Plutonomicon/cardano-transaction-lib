@@ -5,27 +5,21 @@ module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
-import Cardano.Transaction.Builder
-  ( TransactionBuilderStep(Pay)
-  )
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
 import Cardano.Types
-  ( Credential(PubKeyHashCredential)
-  , OutputDatum(OutputDatumHash)
-  , PaymentCredential(PaymentCredential)
-  , StakeCredential(StakeCredential)
+  ( OutputDatum(OutputDatumHash)
   , TransactionOutput(TransactionOutput)
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.Transaction as Transaction
-import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Transaction (awaitTxConfirmedWithTimeout, submitTxFromBuildPlan)
 import Contract.Value as Value
-import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
+import Contract.Wallet (getWalletAddresses)
 import Data.Array (head)
 import Data.Map as Map
 
@@ -35,12 +29,7 @@ main = example testnetNamiConfig
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- liftedM "Failed to get own SKH" $ head <$>
-    ownStakePubKeyHashes
-  address <- mkAddress
-    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
-    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
+  address <- liftedM "Failed to get own address" $ head <$> getWalletAddresses
   txId <- Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
     [ Pay $ TransactionOutput
         { address
