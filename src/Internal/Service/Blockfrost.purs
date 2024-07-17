@@ -240,6 +240,7 @@ import Effect.Exception (error)
 import Foreign.Object (Object)
 import Foreign.Object as ForeignObject
 import JS.BigInt (fromString, toNumber) as BigInt
+import Prim.TypeError (class Warn, Text)
 
 --------------------------------------------------------------------------------
 -- BlockfrostServiceM
@@ -682,19 +683,26 @@ getTxAuxiliaryData
   :: TransactionHash
   -> BlockfrostServiceM (Either GetTxMetadataError AuxiliaryData)
 getTxAuxiliaryData txHash = runExceptT do
-  metadata <- ExceptT $ getTxMetadata txHash
-  (scriptRefs :: Array ScriptRef) <- ExceptT $ getTxScripts txHash
+  metadata <- ExceptT $ getMetadata
+  scriptRefs <- ExceptT $ getTxScripts txHash
   pure $ wrap
     { metadata: Just metadata
     , nativeScripts: arrayToMaybe $ getNativeScripts scriptRefs
-    -- , nativeScripts: Nothing
     , plutusScripts: arrayToMaybe $ getPlutusScripts scriptRefs
     }
 
   where
-  arrayToMaybe :: forall a. Array a -> Maybe (Array a)
-  arrayToMaybe [] = Nothing
-  arrayToMaybe xs = Just xs
+
+  getMetadata = do
+    response <- blockfrostGetRequest (TransactionMetadata txHash)
+    pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
+      Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
+        Left GetTxMetadataTxNotFoundError
+      Left e -> Left (GetTxMetadataClientError e)
+      Right metadata
+        | Map.isEmpty (unwrap metadata) ->
+            Left GetTxMetadataMetadataEmptyOrMissingError
+        | otherwise -> Right metadata
 
   getNativeScripts :: Array ScriptRef -> Array NativeScript
   getNativeScripts = catMaybes <<< map isNativeScript
@@ -708,20 +716,25 @@ getTxAuxiliaryData txHash = runExceptT do
     isPlutusScript (PlutusScriptRef script) = Just script
     isPlutusScript (NativeScriptRef _) = Nothing
 
--- TODO: refactor to aux and remove metadat from tests. add aux tests.
+  arrayToMaybe :: forall a. Array a -> Maybe (Array a)
+  arrayToMaybe [] = Nothing
+  arrayToMaybe xs = Just xs
+
+
 getTxMetadata
-  :: TransactionHash
+  :: Warn
+       ( Text
+           "deprecated: getTxMetadata. use Ctl.Internal.Service.Blockfrost.getTxAuxiliaryData"
+       )
+  => TransactionHash
   -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
 getTxMetadata txHash = do
-  response <- blockfrostGetRequest (TransactionMetadata txHash)
-  pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
-    Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
-      Left GetTxMetadataTxNotFoundError
-    Left e -> Left (GetTxMetadataClientError e)
-    Right metadata
-      | Map.isEmpty (unwrap metadata) ->
-          Left GetTxMetadataMetadataEmptyOrMissingError
-      | otherwise -> Right metadata
+  eAuxData <- getTxAuxiliaryData txHash
+  pure $ case eAuxData of
+    Left err -> Left err
+    Right auxiliaryData -> case (unwrap auxiliaryData).metadata of
+      Nothing -> Left GetTxMetadataMetadataEmptyOrMissingError
+      Just metadata -> Right metadata
 
 getTxScripts
   :: TransactionHash
