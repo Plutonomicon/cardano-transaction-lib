@@ -720,7 +720,6 @@ getTxAuxiliaryData txHash = runExceptT do
   arrayToMaybe [] = Nothing
   arrayToMaybe xs = Just xs
 
-
 getTxMetadata
   :: Warn
        ( Text
