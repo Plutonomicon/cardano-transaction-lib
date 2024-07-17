@@ -147,11 +147,9 @@ import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
-import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
 import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
   ( contract
   ) as ReferenceInputsAndScripts
-import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.Schnorr as Schnorr
@@ -1556,49 +1554,17 @@ suite = do
               logInfo' "Try to spend locked values"
               AlwaysFails.spendFromAlwaysFails vhash validator txId
 
-    group "CIP-33 Reference Scripts" do
-      test "Use reference scripts for spending" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 5_000_000
-            , BigNum.fromInt 50_000_000
-            ]
-        withWallets distribution \alice ->
-          withKeyWallet alice ReferenceScripts.contract
-
-      test
-        "Use reference scripts for spending (with Base Address, testing `mustPayToScriptAddressWithScriptRef`)"
+    group "CIP-33 Reference Scripts + CIP-31 Reference Inputs" do
+      test "Use reference inputs and reference scripts at the same time"
         do
           let
-            distribution :: InitialUTxOsWithStakeKey
-            distribution = withStakeKey privateStakeKey
+            distribution :: InitialUTxOs
+            distribution =
               [ BigNum.fromInt 5_000_000
               , BigNum.fromInt 50_000_000
               ]
           withWallets distribution \alice ->
-            withKeyWallet alice ReferenceScripts.contract
-
-    group "CIP-31 Reference Inputs" do
-      test "Use reference inputs" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 5_000_000
-            , BigNum.fromInt 50_000_000
-            ]
-        withWallets distribution \alice ->
-          withKeyWallet alice ReferenceInputs.contract
-
-      test "Use reference inputs and reference scripts at the same time" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 5_000_000
-            , BigNum.fromInt 50_000_000
-            ]
-        withWallets distribution \alice ->
-          withKeyWallet alice ReferenceInputsAndScripts.contract
+            withKeyWallet alice ReferenceInputsAndScripts.contract
 
     test "One-Shot Minting example" do
       let

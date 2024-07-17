@@ -13,16 +13,18 @@ module Ctl.Examples.IncludeDatum
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( OutputWitness(PlutusScriptOutput)
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
   , ScriptWitness(ScriptValue)
   , TransactionBuilderStep(SpendOutput, Pay)
   )
 import Cardano.Types
   ( Credential(ScriptHashCredential)
-  , OutputDatum(OutputDatum)
+  , OutputDatum(OutputDatumHash)
   , TransactionOutput(TransactionOutput)
   )
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
@@ -72,7 +74,7 @@ payToIncludeDatum vhash = do
     [ Pay $ TransactionOutput
         { address
         , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-        , datum: Just $ OutputDatum datum
+        , datum: Just $ OutputDatumHash $ hashPlutusData datum
         , scriptRef: Nothing
         }
     ]
@@ -91,7 +93,9 @@ spendFromIncludeDatum vhash validator txId = do
     mempty
     [ SpendOutput
         utxo
-        ( Just $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit Nothing
+        ( Just $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+            $ Just
+            $ DatumValue datum
         )
     ]
   awaitTxConfirmed $ Transaction.hash spendTx
