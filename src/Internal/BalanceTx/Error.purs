@@ -142,8 +142,6 @@ explainBalanceTxError = case _ of
       <> pprintTagSet "for" (pprintTransactionInput ti)
       <> " from a "
       <> pprintTagSet "given set of UTxOs:" (pprintUtxoMap mp)
-      <> "\nThis should be impossible: please report this as a bug to "
-      <> bugTrackerLink
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
   NumericOverflowError mbVal ->

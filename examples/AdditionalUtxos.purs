@@ -6,13 +6,16 @@ module Ctl.Examples.AdditionalUtxos
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( OutputWitness(PlutusScriptOutput)
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
   , ScriptWitness(ScriptValue)
   , TransactionBuilderStep(SpendOutput, Pay)
   )
 import Cardano.Types
   ( OutputDatum(OutputDatum)
   , PaymentCredential(PaymentCredential)
+  , PlutusScript
+  , ScriptHash
   , Transaction
   )
 import Cardano.Types.BigNum as BigNum
@@ -28,7 +31,6 @@ import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (Datum, PlutusData(Integer))
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.Sync (withoutSync)
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
@@ -60,7 +62,7 @@ contract :: Boolean -> Contract Unit
 contract testAdditionalUtxoOverlap = withoutSync do
   logInfo' "Running Examples.AdditionalUtxos"
   validator <- alwaysSucceedsScriptV2
-  let vhash = validatorHash validator
+  let vhash = PlutusScript.hash validator
   { unbalancedTx, datum } <- payToValidator vhash
   withBalancedTx unbalancedTx Map.empty mempty \balancedTx -> do
     balancedSignedTx <- signTransaction balancedTx
@@ -72,7 +74,7 @@ contract testAdditionalUtxoOverlap = withoutSync do
     spendFromValidator validator additionalUtxos datum
 
 payToValidator
-  :: ValidatorHash
+  :: ScriptHash
   -> Contract
        { unbalancedTx :: Transaction
        , datum :: Datum
@@ -104,7 +106,7 @@ payToValidator vhash = do
 
   pure { unbalancedTx: tx, datum }
 
-spendFromValidator :: Validator -> UtxoMap -> Datum -> Contract Unit
+spendFromValidator :: PlutusScript -> UtxoMap -> Datum -> Contract Unit
 spendFromValidator validator additionalUtxos datum = do
   addr <- mkAddress (wrap $ ScriptHashCredential $ PlutusScript.hash validator)
     Nothing

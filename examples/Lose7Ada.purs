@@ -27,13 +27,13 @@ import Cardano.Types
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (unitRedeemer)
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
@@ -111,11 +111,12 @@ spendFromAlwaysFails vhash validator txId = do
       [ SpendOutput
           utxo
           $ Just
-          $ PlutusScriptOutput (ScriptValue validator) unitRedeemer Nothing
+          $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+              Nothing
       ] <#> _isValid .~ false
-  balancedTx <- balanceTx unbalancedTx (toUtxoMap [ utxo ]) mempty
-  balancedSignedTx <- signTransaction $ balancedTx # _isValid .~ true
-  spendTxId <- submit balancedSignedTx
+  spendTx <- balanceTx unbalancedTx (toUtxoMap [ utxo ]) mempty
+  signedTx <- signTransaction (spendTx # _isValid .~ true)
+  spendTxId <- submit signedTx
   logInfo' $ "Tx ID: " <> show spendTxId
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."

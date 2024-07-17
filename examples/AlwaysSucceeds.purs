@@ -13,14 +13,13 @@ module Ctl.Examples.AlwaysSucceeds
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( DatumWitness(DatumValue, DatumReference)
-  , OutputWitness(NativeScriptOutput, PlutusScriptOutput)
-  , ScriptWitness(ScriptValue, ScriptReference)
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
   , TransactionBuilderStep(SpendOutput, Pay)
   )
 import Cardano.Types
   ( Credential(PubKeyHashCredential, ScriptHashCredential)
-  , OutputDatum(OutputDatum)
   , PaymentCredential(PaymentCredential)
   , PlutusScript
   , ScriptHash
@@ -30,17 +29,16 @@ import Cardano.Types
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.DataHash (hashPlutusData)
-import Cardano.Types.DataHash as PlutusData
-import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash))
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as Script
+import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (unitRedeemer)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( awaitTxConfirmed
@@ -114,7 +112,8 @@ spendFromAlwaysSucceeds vhash validator txId = do
     mempty
     [ SpendOutput
         utxo
-        ( Just $ PlutusScriptOutput (ScriptValue validator) unitRedeemer $ Just
+        ( Just $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+            $ Just
             $ DatumValue
             $ PlutusData.unit
         )

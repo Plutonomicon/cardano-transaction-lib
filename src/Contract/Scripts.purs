@@ -65,7 +65,8 @@ type Validator = PlutusScript
 type ValidatorHash = ScriptHash
 
 validatorHash
-  :: Warn (Text "Deprecated: validatorHash. Use Cardano.Types.PlutusData.hash")
+  :: Warn
+       (Text "Deprecated: validatorHash. Use Cardano.Types.PlutusScript.hash")
   => PlutusScript
   -> ScriptHash
 validatorHash = PlutusScript.hash

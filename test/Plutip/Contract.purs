@@ -6,10 +6,17 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Serialization.Lib (fromBytes)
-import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, SpendOutput)
+  )
 import Cardano.Types
   ( Address
+  , Credential(PubKeyHashCredential, ScriptHashCredential)
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , PaymentCredential(PaymentCredential)
   , StakeCredential(StakeCredential)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , _input
@@ -17,13 +24,12 @@ import Cardano.Types
   )
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
-import Cardano.Types.Credential
-  ( Credential(PubKeyHashCredential, ScriptHashCredential)
-  )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
-import Cardano.Types.PaymentCredential (PaymentCredential(PaymentCredential))
+import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
@@ -82,7 +88,7 @@ import Contract.Transaction
   ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
-  , OutputDatum(OutputDatumHash, OutputDatum)
+  , OutputDatum(OutputDatum, OutputDatumHash)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
@@ -142,7 +148,9 @@ import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
 import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
+  ( contract
+  ) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
@@ -171,7 +179,7 @@ import Data.UInt (UInt)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
-import Mote (group, only, skip, test)
+import Mote (group, skip, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
@@ -201,7 +209,6 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 10
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
-        void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
   group "Regressions" do
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
@@ -270,7 +277,7 @@ suite = do
 
       withWallets distribution \_ → pure unit
 
-  only $ group "Contract interface" do
+  group "Contract interface" do
     test
       "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
       do
@@ -294,7 +301,7 @@ suite = do
             scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
               Nothing
             utxos <- utxosAt scriptAddress
-            txInput <-
+            utxo <-
               liftM
                 ( error
                     ( "The id "
@@ -303,17 +310,21 @@ suite = do
                         <> show scriptAddress
                     )
                 )
-                (view _input <$> head (lookupTxHash txId utxos))
+                $ head (lookupTxHash txId utxos)
             let
-              lookups :: Lookups.ScriptLookups
-              lookups = Lookups.validator validator
-                <> Lookups.unspentOutputs utxos
+              usedUtxos = Map.union utxos $ toUtxoMap [ utxo ]
+            ubTx <- buildTx
+              [ SpendOutput
+                  utxo
+                  ( Just
+                      $ PlutusScriptOutput (ScriptValue validator)
+                          RedeemerDatum.unit
+                      $ Just
+                      $ DatumValue
+                      $ PlutusData.unit
+                  )
+              ]
 
-              constraints :: TxConstraints
-              constraints =
-                Constraints.mustSpendScriptOutput txInput unitRedeemer
-
-            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
             res <- balanceTxE ubTx usedUtxos
               (mustUseCollateralUtxos bobsCollateral)
             res `shouldSatisfy` isRight
@@ -339,7 +350,7 @@ suite = do
             scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
               Nothing
             utxos <- utxosAt scriptAddress
-            txInput <-
+            utxo <-
               liftM
                 ( error
                     ( "The id "
@@ -348,17 +359,20 @@ suite = do
                         <> show scriptAddress
                     )
                 )
-                (view _input <$> head (lookupTxHash txId utxos))
+                $ head (lookupTxHash txId utxos)
             let
-              lookups :: Lookups.ScriptLookups
-              lookups = Lookups.validator validator
-                <> Lookups.unspentOutputs utxos
-
-              constraints :: TxConstraints
-              constraints =
-                Constraints.mustSpendScriptOutput txInput unitRedeemer
-
-            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+              usedUtxos = Map.union utxos $ toUtxoMap [ utxo ]
+            ubTx <- buildTx
+              [ SpendOutput
+                  utxo
+                  ( Just
+                      $ PlutusScriptOutput (ScriptValue validator)
+                          RedeemerDatum.unit
+                      $ Just
+                      $ DatumValue
+                      $ PlutusData.unit
+                  )
+              ]
             res <- balanceTxE ubTx usedUtxos (mustUseCollateralUtxos Map.empty)
             res `shouldSatisfy` case _ of
               Left (InsufficientCollateralUtxos mp) -> Map.isEmpty mp
@@ -1452,36 +1466,37 @@ suite = do
           logInfo' "Try to spend locked values"
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
-    only $ group "CIP-40 Collateral Output" do
-      only $ test "Always failing script triggers Collateral Return (ADA-only)" do
-        let
-          distribution :: InitialUTxOs /\ InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 10_000_000
-            , BigNum.fromInt 50_000_000
-            ] /\ [ BigNum.fromInt 50_000_000 ]
-        withWallets distribution \(alice /\ seed) -> do
-          validator <- AlwaysFails.alwaysFailsScript
-          let vhash = validatorHash validator
-          txId <- withKeyWallet seed do
-            logInfo' "Attempt to lock value"
-            txId <- AlwaysFails.payToAlwaysFails vhash
-            awaitTxConfirmed txId
-            pure txId
+    group "CIP-40 Collateral Output" do
+      test "Always failing script triggers Collateral Return (ADA-only)"
+        do
+          let
+            distribution :: InitialUTxOs /\ InitialUTxOs
+            distribution =
+              [ BigNum.fromInt 10_000_000
+              , BigNum.fromInt 50_000_000
+              ] /\ [ BigNum.fromInt 50_000_000 ]
+          withWallets distribution \(alice /\ seed) -> do
+            validator <- AlwaysFails.alwaysFailsScript
+            let vhash = validatorHash validator
+            txId <- withKeyWallet seed do
+              logInfo' "Attempt to lock value"
+              txId <- AlwaysFails.payToAlwaysFails vhash
+              awaitTxConfirmed txId
+              pure txId
 
-          withKeyWallet alice do
-            awaitTxConfirmed txId
-            logInfo' "Try to spend locked values"
-            balanceBefore <- unsafePartial $ fold <$> getWalletBalance
-            AlwaysFails.spendFromAlwaysFails vhash validator txId
-            balance <- unsafePartial $ fold <$> getWalletBalance
-            let
-              collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt $
-                5_000_000
-            balance `shouldEqual`
-              ( unsafePartial $ fromJust $ balanceBefore `Value.minus`
-                  collateralLoss
-              )
+            withKeyWallet alice do
+              awaitTxConfirmed txId
+              logInfo' "Try to spend locked values"
+              balanceBefore <- unsafePartial $ fold <$> getWalletBalance
+              AlwaysFails.spendFromAlwaysFails vhash validator txId
+              balance <- unsafePartial $ fold <$> getWalletBalance
+              let
+                collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt $
+                  5_000_000
+              balance `shouldEqual`
+                ( unsafePartial $ fromJust $ balanceBefore `Value.minus`
+                    collateralLoss
+                )
 
       test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
         do
