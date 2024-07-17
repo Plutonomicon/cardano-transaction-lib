@@ -10,7 +10,6 @@ import Cardano.AsCbor (encodeCbor)
 import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
 import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend, CtlBackend)
 import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
@@ -41,7 +40,7 @@ import Ctl.Internal.Service.Blockfrost
 import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Data.Either (Either(Left, Right))
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Newtype (wrap)
 import Effect.Aff (Aff)
 import Effect.Exception (error)
@@ -101,15 +100,7 @@ queryHandleForBlockfrostBackend logParams backend =
   , getOutputAddressesByTxHash: runBlockfrostServiceM' <<<
       Blockfrost.getOutputAddressesByTxHash
   , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
-  , getTxAuxiliaryData: \txHash -> runExceptT do
-      -- FIXME: check if Blockfrost also returns full aux data
-      metadata <- ExceptT $ runBlockfrostServiceM' $ Blockfrost.getTxMetadata
-        txHash
-      pure $ wrap
-        { metadata: Just metadata
-        , nativeScripts: Nothing
-        , plutusScripts: Nothing
-        }
+  , getTxAuxiliaryData: runBlockfrostServiceM' <<< Blockfrost.getTxAuxiliaryData
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
   , getCurrentEpoch:

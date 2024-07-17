@@ -49,6 +49,7 @@ module Ctl.Internal.Service.Blockfrost
   , getScriptByHash
   , getScriptInfo
   , getSystemStart
+  , getTxAuxiliaryData
   , getTxMetadata
   , getUtxoByOref
   , getValidatorHashDelegationsAndRewards
@@ -85,9 +86,10 @@ import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Serialization.Lib (toBytes)
 import Cardano.Types
   ( AssetClass(AssetClass)
+  , AuxiliaryData
   , DataHash
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , Language(PlutusV1, PlutusV2, PlutusV3)
+  , Language(PlutusV3, PlutusV2, PlutusV1)
   , PlutusData
   , PoolPubKeyHash
   , RawBytes
@@ -128,6 +130,7 @@ import Cardano.Types.NativeScript
   )
 import Cardano.Types.NetworkId (NetworkId)
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum, OutputDatumHash))
+import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.PoolPubKeyHash as PoolPubKeyHash
 import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Mint, Cert, Reward)) as RedeemerTag
@@ -201,6 +204,7 @@ import Ctl.Internal.Types.ProtocolParameters
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart))
+import Data.Array (catMaybes)
 import Data.Array (find, length) as Array
 import Data.Bifunctor (lmap)
 import Data.BigNumber (BigNumber, toFraction)
@@ -673,9 +677,38 @@ doesTxExist txHash = do
     Left e -> Left e
 
 --------------------------------------------------------------------------------
--- Get transaction metadata
---------------------------------------------------------------------------------
+-- Get transaction auxiliary data
+getTxAuxiliaryData
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError AuxiliaryData)
+getTxAuxiliaryData txHash = runExceptT do
+  metadata <- ExceptT $ getTxMetadata txHash
+  (scriptRefs :: Array ScriptRef) <- ExceptT $ getTxScripts txHash
+  pure $ wrap
+    { metadata: Just metadata
+    , nativeScripts: arrayToMaybe $ getNativeScripts scriptRefs
+    -- , nativeScripts: Nothing
+    , plutusScripts: arrayToMaybe $ getPlutusScripts scriptRefs
+    }
 
+  where
+  arrayToMaybe :: forall a. Array a -> Maybe (Array a)
+  arrayToMaybe [] = Nothing
+  arrayToMaybe xs = Just xs
+
+  getNativeScripts :: Array ScriptRef -> Array NativeScript
+  getNativeScripts = catMaybes <<< map isNativeScript
+    where
+    isNativeScript (NativeScriptRef script) = Just script
+    isNativeScript (PlutusScriptRef _) = Nothing
+
+  getPlutusScripts :: Array ScriptRef -> Array PlutusScript
+  getPlutusScripts = catMaybes <<< map isPlutusScript
+    where
+    isPlutusScript (PlutusScriptRef script) = Just script
+    isPlutusScript (NativeScriptRef _) = Nothing
+
+-- TODO: refactor to aux and remove metadat from tests. add aux tests.
 getTxMetadata
   :: TransactionHash
   -> BlockfrostServiceM (Either GetTxMetadataError GeneralTransactionMetadata)
@@ -684,12 +717,28 @@ getTxMetadata txHash = do
   pure case unwrapBlockfrostMetadata <$> handleBlockfrostResponse response of
     Left (ClientHttpResponseError (Affjax.StatusCode 404) _) ->
       Left GetTxMetadataTxNotFoundError
-    Left e ->
-      Left (GetTxMetadataClientError e)
+    Left e -> Left (GetTxMetadataClientError e)
     Right metadata
       | Map.isEmpty (unwrap metadata) ->
           Left GetTxMetadataMetadataEmptyOrMissingError
       | otherwise -> Right metadata
+
+getTxScripts
+  :: TransactionHash
+  -> BlockfrostServiceM (Either GetTxMetadataError (Array ScriptRef))
+getTxScripts txHash = runExceptT do
+  (blockfrostUtxoMap :: BlockfrostUtxosOfTransaction) <- ExceptT $
+    blockfrostGetRequest (UtxosOfTransaction txHash)
+      <#> lmap GetTxMetadataClientError <<< handle404AsMempty <<<
+        handleBlockfrostResponse
+  let
+    (scriptHashes :: Array ScriptHash) = catMaybes
+      $ map (_.scriptHash <<< unwrap <<< snd)
+      $ unwrap blockfrostUtxoMap
+  catMaybes <$> traverse (ExceptT <<< scriptByHash) scriptHashes
+
+  where
+  scriptByHash t = (lmap GetTxMetadataClientError) <$> getScriptByHash t
 
 --------------------------------------------------------------------------------
 -- Get current epoch information
