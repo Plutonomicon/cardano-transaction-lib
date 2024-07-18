@@ -89,6 +89,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToLode
       , ConnectToNuFi
       , ConnectToLace
+      , ConnectToVespr
       )
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
