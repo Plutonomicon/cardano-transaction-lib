@@ -10,10 +10,10 @@ This document outlines the core differences between CTL and Plutus Application B
   - [Library vs. process](#library-vs-process)
   - [The `Contract` type](#the-contract-type)
 - [API differences](#api-differences)
-  - [Transaction manipulation API](#transaction-manipulation-api)
-  - [Constraints and lookups](#constraints-and-lookups)
-    - [Babbage-era constraints](#babbage-era-constraints)
-  - [Typed scripts](#typed-scripts)
+  - [DEPRECATION WARNING](#deprecation-warning)
+  - [**DEPRECATED** Transaction manipulation API](#deprecated-transaction-manipulation-api)
+  - [**DEPRECATED** Constraints and lookups](#deprecated-constraints-and-lookups)
+    - [**DEPRECATED** Babbage-era constraints](#deprecated-babbage-era-constraints)
   - [Working with scripts](#working-with-scripts)
     - [Using scripts from the frontend](#using-scripts-from-the-frontend)
     - [Applying arguments to parameterized scripts](#applying-arguments-to-parameterized-scripts)
@@ -25,7 +25,7 @@ This document outlines the core differences between CTL and Plutus Application B
 
 Unlike contracts written for PAB, which are compiled to a single process, CTL is a library. CTL itself can be [imported as a Purescript library](./ctl-as-dependency.md) and offchain contracts written in CTL compile to Javascript that can be run in the browser or NodeJS. Accordingly, there is no need to activate endpoints in CTL -- contracts are executed by calling effectful functions written using the library. This distinction has influenced our adaption of Plutus' `Contract` type, as outlined [below](#the-contract-type).
 
-Note, however, that CTL still requires a number of runtime dependencies. In some respects, this is similar to PAB, which also needs to communicate with plutus-chain-index and a running node. Please see the [documentation](./runtime.md) for more details on CTL's runtime.
+Note, however, that CTL still requires a number of runtime dependencies. In some respects, this is similar to PAB, which also needs to communicate with plutus-chain-index and a running node. Please see the [runtime documentation](./runtime.md) for more details.
 
 ### The `Contract` type
 
@@ -66,13 +66,17 @@ Finally, CTL's `Contract` is not parameterized by an error type as in Plutus. `C
 
 ## API differences
 
-### Transaction manipulation API
+### DEPRECATION WARNING
+
+The original constraints interface has been deprecated and will be removed. Use [`cardano-transaction-builder`](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder) for any new code.
+
+### **DEPRECATED** Transaction manipulation API
 
 | Plutus                      | CTL                           |
 | --------------------------- | ----------------------------- |
 | `submitTxConstraintsWith`   | `submitTxFromConstraints`     |
 
-### Constraints and lookups
+### **DEPRECATED** Constraints and lookups
 
 CTL has adapted Plutus' Alonzo-era constraints/lookups interface fairly closely and it functions largely the same. One key difference is that CTL does not, and cannot, have the notion of a "current" script. All scripts must be explicitly provided to CTL (serialized as CBOR, see below). This has led us to depart from Plutus' naming conventions for certain constraints/lookups:
 
@@ -87,7 +91,7 @@ CTL has adapted Plutus' Alonzo-era constraints/lookups interface fairly closely 
 
 Additionally, we implement `NativeScript` (multi-signature phase-1 script) support, which is not covered by Plutus.
 
-#### Babbage-era constraints
+#### **DEPRECATED** Babbage-era constraints
 
 CIPs 0031-0033 brought several improvements to Plutus and are supported from the Babbage era onwards:
 
@@ -96,36 +100,6 @@ CIPs 0031-0033 brought several improvements to Plutus and are supported from the
 - [Reference scripts](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0033)
 
 CTL has upgraded its constraints interface to work with these new features. At the time of writing, however, `plutus-apps` has not yet upgraded their constraints/lookups interface to support these new features. This means a direct comparison between `plutus-apps` and CTL regarding Babbage-era features is not currently possible. It also implies that, moving forward, CTL's constraints implementation will increasingly no longer match that of `plutus-apps`' to the same degree.
-
-### Typed scripts
-
-Another difference between Plutus and CTL is our implementation of typed scripts. Recall that Plutus' `ValidatorTypes` class:
-
-```haskell
-class ValidatorTypes (a :: Type) where
-    type RedeemerType a :: Type
-    type DatumType a :: Type
-
-    type instance RedeemerType a = ()
-    type instance DatumType  a = ()
-```
-
-Purescript lacks most of Haskell's more advanced type-level faculties, including type/data families. Purescript does, however, support functional dependencies, allowing us to encode `ValidatorTypes` as follows:
-
-```purescript
-class ValidatorTypes :: Type -> Type -> Type -> Constraint
-class
-  ( DatumType validator datum
-  , RedeemerType validator redeemer
-  ) <=
-  ValidatorTypes validator datum redeemer
-
-class DatumType :: Type -> Type -> Constraint
-class DatumType validator datum | validator -> datum
-
-class RedeemerType :: Type -> Type -> Constraint
-class RedeemerType validator redeemer | validator -> redeemer
-```
 
 ### Working with scripts
 
