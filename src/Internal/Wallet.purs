@@ -1,7 +1,7 @@
 module Ctl.Internal.Wallet
   ( module KeyWallet
   , module Cip30Wallet
-  , Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, KeyWallet)
+  , Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, Vespr, KeyWallet)
   , WalletExtension
       ( NamiWallet
       , LodeWallet
@@ -10,6 +10,7 @@ module Ctl.Internal.Wallet
       , EternlWallet
       , NuFiWallet
       , LaceWallet
+      , VesprWallet
       )
   , isEternlAvailable
   , isGeroAvailable
@@ -84,6 +85,7 @@ data Wallet
   | Lode Cip30Wallet
   | NuFi Cip30Wallet
   | Lace Cip30Wallet
+  | Vespr Cip30Wallet
   | KeyWallet KeyWallet
 
 data WalletExtension
@@ -94,6 +96,7 @@ data WalletExtension
   | LodeWallet
   | LaceWallet
   | NuFiWallet
+  | VesprWallet
 
 mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
 mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
@@ -119,6 +122,7 @@ mkWalletAff walletExtension =
     LodeWallet -> _mkLodeWalletAff
     NuFiWallet -> NuFi <$> mkCip30WalletAff (_enableWallet walletName)
     LaceWallet -> Lace <$> mkCip30WalletAff (_enableWallet walletName)
+    VesprWallet -> Vespr <$> mkCip30WalletAff (_enableWallet walletName)
   where
   walletName = walletExtensionToName walletExtension
 
@@ -232,6 +236,7 @@ cip30Wallet = case _ of
   Lode c30 -> Just c30
   NuFi c30 -> Just c30
   Lace c30 -> Just c30
+  Vespr c30 -> Just c30
   KeyWallet _ -> Nothing
 
 walletExtensionToName :: WalletExtension -> String
@@ -243,6 +248,7 @@ walletExtensionToName = case _ of
   LodeWallet -> "LodeWallet"
   NuFiWallet -> "nufi"
   LaceWallet -> "lace"
+  VesprWallet -> "vespr"
 
 walletToWalletExtension :: Wallet -> Maybe WalletExtension
 walletToWalletExtension = case _ of
@@ -253,6 +259,7 @@ walletToWalletExtension = case _ of
   Lode _ -> Just LodeWallet
   NuFi _ -> Just NuFiWallet
   Lace _ -> Just LaceWallet
+  Vespr _ -> Just VesprWallet
   KeyWallet _ -> Nothing
 
 isEnabled :: WalletExtension -> Aff Boolean
@@ -311,6 +318,7 @@ actionBasedOnWallet walletAction keyWalletAction =
     Lode wallet -> liftAff $ callCip30Wallet wallet walletAction
     NuFi wallet -> liftAff $ callCip30Wallet wallet walletAction
     Lace wallet -> liftAff $ callCip30Wallet wallet walletAction
+    Vespr wallet -> liftAff $ callCip30Wallet wallet walletAction
     KeyWallet kw -> keyWalletAction kw
 
 callCip30Wallet
