@@ -22,9 +22,9 @@ import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.PlutusData as PlutusData
 import Contract.Address (mkAddress)
 import Contract.BalanceTxConstraints
-  ( BalanceTxConstraintsBuilder
+  ( BalancerConstraints
   , mustUseAdditionalUtxos
-  ) as BalanceTxConstraints
+  )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -76,9 +76,9 @@ contract = do
     when (Map.isEmpty additionalUtxos) do
       liftEffect $ throw "empty utxos"
     let
-      balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+      balanceTxConstraints :: BalancerConstraints
       balanceTxConstraints =
-        BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
+        mustUseAdditionalUtxos additionalUtxos
     unbalancedTx1 <- buildTx plan
     balancedTx1 <- balanceTx unbalancedTx1 additionalUtxos balanceTxConstraints
     balancedSignedTx1 <- signTransaction balancedTx1

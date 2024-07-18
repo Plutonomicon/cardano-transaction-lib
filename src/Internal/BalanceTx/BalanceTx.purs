@@ -91,7 +91,7 @@ import Ctl.Internal.BalanceTx.Types
   , asksConstraints
   , liftContract
   , liftEitherContract
-  , withBalanceTxConstraints
+  , withBalancerConstraints
   )
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
@@ -168,7 +168,7 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder = do
 
   pparams <- getProtocolParameters
 
-  withBalanceTxConstraints constraintsBuilder $ runExceptT do
+  withBalancerConstraints constraintsBuilder $ runExceptT do
     let
       depositValuePerCert = BigNum.toBigInt $ unwrap
         (unwrap pparams).stakeAddressDeposit

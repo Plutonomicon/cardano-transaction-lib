@@ -24,8 +24,10 @@ import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.TransactionOutput (TransactionOutput(TransactionOutput))
 import Cardano.Types.TransactionUnspentOutput (fromUtxoMap)
 import Contract.Address (mkAddress)
-import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder)
-import Contract.BalanceTxConstraints (mustUseAdditionalUtxos) as BalancerConstraints
+import Contract.BalanceTxConstraints
+  ( BalancerConstraints
+  , mustUseAdditionalUtxos
+  )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
@@ -126,9 +128,9 @@ spendFromValidator validator additionalUtxos _datum = do
 
     plan = spendScriptOutputs <> spendPubkeyOutputs
 
-    balancerConstraints :: BalanceTxConstraintsBuilder
+    balancerConstraints :: BalancerConstraints
     balancerConstraints =
-      BalancerConstraints.mustUseAdditionalUtxos additionalUtxos
+      mustUseAdditionalUtxos additionalUtxos
 
   unbalancedTx <- buildTx plan
   balancedTx <- balanceTx unbalancedTx additionalUtxos balancerConstraints
