@@ -58,7 +58,7 @@ import Ctl.Internal.Plutus.Conversion
   )
 import Ctl.Internal.Plutus.Conversion.Address (toPlutusAddressWithNetworkTag)
 import Ctl.Internal.Wallet
-  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, KeyWallet)
+  ( Wallet(Gero, Nami, Flint, Lode, Eternl, NuFi, Lace, Vespr, KeyWallet)
   , WalletExtension
       ( NamiWallet
       , GeroWallet
@@ -66,6 +66,7 @@ import Ctl.Internal.Wallet
       , EternlWallet
       , LodeWallet
       , LaceWallet
+      , VesprWallet
       , NuFiWallet
       )
   , apiVersion
@@ -105,6 +106,7 @@ import Ctl.Internal.Wallet.Spec
       , ConnectToFlint
       , ConnectToLode
       , ConnectToLace
+      , ConnectToVespr
       , ConnectToEternl
       , ConnectToNuFi
       )
