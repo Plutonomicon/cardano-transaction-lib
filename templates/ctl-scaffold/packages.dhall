@@ -553,12 +553,15 @@ let additions =
           , "bignumber"
           , "bytearrays"
           , "cardano-hd-wallet"
+          , "cardano-key-wallet"
+          , "cardano-message-signing"
           , "cardano-plutus-data-schema"
           , "cardano-serialization-lib"
           , "cardano-transaction-builder"
           , "cardano-types"
           , "checked-exceptions"
           , "cip30"
+          , "cip30-mock"
           , "cip30-typesafe"
           , "console"
           , "control"
@@ -614,7 +617,6 @@ let additions =
           , "profunctor-lenses"
           , "quickcheck"
           , "quickcheck-combinators"
-          , "quickcheck-laws"
           , "random"
           , "rationals"
           , "record"
@@ -634,12 +636,13 @@ let additions =
           , "unfoldable"
           , "unsafe-coerce"
           , "untagged-union"
+          , "uplc-apply-args"
           , "variant"
           , "web-html"
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "423e27b3f56b1a66db8d3126c22cea9bda7e50da"
+        , version = "dbc4608610b1e0d53e583b1402bf1f2765f7056f"
         }
       }
 
