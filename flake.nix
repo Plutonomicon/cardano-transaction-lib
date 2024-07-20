@@ -9,6 +9,7 @@
 
   inputs = {
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    nixpkgs-arion.url = "github:NixOS/nixpkgs";
     hackage-nix = {
       url = "github:input-output-hk/hackage.nix";
       flake = false;
@@ -32,35 +33,33 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/8.1.1";
+    cardano-node.url = "github:input-output-hk/cardano-node/9.0.0";
 
     # Get Ogmios from cardano-nix
     cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
+      url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios-v6.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.0.3";
+      url = "github:CardanoSolutions/ogmios/v6.5.0";
       flake = false;
     };
 
     kupo-nixos = {
-      url = "github:mlabs-haskell/kupo-nixos/6f89cbcc359893a2aea14dd380f9a45e04c6aa67";
-      inputs.kupo.follows = "kupo";
-    };
-
-    kupo = {
-      url = "github:CardanoSolutions/kupo/v2.2.0";
-      flake = false;
+      url = "github:Fourierlabs/kupo-nixos/add-conway";
+      inputs = {
+        CHaP.follows = "CHaP";
+        kupo.url = "github:klarkc/kupo/d95a324f6a94a963cd91cb5d5f88ef50640e7b8d";
+      };
     };
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=d952529afdfdf6d53ce190b1bf8af990a7ae9590";
+      url = "github:input-output-hk/cardano-configurations?rev=de80edfd569d82d5191d2c6103834e700787bb2d";
       flake = false;
     };
     easy-purescript-nix = {
@@ -90,6 +89,7 @@
   outputs =
     { self
     , nixpkgs
+    , nixpkgs-arion
     , cardano-configurations
     , ...
     }@inputs:
@@ -101,7 +101,7 @@
         "aarch64-darwin"
       ];
 
-      ogmiosVersion = "6.0.3";
+      ogmiosVersion = "6.5.0";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -109,6 +109,7 @@
         overlays = nixpkgs.lib.attrValues self.overlays ++ [
           (_: _: {
             ogmios-fixtures = inputs.ogmios;
+            arion = (import nixpkgs-arion { inherit system; }).arion;
           })
         ];
         inherit system;
