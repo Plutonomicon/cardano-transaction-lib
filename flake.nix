@@ -243,6 +243,8 @@
 
           devShell = project.devShell;
 
+          nodeModules = project.nodeModules;
+
           apps = {
             # TODO: restore this
             # https://github.com/Plutonomicon/cardano-transaction-lib/issues/1578
@@ -364,9 +366,9 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-
+          psProject = psProjectFor pkgs;
         in
-        (psProjectFor pkgs).checks
+        psProject.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
             {
@@ -379,7 +381,10 @@
               ];
             }
             ''
-              cd ${self}
+              cd $TMPDIR
+              ln -sfn ${psProject.nodeModules}/lib/node_modules node_modules
+              cp -r ${self}/* .
+
               make check-format
               touch $out
             '';
