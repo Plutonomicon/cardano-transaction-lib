@@ -6,7 +6,7 @@ files="
 *.md
 *.nix
 *.dhall
-.eslintrc.json
+eslint.config.js
 .mlc_config.json
 .tidyrc.json
 LICENSE
