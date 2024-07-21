@@ -21,6 +21,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustPayToScript
       , MustProduceAtLeast
       , MustReferenceOutput
+      , MustRegisterDrep
       , MustRegisterPool
       , MustRegisterStakePubKey
       , MustRegisterStakeScript
@@ -69,6 +70,7 @@ module Ctl.Internal.Types.TxConstraints
   , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustReferenceOutput
+  , mustRegisterDrep
   , mustRegisterPool
   , mustRegisterStakePubKey
   , mustRegisterStakeScript
@@ -90,7 +92,8 @@ module Ctl.Internal.Types.TxConstraints
 import Prelude hiding (join)
 
 import Cardano.Types
-  ( AssetName
+  ( Anchor
+  , AssetName
   , Credential
   , DataHash
   , Epoch
@@ -172,6 +175,7 @@ data TxConstraint
   | MustWithdrawStakeNativeScript NativeScript
   | MustSatisfyAnyOf (Array (Array TxConstraint))
   | MustNotBeValid
+  | MustRegisterDrep Credential (Maybe Anchor)
 
 derive instance Eq TxConstraint
 derive instance Generic TxConstraint _
@@ -661,3 +665,6 @@ mustSatisfyAnyOf =
 -- | chain and collateral will be lost.
 mustNotBeValid :: TxConstraints
 mustNotBeValid = singleton $ MustNotBeValid
+
+mustRegisterDrep :: Credential -> Maybe Anchor -> TxConstraints
+mustRegisterDrep drepCred = singleton <<< MustRegisterDrep drepCred

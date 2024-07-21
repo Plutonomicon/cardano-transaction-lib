@@ -9,6 +9,7 @@
 
   inputs = {
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    nixpkgs-arion.url = "github:NixOS/nixpkgs";
     hackage-nix = {
       url = "github:input-output-hk/hackage.nix";
       flake = false;
@@ -32,19 +33,19 @@
       flake = false;
     };
 
-    cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-pre";
+    cardano-node.url = "github:IntersectMBO/cardano-node/9.0.0-sancho";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=692010ed0f454bfbb566c06443227c79e2f4dbab";
+      url = "github:input-output-hk/cardano-configurations?rev=de80edfd569d82d5191d2c6103834e700787bb2d";
       flake = false;
     };
 
     # Get Ogmios and Kupo from cardano-nix
     cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
+      url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios-v6.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -60,7 +61,7 @@
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.4.0";
+      url = "github:CardanoSolutions/ogmios/v6.5.0";
       flake = false;
     };
 
@@ -78,6 +79,7 @@
   outputs =
     { self
     , nixpkgs
+    , nixpkgs-arion
     , cardano-configurations
     , cardano-node
     , ...
@@ -90,7 +92,7 @@
         "aarch64-darwin"
       ];
 
-      ogmiosVersion = "6.4.0";
+      ogmiosVersion = "6.5.0";
       kupoVersion = "2.8.0";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
@@ -99,6 +101,7 @@
         overlays = nixpkgs.lib.attrValues self.overlays ++ [
           (_: _: {
             ogmios-fixtures = inputs.ogmios;
+            arion = (import nixpkgs-arion { inherit system; }).arion;
           })
         ];
         inherit system;

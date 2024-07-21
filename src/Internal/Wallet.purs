@@ -18,7 +18,7 @@ module Ctl.Internal.Wallet
 
 import Prelude
 
-import Cardano.Wallet.Cip30 as Cip30
+import Cardano.Wallet.Cip95 (enable) as Cip95
 import Cardano.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey
@@ -66,7 +66,7 @@ mkWalletAff walletExtension = do
     $ liftEffect (isWalletAvailable walletExtension)
   GenericCip30 <$> do
     mkCip30WalletAff =<< do
-      Cip30.enable (walletExtensionToName walletExtension) [] `catchError`
+      Cip95.enable (walletExtensionToName walletExtension) `catchError`
         \err -> do
           liftEffect $ Console.error $ "Wallet extension "
             <> walletExtensionToName walletExtension

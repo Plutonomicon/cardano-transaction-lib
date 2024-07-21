@@ -12,6 +12,8 @@ import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.Coin (Coin(Coin))
+import Cardano.Types.PublicKey (PublicKey)
+import Cardano.Types.PublicKey (fromRawBytes) as PublicKey
 import Cardano.Types.RawBytes (RawBytes)
 import Cardano.Types.Transaction (Transaction(Transaction))
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
@@ -23,6 +25,8 @@ import Cardano.Types.Value as Value
 import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30.TypeSafe (APIError)
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
+import Cardano.Wallet.Cip95 (Api) as Cip95
+import Cardano.Wallet.Cip95.TypeSafe (getPubDrepKey) as Cip95
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Ctl.Internal.Helpers (liftM)
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
@@ -33,6 +37,7 @@ import Data.Variant (Variant, match)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
+import Unsafe.Coerce (unsafeCoerce)
 
 type DataSignature =
   { key :: CborBytes
@@ -79,13 +84,15 @@ type Cip30Wallet =
   , getRewardAddresses :: Aff (Array Address)
   , signTx :: Transaction -> Aff Transaction
   , signData :: Address -> RawBytes -> Aff DataSignature
+  , getPubDrepKey :: Aff PublicKey
   }
 
 mkCip30WalletAff
-  :: Api
+  :: Cip95.Api
   -- ^ A function to get wallet connection
   -> Aff Cip30Wallet
-mkCip30WalletAff connection = do
+mkCip30WalletAff conn95 = do
+  let connection = unsafeCoerce conn95 -- FIXME
   pure
     { connection
     , getNetworkId: Cip30.getNetworkId connection >>= handleApiError
@@ -98,6 +105,7 @@ mkCip30WalletAff connection = do
     , getRewardAddresses: getRewardAddresses connection
     , signTx: signTx connection
     , signData: signData connection
+    , getPubDrepKey: getPubDrepKey conn95
     }
 
 -------------------------------------------------------------------------------
@@ -235,3 +243,13 @@ getCip30Collateral conn (Coin requiredValue) = do
   (Cip30.getCollateral conn requiredValueStr >>= handleApiError) `catchError`
     \err -> throwError $ error $
       "Failed to call `getCollateral`: " <> show err
+
+getPubDrepKey :: Cip95.Api -> Aff PublicKey
+getPubDrepKey conn = do
+  drepKeyHex <- handleApiError =<< Cip95.getPubDrepKey conn
+  let drepKey = PublicKey.fromRawBytes <<< wrap =<< hexToByteArray drepKeyHex
+  liftM
+    ( error $ "CIP-95 getPubDRepKey returned invalid DRep key: "
+        <> drepKeyHex
+    )
+    drepKey

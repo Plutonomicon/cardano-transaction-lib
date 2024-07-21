@@ -11,6 +11,7 @@ import Cardano.Types
       , PoolRegistration
       , StakeDeregistration
       , StakeRegistration
+      , RegDrepCert
       )
   , DataHash
   , NetworkId
@@ -165,6 +166,7 @@ import Ctl.Internal.Types.TxConstraints
       , MustBeSignedBy
       , MustValidateIn
       , MustIncludeDatum
+      , MustRegisterDrep
       )
   , TxConstraints(TxConstraints)
   , utxoWithScriptRef
@@ -705,19 +707,19 @@ processConstraint
       if dh' == dh then pure <$> addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustRegisterStakePubKey skh -> runExceptT do
-      void $ lift $ addCertificate
+      lift $ addCertificate
         $ StakeRegistration
         $ StakeCredential
         $ PubKeyHashCredential
         $ unwrap skh
     MustDeregisterStakePubKey pubKey -> runExceptT do
-      void $ lift $ addCertificate
+      lift $ addCertificate
         $ StakeDeregistration
         $ StakeCredential
         $ PubKeyHashCredential
         $ unwrap pubKey
     MustRegisterStakeScript scriptHash -> runExceptT do
-      void $ lift $ addCertificate
+      lift $ addCertificate
         $ StakeRegistration
         $ StakeCredential
         $ ScriptHashCredential scriptHash
@@ -730,20 +732,20 @@ processConstraint
         [ UnindexedRedeemer
             { purpose: ForCert cert, datum: unwrap redeemerData }
         ]
-      void $ lift $ addCertificate cert
+      lift $ addCertificate cert
       lift $ attachToCps (map pure <<< attachPlutusScript) plutusScript
     MustDeregisterStakeNativeScript stakeValidator -> do
-      void $ addCertificate $ StakeDeregistration
+      addCertificate $ StakeDeregistration
         $ wrap
         $ ScriptHashCredential
         $ NativeScript.hash stakeValidator
       pure <$> attachToCps (map pure <<< attachNativeScript) stakeValidator
     MustRegisterPool poolParams -> runExceptT do
-      void $ lift $ addCertificate $ PoolRegistration poolParams
+      lift $ addCertificate $ PoolRegistration poolParams
     MustRetirePool poolKeyHash epoch -> runExceptT do
-      void $ lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
+      lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
     MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
-      void $ lift $ addCertificate $
+      lift $ addCertificate $
         StakeDelegation
           ( StakeCredential $ PubKeyHashCredential $ unwrap $
               stakePubKeyHash
@@ -764,7 +766,7 @@ processConstraint
           ]
         lift $ attachToCps (map pure <<< attachPlutusScript) stakeValidator
     MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
-      void $ addCertificate $ StakeDelegation
+      addCertificate $ StakeDelegation
         ( StakeCredential $ ScriptHashCredential $ NativeScript.hash
             stakeValidator
         )
@@ -850,6 +852,10 @@ processConstraint
       tryNext (toUnfoldable $ map toUnfoldable xs)
     MustNotBeValid -> runExceptT do
       _cpsTransaction <<< _isValid .= false
+    MustRegisterDrep drepCred anchor -> do
+      { drepDeposit } <- unwrap <$> lift getProtocolParameters
+      addCertificate $ RegDrepCert drepCred drepDeposit anchor
+      pure $ Right unit
   where
   outputDatum
     :: PlutusData
@@ -879,8 +885,6 @@ addDatum dat = do
   attachToCps (map pure <<< attachDatum) dat
   _datums <>= Array.singleton dat
 
--- | Returns an index pointing to the location of the newly inserted certificate
--- | in the array of transaction certificates.
 addCertificate
   :: Certificate
   -> ConstraintsM Unit

@@ -1036,6 +1036,8 @@ type ProtocolParametersRaw =
       }
   , "collateralPercentage" :: UInt
   , "maxCollateralInputs" :: UInt
+  , "governanceActionDeposit" :: OgmiosAdaLovelace
+  , "delegateRepresentativeDeposit" :: OgmiosAdaLovelace
   }
 
 newtype OgmiosProtocolParameters = OgmiosProtocolParameters ProtocolParameters
@@ -1085,6 +1087,8 @@ instance DecodeAeson OgmiosProtocolParameters where
       , maxValueSize: ps.maxValueSize.bytes
       , collateralPercent: ps.collateralPercentage
       , maxCollateralInputs: ps.maxCollateralInputs
+      , govActionDeposit: wrap ps.governanceActionDeposit.ada.lovelace
+      , drepDeposit: wrap ps.delegateRepresentativeDeposit.ada.lovelace
       }
     where
     decodeExUnits

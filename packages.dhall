@@ -138,6 +138,39 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
         , version = "d72e51fbc0255eb3246c9132d295de7f65e16a99"
         }
+      , cip95 =
+        { dependencies =
+          [ "aff"
+          , "aff-promise"
+          , "console"
+          , "effect"
+          , "newtype"
+          , "prelude"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip95"
+        , version = "9d92a38cddd318245010286ae3966cd515d6952f"
+        }
+      , cip95-typesafe =
+        { dependencies =
+          [ "aff"
+          , "bifunctors"
+          , "cip30"
+          , "cip30-typesafe"
+          , "cip95"
+          , "console"
+          , "control"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "maybe"
+          , "prelude"
+          , "spec"
+          , "transformers"
+          , "variant"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip95-typesafe"
+        , version = "84cf1a18abc274222b31d7fcb829195ae2e673c4"
+        }
       , bytearrays =
         { dependencies =
           [ "aeson"

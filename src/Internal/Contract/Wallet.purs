@@ -5,6 +5,7 @@ module Ctl.Internal.Contract.Wallet
   , getWalletAddresses
   , signData
   , getWallet
+  , ownDrepKeyHash
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
@@ -21,6 +22,7 @@ import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential as Credential
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
+import Cardano.Types.PublicKey (hash) as PublicKey
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.UtxoMap (UtxoMap)
@@ -45,6 +47,7 @@ import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for_, traverse)
 import Data.Tuple.Nested ((/\))
+import Data.Typelevel.Undefined (undefined)
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -251,3 +254,9 @@ getWalletUtxos = do
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
+
+ownDrepKeyHash :: Contract Ed25519KeyHash
+ownDrepKeyHash = do
+  withWallet do
+    actionBasedOnWallet (map PublicKey.hash <<< _.getPubDrepKey)
+      undefined -- FIXME
