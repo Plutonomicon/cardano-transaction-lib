@@ -4,7 +4,18 @@ module Ctl.Internal.BalanceTx
 
 import Prelude
 
-import Cardano.Types (AssetClass(AssetClass), Certificate(StakeDeregistration, StakeRegistration, RegDrepCert), Coin(Coin), Language(PlutusV1), PlutusScript(PlutusScript), Transaction, TransactionBody, TransactionOutput, UtxoMap, Value(Value))
+import Cardano.Types
+  ( AssetClass(AssetClass)
+  , Certificate(StakeDeregistration, StakeRegistration, RegDrepCert)
+  , Coin(Coin)
+  , Language(PlutusV1)
+  , PlutusScript(PlutusScript)
+  , Transaction
+  , TransactionBody
+  , TransactionOutput
+  , UtxoMap
+  , Value(Value)
+  )
 import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
@@ -20,31 +31,112 @@ import Control.Monad.Except.Trans (except, runExceptT)
 import Control.Monad.Logger.Class (info) as Logger
 import Control.Monad.Reader (asks)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, SelectionStrategy, _leftoverUtxos, performMultiAssetSelection, selectedInputs)
-import Ctl.Internal.BalanceTx.Collateral (addTxCollateral, addTxCollateralReturn)
+import Ctl.Internal.BalanceTx.CoinSelection
+  ( SelectionState
+  , SelectionStrategy
+  , _leftoverUtxos
+  , performMultiAssetSelection
+  , selectedInputs
+  )
+import Ctl.Internal.BalanceTx.Collateral
+  ( addTxCollateral
+  , addTxCollateralReturn
+  )
 import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral)
-import Ctl.Internal.BalanceTx.Constraints (BalanceTxConstraintsBuilder, _collateralUtxos, _nonSpendableInputs)
-import Ctl.Internal.BalanceTx.Constraints (_changeAddress, _changeDatum, _maxChangeOutputTokenQuantity, _nonSpendableInputs, _selectionStrategy, _srcAddresses) as Constraints
-import Ctl.Internal.BalanceTx.Error (BalanceTxError(CouldNotGetUtxos, ReindexRedeemersError, CouldNotGetCollateral, InsufficientCollateralUtxos, NumericOverflowError, UtxoLookupFailedFor))
-import Ctl.Internal.BalanceTx.ExUnitsAndMinFee (evalExUnitsAndMinFee, finalizeTransaction)
-import Ctl.Internal.BalanceTx.RedeemerIndex (attachIndexedRedeemers, indexRedeemers, mkRedeemersContext)
+import Ctl.Internal.BalanceTx.Constraints
+  ( BalanceTxConstraintsBuilder
+  , _collateralUtxos
+  , _nonSpendableInputs
+  )
+import Ctl.Internal.BalanceTx.Constraints
+  ( _changeAddress
+  , _changeDatum
+  , _maxChangeOutputTokenQuantity
+  , _nonSpendableInputs
+  , _selectionStrategy
+  , _srcAddresses
+  ) as Constraints
+import Ctl.Internal.BalanceTx.Error
+  ( BalanceTxError
+      ( CouldNotGetUtxos
+      , ReindexRedeemersError
+      , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
+      , NumericOverflowError
+      , UtxoLookupFailedFor
+      )
+  )
+import Ctl.Internal.BalanceTx.ExUnitsAndMinFee
+  ( evalExUnitsAndMinFee
+  , finalizeTransaction
+  )
+import Ctl.Internal.BalanceTx.RedeemerIndex
+  ( attachIndexedRedeemers
+  , indexRedeemers
+  , mkRedeemersContext
+  )
 import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncBackendWithWallet)
-import Ctl.Internal.BalanceTx.Types (BalanceTxM, askCoinsPerUtxoUnit, askNetworkId, asksConstraints, liftContract, liftEitherContract, withBalanceTxConstraints)
-import Ctl.Internal.BalanceTx.UnattachedTx (EvaluatedTx, UnindexedTx, _transaction, indexTx)
+import Ctl.Internal.BalanceTx.Types
+  ( BalanceTxM
+  , askCoinsPerUtxoUnit
+  , askNetworkId
+  , asksConstraints
+  , liftContract
+  , liftEitherContract
+  , withBalanceTxConstraints
+  )
+import Ctl.Internal.BalanceTx.UnattachedTx
+  ( EvaluatedTx
+  , UnindexedTx
+  , _transaction
+  , indexTx
+  )
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
 import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex, buildUtxoIndex)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getQueryHandle)
-import Ctl.Internal.Contract.Wallet (getChangeAddress, getWalletCollateral, getWalletUtxos) as Wallet
+import Ctl.Internal.Contract.Wallet
+  ( getChangeAddress
+  , getWalletCollateral
+  , getWalletUtxos
+  ) as Wallet
 import Ctl.Internal.Helpers (liftEither, pprintTagSet, unsafeFromJust, (??))
-import Ctl.Internal.Lens (_amount, _body, _certs, _fee, _inputs, _mint, _networkId, _outputs, _plutusScripts, _referenceInputs, _withdrawals, _witnessSet)
-import Ctl.Internal.Partition (equipartition, equipartitionValueWithTokenQuantityUpperBound, partition)
-import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters(ProtocolParameters))
+import Ctl.Internal.Lens
+  ( _amount
+  , _body
+  , _certs
+  , _fee
+  , _inputs
+  , _mint
+  , _networkId
+  , _outputs
+  , _plutusScripts
+  , _referenceInputs
+  , _withdrawals
+  , _witnessSet
+  )
+import Ctl.Internal.Partition
+  ( equipartition
+  , equipartitionValueWithTokenQuantityUpperBound
+  , partition
+  )
+import Ctl.Internal.Types.ProtocolParameters
+  ( ProtocolParameters(ProtocolParameters)
+  )
 import Ctl.Internal.Types.Val (Val(Val), pprintVal)
 import Ctl.Internal.Types.Val as Val
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Array.NonEmpty (fromArray, replicate, singleton, sortWith, toArray, uncons, zip, zipWith) as NEArray
+import Data.Array.NonEmpty
+  ( fromArray
+  , replicate
+  , singleton
+  , sortWith
+  , toArray
+  , uncons
+  , zip
+  , zipWith
+  ) as NEArray
 import Data.Array.NonEmpty as NEA
 import Data.Bifunctor (lmap)
 import Data.Bitraversable (ltraverse)
@@ -56,7 +148,16 @@ import Data.Lens.Setter ((%~), (.~), (?~))
 import Data.Log.Tag (TagSet, tag, tagSetTag)
 import Data.Log.Tag (fromArray) as TagSet
 import Data.Map (Map)
-import Data.Map (empty, filter, insert, isEmpty, lookup, singleton, toUnfoldable, union) as Map
+import Data.Map
+  ( empty
+  , filter
+  , insert
+  , isEmpty
+  , lookup
+  , singleton
+  , toUnfoldable
+  , union
+  ) as Map
 import Data.Maybe (Maybe(Just, Nothing), isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -68,8 +169,6 @@ import Data.UInt (toInt) as UInt
 import Effect.Aff.Class (liftAff)
 import JS.BigInt (BigInt)
 import Partial.Unsafe (unsafePartial)
-
-import Debug (spy)
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
@@ -767,7 +866,7 @@ getCertsBalance tx (ProtocolParameters pparams) =
       sum $ map (BigNum.toBigInt <<< unwrap) $ tx ^. _body <<<
         _withdrawals
   in
-    spy "certsBalance" $ deposits - withdrawals
+    deposits - withdrawals
 
 --------------------------------------------------------------------------------
 -- Helpers
