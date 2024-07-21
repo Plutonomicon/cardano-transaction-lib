@@ -216,7 +216,6 @@
           };
 
           checks = {
-            /*
             ctl-e2e-test = project.runE2ETest {
               name = "ctl-e2e-test";
               runnerMain = "Test.Ctl.E2E";
@@ -232,7 +231,6 @@
               name = "ctl-staking-test";
               testMain = "Test.Ctl.Testnet.Staking";
             };
-            */
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Ctl.Unit";
