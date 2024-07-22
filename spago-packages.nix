@@ -353,6 +353,30 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "cip95" = pkgs.stdenv.mkDerivation {
+        name = "cip95";
+        version = "9d92a38cddd318245010286ae3966cd515d6952f";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-cip95";
+          rev = "9d92a38cddd318245010286ae3966cd515d6952f";
+          sha256 = "0wzyq1yni2nj46k97faffhjl7afvxlvjgmfbs5k4ga9a1vbd2ijm";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "cip95-typesafe" = pkgs.stdenv.mkDerivation {
+        name = "cip95-typesafe";
+        version = "84cf1a18abc274222b31d7fcb829195ae2e673c4";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-cip95-typesafe";
+          rev = "84cf1a18abc274222b31d7fcb829195ae2e673c4";
+          sha256 = "1x2lnzb02dgryz0gpd6p4bg2nab7s49y6f705v2p3iina8z198z9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "console" = pkgs.stdenv.mkDerivation {
         name = "console";
         version = "v6.0.0";
