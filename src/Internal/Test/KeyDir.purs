@@ -4,7 +4,7 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Cardano.Types (BigNum, Value)
+import Cardano.Types (BigNum, Value, _amount)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset as MultiAsset
@@ -53,7 +53,6 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
 import Ctl.Internal.Helpers (logWithLevel, unsafeFromJust)
-import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.UtxoDistribution
@@ -69,9 +68,8 @@ import Ctl.Internal.Types.TxConstraints
   , mustBeSignedBy
   , mustPayToPubKeyAddress
   , mustSpendPubKeyOutput
-  , singleton
   )
-import Data.Array (catMaybes)
+import Data.Array (catMaybes, singleton)
 import Data.Array as Array
 import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, sum)
@@ -393,8 +391,9 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
-        balancedTx <- balanceTx unbalancedTx
+        unbalancedTx /\ usedUtxos <- liftedE $ mkUnbalancedTxImpl lookups
+          constraints
+        balancedTx <- balanceTx unbalancedTx usedUtxos mempty
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)

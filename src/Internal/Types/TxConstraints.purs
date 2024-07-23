@@ -35,7 +35,7 @@ module Ctl.Internal.Types.TxConstraints
       , MustWithdrawStakeNativeScript
       , MustWithdrawStakePubKey
       )
-  , TxConstraints(TxConstraints)
+  , TxConstraints
   , mustBeSignedBy
   , mustDelegateStakeNativeScript
   , mustDelegateStakePlutusScript
@@ -83,7 +83,6 @@ module Ctl.Internal.Types.TxConstraints
   , mustWithdrawStakeNativeScript
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
-  , singleton
   , utxoWithScriptRef
   ) where
 
@@ -111,9 +110,10 @@ import Cardano.Types
   )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.RedeemerDatum (RedeemerDatum)
+import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Ctl.Internal.Types.Interval (POSIXTimeRange)
-import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
-import Ctl.Internal.Types.RedeemerDatum as RedeemerDatum
+import Data.Array (singleton)
 import Data.Array as Array
 import Data.Foldable (class Foldable)
 import Data.Generic.Rep (class Generic)
@@ -121,7 +121,7 @@ import Data.Map (Map)
 import Data.Map (singleton) as Map
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (guard)
-import Data.Newtype (class Newtype, over, unwrap)
+import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.TypeError (class Warn, Text)
@@ -247,52 +247,40 @@ instance Show OutputConstraint where
   show = genericShow
 
 -- | Restrictions placed on the allocation of funds to outputs of transactions.
-newtype TxConstraints = TxConstraints
-  { constraints :: Array TxConstraint
-  }
+type TxConstraints = Array TxConstraint
 
-derive instance Generic TxConstraints _
-derive instance Newtype TxConstraints _
-derive newtype instance Eq TxConstraints
--- Array concatenation allowing duplicates like Plutus
-derive newtype instance Semigroup TxConstraints
-derive newtype instance Monoid TxConstraints
-
-instance Show TxConstraints where
-  show = genericShow
+type TxConstraintsDeprecated = Text
+  "Contract.TxConstraints is deprecated. Use `purescript-cardano-transaction-builder`"
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
 
-singleton
-  :: TxConstraint -> TxConstraints
-singleton a = over TxConstraints _ { constraints = Array.singleton a } mempty
-
 -- | `mustValidateIn r` requires the transaction's time range to be contained
 -- |  in `r`.
 mustValidateIn
-  :: POSIXTimeRange -> TxConstraints
+  :: Warn TxConstraintsDeprecated => POSIXTimeRange -> TxConstraints
 mustValidateIn = singleton <<< MustValidateIn
 
 -- | Require the transaction to be signed by the public key.
 mustBeSignedBy
-  :: PaymentPubKeyHash -> TxConstraints
+  :: Warn TxConstraintsDeprecated => PaymentPubKeyHash -> TxConstraints
 mustBeSignedBy = singleton <<< MustBeSignedBy
 
 -- | Require the transaction to include a datum.
-mustIncludeDatum :: PlutusData -> TxConstraints
+mustIncludeDatum :: Warn TxConstraintsDeprecated => PlutusData -> TxConstraints
 mustIncludeDatum = singleton <<< MustIncludeDatum
 
 -- | Require the transaction to reference (not spend!) the given unspent
 -- | transaction output.
 mustReferenceOutput
-  :: TransactionInput -> TxConstraints
+  :: Warn TxConstraintsDeprecated => TransactionInput -> TxConstraints
 mustReferenceOutput = singleton <<< MustReferenceOutput
 
 -- | Lock the value with a public key address. (Base Address)
 mustPayToPubKeyAddress
-  :: PaymentPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PaymentPubKeyHash
   -> StakePubKeyHash
   -> Value
   -> TxConstraints
@@ -301,7 +289,8 @@ mustPayToPubKeyAddress pkh skh =
 
 -- | Lock the value and datum with a public key address.
 mustPayToPubKeyAddressWithDatum
-  :: PaymentPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PaymentPubKeyHash
   -> StakePubKeyHash
   -> PlutusData
   -> DatumPresence
@@ -313,7 +302,8 @@ mustPayToPubKeyAddressWithDatum pkh skh datum dtp =
 
 -- | Lock the value and reference script with a public key address.
 mustPayToPubKeyAddressWithScriptRef
-  :: PaymentPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PaymentPubKeyHash
   -> StakePubKeyHash
   -> ScriptRef
   -> Value
@@ -323,7 +313,8 @@ mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef =
 
 -- | Lock the value, datum and reference script with a public key address.
 mustPayToPubKeyAddressWithDatumAndScriptRef
-  :: PaymentPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PaymentPubKeyHash
   -> StakePubKeyHash
   -> PlutusData
   -> DatumPresence
@@ -340,6 +331,7 @@ mustPayToPubKey
        ( Text
            "Some wallets may not recognize addresses without a staking key component. Consider using mustPayToPubKeyAddress"
        )
+  => Warn TxConstraintsDeprecated
   => PaymentPubKeyHash
   -> Value
   -> TxConstraints
@@ -348,7 +340,8 @@ mustPayToPubKey pkh =
 
 -- | Lock the value and datum with a payment public key hash.
 mustPayToPubKeyWithDatum
-  :: PaymentPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PaymentPubKeyHash
   -> PlutusData
   -> DatumPresence
   -> Value
@@ -358,7 +351,8 @@ mustPayToPubKeyWithDatum pkh datum dtp =
 
 -- | Lock the value and reference script with a payment public key hash.
 mustPayToPubKeyWithScriptRef
-  :: PaymentPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PaymentPubKeyHash
   -> ScriptRef
   -> Value
   -> TxConstraints
@@ -383,7 +377,8 @@ mustPayToPubKeyWithDatumAndScriptRef pkh datum dtp scriptRef =
 -- | `mustPayToScript`, and all scripts must be explicitly provided to build
 -- | the transaction.
 mustPayToScript
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> PlutusData
   -> DatumPresence
   -> Value
@@ -393,7 +388,8 @@ mustPayToScript vh dt dtp vl =
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToScriptAddress
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> Credential
   -> PlutusData
   -> DatumPresence
@@ -407,7 +403,8 @@ mustPayToScriptAddress vh credential dt dtp vl =
 -- | Note that the provided reference script does *not* necessarily need to
 -- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptWithScriptRef
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> PlutusData
   -> DatumPresence
   -> ScriptRef
@@ -421,8 +418,8 @@ mustPayToScriptWithScriptRef vh dt dtp scriptRef vl =
 -- | Note that the provided reference script does *not* necessarily need to
 -- | control the spending of the output, i.e. both scripts can be different.
 mustPayToScriptAddressWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> Credential
   -> PlutusData
   -> DatumPresence
@@ -434,16 +431,16 @@ mustPayToScriptAddressWithScriptRef vh credential dt dtp scriptRef vl =
     <> guard (dtp == DatumWitness) (singleton $ MustIncludeDatum dt)
 
 mustPayToNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> Value
   -> TxConstraints
 mustPayToNativeScript nsHash vl =
   singleton (MustPayToNativeScript nsHash Nothing vl)
 
 mustPayToNativeScriptAddress
-  :: forall (i :: Type) (o :: Type)
-   . ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> Credential
   -> Value
   -> TxConstraints
@@ -452,14 +449,14 @@ mustPayToNativeScriptAddress nsHash credential vl =
 
 -- | Mint the given `Value`
 -- | The amount to mint must not be zero.
-mustMintValue :: Mint -> TxConstraints
+mustMintValue :: Warn TxConstraintsDeprecated => Mint -> TxConstraints
 mustMintValue = mustMintValueWithRedeemer RedeemerDatum.unit
 
 -- | Mint the given `Value` by accessing non-Ada assets.
 -- | The amount to mint must not be zero.
 mustMintValueWithRedeemer
-  :: forall (i :: Type) (o :: Type)
-   . RedeemerDatum
+  :: Warn TxConstraintsDeprecated
+  => RedeemerDatum
   -> Mint
   -> TxConstraints
 mustMintValueWithRedeemer redeemer =
@@ -473,7 +470,8 @@ mustMintValueWithRedeemer redeemer =
 -- | Create the given amount of the currency.
 -- | The amount to mint must not be zero.
 mustMintCurrency
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> AssetName
   -> Int.Int
   -> TxConstraints
@@ -481,8 +479,8 @@ mustMintCurrency mph =
   mustMintCurrencyWithRedeemer mph RedeemerDatum.unit
 
 mustMintCurrencyUsingNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: Warn TxConstraintsDeprecated
+  => NativeScript
   -> AssetName
   -> Int.Int
   -> TxConstraints
@@ -492,7 +490,8 @@ mustMintCurrencyUsingNativeScript ns tk i = singleton
 -- | Create the given amount of the currency using a reference minting policy.
 -- | The amount to mint must not be zero.
 mustMintCurrencyUsingScriptRef
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> AssetName
   -> Int.Int
   -> InputWithScriptRef
@@ -503,7 +502,8 @@ mustMintCurrencyUsingScriptRef mph =
 -- | Create the given amount of the currency.
 -- | The amount to mint must not be zero.
 mustMintCurrencyWithRedeemer
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> RedeemerDatum
   -> AssetName
   -> Int.Int
@@ -514,7 +514,8 @@ mustMintCurrencyWithRedeemer mph red tn amount =
 -- | Create the given amount of the currency using a reference minting policy.
 -- | The amount to mint must not be zero.
 mustMintCurrencyWithRedeemerUsingScriptRef
-  :: ScriptHash
+  :: Warn TxConstraintsDeprecated
+  => ScriptHash
   -> RedeemerDatum
   -> AssetName
   -> Int.Int
@@ -524,21 +525,22 @@ mustMintCurrencyWithRedeemerUsingScriptRef mph red tn amount =
   singleton <<< MustMintValue mph red tn amount <<< Just
 
 -- | Requirement to spend inputs with at least the given value
-mustSpendAtLeast :: Value -> TxConstraints
+mustSpendAtLeast :: Warn TxConstraintsDeprecated => Value -> TxConstraints
 mustSpendAtLeast = singleton <<< MustSpendAtLeast
 
 -- | Requirement to produce outputs with at least the given value
-mustProduceAtLeast :: Value -> TxConstraints
+mustProduceAtLeast :: Warn TxConstraintsDeprecated => Value -> TxConstraints
 mustProduceAtLeast = singleton <<< MustProduceAtLeast
 
 -- | Spend the given unspent transaction public key output.
 mustSpendPubKeyOutput
-  :: TransactionInput -> TxConstraints
+  :: Warn TxConstraintsDeprecated => TransactionInput -> TxConstraints
 mustSpendPubKeyOutput = singleton <<< MustSpendPubKeyOutput
 
 -- | Spend the given unspent transaction script output.
 mustSpendScriptOutput
-  :: TransactionInput
+  :: Warn TxConstraintsDeprecated
+  => TransactionInput
   -> RedeemerDatum
   -> TxConstraints
 mustSpendScriptOutput txOutRef red =
@@ -547,7 +549,8 @@ mustSpendScriptOutput txOutRef red =
 -- | Spend the given unspent transaction script output, using a reference script
 -- | to satisfy the script witnessing requirement.
 mustSpendScriptOutputUsingScriptRef
-  :: TransactionInput
+  :: Warn TxConstraintsDeprecated
+  => TransactionInput
   -> RedeemerDatum
   -> InputWithScriptRef
   -> TxConstraints
@@ -555,64 +558,65 @@ mustSpendScriptOutputUsingScriptRef txOutRef red =
   singleton <<< MustSpendScriptOutput txOutRef red <<< Just
 
 mustSpendNativeScriptOutput
-  :: TransactionInput
+  :: Warn TxConstraintsDeprecated
+  => TransactionInput
   -> NativeScript
   -> TxConstraints
 mustSpendNativeScriptOutput txOutRef = singleton <<< MustSpendNativeScriptOutput
   txOutRef
 
 mustHashDatum
-  :: DataHash -> PlutusData -> TxConstraints
+  :: Warn TxConstraintsDeprecated => DataHash -> PlutusData -> TxConstraints
 mustHashDatum dhsh = singleton <<< MustHashDatum dhsh
 
 mustRegisterStakePubKey
-  :: StakePubKeyHash -> TxConstraints
+  :: Warn TxConstraintsDeprecated => StakePubKeyHash -> TxConstraints
 mustRegisterStakePubKey = singleton <<< MustRegisterStakePubKey
 
 mustDeregisterStakePubKey
-  :: StakePubKeyHash -> TxConstraints
+  :: Warn TxConstraintsDeprecated => StakePubKeyHash -> TxConstraints
 mustDeregisterStakePubKey = singleton <<< MustDeregisterStakePubKey
 
 mustRegisterStakeScript
-  :: ScriptHash -> TxConstraints
+  :: Warn TxConstraintsDeprecated => ScriptHash -> TxConstraints
 mustRegisterStakeScript = singleton <<< MustRegisterStakeScript
 
 mustDeregisterStakePlutusScript
-  :: forall (i :: Type) (o :: Type)
-   . PlutusScript
+  :: Warn TxConstraintsDeprecated
+  => PlutusScript
   -> RedeemerDatum
   -> TxConstraints
 mustDeregisterStakePlutusScript sv = singleton <<<
   MustDeregisterStakePlutusScript sv
 
 mustDeregisterStakeNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: Warn TxConstraintsDeprecated
+  => NativeScript
   -> TxConstraints
 mustDeregisterStakeNativeScript = singleton <<< MustDeregisterStakeNativeScript
 
 mustRegisterPool
-  :: PoolParams -> TxConstraints
+  :: Warn TxConstraintsDeprecated => PoolParams -> TxConstraints
 mustRegisterPool = singleton <<< MustRegisterPool
 
 mustRetirePool
-  :: forall (i :: Type) (o :: Type)
-   . PoolPubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => PoolPubKeyHash
   -> Epoch
   -> TxConstraints
 mustRetirePool poolPubKeyHash = singleton <<< MustRetirePool poolPubKeyHash
 
 mustDelegateStakePubKey
-  :: forall (i :: Type) (o :: Type)
-   . StakePubKeyHash
+  :: Warn TxConstraintsDeprecated
+  => StakePubKeyHash
   -> PoolPubKeyHash
   -> TxConstraints
 mustDelegateStakePubKey spkh ppkh = singleton $ MustDelegateStakePubKey spkh
   ppkh
 
 mustDelegateStakePlutusScript
-  :: forall (i :: Type) (o :: Type)
-   . PlutusScript
+  :: Warn TxConstraintsDeprecated
+  => PlutusScript
   -> RedeemerDatum
   -> PoolPubKeyHash
   -> TxConstraints
@@ -620,28 +624,28 @@ mustDelegateStakePlutusScript sv redeemer ppkh = singleton $
   MustDelegateStakePlutusScript sv redeemer ppkh
 
 mustDelegateStakeNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: Warn TxConstraintsDeprecated
+  => NativeScript
   -> PoolPubKeyHash
   -> TxConstraints
 mustDelegateStakeNativeScript sv ppkh =
   singleton $ MustDelegateStakeNativeScript sv ppkh
 
 mustWithdrawStakePubKey
-  :: StakePubKeyHash -> TxConstraints
+  :: Warn TxConstraintsDeprecated => StakePubKeyHash -> TxConstraints
 mustWithdrawStakePubKey spkh = singleton $ MustWithdrawStakePubKey spkh
 
 mustWithdrawStakePlutusScript
-  :: forall (i :: Type) (o :: Type)
-   . PlutusScript
+  :: Warn TxConstraintsDeprecated
+  => PlutusScript
   -> RedeemerDatum
   -> TxConstraints
 mustWithdrawStakePlutusScript validator redeemer =
   singleton $ MustWithdrawStakePlutusScript validator redeemer
 
 mustWithdrawStakeNativeScript
-  :: forall (i :: Type) (o :: Type)
-   . NativeScript
+  :: Warn TxConstraintsDeprecated
+  => NativeScript
   -> TxConstraints
 mustWithdrawStakeNativeScript =
   singleton <<< MustWithdrawStakeNativeScript
@@ -651,18 +655,18 @@ mustWithdrawStakeNativeScript =
 -- | `mustSatisfyaAnyOf` is just a way to define a chain of try-catch expressions
 -- | in a declarative manner. It does not do any analysis of the constraints' semantics.
 mustSatisfyAnyOf
-  :: forall (f :: Type -> Type) (i :: Type) (o :: Type)
+  :: forall (f :: Type -> Type)
    . Foldable f
+  => Warn TxConstraintsDeprecated
   => f (TxConstraints)
   -> TxConstraints
 mustSatisfyAnyOf =
   Array.fromFoldable
-    >>> map (_.constraints <<< unwrap)
     >>> MustSatisfyAnyOf
     >>> singleton
 
 -- | Marks the transaction as invalid, requiring at least one script execution
 -- | to fail. Despite failure, the transaction can still be submitted into the
 -- | chain and collateral will be lost.
-mustNotBeValid :: TxConstraints
+mustNotBeValid :: Warn TxConstraintsDeprecated => TxConstraints
 mustNotBeValid = singleton $ MustNotBeValid

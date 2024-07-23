@@ -40,6 +40,7 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.String (joinWith)
 import Data.Traversable (for)
+import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -120,9 +121,9 @@ run privateKey walletsDir = runContract config do
       <> foldMap (_.pkh >>> mustBeSignedBy) usedWallets
     lookups = unspentOutputs utxos
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
+  unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
 
-  balancedTx <- balanceTx unbalancedTx
+  balancedTx <- balanceTx unbalancedTx usedUtxos mempty
   balancedSignedTx <- Array.foldM
     (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
     (wrap $ unwrap balancedTx)

@@ -1,7 +1,8 @@
 module Ctl.Internal.BalanceTx.Constraints
-  ( BalanceTxConstraints(BalanceTxConstraints)
-  , BalanceTxConstraintsBuilder(BalanceTxConstraintsBuilder)
-  , buildBalanceTxConstraints
+  ( BalanceTxConstraintsBuilder
+  , BalancerConstraints(BalancerConstraints)
+  , buildBalancerConfig
+  , BalancerConfig(BalancerConfig)
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxosWithOutRefs
   , mustNotSpendUtxoWithOutRef
@@ -43,7 +44,7 @@ import Data.Set (singleton) as Set
 import JS.BigInt (BigInt)
 import Type.Proxy (Proxy(Proxy))
 
-newtype BalanceTxConstraints = BalanceTxConstraints
+newtype BalancerConfig = BalancerConfig
   { additionalUtxos :: UtxoMap
   , collateralUtxos :: Maybe UtxoMap
   , maxChangeOutputTokenQuantity :: Maybe BigInt
@@ -54,48 +55,50 @@ newtype BalanceTxConstraints = BalanceTxConstraints
   , selectionStrategy :: SelectionStrategy
   }
 
-derive instance Newtype BalanceTxConstraints _
+derive instance Newtype BalancerConfig _
 
-_additionalUtxos :: Lens' BalanceTxConstraints UtxoMap
+_additionalUtxos :: Lens' BalancerConfig UtxoMap
 _additionalUtxos = _Newtype <<< prop (Proxy :: Proxy "additionalUtxos")
 
-_collateralUtxos :: Lens' BalanceTxConstraints (Maybe UtxoMap)
+_collateralUtxos :: Lens' BalancerConfig (Maybe UtxoMap)
 _collateralUtxos = _Newtype <<< prop (Proxy :: Proxy "collateralUtxos")
 
-_maxChangeOutputTokenQuantity :: Lens' BalanceTxConstraints (Maybe BigInt)
+_maxChangeOutputTokenQuantity :: Lens' BalancerConfig (Maybe BigInt)
 _maxChangeOutputTokenQuantity =
   _Newtype <<< prop (Proxy :: Proxy "maxChangeOutputTokenQuantity")
 
-_nonSpendableInputs :: Lens' BalanceTxConstraints (Set TransactionInput)
+_nonSpendableInputs :: Lens' BalancerConfig (Set TransactionInput)
 _nonSpendableInputs = _Newtype <<< prop (Proxy :: Proxy "nonSpendableInputs")
 
-_srcAddresses :: Lens' BalanceTxConstraints (Maybe (Array Address))
+_srcAddresses :: Lens' BalancerConfig (Maybe (Array Address))
 _srcAddresses = _Newtype <<< prop (Proxy :: Proxy "srcAddresses")
 
-_changeAddress :: Lens' BalanceTxConstraints (Maybe Address)
+_changeAddress :: Lens' BalancerConfig (Maybe Address)
 _changeAddress = _Newtype <<< prop (Proxy :: Proxy "changeAddress")
 
-_changeDatum :: Lens' BalanceTxConstraints (Maybe OutputDatum)
+_changeDatum :: Lens' BalancerConfig (Maybe OutputDatum)
 _changeDatum = _Newtype <<< prop (Proxy :: Proxy "changeDatum")
 
-_selectionStrategy :: Lens' BalanceTxConstraints SelectionStrategy
+_selectionStrategy :: Lens' BalancerConfig SelectionStrategy
 _selectionStrategy = _Newtype <<< prop (Proxy :: Proxy "selectionStrategy")
 
-newtype BalanceTxConstraintsBuilder =
-  BalanceTxConstraintsBuilder (BalanceTxConstraints -> BalanceTxConstraints)
+type BalanceTxConstraintsBuilder = BalancerConstraints
 
-derive instance Newtype BalanceTxConstraintsBuilder _
+newtype BalancerConstraints =
+  BalancerConstraints (BalancerConfig -> BalancerConfig)
 
-instance Semigroup BalanceTxConstraintsBuilder where
-  append = over2 BalanceTxConstraintsBuilder (>>>)
+derive instance Newtype BalancerConstraints _
 
-instance Monoid BalanceTxConstraintsBuilder where
+instance Semigroup BalancerConstraints where
+  append = over2 BalancerConstraints (>>>)
+
+instance Monoid BalancerConstraints where
   mempty = wrap identity
 
-buildBalanceTxConstraints :: BalanceTxConstraintsBuilder -> BalanceTxConstraints
-buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
+buildBalancerConfig :: BalancerConstraints -> BalancerConfig
+buildBalancerConfig = applyFlipped defaultConstraints <<< unwrap
   where
-  defaultConstraints :: BalanceTxConstraints
+  defaultConstraints :: BalancerConfig
   defaultConstraints = wrap
     { additionalUtxos: Map.empty
     , collateralUtxos: Nothing
@@ -114,13 +117,13 @@ buildBalanceTxConstraints = applyFlipped defaultConstraints <<< unwrap
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustSendChangeToAddress
-  :: Address -> BalanceTxConstraintsBuilder
+  :: Address -> BalancerConstraints
 mustSendChangeToAddress =
   wrap <<< setJust _changeAddress
 
 -- | Tells the balancer to include the datum in each change UTxO. Useful when
 -- | balancing a transactions for script owned UTxOs.
-mustSendChangeWithDatum :: OutputDatum -> BalanceTxConstraintsBuilder
+mustSendChangeWithDatum :: OutputDatum -> BalancerConstraints
 mustSendChangeWithDatum =
   wrap <<< setJust _changeDatum
 
@@ -131,7 +134,7 @@ mustSendChangeWithDatum =
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddresses
-  :: Array Address -> BalanceTxConstraintsBuilder
+  :: Array Address -> BalancerConstraints
 mustUseUtxosAtAddresses =
   wrap <<< setJust _srcAddresses
 
@@ -142,7 +145,7 @@ mustUseUtxosAtAddresses =
 -- | NOTE: Setting `mustUseUtxosAtAddresses` or `mustUseUtxosAtAddress`
 -- | does NOT have any effect on which address will be used as a change address.
 mustUseUtxosAtAddress
-  :: Address -> BalanceTxConstraintsBuilder
+  :: Address -> BalancerConstraints
 mustUseUtxosAtAddress address =
   mustUseUtxosAtAddresses (Array.singleton address)
 
@@ -150,31 +153,31 @@ mustUseUtxosAtAddress address =
 -- | between them if the total change `Value` contains token quantities
 -- | exceeding the specified upper bound.
 -- | (See `Cardano.Types.Value.equipartitionValueWithTokenQuantityUpperBound`)
-mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalanceTxConstraintsBuilder
+mustGenChangeOutsWithMaxTokenQuantity :: BigInt -> BalancerConstraints
 mustGenChangeOutsWithMaxTokenQuantity =
   wrap <<< setJust _maxChangeOutputTokenQuantity <<< max one
 
 -- | Tells the balancer not to spend UTxO's with the specified output references.
 mustNotSpendUtxosWithOutRefs
-  :: Set TransactionInput -> BalanceTxConstraintsBuilder
+  :: Set TransactionInput -> BalancerConstraints
 mustNotSpendUtxosWithOutRefs = wrap <<< appendOver _nonSpendableInputs
 
 -- | Tells the balancer not to spend a UTxO with the specified output reference.
-mustNotSpendUtxoWithOutRef :: TransactionInput -> BalanceTxConstraintsBuilder
+mustNotSpendUtxoWithOutRef :: TransactionInput -> BalancerConstraints
 mustNotSpendUtxoWithOutRef = mustNotSpendUtxosWithOutRefs <<< Set.singleton
 
 -- | Tells the balancer to use the provided UTxO set when evaluating script
 -- | execution units (sets `additionalUtxoSet` of Ogmios `EvaluateTx`).
 -- | Note that you need to use `unspentOutputs` lookup to make these UTxO's
 -- | spendable by the transaction (see `Examples.TxChaining` for reference).
-mustUseAdditionalUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
+mustUseAdditionalUtxos :: UtxoMap -> BalancerConstraints
 mustUseAdditionalUtxos = wrap <<< set _additionalUtxos
 
 -- | Tells the balancer to select from the provided UTxO set when choosing
 -- | collateral UTxOs, instead of UTxOs provided by the browser wallet.
-mustUseCollateralUtxos :: UtxoMap -> BalanceTxConstraintsBuilder
+mustUseCollateralUtxos :: UtxoMap -> BalancerConstraints
 mustUseCollateralUtxos = wrap <<< set _collateralUtxos <<< Just
 
 -- | Tells the balancer to use the given strategy for coin selection.
-mustUseCoinSelectionStrategy :: SelectionStrategy -> BalanceTxConstraintsBuilder
+mustUseCoinSelectionStrategy :: SelectionStrategy -> BalancerConstraints
 mustUseCoinSelectionStrategy = wrap <<< set _selectionStrategy

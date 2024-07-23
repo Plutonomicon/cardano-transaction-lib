@@ -2,9 +2,21 @@ module Ctl.Examples.Schnorr (contract) where
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, Pay)
+  )
 import Cardano.Types (Credential(ScriptHashCredential))
 import Cardano.Types.Address (Address(EnterpriseAddress))
-import Contract.Address (getNetworkId)
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash))
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionOutput (TransactionOutput(TransactionOutput))
+import Cardano.Types.TransactionUnspentOutput (_input, fromUtxoMap, toUtxoMap)
+import Contract.Address (getNetworkId, mkAddress)
 import Contract.Crypto.Secp256k1.Schnorr
   ( deriveSchnorrSecp256k1PublicKey
   , signSchnorrSecp256k1
@@ -18,23 +30,21 @@ import Contract.PlutusData
   , PlutusData(Constr)
   , RedeemerDatum(RedeemerDatum)
   , toData
-  , unitDatum
   )
 import Contract.Prim.ByteArray (ByteArray, byteArrayFromIntArrayUnsafe)
-import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Data.Array as Array
+import Data.Lens (view)
 import Data.Map as Map
 import Data.Newtype (unwrap)
-import Data.Set as Set
 import Noble.Secp256k1.Schnorr
   ( SchnorrPublicKey
   , SchnorrSignature
@@ -68,27 +78,29 @@ prepTest = do
   validator <- liftContractM "Caonnot get validator" getValidator
   let
     valHash = validatorHash validator
-    val = Value.lovelaceValueOf $ BigNum.one
-
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustPayToScript valHash unitDatum
-      Constraints.DatumInline
-      val
-  txId <- submitTxFromConstraints lookups constraints
-  logInfo' $ "Submitted Schnorr test preparation tx: " <> show txId
+    val = Value.lovelaceValueOf BigNum.one
+  scriptAddress <- mkAddress
+    (wrap $ ScriptHashCredential valHash)
+    Nothing
+  tx <- submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: val
+        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
+  let txId = Transaction.hash tx
+  logInfo' $ "Submitted ECDSA test preparation tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
-
   pure txId
 
 -- | Attempt to unlock one utxo using an ECDSA signature
 testVerification
   :: TransactionHash -> SchnorrRedeemer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
-  let red = RedeemerDatum $ toData ecdsaRed
+  let redeemer = RedeemerDatum $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
   let valHash = validatorHash validator
@@ -99,21 +111,22 @@ testVerification txId ecdsaRed = do
       { networkId, paymentCredential: wrap $ ScriptHashCredential valHash }
 
   scriptUtxos <- utxosAt valAddr
-  txIn <- liftContractM "No UTxOs found at validator address"
-    $ Set.toUnfoldable
-    $ Set.filter (unwrap >>> _.transactionId >>> eq txId)
-    $ Map.keys scriptUtxos
+  utxo <- liftContractM "No UTxOs found at validator address"
+    $ Array.head
+    $ Array.filter (view _input >>> unwrap >>> _.transactionId >>> eq txId)
+    $ fromUtxoMap scriptUtxos
 
-  let
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs
-        (Map.filterKeys ((unwrap >>> _.transactionId >>> eq txId)) scriptUtxos)
-
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustSpendScriptOutput txIn red
-  txId' <- submitTxFromConstraints lookups constraints
-  logInfo' $ "Submitted Schnorr test verification tx: " <> show txId'
+  tx <- submitTxFromBuildPlan (toUtxoMap [ utxo ]) mempty
+    [ SpendOutput utxo $ Just
+        $ PlutusScriptOutput
+            (ScriptValue validator)
+            redeemer
+        $ Just
+        $ DatumValue
+        $ PlutusData.unit
+    ]
+  let txId' = Transaction.hash tx
+  logInfo' $ "Submitted ECDSA test verification tx: " <> show txId'
   awaitTxConfirmed txId'
   logInfo' $ "Transaction confirmed: " <> show txId'
   pure txId'

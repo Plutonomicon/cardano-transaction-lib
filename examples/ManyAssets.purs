@@ -8,26 +8,23 @@ module Ctl.Examples.ManyAssets
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(MintAsset)
+  )
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractM
-  , liftedM
-  , runContract
-  )
-import Contract.ScriptLookups as Lookups
-import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
-import Contract.TxConstraints as Constraints
-import Contract.Wallet (getWalletUtxos)
+import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
-import Data.Array (head, range) as Array
-import Data.Map (toUnfoldable) as Map
+import Data.Array (range) as Array
+import Data.Map as Map
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -45,29 +42,16 @@ mkContractWithAssertions
   -> Contract Unit
 mkContractWithAssertions exampleName = do
   logInfo' ("Running " <> exampleName)
-  utxos <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
-  oref <-
-    liftContractM "Utxo set is empty"
-      (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
-
   mp <- alwaysMintsPolicyScriptV2
   let cs = PlutusScript.hash mp
   tns <- for (Array.range 0 600) \i -> Helpers.mkAssetName $ "CTLNFT" <> show i
 
   let
-    constraints :: Constraints.TxConstraints
-    constraints =
-      fold
-        ( tns <#> \tn -> Constraints.mustMintValue
-            (Mint.singleton cs tn $ Int.fromInt one)
-        )
-        <> Constraints.mustSpendPubKeyOutput oref
+    plan =
+      tns <#> \tn -> MintAsset cs tn (Int.fromInt one)
+        (PlutusScriptCredential (ScriptValue mp) RedeemerDatum.unit)
 
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.plutusMintingPolicy mp
-      <> Lookups.unspentOutputs utxos
-
-  txHash <- submitTxFromConstraints lookups constraints
+  txHash <- Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty plan
   logInfo' $ "Tx ID: " <> show txHash
   awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"

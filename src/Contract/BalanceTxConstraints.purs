@@ -4,6 +4,8 @@ module Contract.BalanceTxConstraints (module BalanceTxConstraints) where
 
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraintsBuilder
+  , BalancerConfig(BalancerConfig)
+  , BalancerConstraints(BalancerConstraints)
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustNotSpendUtxosWithOutRefs
