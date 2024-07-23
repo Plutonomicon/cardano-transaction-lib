@@ -535,7 +535,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "c93cfaaa08643632021fb8c6dcc4d0b8130250d1"
+        , version = "70d219d6463466458fd381b55d84f458dcaee94a"
         }
       , cardano-transaction-lib =
         { dependencies =
