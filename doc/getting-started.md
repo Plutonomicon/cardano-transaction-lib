@@ -51,7 +51,7 @@ You can learn more about using CTL as a dependency [here](./ctl-as-dependency.md
 
 ### Other prerequisites
 
-You will also need to become familiar with [CTL's runtime](./runtime.md) as its runtime services are required for executing virtually all contracts.
+You will also need to become familiar with [CTL's runtime](./runtime.md) as its runtime services are required for executing virtually all contracts. If you want to avoid manual backend setup, use [blockfrost.io](./blockfrost.md).
 
 ## Importing CTL modules
 

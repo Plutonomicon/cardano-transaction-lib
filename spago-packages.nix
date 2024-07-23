@@ -283,7 +283,7 @@ let
 
     "cardano-transaction-builder" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-builder";
-        version = "70d219d6463466458fd381b55d84f458dcaee94a";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder";
           rev = "70d219d6463466458fd381b55d84f458dcaee94a";
@@ -295,7 +295,7 @@ let
 
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
-        version = "40d9468a4712ad2bf57ebede19fae92208f082a0";
+        version = "v1.0.2";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-types";
           rev = "40d9468a4712ad2bf57ebede19fae92208f082a0";
