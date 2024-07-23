@@ -72,7 +72,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Deprecated
 
-- **IMPORTANT** Constraints interface (`Contract.TxConstraints`) has been deprecated and will be removed in a future version. Please use [`purescript-cardano-transaction-builder`](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder) for any new contracts.
+> [!WARNING]
+> **IMPORTANT** Constraints interface (`Contract.TxConstraints` & `Contract.ScriptLookups`) has been deprecated and will be removed in a future version. Please use [`purescript-cardano-transaction-builder`](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder) (via `Contract.Transaction.buildTx`) for new contracts. The motivation for deprecation is that it was unnecessarily complex, not flexible enough, and existed only because of the desire to provide code-level compatibility with PAB. See [this Catalyst proposal](https://cardano.ideascale.com/c/idea/101478) for more info.
 
 ### Added
 
@@ -86,8 +87,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - **IMPORTANT** `UnbalancedTx` type has been removed. This change was motivated by the fact that `UnbalancedTx` existed simply to tie together transaction building and balancing by keeping extra context. Now that transaction builder is placed in [its own package](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder), there is no more need in `UnbalancedTx`, that is not used with the new builder.
 - **IMPORTANT** `Contract.Scripts.applyArgs` - use `Cardano.Plutus.ApplyArgs.applyArgs` from [purescript-uplc-apply-args](https://github.com/mlabs-haskell/purescript-uplc-apply-args)
 - **IMPORTANT** `balanceTxWithConstraints` - use `balanceTx`
-- `Contract.Transaction.submitTxFromConstraintsReturningFee` - too niche case to be allowed in the public API.
-- `Contract.Transaction` lens values.
+- `Contract.Transaction.submitTxFromConstraintsReturningFee` - too niche use case to be allowed in the public API.
+- `Contract.Transaction` lens values. Use lenses from `Cardano.Types.Transaction`
 
 ### Changed
 
