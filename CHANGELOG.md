@@ -79,7 +79,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `Contract.Transaction.buildTx :: Array TransactionBuilderStep -> Contract Transaction` that provides a `Contract`-based interface for the [new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
 - `submitTxFromBuildPlan :: UtxoMap -> BalanceTxConstraintsBuilder -> Array TransactionBuilderStep -> Contract Transaction` - a convenience function that executes the whole transaction creation pipeline starting from a build plan for [the new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
 - `Contract.ClientError.pprintClientError` to provide readable error reports.
--
+- `Contract.Staking.getStakeCredentialDelegationsAndRewards` utility function
 
 ### Removed
 
