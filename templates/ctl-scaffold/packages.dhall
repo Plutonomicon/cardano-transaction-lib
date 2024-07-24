@@ -469,12 +469,12 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo =
-            "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "v1.0.0"
+            "https://github.com/errfrom/purescript-cardano-transaction-builder"
+        , version = "48866bd7f5eeb8e0870c97384264d08bda9c2725"
         }
       , cardano-transaction-lib =
         { dependencies =
-          [ "aeson"
+           [ "aeson"
           , "aff"
           , "aff-promise"
           , "aff-retry"
@@ -582,7 +582,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "582649dae3d95a3ee32c9ed1898a5264e134b53e"
+        , version = "bfbcb504f5667970b2e784a6a8ed2dccdd9beb50"
         }
       }
 

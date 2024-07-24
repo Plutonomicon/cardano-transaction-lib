@@ -14,6 +14,7 @@ You can edit this file as you like.
   , "cip30-mock"
   , "uplc-apply-args"
   , "cardano-serialization-lib"
+  , "cardano-transaction-builder"
   , "cardano-transaction-lib"
   , "cardano-types"
   , "datetime"
