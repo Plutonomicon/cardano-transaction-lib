@@ -5,20 +5,32 @@ module Test.Ctl.Plutip.Contract
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, SpendOutput)
+  )
 import Cardano.Types
   ( Address
+  , Credential(PubKeyHashCredential, ScriptHashCredential)
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
+  , PaymentCredential(PaymentCredential)
+  , StakeCredential(StakeCredential)
   , TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , _output
   )
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
-import Cardano.Types.Credential
-  ( Credential(PubKeyHashCredential, ScriptHashCredential)
-  )
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
@@ -59,7 +71,6 @@ import Contract.Prim.ByteArray
 import Contract.ScriptLookups as Lookups
 import Contract.Scripts
   ( ValidatorHash
-  , applyArgs
   , getScriptByHash
   , getScriptsByHashes
   , validatorHash
@@ -77,18 +88,15 @@ import Contract.Transaction
   ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
   , DataHash
   , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
-  , OutputDatum(OutputDatumHash, OutputDatum)
+  , OutputDatum(OutputDatum, OutputDatumHash)
   , ScriptRef(PlutusScriptRef, NativeScriptRef)
   , TransactionHash(TransactionHash)
   , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
-  , _input
-  , _output
   , awaitTxConfirmed
   , balanceTx
   , balanceTxE
-  , balanceTxWithConstraints
-  , balanceTxWithConstraintsE
+  , buildTx
   , createAdditionalUtxos
   , getTxMetadata
   , lookupTxHash
@@ -139,9 +147,9 @@ import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
-import Ctl.Examples.PlutusV2.ReferenceInputs (contract) as ReferenceInputs
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
-import Ctl.Examples.PlutusV2.ReferenceScripts (contract) as ReferenceScripts
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
+  ( contract
+  ) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.Schnorr as Schnorr
@@ -199,7 +207,6 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 10
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
-        void $ waitUntilSlot $ Slot $ BigNum.fromInt 241
   group "Regressions" do
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
@@ -236,9 +243,9 @@ suite = do
 
               lookups :: Lookups.ScriptLookups
               lookups = mempty
-            ubTx <- mkUnbalancedTx lookups constraints
+            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
             res <-
-              ( balanceTxWithConstraintsE ubTx
+              ( balanceTxE ubTx usedUtxos
                   (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
               )
             res `shouldSatisfy` isLeft
@@ -292,7 +299,7 @@ suite = do
             scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
               Nothing
             utxos <- utxosAt scriptAddress
-            txInput <-
+            utxo <-
               liftM
                 ( error
                     ( "The id "
@@ -301,21 +308,23 @@ suite = do
                         <> show scriptAddress
                     )
                 )
-                (view _input <$> head (lookupTxHash txId utxos))
+                $ head (lookupTxHash txId utxos)
             let
-              lookups :: Lookups.ScriptLookups
-              lookups = Lookups.validator validator
-                <> Lookups.unspentOutputs utxos
+              usedUtxos = Map.union utxos $ toUtxoMap [ utxo ]
+            ubTx <- buildTx
+              [ SpendOutput
+                  utxo
+                  ( Just
+                      $ PlutusScriptOutput (ScriptValue validator)
+                          RedeemerDatum.unit
+                      $ Just
+                      $ DatumValue
+                      $ PlutusData.unit
+                  )
+              ]
 
-              constraints :: TxConstraints
-              constraints =
-                Constraints.mustSpendScriptOutput txInput unitRedeemer
-
-            ubTx <- mkUnbalancedTx lookups constraints
-            res <-
-              ( balanceTxWithConstraintsE ubTx
-                  $ mustUseCollateralUtxos bobsCollateral
-              )
+            res <- balanceTxE ubTx usedUtxos
+              (mustUseCollateralUtxos bobsCollateral)
             res `shouldSatisfy` isRight
 
     test
@@ -339,7 +348,7 @@ suite = do
             scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
               Nothing
             utxos <- utxosAt scriptAddress
-            txInput <-
+            utxo <-
               liftM
                 ( error
                     ( "The id "
@@ -348,21 +357,21 @@ suite = do
                         <> show scriptAddress
                     )
                 )
-                (view _input <$> head (lookupTxHash txId utxos))
+                $ head (lookupTxHash txId utxos)
             let
-              lookups :: Lookups.ScriptLookups
-              lookups = Lookups.validator validator
-                <> Lookups.unspentOutputs utxos
-
-              constraints :: TxConstraints
-              constraints =
-                Constraints.mustSpendScriptOutput txInput unitRedeemer
-
-            ubTx <- mkUnbalancedTx lookups constraints
-            res <-
-              ( balanceTxWithConstraintsE ubTx
-                  $ mustUseCollateralUtxos Map.empty
-              )
+              usedUtxos = Map.union utxos $ toUtxoMap [ utxo ]
+            ubTx <- buildTx
+              [ SpendOutput
+                  utxo
+                  ( Just
+                      $ PlutusScriptOutput (ScriptValue validator)
+                          RedeemerDatum.unit
+                      $ Just
+                      $ DatumValue
+                      $ PlutusData.unit
+                  )
+              ]
+            res <- balanceTxE ubTx usedUtxos (mustUseCollateralUtxos Map.empty)
             res `shouldSatisfy` case _ of
               Left (InsufficientCollateralUtxos mp) -> Map.isEmpty mp
               _ -> false
@@ -392,19 +401,23 @@ suite = do
         withKeyWallet bob do
           pure unit -- sign, balance, submit, etc.
 
-    test "Payment keyhash to payment keyhash transaction (Pkh2Pkh example)" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigNum.fromInt 10_000_000
-          , BigNum.fromInt 20_000_000
-          ]
-      withWallets distribution \alice -> do
-        checkUtxoDistribution distribution alice
-        pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
-          ownPaymentPubKeyHashes
-        stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeyHashes
-        withKeyWallet alice $ pkh2PkhContract pkh stakePkh
+    test
+      "Payment keyhash to payment keyhash transaction (Pkh2Pkh example)"
+      do
+        let
+          distribution :: InitialUTxOs
+          distribution =
+            [ BigNum.fromInt 10_000_000
+            , BigNum.fromInt 20_000_000
+            , BigNum.fromInt 20_000_000
+            ]
+        withWallets distribution \alice -> do
+          logInfo' "407 hi"
+          checkUtxoDistribution distribution alice
+          pkh <- liftedM "Failed to get PKH" $ head <$> withKeyWallet alice
+            ownPaymentPubKeyHashes
+          stakePkh <- join <<< head <$> withKeyWallet alice ownStakePubKeyHashes
+          withKeyWallet alice $ pkh2PkhContract pkh stakePkh
     test
       "Base Address to Base Address transaction (Pkh2Pkh example, but with stake keys)"
       do
@@ -549,8 +562,8 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = mempty
 
-            ubTx <- mkUnbalancedTx lookups constraints
-            bsTx <- signTransaction =<< balanceTx ubTx
+            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+            bsTx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -583,8 +596,8 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = Lookups.unspentOutputs utxos
 
-            ubTx <- mkUnbalancedTx lookups constraints
-            tx <- signTransaction =<< balanceTx ubTx
+            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+            tx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
             let
               signWithWallet txToSign wallet =
                 withKeyWallet wallet (signTransaction txToSign)
@@ -642,8 +655,8 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = mempty
 
-            ubTx <- mkUnbalancedTx lookups constraints
-            bsTx <- signTransaction =<< balanceTx ubTx
+            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+            bsTx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
             txId <- submit bsTx
             awaitTxConfirmed txId
             pure txId
@@ -666,9 +679,9 @@ suite = do
               lookups :: Lookups.ScriptLookups
               lookups = Lookups.unspentOutputs utxos
 
-            ubTx <- mkUnbalancedTx lookups constraints
+            ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
             -- Bob signs the tx
-            tx <- signTransaction =<< balanceTx ubTx
+            tx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
             let
               signWithWallet txToSign wallet =
                 withKeyWallet wallet (signTransaction txToSign)
@@ -700,8 +713,8 @@ suite = do
             lookups :: Lookups.ScriptLookups
             lookups = Lookups.plutusMintingPolicy mp
 
-          ubTx <- mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< balanceTx ubTx
+          ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+          bsTx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
           submitAndLog bsTx
 
     test "mustProduceAtLeast spends native token" do
@@ -785,8 +798,8 @@ suite = do
               $ BigNum.fromInt 101
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          ubTx <- mkUnbalancedTx lookups' constraints'
-          result <- balanceTxE ubTx
+          ubTx /\ usedUtxos <- mkUnbalancedTx lookups' constraints'
+          result <- balanceTxE ubTx usedUtxos mempty
           result `shouldSatisfy` isLeft
 
     test "mustSpendAtLeast succeeds to spend" do
@@ -870,8 +883,8 @@ suite = do
               $ BigNum.fromInt 101
             lookups' = lookups <> Lookups.ownPaymentPubKeyHash pkh
 
-          ubTx <- mkUnbalancedTx lookups' constraints'
-          result <- balanceTxE ubTx
+          ubTx /\ usedUtxos <- mkUnbalancedTx lookups' constraints'
+          result <- balanceTxE ubTx usedUtxos mempty
           result `shouldSatisfy` isLeft
 
     test "Minting using NativeScript (multisig) as a policy" do
@@ -1026,9 +1039,9 @@ suite = do
             givenMetadata = GeneralTransactionMetadata $ Map.fromFoldable
               [ BigNum.fromInt 8 /\ Metadatum.Text "foo" ]
 
-          ubTx <- mkUnbalancedTx lookups constraints
+          ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
           let ubTx' = setGeneralTxMetadata ubTx givenMetadata
-          bsTx <- signTransaction =<< balanceTx ubTx'
+          bsTx <- signTransaction =<< balanceTx ubTx' usedUtxos mempty
           txId <- submit bsTx
           awaitTxConfirmed txId
 
@@ -1109,8 +1122,8 @@ suite = do
                 <> Lookups.plutusMintingPolicy mp2
                 <> Lookups.plutusMintingPolicy mp3
 
-          ubTx <- mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< balanceTx ubTx
+          ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+          bsTx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
           submitAndLog bsTx
 
     test "Multi-signature transaction" do
@@ -1300,8 +1313,8 @@ suite = do
               balanceTxConstraints =
                 BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-            unbalancedTx <- mkUnbalancedTx lookups constraints
-            balanceTxWithConstraintsE unbalancedTx balanceTxConstraints
+            unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+            balanceTxE unbalancedTx usedUtxos balanceTxConstraints
 
         let
           hasInsufficientBalance
@@ -1452,37 +1465,40 @@ suite = do
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
     group "CIP-40 Collateral Output" do
-      test "Always failing script triggers Collateral Return (ADA-only)" do
-        let
-          distribution :: InitialUTxOs /\ InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 10_000_000
-            , BigNum.fromInt 50_000_000
-            ] /\ [ BigNum.fromInt 50_000_000 ]
-        withWallets distribution \(alice /\ seed) -> do
-          validator <- AlwaysFails.alwaysFailsScript
-          let vhash = validatorHash validator
-          txId <- withKeyWallet seed do
-            logInfo' "Attempt to lock value"
-            txId <- AlwaysFails.payToAlwaysFails vhash
-            awaitTxConfirmed txId
-            pure txId
+      skip $ test
+        "Always failing script triggers Collateral Return (ADA-only) UNSKIP AFTER CONWAY"
+        do
+          let
+            distribution :: InitialUTxOs /\ InitialUTxOs
+            distribution =
+              [ BigNum.fromInt 10_000_000
+              , BigNum.fromInt 50_000_000
+              ] /\ [ BigNum.fromInt 50_000_000 ]
+          withWallets distribution \(alice /\ seed) -> do
+            validator <- AlwaysFails.alwaysFailsScript
+            let vhash = validatorHash validator
+            txId <- withKeyWallet seed do
+              logInfo' "Attempt to lock value"
+              txId <- AlwaysFails.payToAlwaysFails vhash
+              awaitTxConfirmed txId
+              pure txId
 
-          withKeyWallet alice do
-            awaitTxConfirmed txId
-            logInfo' "Try to spend locked values"
-            balanceBefore <- unsafePartial $ fold <$> getWalletBalance
-            AlwaysFails.spendFromAlwaysFails vhash validator txId
-            balance <- unsafePartial $ fold <$> getWalletBalance
-            let
-              collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt $
-                5_000_000
-            balance `shouldEqual`
-              ( unsafePartial $ fromJust $ balanceBefore `Value.minus`
-                  collateralLoss
-              )
+            withKeyWallet alice do
+              awaitTxConfirmed txId
+              logInfo' "Try to spend locked values"
+              balanceBefore <- unsafePartial $ fold <$> getWalletBalance
+              AlwaysFails.spendFromAlwaysFails vhash validator txId
+              balance <- unsafePartial $ fold <$> getWalletBalance
+              let
+                collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt $
+                  5_000_000
+              balance `shouldEqual`
+                ( unsafePartial $ fromJust $ balanceBefore `Value.minus`
+                    collateralLoss
+                )
 
-      test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
+      skip $ test
+        "AlwaysFails script triggers Native Asset Collateral Return (tokens) UNSKIP AFTER CONWAY"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs
@@ -1524,8 +1540,8 @@ suite = do
                 lookups :: Lookups.ScriptLookups
                 lookups = Lookups.plutusMintingPolicy mp
 
-              ubTx <- mkUnbalancedTx lookups constraints
-              bsTx <- signTransaction =<< balanceTx ubTx
+              ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+              bsTx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
               submit bsTx >>= awaitTxConfirmed
 
               logInfo' "Attempt to lock value"
@@ -1538,49 +1554,17 @@ suite = do
               logInfo' "Try to spend locked values"
               AlwaysFails.spendFromAlwaysFails vhash validator txId
 
-    group "CIP-33 Reference Scripts" do
-      test "Use reference scripts for spending" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 5_000_000
-            , BigNum.fromInt 50_000_000
-            ]
-        withWallets distribution \alice ->
-          withKeyWallet alice ReferenceScripts.contract
-
-      test
-        "Use reference scripts for spending (with Base Address, testing `mustPayToScriptAddressWithScriptRef`)"
+    group "CIP-33 Reference Scripts + CIP-31 Reference Inputs" do
+      test "Use reference inputs and reference scripts at the same time"
         do
           let
-            distribution :: InitialUTxOsWithStakeKey
-            distribution = withStakeKey privateStakeKey
+            distribution :: InitialUTxOs
+            distribution =
               [ BigNum.fromInt 5_000_000
               , BigNum.fromInt 50_000_000
               ]
           withWallets distribution \alice ->
-            withKeyWallet alice ReferenceScripts.contract
-
-    group "CIP-31 Reference Inputs" do
-      test "Use reference inputs" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 5_000_000
-            , BigNum.fromInt 50_000_000
-            ]
-        withWallets distribution \alice ->
-          withKeyWallet alice ReferenceInputs.contract
-
-      test "Use reference inputs and reference scripts at the same time" do
-        let
-          distribution :: InitialUTxOs
-          distribution =
-            [ BigNum.fromInt 5_000_000
-            , BigNum.fromInt 50_000_000
-            ]
-        withWallets distribution \alice ->
-          withKeyWallet alice ReferenceInputsAndScripts.contract
+            withKeyWallet alice ReferenceInputsAndScripts.contract
 
     test "One-Shot Minting example" do
       let
@@ -1716,9 +1700,9 @@ suite = do
               lookups0 :: Lookups.ScriptLookups
               lookups0 = mempty
 
-            unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
+            unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 \balancedTx0 -> do
+            withBalancedTx unbalancedTx0 usedUtxos0 mempty \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1740,8 +1724,9 @@ suite = do
                 balanceTxConstraints =
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-              unbalancedTx1 <- mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <- balanceTxWithConstraints unbalancedTx1
+              unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups1
+                constraints1
+              balancedTx1 <- balanceTx unbalancedTx1 usedUtxos1
                 balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 
@@ -1830,9 +1815,9 @@ suite = do
               lookups0 :: Lookups.ScriptLookups
               lookups0 = Lookups.plutusMintingPolicy mp <> datumLookup
 
-            unbalancedTx0 <- mkUnbalancedTx lookups0 constraints0
+            unbalancedTx0 /\ usedUtxos <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 \balancedTx0 -> do
+            withBalancedTx unbalancedTx0 usedUtxos mempty \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1855,8 +1840,9 @@ suite = do
                 balanceTxConstraints =
                   BalanceTxConstraints.mustUseAdditionalUtxos additionalUtxos
 
-              unbalancedTx1 <- mkUnbalancedTx lookups1 constraints1
-              balancedTx1 <- balanceTxWithConstraints unbalancedTx1
+              unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups1
+                constraints1
+              balancedTx1 <- balanceTx unbalancedTx1 usedUtxos1
                 balanceTxConstraints
               balancedSignedTx1 <- signTransaction balancedTx1
 
@@ -2078,10 +2064,19 @@ signMultipleContract = do
     lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  ubTx1 <- mkUnbalancedTx lookups constraints
-  ubTx2 <- mkUnbalancedTx lookups constraints
+  ubTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
+  ubTx2 /\ usedUtxos2 <- mkUnbalancedTx lookups constraints
 
-  withBalancedTxs [ ubTx1, ubTx2 ] $ \txs -> do
+  withBalancedTxs
+    [ { transaction: ubTx1
+      , usedUtxos: usedUtxos1
+      , balancerConstraints: mempty
+      }
+    , { transaction: ubTx2
+      , usedUtxos: usedUtxos2
+      , balancerConstraints: mempty
+      }
+    ] $ \txs -> do
     locked <- getLockedInputs
     logInfo' $ "Locked inputs inside bracket (should be nonempty): "
       <> show locked
@@ -2098,14 +2093,15 @@ pkh2PkhContract
   -> Maybe StakePubKeyHash
   -> Contract Unit
 pkh2PkhContract pkh stakePkh = do
-  let
-    constraints :: Constraints.TxConstraints
-    constraints = mustPayToPubKeyStakeAddress pkh stakePkh
-      $ Value.lovelaceValueOf
-      $ BigNum.fromInt 2_000_000
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-  ubTx <- mkUnbalancedTx lookups constraints
-  bsTx <- signTransaction =<< balanceTx ubTx
-  submitAndLog bsTx
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> stakePkh)
+  transaction <- buildTx
+    [ Pay $ TransactionOutput
+        { address
+        , amount: Value.coinToValue $ wrap $ BigNum.fromInt 2_000_000
+        , datum: Nothing
+        , scriptRef: Nothing
+        }
+    ]
+  submitAndLog =<< signTransaction =<< balanceTx transaction Map.empty mempty

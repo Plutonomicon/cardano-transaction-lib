@@ -16,6 +16,10 @@ import Prelude
 import Aeson (encodeAeson)
 import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Except (catchError)
 import Ctl.Internal.Cardano.TextEnvelope
@@ -27,10 +31,6 @@ import Ctl.Internal.Cardano.TextEnvelope
   , decodeTextEnvelope
   )
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Wallet.Key
-  ( PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
-  )
 import Data.ByteArray (ByteArray, byteArrayToHex)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap, wrap)

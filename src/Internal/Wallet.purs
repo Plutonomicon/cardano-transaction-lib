@@ -19,14 +19,14 @@ module Ctl.Internal.Wallet
 import Prelude
 
 import Cardano.Wallet.Cip30 as Cip30
-import Control.Monad.Error.Class (catchError, throwError)
-import Ctl.Internal.Wallet.Cip30 (Cip30Wallet, mkCip30WalletAff)
-import Ctl.Internal.Wallet.Key
+import Cardano.Wallet.Key
   ( KeyWallet
   , PrivatePaymentKey
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
+import Control.Monad.Error.Class (catchError, throwError)
+import Ctl.Internal.Wallet.Cip30 (Cip30Wallet, mkCip30WalletAff)
 import Data.Int (toNumber)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)

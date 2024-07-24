@@ -1,7 +1,7 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Configuring balancing process](#configuring-balancing-process)
+- [Configuring the balancing process](#configuring-the-balancing-process)
   - [Balancer constraints](#balancer-constraints)
   - [Concurrent spending](#concurrent-spending)
   - [Balancing a Tx for other wallet](#balancing-a-tx-for-other-wallet)
@@ -10,7 +10,7 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Configuring balancing process
+# Configuring the balancing process
 
 Transaction balancing in Cardano is the process of finding a set of inputs and outputs that that sum up to zero, covering all the required fees for the transaction to be valid.
 
@@ -37,7 +37,7 @@ Setting `mustUseUtxosAtAddress`, `mustSendChangeToAddress` and `mustUseCollatera
 
 ## Synchronization
 
-Before balancing, CTL tries to synchronize the wallet state with the query layer, i.e. waits until all UTxOs that the wallet returns are visible in the query layer. Thus the situation when the query layer refuses to validate a Tx (either during ex-units evaluation or on Tx submission) is only possible due to a rollback or a synchronization timeout. Please see [our docs for query layer synchronization](./query-layers.md).
+It's possible to make CTL try to synchronize the wallet state with the query layer, i.e. wait until all UTxOs that the wallet returns are visible in the query layer. Thus the situation when the query layer refuses to validate a Tx (either during ex-units evaluation or on Tx submission) is only possible due to a rollback or a synchronization timeout. Please see [our docs for query layer synchronization](./query-layers.md).
 
 ## Balancing process limitations
 

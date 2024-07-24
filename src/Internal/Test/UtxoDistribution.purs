@@ -25,6 +25,12 @@ import Cardano.Types
 import Cardano.Types.Address (Address(EnterpriseAddress))
 import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.UtxoMap (UtxoMap)
+import Cardano.Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
 import Contract.Address (getNetworkId)
 import Contract.Monad (Contract, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
@@ -48,12 +54,6 @@ import Contract.Wallet
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
 import Data.Array (head)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
@@ -216,10 +216,10 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
-    unbalancedTx <- mkUnbalancedTx lookups constraints
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< balanceTx unbalancedTx
+        signTransaction =<< balanceTx unbalancedTx usedUtxos mempty
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx

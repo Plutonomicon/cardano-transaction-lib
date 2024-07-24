@@ -4,13 +4,14 @@ module Ctl.Internal.Test.KeyDir
 
 import Prelude
 
-import Cardano.Types (BigNum, Value)
+import Cardano.Types (BigNum, Value, _amount)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.Value as Value
+import Cardano.Wallet.Key (KeyWallet)
 import Contract.Config (ContractParams)
 import Contract.Log (logError', logTrace')
 import Contract.Monad
@@ -38,8 +39,8 @@ import Contract.Wallet
   , withKeyWallet
   )
 import Contract.Wallet.Key
-  ( keyWalletPrivatePaymentKey
-  , keyWalletPrivateStakeKey
+  ( getPrivatePaymentKey
+  , getPrivateStakeKey
   )
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromTextEnvelope
@@ -52,7 +53,6 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks, local)
 import Control.Parallel (parTraverse, parTraverse_)
 import Ctl.Internal.Helpers (logWithLevel, unsafeFromJust)
-import Ctl.Internal.Lens (_amount)
 import Ctl.Internal.ProcessConstraints (mkUnbalancedTxImpl)
 import Ctl.Internal.Test.ContractTest (ContractTest(ContractTest))
 import Ctl.Internal.Test.UtxoDistribution
@@ -68,10 +68,8 @@ import Ctl.Internal.Types.TxConstraints
   , mustBeSignedBy
   , mustPayToPubKeyAddress
   , mustSpendPubKeyOutput
-  , singleton
   )
-import Ctl.Internal.Wallet.Key (KeyWallet)
-import Data.Array (catMaybes)
+import Data.Array (catMaybes, singleton)
 import Data.Array as Array
 import Data.Either (Either(Right, Left), hush)
 import Data.Foldable (fold, sum)
@@ -235,8 +233,8 @@ markAsInactive :: FilePath -> Array KeyWallet -> Contract Unit
 markAsInactive backup wallets = do
   flip parTraverse_ wallets \wallet -> do
     networkId <- asks _.networkId
+    address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address networkId
     let
-      address = Address.toBech32 $ (unwrap wallet).address networkId
       inactiveFlagFile = Path.concat [ backup, address, "inactive" ]
     liftAff $ writeTextFile UTF8 inactiveFlagFile $
       "This address was marked as inactive. "
@@ -285,12 +283,12 @@ backupWallets :: FilePath -> ContractEnv -> Array KeyWallet -> Aff Unit
 backupWallets backup env walletsArray =
   liftAff $ flip parTraverse_ walletsArray \wallet ->
     do
+      payment <- getPrivatePaymentKey wallet
+      mbStake <- getPrivateStakeKey wallet
+      address <- liftAff $ Address.toBech32 <$> (unwrap wallet).address
+        env.networkId
       let
-        address = Address.toBech32 $ (unwrap wallet).address env.networkId
-        payment = keyWalletPrivatePaymentKey wallet
-        mbStake = keyWalletPrivateStakeKey wallet
         folder = Path.concat [ backup, address ]
-
       mkdir folder
       privatePaymentKeyToFile (Path.concat [ folder, "payment_signing_key" ])
         payment
@@ -302,14 +300,12 @@ fundWallets
   :: ContractEnv -> Array KeyWallet -> Array (Array UtxoAmount) -> Aff BigNum
 fundWallets env walletsArray distrArray = runContractInEnv env $ noLogs do
   logTrace' "Funding wallets"
-  let
-    constraints = flip foldMap (Array.zip walletsArray distrArray)
-      \(wallet /\ walletDistr) -> flip foldMap walletDistr
-        \value -> mustPayToKeyWallet wallet $
-          Value.mkValue
-            (wrap value)
-            MultiAsset.empty
-
+  constraints <- liftAff $ flip foldMap (Array.zip walletsArray distrArray)
+    \(wallet /\ walletDistr) -> flip foldMap walletDistr
+      \value -> mustPayToKeyWallet wallet $
+        Value.mkValue
+          (wrap value)
+          MultiAsset.empty
   txHash <- submitTxFromConstraints mempty constraints
   awaitTxConfirmed txHash
   let
@@ -395,8 +391,9 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
             <> foldMap mustBeSignedBy pkhs
           lookups = unspentOutputs utxos
 
-        unbalancedTx <- liftedE $ mkUnbalancedTxImpl lookups constraints
-        balancedTx <- balanceTx unbalancedTx
+        unbalancedTx /\ usedUtxos <- liftedE $ mkUnbalancedTxImpl lookups
+          constraints
+        balancedTx <- balanceTx unbalancedTx usedUtxos mempty
         balancedSignedTx <- Array.foldM
           (\tx wallet -> withKeyWallet wallet $ signTransaction tx)
           (wrap $ unwrap balancedTx)
@@ -445,18 +442,20 @@ mustPayToKeyWallet
   :: forall (i :: Type) (o :: Type)
    . KeyWallet
   -> Value
-  -> TxConstraints
-mustPayToKeyWallet wallet value =
+  -> Aff TxConstraints
+mustPayToKeyWallet wallet value = do
+  kwPaymentKey <- getPrivatePaymentKey wallet
+  kwMStakeKey <- getPrivateStakeKey wallet
+
   let
     convert = PublicKey.hash <<< PrivateKey.toPublicKey
-    payment = over wrap convert $ keyWalletPrivatePaymentKey wallet
-    mbStake = over wrap convert <$> keyWalletPrivateStakeKey wallet
-  in
-    maybe
-      -- We don't use `mustPayToPubKey payment` to avoid the compile-time
-      -- warning that is tied to it (it should not be propagated to
-      -- `runContractTestWithKeyDir`)
-      (singleton <<< MustPayToPubKeyAddress payment Nothing Nothing Nothing)
-      (mustPayToPubKeyAddress payment)
-      mbStake
-      value
+    payment = over wrap convert $ kwPaymentKey
+    mbStake = over wrap convert <$> kwMStakeKey
+  pure $ maybe
+    -- We don't use `mustPayToPubKey payment` to avoid the compile-time
+    -- warning that is tied to it (it should not be propagated to
+    -- `runContractTestWithKeyDir`)
+    (singleton <<< MustPayToPubKeyAddress payment Nothing Nothing Nothing)
+    (mustPayToPubKeyAddress payment)
+    mbStake
+    value

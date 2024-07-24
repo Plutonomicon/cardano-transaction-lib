@@ -1,4 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | This module demonstrates how `applyArgs` from `Cardano.Plutus.ApplyArgs`
+-- | (from https://github.com/mlabs-haskell/purescript-uplc-apply-args) can be
 -- | used to build scripts with the provided arguments applied. It creates a
 -- | transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.OneShotMinting
@@ -12,10 +13,23 @@ module Ctl.Examples.OneShotMinting
 
 import Contract.Prelude
 
+import Cardano.Plutus.ApplyArgs (applyArgs)
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, MintAsset)
+  )
+import Cardano.Types
+  ( _body
+  , _fee
+  , _input
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (fromUtxoMap)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -27,31 +41,27 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts (PlutusScript, applyArgs)
+import Contract.Scripts (PlutusScript)
 import Contract.Test.Assert
   ( ContractCheck
   , checkLossInWallet
   , checkTokenGainInWallet'
   , runChecks
   )
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptFromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , submitTxFromConstraintsReturningFee
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints as Constraints
 import Contract.Value (AssetName, ScriptHash)
 import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head, singleton) as Array
-import Data.Map (toUnfoldable) as Map
+import Data.Lens ((^.))
+import Data.Map (empty) as Map
 import Effect.Exception (error, throw)
 import JS.BigInt (BigInt)
 
@@ -84,30 +94,29 @@ mkContractWithAssertions
   -> Contract Unit
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
-  utxos <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
+  utxos <- liftedM "Failed to get UTxOs from wallet" $ getWalletUtxos <#> map
+    fromUtxoMap
   oref <-
     liftContractM "Utxo set is empty"
-      (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
+      (Array.head utxos)
 
-  ps <- mkMintingPolicy oref
+  ps <- mkMintingPolicy (oref ^. _input)
   let cs = PlutusScript.hash ps
   tn <- Helpers.mkAssetName "CTLNFT"
 
   let
-    constraints :: Constraints.TxConstraints
-    constraints =
-      Constraints.mustMintValue (Mint.singleton cs tn $ Int.fromInt one)
-        <> Constraints.mustSpendPubKeyOutput oref
-
-    lookups :: Lookups.ScriptLookups
-    lookups =
-      Lookups.plutusMintingPolicy ps
-        <> Lookups.unspentOutputs utxos
+    plan =
+      [ MintAsset cs tn (Int.fromInt one)
+          (PlutusScriptCredential (ScriptValue ps) RedeemerDatum.unit)
+      , SpendOutput (oref) Nothing
+      ]
 
   let checks = mkChecks (cs /\ tn /\ one)
   void $ runChecks checks $ lift do
-    { txHash, txFinalFee } <-
-      submitTxFromConstraintsReturningFee lookups constraints
+    tx <- submitTxFromBuildPlan Map.empty mempty plan
+    let
+      txHash = Transaction.hash tx
+      txFinalFee = tx ^. _body <<< _fee
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"

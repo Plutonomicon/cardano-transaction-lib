@@ -18,6 +18,12 @@ import Cardano.Types (Address, StakePubKeyHash, UtxoMap, Value)
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.Value as Value
+import Cardano.Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  , privateKeysToKeyWallet
+  ) as X
 import Contract.Config (PrivatePaymentKey, PrivateStakeKey)
 import Contract.Log (logTrace')
 import Contract.Monad (Contract)
@@ -57,12 +63,6 @@ import Ctl.Internal.Wallet
       , GenericCip30Wallet
       )
   , isWalletAvailable
-  ) as X
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
-  , privateKeysToKeyWallet
   ) as X
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey) as X
 import Ctl.Internal.Wallet.Spec
@@ -129,7 +129,7 @@ mkKeyWalletFromPrivateKeys payment mbStake = privateKeysToKeyWallet payment
 getWalletAddress
   :: Warn
        ( Text
-           "This function returns only one `Adress` even in case multiple `Adress`es are available. Use `getWalletAdresses` instead"
+           "This function returns only one `Address` even in case multiple `Address`es are available. Use `getWalletAddresses` instead"
        )
   => Contract (Maybe Address)
 getWalletAddress = head <$> getWalletAddresses

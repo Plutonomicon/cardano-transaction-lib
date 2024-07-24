@@ -77,17 +77,19 @@ You can find help, more information and ongoing discusion about the project here
 
 ## Funding acknowledgements
 
-CTL is being developed by MLabs. The following companies/funds have contributed significant resources to development:
+CTL is being developed by MLabs. The following companies/funds have contributed significant resources (development time or funding):
 
 - [IOHK](https://iohk.io/en/about/)
 - [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)
 - [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791)
 - [Catalyst Fund10](https://cardano.ideascale.com/c/idea/101478)
+- [Intersect MBO](https://docs.intersectmbo.org/intersect-community-grants/grant-projects)
 - [MLabs](https://mlabs.city/)
 - [Indigo Protocol](https://indigoprotocol.io/)
 - [Equine](https://www.equine.gg/)
 - [Liqwid Labs](https://liqwid.finance/)
 - [PlayerMint](https://www.playermint.com/)
+- [Fourier Labs](https://fourierlabs.io/)
 - Ardana
 
 ## Use in production

@@ -28,6 +28,12 @@ import Cardano.Wallet.HD
   , derivePaymentKey
   , deriveStakeKey
   )
+import Cardano.Wallet.Key
+  ( KeyWallet
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  , privateKeysToKeyWallet
+  )
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Wallet
   ( Wallet(KeyWallet)
@@ -43,12 +49,6 @@ import Ctl.Internal.Wallet
       )
   , mkKeyWallet
   , mkWalletAff
-  )
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
-  , privateKeysToKeyWallet
   )
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile

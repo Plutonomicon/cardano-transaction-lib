@@ -7,7 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[Unreleased]](#unreleased)
+- [[v9.0.0]](#v900)
+  - [Deprecated](#deprecated)
   - [Added](#added)
   - [Removed](#removed)
   - [Changed](#changed)
@@ -67,13 +68,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## [Unreleased]
+## [v9.0.0]
+
+### Deprecated
+
+> [!WARNING]
+> **IMPORTANT** Constraints interface (`Contract.TxConstraints` & `Contract.ScriptLookups`) has been deprecated and will be removed in a future version. Please use [`purescript-cardano-transaction-builder`](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder) (via `Contract.Transaction.buildTx`) for new contracts. The motivation for deprecation is that it was unnecessarily complex, not flexible enough, and existed only because of the desire to provide code-level compatibility with PAB. See [this Catalyst proposal](https://cardano.ideascale.com/c/idea/101478) for more info.
 
 ### Added
 
+- `Contract.Transaction.buildTx :: Array TransactionBuilderStep -> Contract Transaction` that provides a `Contract`-based interface for the [new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
+- `Contract.Transaction.submitTxFromBuildPlan :: UtxoMap -> BalanceTxConstraintsBuilder -> Array TransactionBuilderStep -> Contract Transaction` - a convenience function that executes the whole transaction creation pipeline starting from a build plan for [the new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
+- `Contract.ClientError.pprintClientError` to provide readable error reports.
+- `Contract.Staking.getStakeCredentialDelegationsAndRewards` utility function
+
 ### Removed
 
+- **IMPORTANT** `UnbalancedTx` type has been removed. This change was motivated by the fact that `UnbalancedTx` existed simply to tie together transaction building and balancing by keeping extra context. Now that transaction builder is placed in [its own package](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder), there is no more need in `UnbalancedTx`, that is not used with the new builder.
+- **IMPORTANT** `balanceTxWithConstraints`, `balanceTxWithConstraintsE` - use `balanceTx`
+- **IMPORTANT** `balanceTxsWithConstraints` - use `balanceTxs`
+- **IMPORTANT** `withBalancedTxWithConstraints`, `withBalancedTxWithConstraints` - use `withBalancedTxs`
+- **IMPORTANT** `Contract.Scripts.applyArgs` - use `Cardano.Plutus.ApplyArgs.applyArgs` from [purescript-uplc-apply-args](https://github.com/mlabs-haskell/purescript-uplc-apply-args).
+- `Contract.Transaction.submitTxFromConstraintsReturningFee` - too niche use case to be allowed in the public API.
+- `Contract.Transaction` lens values. Use lenses from `Cardano.Types.Transaction`
+
 ### Changed
+
+- `Contract.Transaction.mkUnbalancedTx` now returns a tuple: a transaction and the UTxOs it used.
+- `Contract.Transaction.balanceTx` accepts two extra argument: a list of used UTxOs (set to `Data.Map.empty` if none of them are coming from the outside of the wallet) and balancer constraints (set to `mempty` if not needed)
+- Default synchronization parameters: all [wallet <-> query layer synchronization primitives](./doc/query-layers.md) are now off by default. The reason is that the runtime overhead made the users unhappy and it was not worth it for most of the users. If your dApp sends transactions in quick succession, consider enabling the synchronization again by using `softSynchronizationParams` (old behavior) or `strictSynchronizationParams`.
+- `BalanceTxConstraintsBuilder` has been renamed to `BalancerConstraints`. It is still available under the old name as a type synonym.
 
 ### Fixed
 
@@ -481,7 +505,7 @@ Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuil
 
 ### Added
 
-- Support passing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
+- Support passing the initial UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 - `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
 - Balancer constraints interface (check [Building and submitting transactions](https://github.com/Plutonomicon/cardano-transaction-lib/blob/95bdd213eff16a5e00df82fb27bbe2479e8b4196/doc/getting-started.md#building-and-submitting-transactions) and `examples/BalanceTxConstraints.purs` for reference) ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
@@ -533,7 +557,7 @@ Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuil
 - Adapted Gero wallet extension to `preview` network in E2E test suite ([#1086](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1086))
 - `Contact.TextEnvelope` how provides more type safe interface with simplified error handling ([#988](https://github.com/Plutonomicon/cardano-transaction-lib/issues/988))
 - Forbid minting zero tokens. ([#1156](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156))
-- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Adress)`. ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
+- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Address)`. ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
 - `pubKeyHashAddress` and `scriptHashAddress` now both accept an optional `Credential` that corresponds to the staking component of the address ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `utxosAt` and `getUtxo` now use Kupo internally, `utxosAt` returns `UtxoMap` without `Maybe` context. The users will need to set `kupoConfig` in `ConfigParams`. ([#1185](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1185))
 - `Interval` type is redesigned to restrain some finite intervals to be expressed in the system ([#1041](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041))

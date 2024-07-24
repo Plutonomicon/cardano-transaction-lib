@@ -67,6 +67,7 @@ import Cardano.Types (PlutusScript)
 import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.TransactionHash (TransactionHash)
+import Cardano.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
 import Control.Monad.Error.Class
@@ -154,7 +155,6 @@ import Ctl.Internal.Service.Error
   )
 import Ctl.Internal.Types.Chain as Chain
 import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Data.Bifunctor (lmap)
 import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either(Left, Right), either, isRight)

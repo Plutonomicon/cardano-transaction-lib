@@ -8,10 +8,13 @@ module Ctl.Examples.MultipleRedeemers
 
 import Contract.Prelude
 
-import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Cardano.Types (AssetName, Credential(ScriptHashCredential))
+import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
+import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.Value as Value
 import Contract.Address (mkAddress)
 import Contract.Monad (Contract)
 import Contract.PlutusData
@@ -27,9 +30,6 @@ import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (mkAssetName)
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
-  ( mintAlwaysMintsV2ToTheScript
-  )
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Data.List as List
 import Data.Map as Map
@@ -137,3 +137,29 @@ redeemerIs3Validator = do
   liftMaybe (error "Error decoding redeemerIs3Script") do
     envelope <- decodeTextEnvelope redeemerIs3Script
     plutusScriptFromEnvelope envelope
+
+mintAlwaysMintsV2ToTheScript
+  :: AssetName -> Validator -> Int -> Contract Unit
+mintAlwaysMintsV2ToTheScript tokenName validator sum = do
+  mp <- alwaysMintsPolicyScriptV2
+  let cs = PlutusScript.hash mp
+
+  let
+    vhash = PlutusScript.hash validator
+
+    constraints :: Constraints.TxConstraints
+    constraints = mconcat
+      [ Constraints.mustMintValue
+          $ Mint.singleton cs tokenName
+          $ Int.fromInt sum
+      , Constraints.mustPayToScript vhash PlutusData.unit
+          Constraints.DatumWitness
+          $ Value.singleton cs tokenName
+          $ BigNum.fromInt sum
+      ]
+
+    lookups :: Lookups.ScriptLookups
+    lookups = Lookups.plutusMintingPolicy mp
+
+  txHash <- submitTxFromConstraints lookups constraints
+  void $ awaitTxConfirmed txHash

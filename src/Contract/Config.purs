@@ -18,16 +18,21 @@ module Contract.Config
   , mainnetLaceConfig
   , defaultSynchronizationParams
   , strictSynchronizationParams
+  , softSynchronizationParams
   , defaultTimeParams
   , module Data.Log.Level
   , module Data.Log.Message
   , module Ctl.Internal.ServerConfig
   , module Ctl.Internal.Wallet.Spec
-  , module Ctl.Internal.Wallet.Key
+  , module Cardano.Wallet.Key
   , module X
   ) where
 
 import Cardano.Types (NetworkId(MainnetId, TestnetId))
+import Cardano.Wallet.Key
+  ( PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey(PrivateStakeKey)
+  )
 import Ctl.Internal.BalanceTx.Sync
   ( disabledSynchronizationParams
   ) as X
@@ -66,10 +71,6 @@ import Ctl.Internal.ServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
-  )
-import Ctl.Internal.Wallet.Key
-  ( PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey(PrivateStakeKey)
   )
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
@@ -136,11 +137,25 @@ defaultTimeParams =
   , waitUntilSlot: { delay: Milliseconds 1_000.0 }
   }
 
--- | Default synchronization parameters with all synchronization primitives
--- | enabled. `errorOnTimeout` options are all set to `false`.
+-- | Default synchronization parameters with all synchronizations
+-- | disabled.
 -- | See `doc/query-layers.md` for more info.
 defaultSynchronizationParams :: ContractSynchronizationParams
 defaultSynchronizationParams =
+  { syncBackendWithWallet:
+      { errorOnTimeout: false
+      , beforeCip30Methods: false
+      , beforeBalancing: false
+      }
+  , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: false }
+  , syncWalletWithTransaction:
+      { errorOnTimeout: false, beforeTxConfirmed: false }
+  }
+
+-- | Attempt to synchronize, but do not throw an exception on failure. Used to be the default option in CTL up to and including v8.
+-- | See `doc/query-layers.md` for more info.
+softSynchronizationParams :: ContractSynchronizationParams
+softSynchronizationParams =
   { syncBackendWithWallet:
       { errorOnTimeout: false, beforeCip30Methods: true, beforeBalancing: true }
   , syncWalletWithTxInputs: { errorOnTimeout: false, beforeCip30Sign: true }

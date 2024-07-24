@@ -6,14 +6,14 @@ import Cardano.Types
   ( Ed25519Signature
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
+  , _witnessSet
   )
 import Cardano.Types.Ed25519Signature as Ed25519Signature
 import Contract.Config (testnetConfig)
 import Contract.Hashing (publicKeyHash)
 import Contract.Monad (runContract)
 import Contract.Transaction
-  ( _witnessSet
-  , signTransaction
+  ( signTransaction
   )
 import Contract.Wallet.Key (publicKeyFromPrivateKey)
 import Ctl.Internal.Wallet.KeyFile
