@@ -1,13 +1,5 @@
 module Ctl.Internal.Wallet.Cip30Mock
   ( withCip30Mock
-  , WalletMock
-      ( MockFlint
-      , MockGero
-      , MockNami
-      , MockLode
-      , MockNuFi
-      , MockGenericCip30
-      )
   ) where
 
 import Prelude
@@ -38,18 +30,7 @@ import Control.Promise (fromAff)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Wallet
-  ( Wallet
-  , WalletExtension
-      ( LodeWallet
-      , NamiWallet
-      , GeroWallet
-      , FlintWallet
-      , NuFiWallet
-      , GenericCip30Wallet
-      )
-  , mkWalletAff
-  )
+import Ctl.Internal.Wallet (mkWalletAff)
 import Data.Array as Array
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (hush)
@@ -65,14 +46,6 @@ import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-
-data WalletMock
-  = MockFlint
-  | MockGero
-  | MockNami
-  | MockLode
-  | MockNuFi
-  | MockGenericCip30 String
 
 -- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
 -- | behind a CIP-30 interface and uses Ogmios to submit Txs.
@@ -90,7 +63,7 @@ data WalletMock
 withCip30Mock
   :: forall (a :: Type)
    . KeyWallet
-  -> WalletMock
+  -> String
   -> Contract a
   -> Contract a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
@@ -98,29 +71,11 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
   kwMStakeKey <- liftAff keyWallet.stakeKey
   kwMDrepKey <- liftAff keyWallet.drepKey
   cip30Mock <- mkCip30Mock kwPaymentKey kwMStakeKey kwMDrepKey
-  deleteMock <- liftEffect $ injectCip30Mock mockString cip30Mock
-  wallet <- liftAff mkWalletAff'
+  deleteMock <- liftEffect $ injectCip30Mock mock cip30Mock
+  wallet <- liftAff $ mkWalletAff { name: mock, exts: { cip95: true } }
   res <- try $ local _ { wallet = Just wallet } contract
   liftEffect deleteMock
   liftEither res
-  where
-  mkWalletAff' :: Aff Wallet
-  mkWalletAff' = case mock of
-    MockFlint -> mkWalletAff FlintWallet
-    MockGero -> mkWalletAff GeroWallet
-    MockNami -> mkWalletAff NamiWallet
-    MockLode -> mkWalletAff LodeWallet
-    MockNuFi -> mkWalletAff NuFiWallet
-    MockGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
-
-  mockString :: String
-  mockString = case mock of
-    MockFlint -> "flint"
-    MockGero -> "gerowallet"
-    MockNami -> "nami"
-    MockLode -> "LodeWallet"
-    MockNuFi -> "nufi"
-    MockGenericCip30 name -> name
 
 mkCip30Mock
   :: PrivatePaymentKey

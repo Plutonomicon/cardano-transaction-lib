@@ -11,7 +11,11 @@ module Ctl.Examples.PlutusV2.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Monad
   ( Contract
   , launchAff_
@@ -29,7 +33,9 @@ import Ctl.Examples.OneShotMinting
 import Effect.Exception (error)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

@@ -5,7 +5,11 @@ module Ctl.Examples.PlutusV2.AlwaysSucceeds (main, example, contract) where
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -23,7 +27,9 @@ import Ctl.Examples.AlwaysSucceeds
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do

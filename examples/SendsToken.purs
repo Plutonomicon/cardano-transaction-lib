@@ -12,7 +12,11 @@ import Cardano.Types.Int as Int
 import Cardano.Types.Mint (Mint)
 import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ScriptLookups as Lookups
@@ -30,7 +34,9 @@ import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress) as Helper
 import Data.Array (head)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

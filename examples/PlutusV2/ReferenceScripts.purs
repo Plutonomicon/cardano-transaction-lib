@@ -13,7 +13,11 @@ import Cardano.Types
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData (unit) as PlutusData
 import Contract.Address (mkAddress)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Credential (Credential(PubKeyHashCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
@@ -41,7 +45,9 @@ import Data.Array (head)
 import Data.Map (toUnfoldable) as Map
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

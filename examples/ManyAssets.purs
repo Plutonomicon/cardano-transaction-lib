@@ -11,7 +11,11 @@ import Contract.Prelude
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -30,7 +34,9 @@ import Data.Array (head, range) as Array
 import Data.Map (toUnfoldable) as Map
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

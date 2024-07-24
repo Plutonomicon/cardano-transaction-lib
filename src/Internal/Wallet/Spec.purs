@@ -1,16 +1,5 @@
 module Ctl.Internal.Wallet.Spec
-  ( WalletSpec
-      ( UseKeys
-      , UseMnemonic
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToEternl
-      , ConnectToLode
-      , ConnectToNuFi
-      , ConnectToLace
-      , ConnectToGenericCip30
-      )
+  ( WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
   , Cip1852DerivationPath
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , MnemonicSource(MnemonicString, MnemonicFile)
@@ -39,17 +28,8 @@ import Cardano.Wallet.Key
   )
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Wallet
-  ( Wallet(KeyWallet)
-  , WalletExtension
-      ( NamiWallet
-      , GeroWallet
-      , FlintWallet
-      , EternlWallet
-      , LodeWallet
-      , NuFiWallet
-      , LaceWallet
-      , GenericCip30Wallet
-      )
+  ( Cip30Extensions
+  , Wallet(KeyWallet)
   , mkKeyWallet
   , mkWalletAff
   )
@@ -116,14 +96,7 @@ data WalletSpec
   = UseKeys PrivatePaymentKeySource (Maybe PrivateStakeKeySource)
       (Maybe PrivateDrepKeySource)
   | UseMnemonic MnemonicSource Cip1852DerivationPath StakeKeyPresence
-  | ConnectToNami
-  | ConnectToGero
-  | ConnectToFlint
-  | ConnectToEternl
-  | ConnectToLode
-  | ConnectToNuFi
-  | ConnectToLace
-  | ConnectToGenericCip30 String
+  | ConnectToGenericCip30 String Cip30Extensions
 
 derive instance Generic WalletSpec _
 
@@ -157,14 +130,7 @@ mkWalletBySpec = case _ of
     mnemonic <- readTextFile Encoding.UTF8 path
     map KeyWallet $ liftEither $ lmap error $
       mkKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence
-  ConnectToNami -> mkWalletAff NamiWallet
-  ConnectToGero -> mkWalletAff GeroWallet
-  ConnectToFlint -> mkWalletAff FlintWallet
-  ConnectToEternl -> mkWalletAff EternlWallet
-  ConnectToLode -> mkWalletAff LodeWallet
-  ConnectToNuFi -> mkWalletAff NuFiWallet
-  ConnectToLace -> mkWalletAff LaceWallet
-  ConnectToGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
+  ConnectToGenericCip30 name exts -> mkWalletAff { name, exts }
 
 -- | Create a wallet given a mnemonic phrase, account index, address index and
 -- | stake key presence flag.

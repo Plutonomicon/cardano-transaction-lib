@@ -149,13 +149,7 @@ import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
 import Ctl.Internal.Types.Interval (getSlotLength)
-import Ctl.Internal.Wallet
-  ( WalletExtension(NamiWallet, GeroWallet, FlintWallet, NuFiWallet)
-  )
-import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint, MockNuFi, MockGenericCip30)
-  , withCip30Mock
-  )
+import Ctl.Internal.Wallet.Cip30Mock (withCip30Mock)
 import Data.Array (head, (!!))
 import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
@@ -1911,26 +1905,38 @@ suite = do
           ]
       withWallets distribution \alice -> do
 
-        withCip30Mock alice MockNami do
-          (liftEffect $ isWalletAvailable NamiWallet) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable NamiWallet) >>= hush >>> shouldEqual
+        let nami = "nami"
+        withCip30Mock alice nami do
+          (liftEffect $ isWalletAvailable nami) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable nami) >>= hush >>> shouldEqual
           (Just false)
 
-        withCip30Mock alice MockGero do
-          (liftEffect $ isWalletAvailable GeroWallet) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable GeroWallet) >>= hush >>> shouldEqual
-          (Just false)
-
-        withCip30Mock alice MockFlint do
-          (liftEffect $ isWalletAvailable FlintWallet) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable FlintWallet) >>= hush >>>
+        let gerowallet = "gerowallet"
+        withCip30Mock alice gerowallet do
+          (liftEffect $ isWalletAvailable gerowallet) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable gerowallet) >>= hush >>>
           shouldEqual
             (Just false)
 
-        withCip30Mock alice MockNuFi do
-          (liftEffect $ isWalletAvailable NuFiWallet) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable NuFiWallet) >>= hush >>> shouldEqual
+        let flint = "flint"
+        withCip30Mock alice flint do
+          (liftEffect $ isWalletAvailable flint) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable flint) >>= hush >>>
+          shouldEqual
+            (Just false)
+
+        let nufi = "nufi"
+        withCip30Mock alice nufi do
+          (liftEffect $ isWalletAvailable nufi) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable nufi) >>= hush >>> shouldEqual
           (Just false)
+
+        let lode = "LodeWallet"
+        withCip30Mock alice lode do
+          (liftEffect $ isWalletAvailable lode) >>= shouldEqual true
+        try (liftEffect $ isWalletAvailable lode) >>= hush >>>
+          shouldEqual
+            (Just false)
 
     test "Collateral selection returns UTxO with smaller amount" do
       let
@@ -1940,7 +1946,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice MockNami do
+        withCip30Mock alice "nami" do
           getWalletCollateral >>= liftEffect <<< case _ of
             Nothing -> throw "Unable to get collateral"
             Just
@@ -1963,7 +1969,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        utxos <- withCip30Mock alice MockNami do
+        utxos <- withCip30Mock alice "nami" do
           getWalletUtxos
         utxos `shouldSatisfy` isJust
 
@@ -1975,7 +1981,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        mockAddress <- withCip30Mock alice MockNami do
+        mockAddress <- withCip30Mock alice "nami" do
           mbAddr <- head <$> getWalletAddresses
           mbAddr `shouldSatisfy` isJust
           pure mbAddr
@@ -1991,7 +1997,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice MockNami do
+        withCip30Mock alice "nami" do
           pkh <- liftedM "Failed to get PKH" $ head <$>
             ownPaymentPubKeyHashes
           stakePkh <- join <<< head <$> ownStakePubKeyHashes
@@ -2009,7 +2015,7 @@ suite = do
           getWalletBalance >>= shouldEqual
             ( Just $ coinToValue $ Coin $ BigNum.fromInt 1_050_000_000
             )
-        withCip30Mock alice MockNami do
+        withCip30Mock alice "nami" do
           getWalletBalance >>= shouldEqual
             ( Just $ coinToValue $ Coin $ BigNum.fromInt 1_050_000_000
             )
@@ -2023,7 +2029,7 @@ suite = do
           , BigNum.fromInt 1_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice MockNami do
+        withCip30Mock alice "nami" do
           getWalletBalance >>= flip shouldSatisfy
             (eq $ Just $ coinToValue $ Coin $ BigNum.fromInt 8_000_000)
 
@@ -2035,9 +2041,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice MockNami do
-          Cip30.contract
-        withCip30Mock alice (MockGenericCip30 "nami") do
+        withCip30Mock alice "nami" do
           Cip30.contract
     test "ECDSA example" do
       let
@@ -2049,7 +2053,7 @@ suite = do
           , BigNum.fromInt 2_000_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice MockNami $ ECDSA.contract
+        withCip30Mock alice "nami" $ ECDSA.contract
 
   group "CIP-49 Plutus Crypto Primitives" do
     test "ECDSA: a script that checks if a signature is correct" do

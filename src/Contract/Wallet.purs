@@ -52,21 +52,13 @@ import Ctl.Internal.Contract.Wallet
 import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Contract.Wallet as Contract
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet
-  ( Wallet(KeyWallet, GenericCip30)
+  ( Cip30Extensions
+  , Wallet(KeyWallet, GenericCip30)
   , WalletExtension
-      ( NamiWallet
-      , GeroWallet
-      , FlintWallet
-      , EternlWallet
-      , LodeWallet
-      , LaceWallet
-      , NuFiWallet
-      , GenericCip30Wallet
-      )
   , isWalletAvailable
   ) as X
+import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey) as X
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
@@ -77,18 +69,7 @@ import Ctl.Internal.Wallet.Spec
   ( MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , WalletSpec
-      ( UseKeys
-      , UseMnemonic
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToLode
-      , ConnectToLace
-      , ConnectToEternl
-      , ConnectToNuFi
-      , ConnectToGenericCip30
-      )
+  , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
   ) as X
 import Data.Array (head)
 import Data.Array as Array

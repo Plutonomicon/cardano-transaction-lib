@@ -1,15 +1,7 @@
 module Ctl.Internal.Wallet
-  ( Wallet(KeyWallet, GenericCip30)
+  ( Cip30Extensions
+  , Wallet(KeyWallet, GenericCip30)
   , WalletExtension
-      ( NamiWallet
-      , LodeWallet
-      , GeroWallet
-      , FlintWallet
-      , EternlWallet
-      , NuFiWallet
-      , LaceWallet
-      , GenericCip30Wallet
-      )
   , mkKeyWallet
   , mkWalletAff
   , actionBasedOnWallet
@@ -18,6 +10,8 @@ module Ctl.Internal.Wallet
 
 import Prelude
 
+import Cardano.Wallet.Cip30 (enable) as Cip30
+import Cardano.Wallet.Cip95 (Api)
 import Cardano.Wallet.Cip95 (enable) as Cip95
 import Cardano.Wallet.Key
   ( KeyWallet
@@ -36,6 +30,9 @@ import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
+import Unsafe.Coerce (unsafeCoerce)
+
+foreign import isWalletAvailable :: String -> Effect Boolean
 
 -- NOTE: this data type is defined like this on purpose, don't change it
 -- to `(Cip30Wallet /\ WalletExtension)`. The motivation is to make it simpler
@@ -44,15 +41,14 @@ data Wallet
   = GenericCip30 Cip30Wallet
   | KeyWallet KeyWallet
 
-data WalletExtension
-  = NamiWallet
-  | GeroWallet
-  | FlintWallet
-  | EternlWallet
-  | LodeWallet
-  | LaceWallet
-  | NuFiWallet
-  | GenericCip30Wallet String
+type WalletExtension =
+  { name :: String
+  , exts :: Cip30Extensions
+  }
+
+type Cip30Extensions =
+  { cip95 :: Boolean
+  }
 
 mkKeyWallet
   :: PrivatePaymentKey
@@ -62,18 +58,16 @@ mkKeyWallet
 mkKeyWallet payKey mbStakeKey mbDrepKey =
   KeyWallet $ privateKeysToKeyWallet payKey mbStakeKey mbDrepKey
 
-foreign import _isWalletAvailable :: String -> Effect Boolean
-
 mkWalletAff :: WalletExtension -> Aff Wallet
 mkWalletAff walletExtension = do
-  retryNWithIntervalUntil 300 (toNumber 100)
-    $ liftEffect (isWalletAvailable walletExtension)
+  retryNWithIntervalUntil 300 (toNumber 100) $
+    liftEffect (isWalletAvailable walletExtension.name)
   GenericCip30 <$> do
     mkCip30WalletAff =<< do
-      Cip95.enable (walletExtensionToName walletExtension) `catchError`
+      enableWallet walletExtension `catchError`
         \err -> do
           liftEffect $ Console.error $ "Wallet extension "
-            <> walletExtensionToName walletExtension
+            <> walletExtension.name
             <> " is not available!"
           throwError err
   where
@@ -83,19 +77,10 @@ mkWalletAff walletExtension = do
       if _ then pure unit
       else delay (wrap ms) *> retryNWithIntervalUntil (n - 1) ms mBool
 
-isWalletAvailable :: WalletExtension -> Effect Boolean
-isWalletAvailable = _isWalletAvailable <<< walletExtensionToName
-
-walletExtensionToName :: WalletExtension -> String
-walletExtensionToName = case _ of
-  NamiWallet -> "nami"
-  GeroWallet -> "gerowallet"
-  FlintWallet -> "flint"
-  EternlWallet -> "eternl"
-  LodeWallet -> "LodeWallet"
-  NuFiWallet -> "nufi"
-  LaceWallet -> "lace"
-  GenericCip30Wallet name' -> name'
+enableWallet :: WalletExtension -> Aff Api
+enableWallet { name, exts: { cip95 } }
+  | cip95 = Cip95.enable name
+  | otherwise = unsafeCoerce <$> Cip30.enable name mempty
 
 actionBasedOnWallet
   :: forall (m :: Type -> Type) (a :: Type)

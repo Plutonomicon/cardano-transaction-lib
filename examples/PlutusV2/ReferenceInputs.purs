@@ -4,7 +4,11 @@ import Contract.Prelude
 
 import Cardano.Types (Transaction)
 import Cardano.Types.BigNum as BigNum
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -45,7 +49,9 @@ import Data.Lens.Getter ((^.))
 import Data.Map (member, toUnfoldable) as Map
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract

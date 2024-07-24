@@ -7,7 +7,11 @@ module Ctl.Examples.Gov.RegisterDrep
 import Contract.Prelude
 
 import Cardano.Types.Credential (Credential(PubKeyHashCredential))
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
@@ -16,7 +20,9 @@ import Contract.TxConstraints (mustRegisterDrep) as Constraints
 import Contract.Wallet (ownDrepPubKeyHash)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: true }
+  }
 
 example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract

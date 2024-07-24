@@ -11,7 +11,11 @@ module Ctl.Examples.AwaitTxConfirmedWithTimeout
 import Contract.Prelude
 
 import Cardano.AsCbor (decodeCbor)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract, throwContractError)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
@@ -20,7 +24,9 @@ import Control.Monad.Error.Class (try)
 import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

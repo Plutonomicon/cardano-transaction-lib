@@ -16,7 +16,11 @@ import Contract.Prelude
 import Cardano.Types (Credential(ScriptHashCredential))
 import Cardano.Types.BigNum as BigNum
 import Contract.Address (mkAddress)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData(Integer), unitRedeemer)
@@ -41,7 +45,9 @@ import Effect.Exception (error)
 import JS.BigInt as BigInt
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
