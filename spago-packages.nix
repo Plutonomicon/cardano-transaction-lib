@@ -223,11 +223,11 @@ let
 
     "cardano-hd-wallet" = pkgs.stdenv.mkDerivation {
         name = "cardano-hd-wallet";
-        version = "v1.0.0";
+        version = "cc1073ddf8bce72407ef6671e3decb59f422e304";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-hd-wallet";
-          rev = "640b10e00d6eeb4a1c13e730295072ae34e56ac9";
-          sha256 = "1kw3p58kf94cy89pbss2z5k12am49qj3jzp5szalyz7caqpxkmf7";
+          rev = "cc1073ddf8bce72407ef6671e3decb59f422e304";
+          sha256 = "0y51lp3x785yjjrr91rmpw1bhzjdfjb5fs27n1vlwihxjyfylxya";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -235,11 +235,11 @@ let
 
     "cardano-key-wallet" = pkgs.stdenv.mkDerivation {
         name = "cardano-key-wallet";
-        version = "v1.0.0";
+        version = "a43c410a8430b552e42e88ab542eb6a43d09a633";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-key-wallet";
-          rev = "55f176dbedddbd37297a3d1f90c756420159454e";
-          sha256 = "1fr77kvgdvxqi0jhg98balrwpf7rlhwiyrf1v8z2112yyln2myj9";
+          rev = "a43c410a8430b552e42e88ab542eb6a43d09a633";
+          sha256 = "1laiaq8xpd0hdfrqw6yd4gr1jai6lybjqmc3m4dhz0xapn40hmx8";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
