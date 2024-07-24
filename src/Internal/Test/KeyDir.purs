@@ -278,7 +278,7 @@ restoreWallets backup = do
               ) $
               privateStakeKeyFromTextEnvelope =<< decodeTextEnvelope
                 stakeKeyEnvelope
-        pure $ Just $ privateKeysToKeyWallet paymentKey mbStakeKey
+        pure $ Just $ privateKeysToKeyWallet paymentKey mbStakeKey Nothing
 
 -- | Save wallets to files in the backup directory for private keys
 backupWallets :: FilePath -> ContractEnv -> Array KeyWallet -> Aff Unit

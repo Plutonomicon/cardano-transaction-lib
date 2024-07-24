@@ -25,6 +25,7 @@ import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput
 import Cardano.Wallet.Cip30Mock (Cip30Mock, injectCip30Mock)
 import Cardano.Wallet.Key
   ( KeyWallet(KeyWallet)
+  , PrivateDrepKey
   , PrivatePaymentKey
   , PrivateStakeKey
   , privateKeysToKeyWallet
@@ -95,7 +96,8 @@ withCip30Mock
 withCip30Mock (KeyWallet keyWallet) mock contract = do
   kwPaymentKey <- liftAff keyWallet.paymentKey
   kwMStakeKey <- liftAff keyWallet.stakeKey
-  cip30Mock <- mkCip30Mock kwPaymentKey kwMStakeKey
+  kwMDrepKey <- liftAff keyWallet.drepKey
+  cip30Mock <- mkCip30Mock kwPaymentKey kwMStakeKey kwMDrepKey
   deleteMock <- liftEffect $ injectCip30Mock mockString cip30Mock
   wallet <- liftAff mkWalletAff'
   res <- try $ local _ { wallet = Just wallet } contract
@@ -121,8 +123,11 @@ withCip30Mock (KeyWallet keyWallet) mock contract = do
     MockGenericCip30 name -> name
 
 mkCip30Mock
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Cip30Mock
-mkCip30Mock pKey mSKey = do
+  :: PrivatePaymentKey
+  -> Maybe PrivateStakeKey
+  -> Maybe PrivateDrepKey
+  -> Contract Cip30Mock
+mkCip30Mock pKey mSKey mbDrepKey = do
   env <- ask
   queryHandle <- getQueryHandle
   let
@@ -144,7 +149,7 @@ mkCip30Mock pKey mSKey = do
       liftMaybe (error "No UTxOs at address") <<< hush =<< do
         queryHandle.utxosAt ownAddress
 
-    keyWallet = privateKeysToKeyWallet pKey mSKey
+    keyWallet = privateKeysToKeyWallet pKey mSKey mbDrepKey
 
   addressHex <- liftAff $
     (byteArrayToHex <<< unwrap <<< encodeCbor) <$>

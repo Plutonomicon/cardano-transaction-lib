@@ -43,6 +43,7 @@ runKeyWalletContract_ contract =
           { walletSpec = Just $ UseKeys
               (PrivatePaymentKeyValue $ wrap privateKey)
               Nothing
+              Nothing
           , customLogger = Just printLog
           }
 

@@ -14,6 +14,7 @@ module Ctl.Internal.Wallet.Spec
   , Cip1852DerivationPath
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , MnemonicSource(MnemonicString, MnemonicFile)
+  , PrivateDrepKeySource(PrivateDrepKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , mkWalletBySpec
@@ -25,11 +26,13 @@ import Prelude
 import Cardano.Wallet.HD
   ( bip32ToPrivateKey
   , cip1852AccountFromMnemonic
+  , deriveDrepKey
   , derivePaymentKey
   , deriveStakeKey
   )
 import Cardano.Wallet.Key
   ( KeyWallet
+  , PrivateDrepKey(PrivateDrepKey)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
@@ -85,6 +88,13 @@ derive instance Generic PrivateStakeKeySource _
 instance Show PrivateStakeKeySource where
   show = genericShow
 
+data PrivateDrepKeySource = PrivateDrepKeyValue PrivateDrepKey
+
+derive instance Generic PrivateDrepKeySource _
+
+instance Show PrivateDrepKeySource where
+  show = genericShow
+
 data MnemonicSource
   = MnemonicString String
   | MnemonicFile FilePath
@@ -104,6 +114,7 @@ instance Show StakeKeyPresence where
 -- | A data type to describe instructions on how to initialize a wallet.
 data WalletSpec
   = UseKeys PrivatePaymentKeySource (Maybe PrivateStakeKeySource)
+      (Maybe PrivateDrepKeySource)
   | UseMnemonic MnemonicSource Cip1852DerivationPath StakeKeyPresence
   | ConnectToNami
   | ConnectToGero
@@ -128,7 +139,7 @@ type Cip1852DerivationPath =
 
 mkWalletBySpec :: WalletSpec -> Aff Wallet
 mkWalletBySpec = case _ of
-  UseKeys paymentKeySpec mbStakeKeySpec -> do
+  UseKeys paymentKeySpec mbStakeKeySpec mbDrepKeySpec -> do
     privatePaymentKey <- case paymentKeySpec of
       PrivatePaymentKeyFile filePath ->
         privatePaymentKeyFromFile filePath
@@ -136,7 +147,9 @@ mkWalletBySpec = case _ of
     mbPrivateStakeKey <- for mbStakeKeySpec case _ of
       PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
       PrivateStakeKeyValue key -> pure key
-    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
+    mbDrepKey <- for mbDrepKeySpec case _ of
+      PrivateDrepKeyValue key -> pure key
+    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey mbDrepKey
   UseMnemonic (MnemonicString mnemonic) derivationPath stakeKeyPresence -> do
     map KeyWallet $ liftEither $ lmap error $
       mkKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence
@@ -165,10 +178,14 @@ mkKeyWalletFromMnemonic phrase { accountIndex, addressIndex } stakeKeyPresence =
   do
     account <- cip1852AccountFromMnemonic phrase accountIndex
     let
-      paymentKey = derivePaymentKey account addressIndex # bip32ToPrivateKey
-      mbStakeKeySpec = case stakeKeyPresence of
+      paymentKey =
+        PrivatePaymentKey $ bip32ToPrivateKey $ derivePaymentKey account
+          addressIndex
+      drepKey = Just $ PrivateDrepKey $ bip32ToPrivateKey $ deriveDrepKey
+        account
+      mbStakeKey = case stakeKeyPresence of
         WithStakeKey -> Just $ PrivateStakeKey $
           deriveStakeKey account #
             bip32ToPrivateKey
         WithoutStakeKey -> Nothing
-    pure $ privateKeysToKeyWallet (PrivatePaymentKey paymentKey) mbStakeKeySpec
+    pure $ privateKeysToKeyWallet paymentKey mbStakeKey drepKey

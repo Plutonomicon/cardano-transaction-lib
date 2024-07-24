@@ -79,7 +79,7 @@ run privateKey walletsDir = runContract config do
       ( privateStakeKeyFromFile $ Path.concat
           [ walletsDir, walletFolder, "stake_signing_key" ]
       )
-    pure $ privateKeysToKeyWallet payment mbStake
+    pure $ privateKeysToKeyWallet payment mbStake Nothing
 
   let
     merge r =
@@ -134,6 +134,7 @@ run privateKey walletsDir = runContract config do
     testnetConfig
       { walletSpec = pure $ UseKeys
           (PrivatePaymentKeyFile privateKey)
+          Nothing
           Nothing
       , backendParams = mkCtlBackendParams
           { ogmiosConfig: defaultOgmiosWsConfig

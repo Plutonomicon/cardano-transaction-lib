@@ -21,6 +21,7 @@ import Prelude
 import Cardano.Wallet.Cip95 (enable) as Cip95
 import Cardano.Wallet.Key
   ( KeyWallet
+  , PrivateDrepKey
   , PrivatePaymentKey
   , PrivateStakeKey
   , privateKeysToKeyWallet
@@ -53,10 +54,13 @@ data WalletExtension
   | NuFiWallet
   | GenericCip30Wallet String
 
-mkKeyWallet :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Wallet
-mkKeyWallet payKey mbStakeKey = KeyWallet $ privateKeysToKeyWallet
-  payKey
-  mbStakeKey
+mkKeyWallet
+  :: PrivatePaymentKey
+  -> Maybe PrivateStakeKey
+  -> Maybe PrivateDrepKey
+  -> Wallet
+mkKeyWallet payKey mbStakeKey mbDrepKey =
+  KeyWallet $ privateKeysToKeyWallet payKey mbStakeKey mbDrepKey
 
 foreign import _isWalletAvailable :: String -> Effect Boolean
 

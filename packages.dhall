@@ -292,12 +292,10 @@ let additions =
           , "maybe"
           , "newtype"
           , "prelude"
-          , "profunctor-lenses"
-          , "typelevel-prelude"
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
-        , version = "v1.0.0"
+        , version = "a43c410a8430b552e42e88ab542eb6a43d09a633"
         }
       , uplc-apply-args =
         { dependencies =
@@ -398,7 +396,7 @@ let additions =
           , "uint"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-hd-wallet"
-        , version = "v1.0.0"
+        , version = "cc1073ddf8bce72407ef6671e3decb59f422e304"
         }
       , mote-testplan =
         { dependencies =

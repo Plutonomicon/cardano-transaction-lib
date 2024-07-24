@@ -19,7 +19,7 @@ import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privateStakeKeyFromFile
   )
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(Nothing))
 import Data.Traversable (traverse)
 import Effect.Aff (Aff)
 import Node.Path (FilePath)
@@ -37,3 +37,5 @@ mkKeyWalletFromFiles paymentKeyFile mbStakeKeyFile =
   privateKeysToKeyWallet
     <$> privatePaymentKeyFromFile paymentKeyFile
     <*> traverse privateStakeKeyFromFile mbStakeKeyFile
+    -- FIXME: allow to provide drep key
+    <*> pure Nothing

@@ -24,6 +24,7 @@ import Cardano.Wallet.Key
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
   ) as X
+import Cardano.Wallet.Key (PrivateDrepKey)
 import Contract.Config (PrivatePaymentKey, PrivateStakeKey)
 import Contract.Log (logTrace')
 import Contract.Monad (Contract)
@@ -122,7 +123,10 @@ withKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence contract = do
   addNote = append "withKeyWalletFromMnemonic: "
 
 mkKeyWalletFromPrivateKeys
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
+  :: PrivatePaymentKey
+  -> Maybe PrivateStakeKey
+  -> Maybe PrivateDrepKey
+  -> KeyWallet
 mkKeyWalletFromPrivateKeys payment mbStake = privateKeysToKeyWallet payment
   mbStake
 

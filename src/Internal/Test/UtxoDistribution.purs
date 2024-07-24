@@ -106,7 +106,7 @@ instance UtxoDistribution InitialUTxOs KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
     \{ head: key, tail } ->
-      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
+      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing Nothing) /\ tail
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
@@ -114,7 +114,7 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (InitialUTxOsWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: key, tail } ->
-      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
+      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) Nothing /\
         tail
   keyWallets _ wallet = [ wallet ]
 
@@ -201,7 +201,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   -- Get all utxos and key hashes at all wallets containing a stake key
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
-    let ourWallet = mkKeyWalletFromPrivateKeys ourKey Nothing
+    let ourWallet = mkKeyWalletFromPrivateKeys ourKey Nothing Nothing
     ourAddr <- liftedM "Could not get our address" $
       head <$> withKeyWallet ourWallet getWalletAddresses
     ourUtxos <- utxosAt ourAddr

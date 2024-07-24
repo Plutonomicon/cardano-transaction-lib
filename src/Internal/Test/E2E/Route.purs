@@ -176,7 +176,7 @@ route configs tests = do
         do
           runContract configWithHooks
             $ withCip30Mock
-                (privateKeysToKeyWallet paymentKey stakeKey)
+                (privateKeysToKeyWallet paymentKey stakeKey Nothing) -- FIXME
                 mock
                 test
   where
