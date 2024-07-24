@@ -5,7 +5,8 @@ module Ctl.Internal.Contract.Wallet
   , getWalletAddresses
   , signData
   , getWallet
-  , ownDrepKeyHash
+  , ownDrepPubKey
+  , ownDrepPubKeyHash
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
@@ -22,12 +23,15 @@ import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential as Credential
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
+import Cardano.Types.PrivateKey (toPublicKey) as PrivateKey
+import Cardano.Types.PublicKey (PublicKey)
 import Cardano.Types.PublicKey (hash) as PublicKey
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value (Value, valueToCoin)
 import Cardano.Types.Value (geq, lovelaceValueOf, sum) as Value
+import Cardano.Wallet.Key (getPrivateDrepKey)
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
@@ -47,7 +51,6 @@ import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for_, traverse)
 import Data.Tuple.Nested ((/\))
-import Data.Typelevel.Undefined (undefined)
 import Data.UInt as UInt
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -255,8 +258,25 @@ getWalletUtxos = do
   toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
 
-ownDrepKeyHash :: Contract Ed25519KeyHash
-ownDrepKeyHash = do
+ownDrepPubKey :: Contract PublicKey
+ownDrepPubKey = do
+  withWallet do
+    actionBasedOnWallet _.getPubDrepKey
+      ( \kw -> do
+          drepKey <- liftAff $ liftedM
+            (error "ownDrepPubKey: Unable to get KeyWallet DRep key")
+            (getPrivateDrepKey kw)
+          pure $ PrivateKey.toPublicKey $ unwrap drepKey
+      )
+
+ownDrepPubKeyHash :: Contract Ed25519KeyHash
+ownDrepPubKeyHash = do
   withWallet do
     actionBasedOnWallet (map PublicKey.hash <<< _.getPubDrepKey)
-      undefined -- FIXME
+      ( \kw -> do
+          drepKey <- liftAff $ liftedM
+            (error "ownDrepPubKeyHash: Unable to get KeyWallet DRep key")
+            (getPrivateDrepKey kw)
+          pure $ PublicKey.hash $ PrivateKey.toPublicKey $
+            unwrap drepKey
+      )

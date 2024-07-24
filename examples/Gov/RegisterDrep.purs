@@ -13,7 +13,7 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints (mustRegisterDrep) as Constraints
-import Contract.Wallet (ownDrepKeyHash)
+import Contract.Wallet (ownDrepPubKeyHash)
 
 main :: Effect Unit
 main = example testnetNamiConfig
@@ -24,7 +24,7 @@ example = launchAff_ <<< flip runContract contract
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Gov.RegisterDrep"
-  drepCred <- PubKeyHashCredential <$> ownDrepKeyHash
+  drepCred <- PubKeyHashCredential <$> ownDrepPubKeyHash
   let
     constraints :: TxConstraints
     constraints = Constraints.mustRegisterDrep drepCred Nothing

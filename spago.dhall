@@ -100,7 +100,6 @@ You can edit this file as you like.
   , "toppokki"
   , "transformers"
   , "tuples"
-  , "typelevel"
   , "typelevel-prelude"
   , "uint"
   , "unfoldable"

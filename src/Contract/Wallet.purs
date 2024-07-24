@@ -38,7 +38,8 @@ import Ctl.Internal.Contract.Wallet
   , getUnusedAddresses
   , getWallet
   , getWalletAddresses
-  , ownDrepKeyHash
+  , ownDrepPubKey
+  , ownDrepPubKeyHash
   , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
   , signData
