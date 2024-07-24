@@ -94,14 +94,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-<<<<<<< HEAD
 - Bumped Ogmios to version 6.0.3 ([#1626](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1626))
-=======
 - `Contract.Transaction.mkUnbalancedTx` now returns a tuple: a transaction and the UTxOs it used.
 - `Contract.Transaction.balanceTx` accepts two extra argument: a list of used UTxOs (set to `Data.Map.empty` if none of them are coming from the outside of the wallet) and balancer constraints (set to `mempty` if not needed)
 - Default synchronization parameters: all [wallet <-> query layer synchronization primitives](./doc/query-layers.md) are now off by default. The reason is that the runtime overhead made the users unhappy and it was not worth it for most of the users. If your dApp sends transactions in quick succession, consider enabling the synchronization again by using `softSynchronizationParams` (old behavior) or `strictSynchronizationParams`.
 - `BalanceTxConstraintsBuilder` has been renamed to `BalancerConstraints`. It is still available under the old name as a type synonym.
->>>>>>> c02737564866f4f5a1d82ddf0e59eea6241c91a1
 
 ### Fixed
 
