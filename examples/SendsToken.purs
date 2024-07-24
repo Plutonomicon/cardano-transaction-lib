@@ -6,12 +6,26 @@ module Ctl.Examples.SendsToken (main, example, contract) where
 
 import Contract.Prelude
 
-import Cardano.Types (PlutusScript)
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, MintAsset)
+  )
+import Cardano.Types
+  ( AssetName
+  , Credential(PubKeyHashCredential)
+  , PaymentCredential(PaymentCredential)
+  , PlutusScript
+  , ScriptHash
+  , StakeCredential(StakeCredential)
+  , TransactionOutput(TransactionOutput)
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint (Mint)
-import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
+import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
   , WalletSpec(ConnectToGenericCip30)
@@ -19,19 +33,18 @@ import Contract.Config
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints as Constraints
 import Contract.Value (Value)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
-import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
+import Data.Map as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -54,34 +67,39 @@ contract = do
 
 mintToken :: Contract TransactionHash
 mintToken = do
-  mp /\ mint /\ _value <- tokenValue
-  let
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustMintValue mint
+  mp /\ sh /\ an /\ amount /\ _value <- tokenValue
 
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.plutusMintingPolicy mp
-
-  submitTxFromConstraints lookups constraints
+  tx <- submitTxFromBuildPlan Map.empty mempty
+    [ MintAsset
+        sh
+        an
+        amount
+        (PlutusScriptCredential (ScriptValue mp) RedeemerDatum.unit)
+    ]
+  pure $ Transaction.hash tx
 
 sendToken :: Contract TransactionHash
 sendToken = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- join <<< head <$> ownStakePubKeyHashes
-  _ /\ _mint /\ value <- tokenValue
-  let
-    constraints :: Constraints.TxConstraints
-    constraints = Helpers.mustPayToPubKeyStakeAddress pkh skh value
+  _ /\ _ /\ _ /\ _ /\ value <- tokenValue
+  address <- mkAddress (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
+  tx <- submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address
+        , amount: value
+        , datum: Nothing
+        , scriptRef: Nothing
+        }
+    ]
+  pure $ Transaction.hash tx
 
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  submitTxFromConstraints lookups constraints
-
-tokenValue :: Contract (PlutusScript /\ Mint /\ Value)
+tokenValue
+  :: Contract (PlutusScript /\ ScriptHash /\ AssetName /\ Int.Int /\ Value)
 tokenValue = do
   mp <- alwaysMintsPolicy
   let cs = PlutusScript.hash mp
-  tn <- Helpers.mkAssetName "TheToken"
-  pure $ mp /\ Mint.singleton cs tn (Int.fromInt 1) /\ Value.singleton cs tn
+  an <- Helpers.mkAssetName "TheToken"
+  pure $ mp /\ cs /\ an /\ Int.fromInt 1 /\ Value.singleton cs an
     (BigNum.fromInt 1)

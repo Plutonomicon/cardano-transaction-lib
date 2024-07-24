@@ -7,7 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[Unreleased]](#unreleased)
+- [[v9.0.0]](#v900)
+  - [Deprecated](#deprecated)
   - [Added](#added)
   - [Removed](#removed)
   - [Changed](#changed)
@@ -67,17 +68,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## [Unreleased]
+## [v9.0.0]
+
+### Deprecated
+
+> [!WARNING]
+> **IMPORTANT** Constraints interface (`Contract.TxConstraints` & `Contract.ScriptLookups`) has been deprecated and will be removed in a future version. Please use [`purescript-cardano-transaction-builder`](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder) (via `Contract.Transaction.buildTx`) for new contracts. The motivation for deprecation is that it was unnecessarily complex, not flexible enough, and existed only because of the desire to provide code-level compatibility with PAB. See [this Catalyst proposal](https://cardano.ideascale.com/c/idea/101478) for more info.
 
 ### Added
 
+- `Contract.Transaction.buildTx :: Array TransactionBuilderStep -> Contract Transaction` that provides a `Contract`-based interface for the [new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
+- `Contract.Transaction.submitTxFromBuildPlan :: UtxoMap -> BalanceTxConstraintsBuilder -> Array TransactionBuilderStep -> Contract Transaction` - a convenience function that executes the whole transaction creation pipeline starting from a build plan for [the new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
+- `Contract.ClientError.pprintClientError` to provide readable error reports.
+- `Contract.Staking.getStakeCredentialDelegationsAndRewards` utility function
+
 ### Removed
 
-- `Contract.Scripts.applyArgs` - use `Cardano.Plutus.ApplyArgs.applyArgs` from [purescript-uplc-apply-args](https://github.com/mlabs-haskell/purescript-uplc-apply-args)
+- **IMPORTANT** `UnbalancedTx` type has been removed. This change was motivated by the fact that `UnbalancedTx` existed simply to tie together transaction building and balancing by keeping extra context. Now that transaction builder is placed in [its own package](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder), there is no more need in `UnbalancedTx`, that is not used with the new builder.
+- **IMPORTANT** `balanceTxWithConstraints`, `balanceTxWithConstraintsE` - use `balanceTx`
+- **IMPORTANT** `balanceTxsWithConstraints` - use `balanceTxs`
+- **IMPORTANT** `withBalancedTxWithConstraints`, `withBalancedTxWithConstraints` - use `withBalancedTxs`
+- **IMPORTANT** `Contract.Scripts.applyArgs` - use `Cardano.Plutus.ApplyArgs.applyArgs` from [purescript-uplc-apply-args](https://github.com/mlabs-haskell/purescript-uplc-apply-args).
+- `Contract.Transaction.submitTxFromConstraintsReturningFee` - too niche use case to be allowed in the public API.
+- `Contract.Transaction` lens values. Use lenses from `Cardano.Types.Transaction`
 
 ### Changed
 
+<<<<<<< HEAD
 - Bumped Ogmios to version 6.0.3 ([#1626](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1626))
+=======
+- `Contract.Transaction.mkUnbalancedTx` now returns a tuple: a transaction and the UTxOs it used.
+- `Contract.Transaction.balanceTx` accepts two extra argument: a list of used UTxOs (set to `Data.Map.empty` if none of them are coming from the outside of the wallet) and balancer constraints (set to `mempty` if not needed)
+- Default synchronization parameters: all [wallet <-> query layer synchronization primitives](./doc/query-layers.md) are now off by default. The reason is that the runtime overhead made the users unhappy and it was not worth it for most of the users. If your dApp sends transactions in quick succession, consider enabling the synchronization again by using `softSynchronizationParams` (old behavior) or `strictSynchronizationParams`.
+- `BalanceTxConstraintsBuilder` has been renamed to `BalancerConstraints`. It is still available under the old name as a type synonym.
+>>>>>>> c02737564866f4f5a1d82ddf0e59eea6241c91a1
 
 ### Fixed
 

@@ -79,6 +79,11 @@ import Cardano.Types
   , TransactionHash
   , TransactionOutput
   , Value
+  , _amount
+  , _datum
+  , _redeemers
+  , _scriptRef
+  , _witnessSet
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Value as Value
@@ -92,7 +97,6 @@ import Control.Monad.Error.Class as E
 import Control.Monad.Reader (ReaderT, ask, local, mapReaderT, runReaderT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Contract.Monad (ContractEnv)
-import Ctl.Internal.Lens (_amount, _datum, _redeemers, _scriptRef, _witnessSet)
 import Ctl.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
 import Data.Array (foldr)
 import Data.Array (fromFoldable, length, mapWithIndex, partition) as Array

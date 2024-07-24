@@ -29,15 +29,9 @@ import Contract.Monad
   , liftedM
   , runContractInEnv
   )
-import Contract.Transaction
-  ( awaitTxConfirmed
-  , balanceTx
-  , signTransaction
-  , submit
-  )
+import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints (mustPayToPubKey, mustPayToPubKeyAddress) as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (Value)
 import Contract.Value (getCoin, lovelaceValueOf) as Value
 import Contract.Wallet
@@ -295,21 +289,15 @@ execDistrFundsPlan withCardanoCliUtxos rounds = do
               genesisAddr <- liftedM "Could not get genesis address"
                 getWalletAddress
               withCardanoCliUtxos genesisAddr do
-                constraintList <- liftAff $ traverse
+                constraints <- liftAff $ traverse
                   ( \{ wallet, amount } -> do
                       addrs <- (unwrap wallet).address network
                       pure $ mustPayToAddress addrs $ Value.lovelaceValueOf
                         amount
                   )
                   utxos
-                let
-                  constraints :: TxConstraints
-                  constraints = fold constraintList
 
-                unbalancedTx <- mkUnbalancedTx mempty constraints
-                balancedTx <- balanceTx unbalancedTx
-                balancedSignedTx <- signTransaction balancedTx
-                txHash <- submit balancedSignedTx
+                txHash <- submitTxFromConstraints mempty $ fold constraints
                 logInfo' $ "FundWalletsFromGenesis txHash: " <> show txHash
                 awaitTxConfirmed txHash
         )

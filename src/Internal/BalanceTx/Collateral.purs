@@ -13,6 +13,10 @@ import Cardano.Types
   , Transaction
   , TransactionOutput
   , TransactionUnspentOutput
+  , _body
+  , _collateral
+  , _collateralReturn
+  , _totalCollateral
   )
 import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum (add, max, maxValue, sub, zero) as BigNum
@@ -27,12 +31,6 @@ import Ctl.Internal.BalanceTx.Error
   )
 import Ctl.Internal.BalanceTx.Types (BalanceTxM, askCoinsPerUtxoUnit)
 import Ctl.Internal.BalanceTx.UtxoMinAda (utxoMinAdaValue)
-import Ctl.Internal.Lens
-  ( _body
-  , _collateral
-  , _collateralReturn
-  , _totalCollateral
-  )
 import Data.Either (Either(Left, Right))
 import Data.Foldable (foldl)
 import Data.Lens ((.~))

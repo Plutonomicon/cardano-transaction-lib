@@ -13,8 +13,22 @@ module Ctl.Examples.IncludeDatum
 
 import Contract.Prelude
 
-import Cardano.Types (Credential(ScriptHashCredential))
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, Pay)
+  )
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , OutputDatum(OutputDatumHash)
+  , TransactionOutput(TransactionOutput)
+  )
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
@@ -23,24 +37,20 @@ import Contract.Config
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
-import Contract.PlutusData (PlutusData(Integer), unitRedeemer)
-import Contract.ScriptLookups as Lookups
+import Contract.PlutusData (PlutusData(Integer))
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
-  , _input
   , awaitTxConfirmed
   , lookupTxHash
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.Lens (view)
+import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt as BigInt
 
@@ -67,20 +77,16 @@ datum :: PlutusData
 datum = Integer $ BigInt.fromInt 42
 
 payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
-payToIncludeDatum vhash =
-  let
-    constraints :: TxConstraints
-    constraints =
-      ( Constraints.mustPayToScript vhash datum Constraints.DatumWitness
-          $ Value.lovelaceValueOf
-          $ BigNum.fromInt 2_000_000
-      )
-        <> Constraints.mustIncludeDatum datum
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-  in
-    submitTxFromConstraints lookups constraints
+payToIncludeDatum vhash = do
+  address <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
+  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address
+        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+        , datum: Just $ OutputDatumHash $ hashPlutusData datum
+        , scriptRef: Nothing
+        }
+    ]
 
 spendFromIncludeDatum
   :: ValidatorHash
@@ -90,19 +96,18 @@ spendFromIncludeDatum
 spendFromIncludeDatum vhash validator txId = do
   scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
-  txInput <- liftContractM "no locked output at address"
-    (view _input <$> head (lookupTxHash txId utxos))
-  let
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs utxos
-
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustSpendScriptOutput txInput unitRedeemer
-        <> Constraints.mustIncludeDatum datum
-  spendTxId <- submitTxFromConstraints lookups constraints
-  awaitTxConfirmed spendTxId
+  utxo <- liftContractM "no locked output at address"
+    (head (lookupTxHash txId utxos))
+  spendTx <- submitTxFromBuildPlan (toUtxoMap [ utxo ])
+    mempty
+    [ SpendOutput
+        utxo
+        ( Just $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+            $ Just
+            $ DatumValue datum
+        )
+    ]
+  awaitTxConfirmed $ Transaction.hash spendTx
   logInfo' "Successfully spent locked values."
 
 -- | checks if the datum equals 42

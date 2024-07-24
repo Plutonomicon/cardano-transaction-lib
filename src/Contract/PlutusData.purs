@@ -76,12 +76,12 @@ import Cardano.Types.OutputDatum
   ) as X
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.PlutusData as Datum
+import Cardano.Types.RedeemerDatum (RedeemerDatum)
+import Cardano.Types.RedeemerDatum (RedeemerDatum(RedeemerDatum)) as X
+import Cardano.Types.RedeemerDatum as Redeemer
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum)
-import Ctl.Internal.Types.RedeemerDatum (RedeemerDatum(RedeemerDatum)) as X
-import Ctl.Internal.Types.RedeemerDatum as Redeemer
 import Data.Either (Either(Left, Right), hush)
 import Data.Map (Map)
 import Data.Map as Map

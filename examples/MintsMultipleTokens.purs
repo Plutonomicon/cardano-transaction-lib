@@ -12,10 +12,15 @@ module Ctl.Examples.MintsMultipleTokens
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(MintAsset)
+  )
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.Transaction as Transaction
 import Contract.Config
   ( ContractParams
   , WalletSpec(ConnectToGenericCip30)
@@ -24,15 +29,13 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData(Integer), RedeemerDatum(RedeemerDatum))
-import Contract.ScriptLookups as Lookups
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
-import Contract.TxConstraints as Constraints
+import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
+import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt (fromInt) as BigInt
-import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -53,28 +56,23 @@ contract = do
     cs3 = PlutusScript.hash mp3
 
   let
-    constraints :: Constraints.TxConstraints
-    constraints = unsafePartial $ mconcat
-      [ Constraints.mustMintValueWithRedeemer
-          (RedeemerDatum $ Integer (BigInt.fromInt 1))
-          (Mint.singleton cs1 tn1 Int.one <> Mint.singleton cs1 tn2 Int.one)
-      , Constraints.mustMintValueWithRedeemer
-          (RedeemerDatum $ Integer (BigInt.fromInt 2))
-          (Mint.singleton cs2 tn1 Int.one <> Mint.singleton cs2 tn2 Int.one)
-      , Constraints.mustMintValueWithRedeemer
-          (RedeemerDatum $ Integer (BigInt.fromInt 3))
-          (Mint.singleton cs3 tn1 Int.one <> Mint.singleton cs3 tn2 Int.one)
+    plan =
+      [ MintAsset cs1 tn1 Int.one
+          ( PlutusScriptCredential (ScriptValue mp1) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 1)
+          )
+      , MintAsset cs2 tn2 Int.one
+          ( PlutusScriptCredential (ScriptValue mp2) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 2)
+          )
+      , MintAsset cs3 tn2 Int.one
+          ( PlutusScriptCredential (ScriptValue mp3) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 3)
+          )
       ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups =
-      Lookups.plutusMintingPolicy mp1
-        <> Lookups.plutusMintingPolicy mp2
-        <> Lookups.plutusMintingPolicy mp3
-
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmed txId
+  tx <- submitTxFromBuildPlan Map.empty mempty plan
+  awaitTxConfirmed $ Transaction.hash tx
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

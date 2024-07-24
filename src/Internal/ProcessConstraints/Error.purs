@@ -4,11 +4,11 @@ import Prelude
 
 import Cardano.AsCbor (encodeCbor)
 import Cardano.Serialization.Lib (toBytes)
+import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (DataHash, NativeScript)
 import Cardano.Types.Address (Address)
 import Cardano.Types.Address as Address
 import Cardano.Types.AssetName (AssetName, fromAssetName)
-import Cardano.Types.Coin (Coin)
 import Cardano.Types.Int as Int
 import Cardano.Types.NativeScript (pprintNativeScript)
 import Cardano.Types.PlutusData (PlutusData)
@@ -60,7 +60,7 @@ data MkUnbalancedTxError
   | ExpectedPlutusScriptGotNativeScript ScriptHash
   | CannotMintZero ScriptHash AssetName
   | NumericOverflow
-  | InsufficientGovActionDeposit { provided :: Coin, required :: Coin }
+  | CannotAttachRedeemer DetachedRedeemer
 
 derive instance Generic MkUnbalancedTxError _
 derive instance Eq MkUnbalancedTxError
@@ -157,13 +157,10 @@ explainMkUnbalancedTxError = case _ of
       <> " of currency "
       <> byteArrayToHex (unwrap $ encodeCbor cs)
   NumericOverflow -> "Numeric overflow"
-  InsufficientGovActionDeposit { provided, required } ->
-    "Governance actions require a deposit of at least `govActionDeposit`, \
-    \as defined in the protocol parameters. The provided deposit is \
-    \insufficient. Provided: "
-      <> show provided
-      <> "Required: "
-      <> show required
+  CannotAttachRedeemer redeemer -> do
+    "Can't attach a redeemer: " <> show redeemer
+      <> "\nPlease report this as a bug here: "
+      <> bugTrackerLink
   where
   prettyAssetName :: AssetName -> String
   prettyAssetName = fromAssetName byteArrayToHex show

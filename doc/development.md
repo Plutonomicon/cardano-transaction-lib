@@ -22,6 +22,7 @@ This document outlines development workflows for CTL itself. You may also wish t
   - [JS](#js)
 - [Switching development networks](#switching-development-networks)
 - [Maintaining the template](#maintaining-the-template)
+- [Updating the template](#updating-the-template)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -147,5 +148,14 @@ Set new `network.name` and `network.magic` in `runtime.nix`. Also see [Changing 
 ## Maintaining the template
 
 [The template](../templates/ctl-scaffold/) must be kept up-to-date with the repo. Although there are some checks for common problems in CI, it's still possible to forget to update the `package-lock.json` file.
+
+## Updating the template
+
+1. Update the revision of CTL in the template's `flake.nix`
+2. Update the npm packages in the `package.json` (if needed)
+3. Run `npm i` to update the lockfile (if there are NPM dependency version changes)
+4. Update the revisions in the template's `packages.dhall` (CTL version must match the one in `flake.nix`)
+5. Run `spago2nix generate`
+6. Run `nix develop`
 
 [This helper script](../scripts/template-check.sh) can be used to make sure the template can be initialized properly from a given revision.
