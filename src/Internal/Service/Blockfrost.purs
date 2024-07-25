@@ -1472,6 +1472,8 @@ type BlockfrostProtocolParametersRaw =
   , "collateral_percent" :: UInt
   , "max_collateral_inputs" :: UInt
   , "coins_per_utxo_size" :: Maybe (Stringed BigNum)
+  , "gov_action_deposit" :: Stringed BigNum
+  , "drep_deposit" :: Stringed BigNum
   }
 
 toFraction' :: BigNumber -> String /\ String
@@ -1565,8 +1567,8 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , maxValueSize: unwrap raw.max_val_size
       , collateralPercent: raw.collateral_percent
       , maxCollateralInputs: raw.max_collateral_inputs
-      , govActionDeposit: mempty -- FIXME
-      , drepDeposit: mempty -- FIXME
+      , govActionDeposit: Coin $ unwrap raw.gov_action_deposit
+      , drepDeposit: Coin $ unwrap raw.drep_deposit
       }
 
 --------------------------------------------------------------------------------
