@@ -41,7 +41,9 @@ import Ctl.Internal.Contract.Wallet
   , ownDrepPubKey
   , ownDrepPubKeyHash
   , ownPaymentPubKeyHashes
+  , ownRegisteredPubStakeKeys
   , ownStakePubKeyHashes
+  , ownUnregisteredPubStakeKeys
   , signData
   ) as X
 import Ctl.Internal.Contract.Wallet

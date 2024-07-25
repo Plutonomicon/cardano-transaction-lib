@@ -26,7 +26,11 @@ import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30.TypeSafe (APIError)
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
 import Cardano.Wallet.Cip95 (Api) as Cip95
-import Cardano.Wallet.Cip95.TypeSafe (getPubDrepKey) as Cip95
+import Cardano.Wallet.Cip95.TypeSafe
+  ( getPubDrepKey
+  , getRegisteredPubStakeKeys
+  , getUnregisteredPubStakeKeys
+  ) as Cip95
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
 import Ctl.Internal.Helpers (liftM)
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
@@ -85,6 +89,8 @@ type Cip30Wallet =
   , signTx :: Transaction -> Aff Transaction
   , signData :: Address -> RawBytes -> Aff DataSignature
   , getPubDrepKey :: Aff PublicKey
+  , getRegisteredPubStakeKeys :: Aff (Array PublicKey)
+  , getUnregisteredPubStakeKeys :: Aff (Array PublicKey)
   }
 
 mkCip30WalletAff
@@ -106,6 +112,8 @@ mkCip30WalletAff conn95 = do
     , signTx: signTx connection
     , signData: signData connection
     , getPubDrepKey: getPubDrepKey conn95
+    , getRegisteredPubStakeKeys: getRegisteredPubStakeKeys conn95
+    , getUnregisteredPubStakeKeys: getUnregisteredPubStakeKeys conn95
     }
 
 -------------------------------------------------------------------------------
@@ -247,9 +255,27 @@ getCip30Collateral conn (Coin requiredValue) = do
 getPubDrepKey :: Cip95.Api -> Aff PublicKey
 getPubDrepKey conn = do
   drepKeyHex <- handleApiError =<< Cip95.getPubDrepKey conn
-  let drepKey = PublicKey.fromRawBytes <<< wrap =<< hexToByteArray drepKeyHex
-  liftM
-    ( error $ "CIP-95 getPubDRepKey returned invalid DRep key: "
-        <> drepKeyHex
-    )
-    drepKey
+  pubKeyFromHex drepKeyHex $
+    "CIP-95 getPubDRepKey returned invalid DRep key: "
+      <> drepKeyHex
+
+getRegisteredPubStakeKeys :: Cip95.Api -> Aff (Array PublicKey)
+getRegisteredPubStakeKeys conn = do
+  keys <- handleApiError =<< Cip95.getRegisteredPubStakeKeys conn
+  for keys \pubStakeKeyHex ->
+    pubKeyFromHex pubStakeKeyHex $
+      "CIP-95 getRegisteredPubStakeKeys returned invalid key: "
+        <> pubStakeKeyHex
+
+getUnregisteredPubStakeKeys :: Cip95.Api -> Aff (Array PublicKey)
+getUnregisteredPubStakeKeys conn = do
+  keys <- handleApiError =<< Cip95.getUnregisteredPubStakeKeys conn
+  for keys \pubStakeKeyHex ->
+    pubKeyFromHex pubStakeKeyHex $
+      "CIP-95 getUnregisteredPubStakeKeys returned invalid key: "
+        <> pubStakeKeyHex
+
+pubKeyFromHex :: String -> String -> Aff PublicKey
+pubKeyFromHex keyHex err =
+  liftM (error err)
+    (PublicKey.fromRawBytes <<< wrap =<< hexToByteArray keyHex)

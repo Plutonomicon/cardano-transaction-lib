@@ -7,7 +7,12 @@ import Prelude
 import Cardano.Transaction.Edit (editTransaction)
 import Cardano.Types
   ( AssetClass(AssetClass)
-  , Certificate(StakeDeregistration, StakeRegistration, RegDrepCert)
+  , Certificate
+      ( StakeDeregistration
+      , StakeRegistration
+      , VoteRegDelegCert
+      , RegDrepCert
+      )
   , Coin(Coin)
   , Language(PlutusV1)
   , PlutusScript(PlutusScript)
@@ -834,6 +839,7 @@ getCertsBalance tx (ProtocolParameters pparams) =
           ( case _ of
               StakeRegistration _ -> stakeAddressDeposit
               StakeDeregistration _ -> negate $ stakeAddressDeposit
+              VoteRegDelegCert _ _ deposit -> BigNum.toBigInt $ unwrap deposit
               RegDrepCert _ deposit _ -> BigNum.toBigInt $ unwrap deposit
               _ -> zero
           )

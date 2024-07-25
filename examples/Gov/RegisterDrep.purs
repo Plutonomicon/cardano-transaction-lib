@@ -21,7 +21,7 @@ import Contract.Wallet (ownDrepPubKeyHash)
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: true }
+  { walletSpec = Just $ ConnectToGenericCip30 "eternl" { cip95: true }
   }
 
 example :: ContractParams -> Effect Unit

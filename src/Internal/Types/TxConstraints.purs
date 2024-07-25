@@ -670,5 +670,9 @@ mustSatisfyAnyOf =
 mustNotBeValid :: Warn TxConstraintsDeprecated => TxConstraints
 mustNotBeValid = singleton $ MustNotBeValid
 
-mustRegisterDrep :: Credential -> Maybe Anchor -> TxConstraints
+mustRegisterDrep
+  :: Warn TxConstraintsDeprecated
+  => Credential
+  -> Maybe Anchor
+  -> TxConstraints
 mustRegisterDrep drepCred = singleton <<< MustRegisterDrep drepCred

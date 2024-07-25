@@ -9,7 +9,9 @@ module Ctl.Internal.Contract.Wallet
   , ownDrepPubKeyHash
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
+  , ownRegisteredPubStakeKeys
   , ownStakePubKeyHashes
+  , ownUnregisteredPubStakeKeys
   , withWallet
   , getWalletCollateral
   , getWalletBalance
@@ -31,7 +33,12 @@ import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value (Value, valueToCoin)
 import Cardano.Types.Value (geq, lovelaceValueOf, sum) as Value
-import Cardano.Wallet.Key (getPrivateDrepKey)
+import Cardano.Wallet.Key
+  ( KeyWallet
+  , PrivateStakeKey(PrivateStakeKey)
+  , getPrivateDrepKey
+  , getPrivateStakeKey
+  )
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
@@ -259,7 +266,7 @@ getWalletUtxos = do
     (unwrap >>> \({ input, output }) -> input /\ output)
 
 ownDrepPubKey :: Contract PublicKey
-ownDrepPubKey = do
+ownDrepPubKey =
   withWallet do
     actionBasedOnWallet _.getPubDrepKey
       ( \kw -> do
@@ -270,7 +277,7 @@ ownDrepPubKey = do
       )
 
 ownDrepPubKeyHash :: Contract Ed25519KeyHash
-ownDrepPubKeyHash = do
+ownDrepPubKeyHash =
   withWallet do
     actionBasedOnWallet (map PublicKey.hash <<< _.getPubDrepKey)
       ( \kw -> do
@@ -280,3 +287,47 @@ ownDrepPubKeyHash = do
           pure $ PublicKey.hash $ PrivateKey.toPublicKey $
             unwrap drepKey
       )
+
+ownRegisteredPubStakeKeys :: Contract (Array PublicKey)
+ownRegisteredPubStakeKeys =
+  withWallet do
+    actionBasedOnWallet _.getRegisteredPubStakeKeys
+      (map _.reg <<< kwPubStakeKeys)
+
+ownUnregisteredPubStakeKeys :: Contract (Array PublicKey)
+ownUnregisteredPubStakeKeys =
+  withWallet do
+    actionBasedOnWallet _.getUnregisteredPubStakeKeys
+      (map _.unreg <<< kwPubStakeKeys)
+
+kwPubStakeKeys
+  :: KeyWallet
+  -> Contract { reg :: Array PublicKey, unreg :: Array PublicKey }
+kwPubStakeKeys kw =
+  liftAff (getPrivateStakeKey kw) >>= case _ of
+    Nothing ->
+      pure mempty
+    Just (PrivateStakeKey stakeKey) -> do
+      queryHandle <- getQueryHandle
+      network <- asks _.networkId
+      let
+        pubStakeKey = PrivateKey.toPublicKey stakeKey
+        stakePkh = wrap $ PublicKey.hash pubStakeKey
+      resp <- liftAff $ queryHandle.getPubKeyHashDelegationsAndRewards
+        network
+        stakePkh
+      case resp of
+        Left err ->
+          liftEffect $ throw $
+            "kwPubStakeKeys: getPubKeyHashDelegationsAndRewards call error: "
+              <> pprintClientError err
+        Right mStakeAccount ->
+          pure case mStakeAccount of
+            Nothing ->
+              { reg: mempty
+              , unreg: Array.singleton pubStakeKey
+              }
+            Just _ ->
+              { reg: Array.singleton pubStakeKey
+              , unreg: mempty
+              }
