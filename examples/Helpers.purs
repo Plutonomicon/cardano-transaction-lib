@@ -26,9 +26,10 @@ import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
 
 mkAssetName :: String -> Contract AssetName
-mkAssetName =
-  liftContractM "Cannot make token name"
-    <<< (AssetName.mkAssetName <=< byteArrayFromAscii)
+mkAssetName str =
+  liftContractM ("Cannot make token name from: " <> str)
+    $ AssetName.mkAssetName
+    =<< byteArrayFromAscii str
 
 mustPayToPubKeyStakeAddress
   :: PaymentPubKeyHash

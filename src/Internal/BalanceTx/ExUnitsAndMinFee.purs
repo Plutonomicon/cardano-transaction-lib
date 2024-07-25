@@ -18,19 +18,19 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionWitnessSet
   , UtxoMap
+  , _body
+  , _isValid
+  , _witnessSet
   )
+import Cardano.Types.BigNum as BigNum
 import Cardano.Types.ScriptRef as ScriptRef
 import Cardano.Types.TransactionInput (TransactionInput)
+import Cardano.Types.TransactionWitnessSet (_redeemers)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos, _collateralUtxos) as Constraints
 import Ctl.Internal.BalanceTx.Error
   ( BalanceTxError(UtxoLookupFailedFor, ExUnitsEvaluationFailed)
-  )
-import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( IndexedRedeemer
-  , attachRedeemers
-  , indexedRedeemerToRedeemer
   )
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
@@ -38,10 +38,9 @@ import Ctl.Internal.BalanceTx.Types
   , asksConstraints
   , liftContract
   )
-import Ctl.Internal.BalanceTx.UnattachedTx (EvaluatedTx, IndexedTx)
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Lens (_body, _isValid, _plutusData, _witnessSet)
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , TxEvaluationFailure(AdditionalUtxoOverlap)
@@ -108,24 +107,19 @@ evalTxExecutionUnits tx = do
 -- and the minimum fee, including the script fees.
 -- Returns a tuple consisting of updated `UnbalancedTx` and the minimum fee.
 evalExUnitsAndMinFee
-  :: IndexedTx
+  :: Transaction
   -> UtxoMap
-  -> BalanceTxM (EvaluatedTx /\ Coin)
-evalExUnitsAndMinFee unattachedTx allUtxos = do
-  -- Reattach datums and redeemers before evaluating ex units:
-  let attachedTx = reattachDatumsAndFakeRedeemers unattachedTx
+  -> BalanceTxM (Transaction /\ Coin)
+evalExUnitsAndMinFee transaction allUtxos = do
   -- Evaluate transaction ex units:
-  exUnits <- evalTxExecutionUnits attachedTx
+  exUnits <- evalTxExecutionUnits transaction
   -- Set execution units received from the server:
   txWithExUnits <-
-    case updateTxExecutionUnits unattachedTx exUnits of
+    case updateTxExecutionUnits transaction exUnits of
       Just res -> pure res
       Nothing
-        | not (attachedTx ^. _isValid) -> pure $
-            unattachedTx
-              { redeemers = indexedRedeemerToRedeemer <$> unattachedTx.redeemers
-              }
-      _ -> throwError $ ExUnitsEvaluationFailed attachedTx
+        | not (transaction ^. _isValid) -> pure transaction
+      _ -> throwError $ ExUnitsEvaluationFailed transaction
         (UnparsedError "Unable to extract ExUnits from Ogmios response")
   -- Attach datums and redeemers, set the script integrity hash:
   finalizedTx <- finalizeTransaction txWithExUnits allUtxos
@@ -140,18 +134,14 @@ evalExUnitsAndMinFee unattachedTx allUtxos = do
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
 finalizeTransaction
-  :: EvaluatedTx -> UtxoMap -> BalanceTxM Transaction
+  :: Transaction -> UtxoMap -> BalanceTxM Transaction
 finalizeTransaction tx utxos = do
   let
-    attachedTxWithExUnits :: Transaction
-    attachedTxWithExUnits =
-      reattachDatumsAndRedeemers tx
-
     txBody :: TransactionBody
-    txBody = attachedTxWithExUnits ^. _body
+    txBody = tx ^. _body
 
     ws :: TransactionWitnessSet
-    ws = attachedTxWithExUnits ^. _witnessSet
+    ws = tx ^. _witnessSet
 
     redeemers :: Array Redeemer
     redeemers = (_.redeemers $ unwrap ws)
@@ -170,8 +160,7 @@ finalizeTransaction tx utxos = do
 
   (costModels :: Map Language CostModel) <- askCostModelsForLanguages languages
 
-  liftEffect $ setScriptDataHash costModels redeemers datums
-    attachedTxWithExUnits
+  liftEffect $ setScriptDataHash costModels redeemers datums tx
   where
   getRefPlutusScripts
     :: TransactionBody -> Either BalanceTxError (Array PlutusScript)
@@ -183,47 +172,35 @@ finalizeTransaction tx utxos = do
     in
       catMaybes <<< map getPlutusScript <$>
         for spendAndRefInputs \oref ->
-          note (UtxoLookupFailedFor oref) (Map.lookup oref utxos)
+          note (UtxoLookupFailedFor oref utxos) (Map.lookup oref utxos)
 
   getPlutusScript :: TransactionOutput -> Maybe PlutusScript
   getPlutusScript (TransactionOutput { scriptRef }) =
     ScriptRef.getPlutusScript =<< scriptRef
 
-reattachDatumsAndFakeRedeemers :: IndexedTx -> Transaction
-reattachDatumsAndFakeRedeemers
-  { transaction, datums, redeemers } =
-  reattachDatumsAndRedeemers
-    { transaction, datums, redeemers: indexedRedeemerToRedeemer <$> redeemers }
-
-reattachDatumsAndRedeemers :: EvaluatedTx -> Transaction
-reattachDatumsAndRedeemers
-  ({ transaction, datums, redeemers }) =
-  let
-    transaction' = attachRedeemers redeemers transaction
-  in
-    transaction'
-      # _witnessSet <<< _plutusData .~ datums
-
 updateTxExecutionUnits
-  :: IndexedTx
+  :: Transaction
   -> Ogmios.TxEvaluationResult
-  -> Maybe EvaluatedTx
-updateTxExecutionUnits tx@{ redeemers } result =
-  getRedeemersExUnits result redeemers <#> \redeemers' -> tx
-    { redeemers = redeemers' }
+  -> Maybe Transaction
+updateTxExecutionUnits tx result =
+  getRedeemersExUnits result (tx ^. _witnessSet <<< _redeemers) <#>
+    \redeemers' ->
+      tx # _witnessSet <<< _redeemers .~ redeemers'
 
 getRedeemersExUnits
   :: Ogmios.TxEvaluationResult
-  -> Array IndexedRedeemer
+  -> Array Redeemer
   -> Maybe (Array Redeemer)
 getRedeemersExUnits (Ogmios.TxEvaluationResult result) redeemers = do
   for redeemers \indexedRedeemer -> do
     { memory, steps } <- Map.lookup
       { redeemerTag: (unwrap indexedRedeemer).tag
-      , redeemerIndex: UInt.fromInt (unwrap indexedRedeemer).index
+      , redeemerIndex: UInt.fromInt $ unsafeFromJust "getRedeemersExUnits"
+          $ BigNum.toInt
+          $ (unwrap indexedRedeemer).index
       }
       result
-    pure $ Redeemer $ (unwrap $ indexedRedeemerToRedeemer indexedRedeemer)
+    pure $ Redeemer $ (unwrap indexedRedeemer)
       { exUnits = ExUnits
           { mem: memory
           , steps: steps

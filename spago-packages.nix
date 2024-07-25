@@ -281,6 +281,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "cardano-transaction-builder" = pkgs.stdenv.mkDerivation {
+        name = "cardano-transaction-builder";
+        version = "48866bd7f5eeb8e0870c97384264d08bda9c2725";
+        src = pkgs.fetchgit {
+          url = "https://github.com/errfrom/purescript-cardano-transaction-builder";
+          rev = "48866bd7f5eeb8e0870c97384264d08bda9c2725";
+          sha256 = "1k57z6l14679vphw6l8l52hfyj5a1pk7vbjn929nsv0axp5y7fxa";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
         version = "56877b43ea392ef6486e37d52e1c37d8c2b8c42d";

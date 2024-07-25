@@ -13,31 +13,47 @@ module Ctl.Examples.Lose7Ada
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, Pay)
+  )
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , OutputDatum(OutputDatum)
+  , PaymentCredential(PaymentCredential)
+  , TransactionOutput(TransactionOutput)
+  , _isValid
+  )
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.Credential (Credential(ScriptHashCredential))
-import Cardano.Types.PlutusData (unit) as PlutusData
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (unitRedeemer)
-import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, ValidatorHash, validatorHash)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
-  , TransactionInput(TransactionInput)
   , awaitTxConfirmed
-  , submitTxFromConstraints
+  , balanceTx
+  , buildTx
+  , lookupTxHash
+  , signTransaction
+  , submit
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf, minus) as Value
 import Contract.Wallet (getWalletBalance)
 import Control.Monad.Error.Class (liftMaybe)
+import Data.Array (head)
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
+import Data.Lens ((.~))
 import Data.Map as Map
 import Effect.Exception (error)
 import Partial.Unsafe (unsafePartial)
@@ -60,18 +76,16 @@ example cfg = launchAff_ do
 
 payToAlwaysFails :: ValidatorHash -> Contract TransactionHash
 payToAlwaysFails vhash = do
-  let
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustPayToScript vhash PlutusData.unit
-        Constraints.DatumWitness
-        $ Value.lovelaceValueOf
-        $ BigNum.fromInt 2_000_000
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  submitTxFromConstraints lookups constraints
+  scriptAddress <-
+    mkAddress (PaymentCredential $ ScriptHashCredential vhash) Nothing
+  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+        , datum: Just $ OutputDatum PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
 
 spendFromAlwaysFails
   :: ValidatorHash
@@ -82,41 +96,33 @@ spendFromAlwaysFails vhash validator txId = do
   balanceBefore <- unsafePartial $ fold <$> getWalletBalance
   scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
-  txInput <- liftM
-    ( error
-        ( "The id "
-            <> show txId
-            <> " does not have output locked at: "
-            <> show scriptAddress
-        )
-    )
-    (fst <$> find hasTransactionId (Map.toUnfoldable utxos :: Array _))
-  let
-    lookups :: Lookups.ScriptLookups
-    lookups = mconcat
-      [ Lookups.validator validator
-      , Lookups.unspentOutputs utxos
-      , Lookups.datum PlutusData.unit
-      ]
-
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustSpendScriptOutput txInput unitRedeemer
-        <> Constraints.mustNotBeValid
-
-  spendTxId <- submitTxFromConstraints lookups constraints
+  utxo <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      $ head (lookupTxHash txId utxos)
+  unbalancedTx <-
+    buildTx
+      [ SpendOutput
+          utxo
+          $ Just
+          $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+              Nothing
+      ] <#> _isValid .~ false
+  spendTx <- balanceTx unbalancedTx (toUtxoMap [ utxo ]) mempty
+  signedTx <- signTransaction (spendTx # _isValid .~ true)
+  spendTxId <- submit signedTx
   logInfo' $ "Tx ID: " <> show spendTxId
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."
-
   balance <- unsafePartial $ fold <$> getWalletBalance
   let collateralLoss = Value.lovelaceValueOf $ BigNum.fromInt (5_000_000)
   Just balance `shouldEqual` (Value.minus balanceBefore collateralLoss)
-
-  where
-  hasTransactionId :: TransactionInput /\ _ -> Boolean
-  hasTransactionId (TransactionInput tx /\ _) =
-    tx.transactionId == txId
 
 alwaysFailsScript :: Contract Validator
 alwaysFailsScript = do

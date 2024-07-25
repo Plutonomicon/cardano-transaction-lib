@@ -4,12 +4,11 @@ module Ctl.Internal.Contract.Sign
 
 import Prelude
 
-import Cardano.Types (Transaction)
+import Cardano.Types (Transaction, _body, _inputs, _witnessSet)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.BalanceTx.Sync (isCip30Wallet, syncWalletWithTxInputs)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Contract.Wallet (withWallet)
-import Ctl.Internal.Lens (_body, _inputs, _witnessSet)
 import Ctl.Internal.Wallet (Wallet(GenericCip30, KeyWallet))
 import Data.Array (fromFoldable)
 import Data.Lens ((<>~))

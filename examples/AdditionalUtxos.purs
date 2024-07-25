@@ -5,47 +5,49 @@ module Ctl.Examples.AdditionalUtxos
 
 import Contract.Prelude
 
+import Cardano.Transaction.Builder
+  ( OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, Pay)
+  )
+import Cardano.Types
+  ( OutputDatum(OutputDatum)
+  , PaymentCredential(PaymentCredential)
+  , PlutusScript
+  , ScriptHash
+  , Transaction
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential (Credential(ScriptHashCredential))
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.TransactionOutput (TransactionOutput(TransactionOutput))
+import Cardano.Types.TransactionUnspentOutput (fromUtxoMap)
 import Contract.Address (mkAddress)
-import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder)
-import Contract.BalanceTxConstraints (mustUseAdditionalUtxos) as BalancerConstraints
+import Contract.BalanceTxConstraints
+  ( BalancerConstraints
+  , mustUseAdditionalUtxos
+  )
 import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (Datum, PlutusData(Integer), unitRedeemer)
-import Contract.ScriptLookups (ScriptLookups, UnbalancedTx)
-import Contract.ScriptLookups (datum, unspentOutputs, validator) as Lookups
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.PlutusData (Datum, PlutusData(Integer))
 import Contract.Sync (withoutSync)
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
-  , TransactionInput
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
+  , buildTx
   , createAdditionalUtxos
   , signTransaction
   , submit
   , withBalancedTx
   )
-import Contract.TxConstraints
-  ( DatumPresence(DatumInline, DatumWitness)
-  , TxConstraints
-  )
-import Contract.TxConstraints
-  ( mustPayToScript
-  , mustPayToScriptWithScriptRef
-  , mustSpendPubKeyOutput
-  , mustSpendScriptOutput
-  ) as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (UtxoMap)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Data.Array (fromFoldable) as Array
-import Data.Map (difference, filter, keys) as Map
+import Data.Map (difference, empty, filter) as Map
 import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
@@ -61,9 +63,9 @@ contract :: Boolean -> Contract Unit
 contract testAdditionalUtxoOverlap = withoutSync do
   logInfo' "Running Examples.AdditionalUtxos"
   validator <- alwaysSucceedsScriptV2
-  let vhash = validatorHash validator
+  let vhash = PlutusScript.hash validator
   { unbalancedTx, datum } <- payToValidator vhash
-  withBalancedTx unbalancedTx \balancedTx -> do
+  withBalancedTx unbalancedTx Map.empty mempty \balancedTx -> do
     balancedSignedTx <- signTransaction balancedTx
     txHash <- submit balancedSignedTx
     when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
@@ -73,7 +75,11 @@ contract testAdditionalUtxoOverlap = withoutSync do
     spendFromValidator validator additionalUtxos datum
 
 payToValidator
-  :: ValidatorHash -> Contract { unbalancedTx :: UnbalancedTx, datum :: Datum }
+  :: ScriptHash
+  -> Contract
+       { unbalancedTx :: Transaction
+       , datum :: Datum
+       }
 payToValidator vhash = do
   scriptRef <- liftEffect (NativeScriptRef <$> randomSampleOne arbitrary)
   let
@@ -81,22 +87,28 @@ payToValidator vhash = do
     value = Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
 
     datum = Integer $ BigInt.fromInt 42
+  scriptAddress <- mkAddress (PaymentCredential $ ScriptHashCredential vhash)
+    Nothing
 
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustPayToScript vhash datum DatumWitness value
-        <> Constraints.mustPayToScriptWithScriptRef vhash datum DatumInline
-          scriptRef
-          value
+  tx <- buildTx
+    [ Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: value
+        , datum: Just $ OutputDatum $ datum
+        , scriptRef: Nothing
+        }
+    , Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: value
+        , datum: Just $ OutputDatum $ datum
+        , scriptRef: Just scriptRef
+        }
+    ]
 
-    lookups :: ScriptLookups
-    lookups = Lookups.datum datum
+  pure { unbalancedTx: tx, datum }
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  pure { unbalancedTx, datum }
-
-spendFromValidator :: Validator -> UtxoMap -> Datum -> Contract Unit
-spendFromValidator validator additionalUtxos datum = do
+spendFromValidator :: PlutusScript -> UtxoMap -> Datum -> Contract Unit
+spendFromValidator validator additionalUtxos _datum = do
   addr <- mkAddress (wrap $ ScriptHashCredential $ PlutusScript.hash validator)
     Nothing
   let
@@ -105,30 +117,23 @@ spendFromValidator validator additionalUtxos datum = do
       additionalUtxos # Map.filter \out ->
         (unwrap out).address == addr
 
-    scriptOrefs :: Array TransactionInput
-    scriptOrefs = Array.fromFoldable $ Map.keys scriptUtxos
+    spendScriptOutputs = fromUtxoMap scriptUtxos <#> \output ->
+      SpendOutput output $ Just $ PlutusScriptOutput (ScriptValue validator)
+        RedeemerDatum.unit
+        Nothing
 
-    pubKeyOrefs :: Array TransactionInput
-    pubKeyOrefs =
-      Array.fromFoldable $ Map.keys $ Map.difference additionalUtxos scriptUtxos
+    spendPubkeyOutputs =
+      fromUtxoMap (Map.difference additionalUtxos scriptUtxos) <#> \output ->
+        SpendOutput output Nothing
 
-    constraints :: TxConstraints
-    constraints =
-      foldMap (flip Constraints.mustSpendScriptOutput unitRedeemer) scriptOrefs
-        <> foldMap Constraints.mustSpendPubKeyOutput pubKeyOrefs
+    plan = spendScriptOutputs <> spendPubkeyOutputs
 
-    lookups :: ScriptLookups
-    lookups =
-      Lookups.validator validator
-        <> Lookups.unspentOutputs additionalUtxos
-        <> Lookups.datum datum
-
-    balancerConstraints :: BalanceTxConstraintsBuilder
+    balancerConstraints :: BalancerConstraints
     balancerConstraints =
-      BalancerConstraints.mustUseAdditionalUtxos additionalUtxos
+      mustUseAdditionalUtxos additionalUtxos
 
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  balancedTx <- balanceTxWithConstraints unbalancedTx balancerConstraints
+  unbalancedTx <- buildTx plan
+  balancedTx <- balanceTx unbalancedTx additionalUtxos balancerConstraints
   balancedSignedTx <- signTransaction balancedTx
   txHash <- submit balancedSignedTx
 

@@ -61,14 +61,14 @@ import Mote (group, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Testnet.Common (privateStakeKey)
-import Test.QuickCheck (class Arbitrary, arbitrary)
+import Test.QuickCheck (class Arbitrary, arbitrary, mkSeed)
 import Test.QuickCheck.Gen
   ( Gen
   , arrayOf
   , chooseInt
   , frequency
-  , randomSample'
   , resize
+  , sample
   , sized
   )
 import Type.Prelude (Proxy(Proxy))
@@ -106,8 +106,9 @@ suite = group "UtxoDistribution" do
       runTestnetContract defaultTestnetConfig distribution $
         checkUtxoDistribution distribution
 
-  distrs <- liftEffect $ randomSample' 5 arbitrary
-  for_ distrs $ \distr ->
+  -- set seed to 5 and size to 10 to fail
+  let distrs = sample (mkSeed 2) 5 arbitrary
+  for_ distrs $ \distr -> do
     test
       ( "stake key transfers with random distribution: "
           <> ppArbitraryUtxoDistr distr

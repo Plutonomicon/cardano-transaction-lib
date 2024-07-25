@@ -10,6 +10,8 @@ import Cardano.Types
   , Transaction
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
+  , _vkeys
+  , _witnessSet
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Ed25519Signature as Ed25519Signature
@@ -20,7 +22,6 @@ import Cardano.Types.Transaction as Transaction
 import Contract.Prim.ByteArray (hexToRawBytes)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Helpers (unsafeFromJust)
-import Ctl.Internal.Lens (_vkeys, _witnessSet)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)

@@ -7,21 +7,20 @@ module Ctl.Internal.BalanceTx.Types
   , asksConstraints
   , liftEitherContract
   , liftContract
-  , withBalanceTxConstraints
+  , withBalancerConstraints
   ) where
 
 import Prelude
 
-import Cardano.Types (Coin, CostModel, Language, NetworkId)
-import Cardano.Types.Address as Csl
+import Cardano.Types (Address, Coin, CostModel, Language, NetworkId)
 import Control.Monad.Except.Trans (ExceptT(ExceptT))
 import Control.Monad.Reader.Class (asks)
 import Control.Monad.Reader.Trans (ReaderT, runReaderT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.BalanceTx.Constraints
-  ( BalanceTxConstraints
-  , BalanceTxConstraintsBuilder
-  , buildBalanceTxConstraints
+  ( BalancerConfig
+  , BalancerConstraints
+  , buildBalancerConfig
   )
 import Ctl.Internal.BalanceTx.Error (BalanceTxError)
 import Ctl.Internal.Contract.Monad (Contract, ContractEnv)
@@ -36,7 +35,7 @@ import Data.Set (Set)
 import Data.Set (fromFoldable, member) as Set
 
 type BalanceTxMContext =
-  { constraints :: BalanceTxConstraints, ownAddresses :: Set Csl.Address }
+  { constraints :: BalancerConfig, ownAddresses :: Set Address }
 
 type BalanceTxM (a :: Type) =
   ExceptT BalanceTxError (ReaderT BalanceTxMContext Contract) a
@@ -49,7 +48,7 @@ liftEitherContract
 liftEitherContract = ExceptT <<< lift
 
 asksConstraints
-  :: forall (a :: Type). Lens' BalanceTxConstraints a -> BalanceTxM a
+  :: forall (a :: Type). Lens' BalancerConfig a -> BalanceTxM a
 asksConstraints l = asks (view l <<< _.constraints)
 
 asksContractEnv :: forall (a :: Type). (ContractEnv -> a) -> BalanceTxM a
@@ -63,19 +62,19 @@ askCoinsPerUtxoUnit =
 askNetworkId :: BalanceTxM NetworkId
 askNetworkId = asksContractEnv _.networkId
 
-withBalanceTxConstraints
+withBalancerConstraints
   :: forall (a :: Type)
-   . BalanceTxConstraintsBuilder
+   . BalancerConstraints
   -> ReaderT BalanceTxMContext Contract a
   -> Contract a
-withBalanceTxConstraints constraintsBuilder m = do
+withBalancerConstraints constraintsBuilder m = do
   -- we can ignore failures due to reward addresses because reward addresses
   -- do not receive transaction outputs from dApps
   ownAddresses <- Set.fromFoldable <$> getWalletAddresses
   flip runReaderT { constraints, ownAddresses } m
   where
-  constraints :: BalanceTxConstraints
-  constraints = buildBalanceTxConstraints constraintsBuilder
+  constraints :: BalancerConfig
+  constraints = buildBalancerConfig constraintsBuilder
 
 askCostModelsForLanguages :: Set Language -> BalanceTxM (Map Language CostModel)
 askCostModelsForLanguages languages =

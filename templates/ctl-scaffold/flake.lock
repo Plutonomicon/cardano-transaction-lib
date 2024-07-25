@@ -3602,16 +3602,16 @@
         "utils": "utils_7"
       },
       "locked": {
-        "lastModified": 1719456236,
-        "narHash": "sha256-ElMb/C8Ljq8jiqUqVBVAf2crn5hF+vnG5UeShdS6MGQ=",
+        "lastModified": 1715793024,
+        "narHash": "sha256-BoTWJKRc7gWSzptEuk32A/uV6MRkRx7vKdz34k8IPY8=",
         "owner": "IntersectMBO",
         "repo": "cardano-node",
-        "rev": "06943b66e634fc9eb83ddb376ed3508003dbb607",
+        "rev": "38c7f1cf2db12dff9c814ad10049f411a4b30448",
         "type": "github"
       },
       "original": {
         "owner": "IntersectMBO",
-        "ref": "8.12.1",
+        "ref": "8.11.0-pre",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -4499,8 +4499,8 @@
         "ogmios": "ogmios_2"
       },
       "locked": {
-        "lastModified": 1719862188,
-        "narHash": "sha256-8P5jkszksOIEExjVXfnL1TSBhrjpfneEDuC+sqiii4w=",
+        "lastModified": 1720721810,
+        "narHash": "sha256-Hr+nppz3Q8YtfEh6RYHGc8H3HxEC3mLC//T0n10B9pQ=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
         "rev": "64028db993083b09ff9875a59def48e2f84de04b",
@@ -17869,15 +17869,16 @@
         "sodium": "sodium_6"
       },
       "locked": {
-        "lastModified": 1719237167,
-        "narHash": "sha256-ifW5Jfwu/iwYs0r7f8AdiWDQK+Pr1gZLz+p5u8OtOgo=",
+        "lastModified": 1715872246,
+        "narHash": "sha256-G1LFsvP53twrqaC1FVard/6rjJJ3oitnpJ1E+mTZDGM=",
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "577f4d5072945a88dda6f5cfe205e6b4829a0423",
+        "rev": "530c88c6f90be2191172a1b7cbc181d65112ef0a",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
+        "ref": "node-8.11",
         "repo": "iohk-nix",
         "type": "github"
       }

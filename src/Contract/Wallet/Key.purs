@@ -20,7 +20,10 @@ import Ctl.Internal.Wallet.Spec
 import Prim.TypeError (class Warn, Text)
 
 publicKeyFromPrivateKey
-  :: Warn (Text "Deprecated: use Cardano.Types.PrivateKey.toPublicKey")
+  :: Warn
+       ( Text
+           "Deprecated: publicKeyFromPrivateKey. Use Cardano.Types.PrivateKey.toPublicKey"
+       )
   => PrivateKey
   -> PublicKey
 publicKeyFromPrivateKey = PrivateKey.toPublicKey

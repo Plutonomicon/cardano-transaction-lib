@@ -12,13 +12,13 @@ import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusScript as PlutusScript
 import Contract.Address (Address)
 import Contract.BalanceTxConstraints
-  ( BalanceTxConstraintsBuilder
+  ( BalancerConstraints
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
   , mustSendChangeToAddress
   , mustUseCollateralUtxos
   , mustUseUtxosAtAddress
-  ) as BalanceTxConstraints
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftedM)
 import Contract.ScriptLookups as Lookups
@@ -35,7 +35,7 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput
   , awaitTxConfirmed
-  , balanceTxWithConstraints
+  , balanceTx
   , signTransaction
   , submit
   )
@@ -166,19 +166,19 @@ contract (ContractParams p) = do
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.plutusMintingPolicy mp
 
-    balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+    balanceTxConstraints :: BalancerConstraints
     balanceTxConstraints =
-      BalanceTxConstraints.mustGenChangeOutsWithMaxTokenQuantity
+      mustGenChangeOutsWithMaxTokenQuantity
         (BigInt.fromInt 4)
-        <> BalanceTxConstraints.mustUseUtxosAtAddress bobAddress
-        <> BalanceTxConstraints.mustSendChangeToAddress bobAddress
-        <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
-        <> BalanceTxConstraints.mustUseCollateralUtxos bobsCollateral
+        <> mustUseUtxosAtAddress bobAddress
+        <> mustSendChangeToAddress bobAddress
+        <> mustNotSpendUtxoWithOutRef nonSpendableOref
+        <> mustUseCollateralUtxos bobsCollateral
 
   void $ runChecks checks $ lift do
-    unbalancedTx <- mkUnbalancedTx lookups constraints
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
 
-    balancedTx <- balanceTxWithConstraints unbalancedTx balanceTxConstraints
+    balancedTx <- balanceTx unbalancedTx usedUtxos balanceTxConstraints
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

@@ -2,34 +2,37 @@ module Ctl.Examples.ChangeGeneration (checkChangeOutputsDistribution) where
 
 import Prelude
 
-import Cardano.Types.BigNum as BigNum
-import Contract.BalanceTxConstraints (mustSendChangeWithDatum)
-import Contract.Monad (Contract)
-import Contract.PlutusData
-  ( OutputDatum(OutputDatum)
-  , PlutusData(Integer)
-  , unitDatum
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , OutputDatum(OutputDatumHash)
+  , PaymentCredential(PaymentCredential)
+  , TransactionOutput(TransactionOutput)
+  , _body
+  , _outputs
   )
-import Contract.ScriptLookups as Lookups
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Contract.Address (mkAddress)
+import Contract.BalanceTxConstraints (mustSendChangeWithDatum)
+import Contract.Monad (Contract, liftedM)
+import Contract.PlutusData (OutputDatum(OutputDatum), PlutusData(Integer))
 import Contract.Scripts (validatorHash)
 import Contract.Transaction
-  ( _body
-  , _outputs
-  , awaitTxConfirmed
-  , balanceTxWithConstraints
+  ( awaitTxConfirmed
+  , balanceTx
+  , buildTx
   , signTransaction
   , submit
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value as Value
-import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
+import Contract.Wallet (getWalletAddress)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
-import Data.Array (fold, length, replicate, take, zip)
+import Data.Array (length, replicate)
 import Data.Lens ((^.))
+import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Tuple (Tuple(Tuple))
 import JS.BigInt (fromInt) as BigInt
 import Test.Spec.Assertions (shouldEqual)
 
@@ -39,32 +42,36 @@ import Test.Spec.Assertions (shouldEqual)
 checkChangeOutputsDistribution :: Int -> Int -> Int -> Contract Unit
 checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
   do
-    pkhs <- ownPaymentPubKeyHashes
-    skhs <- ownStakePubKeyHashes
     validator <- AlwaysSucceeds.alwaysSucceedsScript
+    address <- liftedM "Failed to get own address" $ getWalletAddress
     let
       vhash = validatorHash validator
+    scriptAddress <- mkAddress
+      (PaymentCredential $ ScriptHashCredential $ vhash)
+      Nothing
+    let
       value = Value.lovelaceValueOf $ BigNum.fromInt 1000001
 
-      constraintsToSelf :: TxConstraints
-      constraintsToSelf = fold <<< take outputsToSelf <<< fold
-        $ replicate outputsToSelf
-        $ zip pkhs skhs <#> \(Tuple pkh mbSkh) -> case mbSkh of
-            Nothing -> Constraints.mustPayToPubKey pkh value
-            Just skh -> Constraints.mustPayToPubKeyAddress pkh skh value
+      plan =
+        replicate outputsToSelf
+          ( Pay $ TransactionOutput
+              { address: address
+              , amount: value
+              , datum: Nothing
+              , scriptRef: Nothing
+              }
+          ) <>
+          replicate outputsToScript
+            ( Pay $ TransactionOutput
+                { address: scriptAddress
+                , amount: value
+                , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+                , scriptRef: Nothing
+                }
+            )
 
-      constraintsToScripts :: TxConstraints
-      constraintsToScripts = fold $ replicate outputsToScript
-        $ Constraints.mustPayToScript vhash unitDatum
-            Constraints.DatumWitness
-            value
-
-      constraints = constraintsToSelf <> constraintsToScripts
-
-      lookups :: Lookups.ScriptLookups
-      lookups = mempty
-    unbalancedTx <- mkUnbalancedTx lookups constraints
-    balancedTx <- balanceTxWithConstraints unbalancedTx
+    unbalancedTx <- buildTx plan
+    balancedTx <- balanceTx unbalancedTx Map.empty
       -- just to check that attaching datums works
       ( mustSendChangeWithDatum $ OutputDatum $ Integer $ BigInt.fromInt
           1000

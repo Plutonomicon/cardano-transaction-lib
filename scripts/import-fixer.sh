@@ -9,8 +9,8 @@ if [[ "${TRACE-0}" == "1" ]]; then
 fi
 
 if [[ "${1-}" =~ ^-*h(elp)?$ ]]; then
-    echo 'Usage: ./scripts/import-fixer.sh [REVISION]
-This script attempts to fix imports from implicit for (Something(..)) to explicit (Something(SomeConstructor, OtherConstructor))
+    echo 'Usage: ./scripts/import-fixer.sh
+This script attempts to fix imports from implicit (Something(..)) to explicit (Something(SomeConstructor, OtherConstructor)) based on a set of hardcoded types
 '
     exit
 fi
@@ -41,13 +41,27 @@ constrs["NetworkId"]="MainnetId, TestnetId"
 constrs["ScriptRef"]="NativeScriptRef, PlutusScriptRef"
 constrs["RedeemerTag"]="Spend, Mint, Cert, Reward"
 constrs["Maybe"]="Just, Nothing"
+constrs["PaymentCredential"]="PaymentCredential"
+constrs["StakeCredential"]="StakeCredential"
+constrs["TransactionBuilderStep"]="SpendOutput, Pay, MintAsset, IssueCertificate, WithdrawStake"
+constrs["OutputWitness"]="NativeScriptOutput, PlutusScriptOutput"
+constrs["CredentialWitness"]="NativeScriptCredential, PlutusScriptCredential"
+constrs["ScriptWitness"]="ScriptValue, ScriptReference"
+constrs["DatumWitness"]="DatumValue, DatumReference"
+constrs["RefInputAction"]="ReferenceInput, SpendInput"
+constrs["ExpectedWitnessType"]="ScriptHashWitness, PubKeyHashWitness"
+constrs["TxBuildError"]="WrongSpendWitnessType, IncorrectDatumHash, IncorrectScriptHash, WrongOutputType, WrongStakeCredentialType, DatumWitnessNotProvided, UnneededDatumWitness, UnneededDeregisterWitness, UnableToAddMints, RedeemerIndexingError, RedeemerIndexingInternalError, WrongNetworkId, ScriptHashAddressAndNoDatum, NoTransactionNetworkId"
+constrs["Certificate"]="StakeRegistration, StakeDeregistration, StakeDelegation, PoolRegistration, PoolRetirement, GenesisKeyDelegation, MoveInstantaneousRewardsCert"
+constrs["PlutusData"]="Constr, Map, List, Integer, Bytes"
 
 for d in "src" "test" "examples"; do
     echo "processing $d"
     pushd "./$d"
+    command=''
     for key in "${!constrs[@]}"; do
-        echo -n "$key,"
-        find -type f | grep '\.purs$' --color=never | xargs -I'{}' -exec sed -i 's/'"$key"'(..)/'"$key(${constrs[$key]})"'/g;' '{}'
+        command="$command"'s/\b'"$key"'(..)/'"$key(${constrs[$key]})"'/g;'
     done
+    find -type f | grep '\.purs$' --color=never | xargs -I'{}' -exec sed -i -e "$command"  '{}'
+    echo "$command"
     popd
 done;
