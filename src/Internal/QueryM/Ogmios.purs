@@ -1036,8 +1036,8 @@ type ProtocolParametersRaw =
       }
   , "collateralPercentage" :: UInt
   , "maxCollateralInputs" :: UInt
-  , "governanceActionDeposit" :: OgmiosAdaLovelace
-  , "delegateRepresentativeDeposit" :: OgmiosAdaLovelace
+  , "governanceActionDeposit" :: Maybe OgmiosAdaLovelace
+  , "delegateRepresentativeDeposit" :: Maybe OgmiosAdaLovelace
   }
 
 newtype OgmiosProtocolParameters = OgmiosProtocolParameters ProtocolParameters
@@ -1087,8 +1087,13 @@ instance DecodeAeson OgmiosProtocolParameters where
       , maxValueSize: ps.maxValueSize.bytes
       , collateralPercent: ps.collateralPercentage
       , maxCollateralInputs: ps.maxCollateralInputs
-      , govActionDeposit: wrap ps.governanceActionDeposit.ada.lovelace
-      , drepDeposit: wrap ps.delegateRepresentativeDeposit.ada.lovelace
+      , govActionDeposit:
+          -- NOTE: Conway fields should be optional to enable integration tests.
+          -- Reason: cardano-testnet runs in the Babbage era.
+          maybe mempty (wrap <<< _.ada.lovelace) ps.governanceActionDeposit
+      , drepDeposit:
+          maybe mempty (wrap <<< _.ada.lovelace)
+            ps.delegateRepresentativeDeposit
       }
     where
     decodeExUnits
