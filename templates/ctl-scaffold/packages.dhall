@@ -148,7 +148,7 @@ let additions =
           , "prelude"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip95"
-        , version = "9d92a38cddd318245010286ae3966cd515d6952f"
+        , version = "ddcabbcf96ec6e292ca821c86eada1f828da0daf"
         }
       , cip95-typesafe =
         { dependencies =
