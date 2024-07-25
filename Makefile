@@ -82,7 +82,7 @@ check-format: check-explicit-exports check-examples-imports check-whitespace
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
 	@prettier --log-level warn -c ${js-sources}
-	@eslint --quiet ${js-sources} --parser-options 'sourceType: module'
+	@eslint --quiet ${js-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

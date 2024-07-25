@@ -9,6 +9,7 @@
 
   inputs = {
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    nixpkgs-arion.url = "github:NixOS/nixpkgs";
     hackage-nix = {
       url = "github:input-output-hk/hackage.nix";
       flake = false;
@@ -32,35 +33,25 @@
       flake = false;
     };
 
-    cardano-node.url = "github:IntersectMBO/cardano-node/8.11.0-pre";
+    cardano-node.url = "github:input-output-hk/cardano-node/9.0.0";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=692010ed0f454bfbb566c06443227c79e2f4dbab";
+      url = "github:input-output-hk/cardano-configurations?rev=de80edfd569d82d5191d2c6103834e700787bb2d";
       flake = false;
     };
 
-    # Get Ogmios and Kupo from cardano-nix
+    # Get Ogmios from cardano-nix
     cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
+      url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios-v6.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # TODO: Remove this input as soon as a new version compatible with
-    # the latest node is released. Use Kupo from cardano-nix.
-    kupo-nixos = {
-      url = "github:Fourierlabs/kupo-nixos/add-conway";
-      inputs = {
-        CHaP.follows = "CHaP";
-        kupo.url = "github:klarkc/kupo/d95a324f6a94a963cd91cb5d5f88ef50640e7b8d";
-      };
     };
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.4.0";
+      url = "github:CardanoSolutions/ogmios/v6.5.0";
       flake = false;
     };
 
@@ -78,6 +69,7 @@
   outputs =
     { self
     , nixpkgs
+    , nixpkgs-arion
     , cardano-configurations
     , cardano-node
     , ...
@@ -90,8 +82,8 @@
         "aarch64-darwin"
       ];
 
-      ogmiosVersion = "6.4.0";
-      kupoVersion = "2.8.0";
+      ogmiosVersion = "6.5.0";
+      kupoVersion = "2.9.0";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -99,6 +91,7 @@
         overlays = nixpkgs.lib.attrValues self.overlays ++ [
           (_: _: {
             ogmios-fixtures = inputs.ogmios;
+            arion = (import nixpkgs-arion { inherit system; }).arion;
           })
         ];
         inherit system;
@@ -217,8 +210,7 @@
               name = "ctl-e2e-test";
               runnerMain = "Test.Ctl.E2E";
               testMain = "Ctl.Examples.ByUrl";
-              buildInputs = [ inputs.kupo-nixos.packages.${pkgs.system}.kupo ];
-              # buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
+              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
             };
             ctl-local-testnet-test = project.runLocalTestnetTest {
               name = "ctl-local-testnet-test";
@@ -236,6 +228,8 @@
           };
 
           devShell = project.devShell;
+
+          nodeModules = project.nodeModules;
 
           apps = {
             # TODO: restore this
@@ -293,8 +287,7 @@
                 cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
                 cardano-node = cardano-node.packages.${system}.cardano-node;
                 cardano-cli = cardano-node.packages.${system}.cardano-cli;
-                kupo = inputs.kupo-nixos.packages.${system}.kupo;
-                # kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
+                kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
@@ -336,9 +329,9 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-
+          psProject = psProjectFor pkgs;
         in
-        (psProjectFor pkgs).checks
+        psProject.checks
         // {
           formatting-check = pkgs.runCommand "formatting-check"
             {
@@ -351,7 +344,10 @@
               ];
             }
             ''
-              cd ${self}
+              cd $TMPDIR
+              ln -sfn ${psProject.nodeModules}/lib/node_modules node_modules
+              cp -r ${self}/* .
+
               make check-format
               touch $out
             '';
@@ -486,14 +482,13 @@
         modules = [
           inputs.cardano-node.nixosModules.cardano-node
           inputs.cardano-nix.nixosModules.ogmios
-          inputs.kupo-nixos.nixosModules.kupo
-          # inputs.cardano-nix.nixosModules.kupo
+          inputs.cardano-nix.nixosModules.kupo
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
           ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
-          # kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
+          kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
         };
       };
 

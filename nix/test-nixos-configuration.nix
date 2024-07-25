@@ -1,10 +1,11 @@
-{ config, modulesPath, pkgs, cardano-configurations, ogmios, ... }:
+{ config, modulesPath, pkgs, cardano-configurations, ogmios, kupo, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
   virtualisation = {
     memorySize = 8192;
     diskSize = 100000;
+    restrictNetwork = false;
     forwardPorts = [
       # SSH
       { from = "host"; host.port = 2222; guest.port = 22; }
@@ -23,41 +24,38 @@
   users.extraUsers.root.password = "";
   users.mutableUsers = false;
 
+  environment.systemPackages = with pkgs; [
+    lsof
+  ];
+
   # services
 
   services.cardano-node = {
     enable = true;
-    systemdSocketActivation = true;
-    nodeConfigFile = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
-    topology = "${cardano-configurations}/network/sanchonet/cardano-node/topology.json";
+    hostAddr = "0.0.0.0";
+    socketPath = "/var/run/cardano-node/node.socket";
+    systemdSocketActivation = false;
+    nodeConfigFile = "${cardano-configurations}/network/preview/cardano-node/config.json";
+    topology = "${cardano-configurations}/network/preview/cardano-node/topology.json";
   };
 
   services.ogmios = {
     enable = true;
     package = ogmios;
     host = "0.0.0.0";
+    user = "cardano-node";
+    group = "cardano-node";
     nodeSocketPath = "/var/run/cardano-node/node.socket";
-    nodeConfigPath = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
+    nodeConfigPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
   };
 
   services.kupo = {
     enable = true;
-    host = "0.0.0.0";
-    user = "kupo";
-    group = "kupo";
-    nodeConfig = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
-    nodeSocket = "/var/run/cardano-node/node.socket";
-  };
-
-  /*
-    services.kupo = {
-    enable = true;
     package = kupo;
-    user = "kupo";
-    group = "kupo";
+    user = "cardano-node";
+    group = "cardano-node";
     host = "0.0.0.0";
     nodeSocketPath = "/var/run/cardano-node/node.socket";
-    nodeConfigPath = "${cardano-configurations}/network/mainnet/cardano-node/config.json";
-    };
-  */
+    nodeConfigPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
+  };
 }
