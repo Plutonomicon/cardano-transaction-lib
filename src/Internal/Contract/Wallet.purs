@@ -21,7 +21,11 @@ module Ctl.Internal.Contract.Wallet
 import Prelude
 
 import Cardano.Types (Ed25519KeyHash, RawBytes)
-import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
+import Cardano.Types.Address
+  ( Address(RewardAddress)
+  , getPaymentCredential
+  , getStakeCredential
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential as Credential
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
@@ -82,8 +86,13 @@ getRewardAddresses =
   withWallet $ actionBasedOnWallet _.getRewardAddresses
     \kw -> do
       networkId <- asks _.networkId
-      addr <- liftAff $ (unwrap kw).address networkId
-      pure $ Array.singleton addr
+      mStakeCred <- liftAff $ getStakeCredential <$> (unwrap kw).address
+        networkId
+      pure $ maybe mempty
+        ( Array.singleton <<< RewardAddress <<<
+            { networkId, stakeCredential: _ }
+        )
+        mStakeCred
 
 -- | Get all `Address`es of the browser wallet.
 getWalletAddresses :: Contract (Array Address)
