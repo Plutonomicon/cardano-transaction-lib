@@ -39,6 +39,7 @@ import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum))
+import Cardano.Types.TransactionBody (_votingProposals)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutputs
 import Cardano.Types.TransactionWitnessSet (_redeemers)
@@ -236,7 +237,8 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder =
       , changeDatum: changeDatum'
       , allUtxos
       , utxos: availableUtxos
-      , certsFee: getCertsBalance transaction pparams
+      , miscFee: getCertsBalance transaction pparams + getProposalsBalance
+          transaction
       }
   where
   getChangeAddress :: BalanceTxM Address
@@ -294,7 +296,7 @@ type BalancerParams =
   , changeDatum :: Maybe OutputDatum
   , allUtxos :: UtxoMap
   , utxos :: UtxoMap
-  , certsFee :: BigInt -- can be negative (deregistration)
+  , miscFee :: BigInt -- can be negative (deregistration)
   }
 
 -- TODO: remove the parameter
@@ -434,11 +436,11 @@ runBalancer p = do
       changeOutputs <- makeChange ownWalletAddresses p.changeAddress
         p.changeDatum
         inputValue'
-        p.certsFee
+        p.miscFee
         txBody
 
       requiredValue <-
-        except $ getRequiredValue p.certsFee p.allUtxos
+        except $ getRequiredValue p.miscFee p.allUtxos
           $ setTxChangeOutputs changeOutputs transaction ^. _body
 
       worker $
@@ -468,7 +470,7 @@ runBalancer p = do
         let
           txBody :: TransactionBody
           txBody = setTxChangeOutputs changeOutputs transaction ^. _body
-        except (getRequiredValue p.certsFee p.allUtxos txBody)
+        except (getRequiredValue p.miscFee p.allUtxos txBody)
           >>= performMultiAssetSelection p.strategy leftoverUtxos
 
     -- | Calculates execution units for each script in the transaction and sets
@@ -560,7 +562,7 @@ makeChange
   changeAddress
   changeDatum
   inputValue'
-  certsFee
+  miscFee
   txBody =
   -- Always generate change when a transaction has no outputs to avoid issues
   -- with transaction confirmation:
@@ -641,7 +643,7 @@ makeChange
   excessValue :: Val
   excessValue = posVal $
     (inputValue <> mintValue txBody) `Val.minus`
-      (outputValue txBody <> minFeeValue txBody <> Val certsFee Map.empty)
+      (outputValue txBody <> minFeeValue txBody <> Val miscFee Map.empty)
 
   posVal :: Val -> Val
   posVal (Val coin nonAdaAsset) =
@@ -796,9 +798,9 @@ mkChangeOutput changeAddress datum amount = wrap
 
 getRequiredValue
   :: BigInt -> UtxoMap -> TransactionBody -> Either BalanceTxError Val
-getRequiredValue certsFee utxos txBody = do
+getRequiredValue miscFee utxos txBody = do
   getInputVal utxos txBody <#> \inputValue ->
-    ( outputValue txBody <> minFeeValue txBody <> Val certsFee Map.empty
+    ( outputValue txBody <> minFeeValue txBody <> Val miscFee Map.empty
     )
       `Val.minus` (inputValue <> mintValue txBody)
 
@@ -820,6 +822,16 @@ minFeeValue txBody = Val.fromCoin $ txBody ^. _fee
 
 mintValue :: TransactionBody -> Val
 mintValue txBody = maybe mempty Val.fromMint (txBody ^. _mint)
+
+getProposalsBalance :: Transaction -> BigInt
+getProposalsBalance tx =
+  let
+    deposits :: BigInt
+    deposits =
+      sum $ map (BigNum.toBigInt <<< _.deposit <<< unwrap)
+        (tx ^. _body <<< _votingProposals)
+  in
+    deposits
 
 -- | Accounts for:
 -- |

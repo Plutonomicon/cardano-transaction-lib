@@ -6,14 +6,12 @@ module Ctl.Examples.Gov.RegisterDrep
 
 import Contract.Prelude
 
-import Cardano.AsCbor (decodeCbor)
 import Cardano.Transaction.Builder (TransactionBuilderStep(IssueCertificate))
 import Cardano.Types
-  ( Anchor(Anchor)
+  ( Anchor
   , Certificate(RegDrepCert, UpdateDrepCert, UnregDrepCert)
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
-  , URL(URL)
   )
 import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
@@ -23,12 +21,11 @@ import Contract.Config
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Contract.Wallet (ownDrepPubKeyHash)
+import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
 import Data.Map (empty) as Map
-import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -43,13 +40,7 @@ contract = do
   logInfo' "Running Examples.Gov.RegisterDrep"
   drepPkh <- contractStep RegDrep
   logInfo' $ "Successfully registered DRep. DRepID: " <> show drepPkh
-  void $ contractStep $ UpdateDrep $ Anchor
-    { url: URL "https://example.com/"
-    , dataHash:
-        unsafePartial $ fromJust $ decodeCbor $ wrap $
-          hexToByteArrayUnsafe
-            "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
-    }
+  void $ contractStep $ UpdateDrep dummyAnchor
   logInfo' "Successfully updated DRep metadata."
   void $ contractStep UnregDrep
   logInfo' "Successfully unregistered DRep."
