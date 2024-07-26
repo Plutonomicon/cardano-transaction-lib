@@ -291,11 +291,12 @@ let additions =
           , "foldable-traversable"
           , "maybe"
           , "newtype"
+          , "ordered-collections"
           , "prelude"
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
-        , version = "a43c410a8430b552e42e88ab542eb6a43d09a633"
+        , version = "57261b623f0f3fc90a34611071e630b8521a115c"
         }
       , uplc-apply-args =
         { dependencies =
