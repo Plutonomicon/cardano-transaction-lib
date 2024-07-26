@@ -457,7 +457,7 @@ unwrapKupoUtxoSlot :: KupoUtxoSlot -> Slot
 unwrapKupoUtxoSlot (KupoUtxoSlot slot) = slot
 
 --------------------------------------------------------------------------------
--- `getTxAuxiliaryData` reponse parsing
+-- `getTxAuxiliaryData` response parsing
 --------------------------------------------------------------------------------
 
 newtype KupoAuxiliaryData = KupoAuxiliaryData (Maybe AuxiliaryData)

@@ -450,7 +450,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo =
-            "https://github.com/errfrom/purescript-cardano-transaction-builder"
+            "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
         , version = "48866bd7f5eeb8e0870c97384264d08bda9c2725"
         }
       , mote-testplan =

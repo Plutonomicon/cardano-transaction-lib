@@ -469,7 +469,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo =
-            "https://github.com/errfrom/purescript-cardano-transaction-builder"
+            "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
         , version = "48866bd7f5eeb8e0870c97384264d08bda9c2725"
         }
       , cardano-transaction-lib =
@@ -582,7 +582,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "bfbcb504f5667970b2e784a6a8ed2dccdd9beb50"
+        , version = "69db7bac9c1ee4fc443510a39943734500f6f2d3"
         }
       }
 

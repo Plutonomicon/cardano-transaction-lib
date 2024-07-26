@@ -27,7 +27,7 @@ import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
 import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
-import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.PlutusData (unit) as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)

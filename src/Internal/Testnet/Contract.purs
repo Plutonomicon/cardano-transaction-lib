@@ -289,7 +289,7 @@ execDistrFundsPlan withCardanoCliUtxos rounds = do
               genesisAddr <- liftedM "Could not get genesis address"
                 getWalletAddress
               withCardanoCliUtxos genesisAddr do
-                constraints <- liftAff $ traverse
+                constraints <- liftAff $ fold <$> traverse
                   ( \{ wallet, amount } -> do
                       addrs <- (unwrap wallet).address network
                       pure $ mustPayToAddress addrs $ Value.lovelaceValueOf
@@ -297,7 +297,7 @@ execDistrFundsPlan withCardanoCliUtxos rounds = do
                   )
                   utxos
 
-                txHash <- submitTxFromConstraints mempty $ fold constraints
+                txHash <- submitTxFromConstraints mempty constraints
                 logInfo' $ "FundWalletsFromGenesis txHash: " <> show txHash
                 awaitTxConfirmed txHash
         )

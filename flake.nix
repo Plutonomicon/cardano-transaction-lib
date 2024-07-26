@@ -33,13 +33,13 @@
       flake = false;
     };
 
-    cardano-node.url = "github:IntersectMBO/cardano-node/9.0.0-sancho";
+    cardano-node.url = "github:input-output-hk/cardano-node/9.1.0";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
       # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=de80edfd569d82d5191d2c6103834e700787bb2d";
+      url = "github:input-output-hk/cardano-configurations?rev=7969a73e5c7ee1f3b2a40274b34191fdd8de170b";
       flake = false;
     };
 
