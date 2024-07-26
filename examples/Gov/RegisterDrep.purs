@@ -6,7 +6,16 @@ module Ctl.Examples.Gov.RegisterDrep
 
 import Contract.Prelude
 
-import Cardano.Types.Credential (Credential(PubKeyHashCredential))
+import Cardano.AsCbor (decodeCbor)
+import Cardano.Transaction.Builder (TransactionBuilderStep(IssueCertificate))
+import Cardano.Types
+  ( Anchor(Anchor)
+  , Certificate(RegDrepCert, UpdateDrepCert, UnregDrepCert)
+  , Credential(PubKeyHashCredential)
+  , Ed25519KeyHash
+  , URL(URL)
+  )
+import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
   , WalletSpec(ConnectToGenericCip30)
@@ -14,10 +23,12 @@ import Contract.Config
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints (mustRegisterDrep) as Constraints
+import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
+import Contract.ProtocolParameters (getProtocolParameters)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Contract.Wallet (ownDrepPubKeyHash)
+import Data.Map (empty) as Map
+import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -30,11 +41,42 @@ example = launchAff_ <<< flip runContract contract
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Gov.RegisterDrep"
-  drepCred <- PubKeyHashCredential <$> ownDrepPubKeyHash
-  let
-    constraints :: TxConstraints
-    constraints = Constraints.mustRegisterDrep drepCred Nothing
+  drepPkh <- contractStep RegDrep
+  logInfo' $ "Successfully registered DRep. DRepID: " <> show drepPkh
+  void $ contractStep $ UpdateDrep $ Anchor
+    { url: URL "https://example.com/"
+    , dataHash:
+        unsafePartial $ fromJust $ decodeCbor $ wrap $
+          hexToByteArrayUnsafe
+            "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
+    }
+  logInfo' "Successfully updated DRep metadata."
+  void $ contractStep UnregDrep
+  logInfo' "Successfully unregistered DRep."
 
-  txHash <- submitTxFromConstraints mempty constraints
-  awaitTxConfirmed txHash
-  logInfo' "Tx submitted successfully!"
+data ContractPath
+  = RegDrep
+  | UpdateDrep Anchor
+  | UnregDrep
+
+contractStep :: ContractPath -> Contract Ed25519KeyHash
+contractStep path = do
+  drepPkh <- ownDrepPubKeyHash
+  let drepCred = PubKeyHashCredential drepPkh
+  drepDeposit <- _.drepDeposit <<< unwrap <$> getProtocolParameters
+
+  tx <- submitTxFromBuildPlan Map.empty mempty
+    [ IssueCertificate
+        ( case path of
+            RegDrep ->
+              RegDrepCert drepCred drepDeposit Nothing
+            UpdateDrep anchor ->
+              UpdateDrepCert drepCred $ Just anchor
+            UnregDrep ->
+              UnregDrepCert drepCred drepDeposit
+        )
+        Nothing
+    ]
+
+  awaitTxConfirmed $ Transaction.hash tx
+  pure drepPkh

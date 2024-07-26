@@ -12,6 +12,7 @@ import Cardano.Types
       , StakeRegistration
       , VoteRegDelegCert
       , RegDrepCert
+      , UnregDrepCert
       )
   , Coin(Coin)
   , Language(PlutusV1)
@@ -837,10 +838,20 @@ getCertsBalance tx (ProtocolParameters pparams) =
       (tx ^. _body <<< _certs) #
         map
           ( case _ of
-              StakeRegistration _ -> stakeAddressDeposit
-              StakeDeregistration _ -> negate $ stakeAddressDeposit
-              VoteRegDelegCert _ _ deposit -> BigNum.toBigInt $ unwrap deposit
-              RegDrepCert _ deposit _ -> BigNum.toBigInt $ unwrap deposit
+              StakeRegistration _ ->
+                stakeAddressDeposit
+
+              StakeDeregistration _ ->
+                negate $ stakeAddressDeposit
+
+              VoteRegDelegCert _ _ drepDeposit ->
+                BigNum.toBigInt $ unwrap drepDeposit
+
+              RegDrepCert _ drepDeposit _ ->
+                BigNum.toBigInt $ unwrap drepDeposit
+
+              UnregDrepCert _ drepDeposit ->
+                negate $ BigNum.toBigInt $ unwrap drepDeposit
               _ -> zero
           )
           >>> sum
