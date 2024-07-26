@@ -39,6 +39,7 @@ import Cardano.Wallet.Key
   , getPrivateDrepKey
   , getPrivateStakeKey
   )
+import Contract.Log (logWarn')
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
@@ -292,42 +293,23 @@ ownRegisteredPubStakeKeys :: Contract (Array PublicKey)
 ownRegisteredPubStakeKeys =
   withWallet do
     actionBasedOnWallet _.getRegisteredPubStakeKeys
-      (map _.reg <<< kwPubStakeKeys)
+      (kwPubStakeKeys "ownRegisteredPubStakeKeys")
 
 ownUnregisteredPubStakeKeys :: Contract (Array PublicKey)
 ownUnregisteredPubStakeKeys =
   withWallet do
     actionBasedOnWallet _.getUnregisteredPubStakeKeys
-      (map _.unreg <<< kwPubStakeKeys)
+      (kwPubStakeKeys "ownUnregisteredPubStakeKeys")
 
-kwPubStakeKeys
-  :: KeyWallet
-  -> Contract { reg :: Array PublicKey, unreg :: Array PublicKey }
-kwPubStakeKeys kw =
-  liftAff (getPrivateStakeKey kw) >>= case _ of
+kwPubStakeKeys :: String -> KeyWallet -> Contract (Array PublicKey)
+kwPubStakeKeys funName kw = do
+  logWarn' $ funName <>
+    " via KeyWallet: KeyWallet does not distinguish between \
+    \registered and unregistered stake keys due to the limitations \
+    \of the underlying query layer. This means that all controlled \
+    \stake keys are returned regardless of their registration status."
+  liftAff (getPrivateStakeKey kw) <#> case _ of
+    Just (PrivateStakeKey stakeKey) ->
+      Array.singleton $ PrivateKey.toPublicKey stakeKey
     Nothing ->
-      pure mempty
-    Just (PrivateStakeKey stakeKey) -> do
-      queryHandle <- getQueryHandle
-      network <- asks _.networkId
-      let
-        pubStakeKey = PrivateKey.toPublicKey stakeKey
-        stakePkh = wrap $ PublicKey.hash pubStakeKey
-      resp <- liftAff $ queryHandle.getPubKeyHashDelegationsAndRewards
-        network
-        stakePkh
-      case resp of
-        Left err ->
-          liftEffect $ throw $
-            "kwPubStakeKeys: getPubKeyHashDelegationsAndRewards call error: "
-              <> pprintClientError err
-        Right mStakeAccount ->
-          pure case mStakeAccount of
-            Nothing ->
-              { reg: mempty
-              , unreg: Array.singleton pubStakeKey
-              }
-            Just _ ->
-              { reg: Array.singleton pubStakeKey
-              , unreg: mempty
-              }
+      mempty
