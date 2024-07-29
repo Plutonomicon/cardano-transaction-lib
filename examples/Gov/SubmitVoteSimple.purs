@@ -1,4 +1,4 @@
-module Ctl.Examples.Gov.SubmitProposal
+module Ctl.Examples.Gov.SubmitVoteSimple
   ( contract
   , example
   , main
@@ -6,10 +6,17 @@ module Ctl.Examples.Gov.SubmitProposal
 
 import Contract.Prelude
 
-import Cardano.Transaction.Builder (TransactionBuilderStep(SubmitProposal))
+import Cardano.Transaction.Builder
+  ( TransactionBuilderStep(SubmitProposal, SubmitVotingProcedure)
+  )
 import Cardano.Types
   ( Address(RewardAddress)
+  , Credential(PubKeyHashCredential)
+  , GovernanceActionId
   , RewardAddress
+  , Vote(VoteYes)
+  , Voter(Drep)
+  , VotingProcedure(VotingProcedure)
   , VotingProposal(VotingProposal)
   )
 import Cardano.Types (GovernanceAction(Info)) as GovAction
@@ -23,10 +30,10 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
-import Contract.Wallet (getRewardAddresses)
+import Contract.Wallet (getRewardAddresses, ownDrepPubKeyHash)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
 import Data.Array (head) as Array
-import Data.Map (empty) as Map
+import Data.Map (empty, singleton) as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -38,6 +45,23 @@ example = launchAff_ <<< flip runContract contract
 
 contract :: Contract Unit
 contract = do
+  logInfo' "Running Examples.Gov.SubmitVoteSimple"
+  govActionId <- submitProposal
+  logInfo' $ "Successfully submitted voting proposal. Action id: " <> show
+    govActionId
+  submitVote govActionId
+  logInfo' "Successfully voted on the proposal."
+
+{-
+  { transactionId: unsafePartial fromJust $ decodeCbor $ wrap $
+      hexToByteArrayUnsafe
+        "fec3c9c4c8bf9b02237bbdccca9460eee1e5b67a5052fdbd5eb1d7ec1719d9f0"
+  , index: zero
+  }
+-}
+
+submitProposal :: Contract GovernanceActionId
+submitProposal = do
   logInfo' "Running Examples.Gov.SubmitProposal"
 
   govActionDeposit <- _.govActionDeposit <<< unwrap <$> getProtocolParameters
@@ -53,9 +77,24 @@ contract = do
         , returnAddr: rewardAddr
         }
     ]
+  let txHash = Transaction.hash tx
+  awaitTxConfirmed txHash
+  pure $ wrap { transactionId: txHash, index: zero }
 
+-- NOTE: The wallet must be registered as DRep to submit a vote.
+-- See Ctl.Examples.Gov.RegisterDrep
+submitVote :: GovernanceActionId -> Contract Unit
+submitVote govActionId = do
+  drepCred <- PubKeyHashCredential <$> ownDrepPubKeyHash
+
+  tx <- submitTxFromBuildPlan Map.empty mempty
+    [ SubmitVotingProcedure (Drep drepCred)
+        ( Map.singleton govActionId $
+            VotingProcedure { vote: VoteYes, anchor: Nothing }
+        )
+        Nothing
+    ]
   awaitTxConfirmed $ Transaction.hash tx
-  logInfo' "Successfully submitted voting proposal."
 
 asRewardAddress :: Address -> Maybe RewardAddress
 asRewardAddress = case _ of
