@@ -1840,17 +1840,17 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "lastModified": 1720834069,
-        "narHash": "sha256-jWFjTUTpwAgvsSJsQ4INgKl/paR489n1si35GLtSkuU=",
+        "lastModified": 1721870874,
+        "narHash": "sha256-qiReN+xxtbb4kEfdIWbBcqcJpPGD8he0p/TVD7U3CqM=",
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "de80edfd569d82d5191d2c6103834e700787bb2d",
+        "rev": "7969a73e5c7ee1f3b2a40274b34191fdd8de170b",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "de80edfd569d82d5191d2c6103834e700787bb2d",
+        "rev": "7969a73e5c7ee1f3b2a40274b34191fdd8de170b",
         "type": "github"
       }
     },
@@ -2125,16 +2125,16 @@
         "utils": "utils_7"
       },
       "locked": {
-        "lastModified": 1720029730,
-        "narHash": "sha256-ESE5/7XzXeIZldkYPbMd8CoMKQo9ghY1vOkhHpOj0K4=",
+        "lastModified": 1721843629,
+        "narHash": "sha256-F5wgRA820x16f+8c/LlEEBG0rMJIA1XWw6X0ZwX5UWs=",
         "owner": "input-output-hk",
         "repo": "cardano-node",
-        "rev": "2820a63dc934c6d5b5f450b6c2543b81c6476696",
+        "rev": "176f99e51155cb3eaa0711db1c3c969d67438958",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
-        "ref": "9.0.0",
+        "ref": "9.1.0",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -2782,17 +2782,17 @@
         "ogmios": "ogmios_2"
       },
       "locked": {
-        "lastModified": 1721923839,
-        "narHash": "sha256-Z1uSTkhjxFrcW/lOo1SNkQ8JqQ0k5O9A4wetaquAYoI=",
+        "lastModified": 1722363356,
+        "narHash": "sha256-9AQgEftAlU+B0mV3fxZlwhQ7l3vxG/MXyHDgEIkfzwk=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "69db7bac9c1ee4fc443510a39943734500f6f2d3",
+        "rev": "70ab312ebe7615444c895fd1072b6be91e47430d",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "69db7bac9c1ee4fc443510a39943734500f6f2d3",
+        "rev": "70ab312ebe7615444c895fd1072b6be91e47430d",
         "type": "github"
       }
     },
