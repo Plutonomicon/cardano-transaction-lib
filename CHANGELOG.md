@@ -81,7 +81,7 @@ This version provides basic Conway support and replaces Plutip with `cardano-tes
 - `ogmios`: 6.5.0
 - `kupo`: 2.9.0
 - `@mlabs-haskell/cardano-serialization-lib-gc`: `12.0.0-alpha.31` (wraps the same version of [CSL](https://github.com/Emurgo/cardano-serialization-lib/))
-- `@mlabs-haskell/uplc-apply-args`: `1.0.29-alpha` (wraps the same version of the [`uplc` crate](https://crates.io/crates/uplc))
+- `@mlabs-haskell/uplc-apply-args`: `1.0.29-alpha` (wraps the same version of the [`uplc` crate](https://github.com/aiken-lang/aiken/tree/main/crates/uplc))
 
 ### Added
 
