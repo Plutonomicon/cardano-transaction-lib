@@ -24,7 +24,8 @@ import Data.Bifunctor (lmap)
 import Data.ByteArray (ByteArray)
 import Data.ByteArray as Data.ByteArray
 import Data.List as List
-import Data.String as String
+import Data.String (Pattern(Pattern), split, trim) as String
+import Data.String.CodeUnits (fromCharArray) as String
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect.Exception (error)
@@ -140,7 +141,6 @@ execCardanoCli
        }
 execCardanoCli params = annotateError "execCardanoCli" do
   let cmd = "cardano-cli " <> intercalate " " params
-  -- log $ show { execCardanoCli: cmd }
   { channels, process } <- Ctl.Internal.Spawn.exec cmd
   let
     bufferToLines =
@@ -209,9 +209,7 @@ parseAssetName =
     =<< parseHex
 
 makeString :: forall f. Foldable f => f Char -> String
-makeString = String.fromCodePointArray
-  <<< map String.codePointFromChar
-  <<< Array.fromFoldable
+makeString = String.fromCharArray <<< Array.fromFoldable
 
 parseNatural :: forall n. (String -> Either String n) -> Parsing.Parser String n
 parseNatural toNumber = Parsing.liftEither
