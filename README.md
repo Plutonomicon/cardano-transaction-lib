@@ -41,7 +41,7 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Importing Plutus Scripts](./doc/importing-scripts.md)
 - [Migrating from Plutus Application Backend to CTL](./doc/plutus-comparison.md)
 - [Overview of testing approaches](./doc/testing.md)
-  - [Testing on local testnets with Plutip](./doc/plutip-testing.md)
+  - [Testing on local Cardano testnets](./doc/cardano-testnet-testing.md)
   - [End-to-end dApp testing with headless browsers](./doc/e2e-testing.md)
   - [Assertion utilities for testing](./doc/test-utils.md)
   - [Using a directory with private keys to run tests](./doc/keydir.md)

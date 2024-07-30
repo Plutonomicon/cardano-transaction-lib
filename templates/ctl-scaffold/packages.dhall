@@ -1,109 +1,3 @@
-{-
-Welcome to your new Dhall package-set!
-
-Below are instructions for how to edit this file for most use
-cases, so that you don't need to know Dhall to use it.
-
-## Warning: Don't Move This Top-Level Comment!
-
-Due to how `dhall format` currently works, this comment's
-instructions cannot appear near corresponding sections below
-because `dhall format` will delete the comment. However,
-it will not delete a top-level comment like this one.
-
-## Use Cases
-
-Most will want to do one or both of these options:
-1. Override/Patch a package's dependency
-2. Add a package not already in the default package set
-
-This file will continue to work whether you use one or both options.
-Instructions for each option are explained below.
-
-### Overriding/Patching a package
-
-Purpose:
-- Change a package's dependency to a newer/older release than the
-    default package set's release
-- Use your own modified version of some dependency that may
-    include new API, changed API, removed API by
-    using your custom git repo of the library rather than
-    the package set's repo
-
-Syntax:
-where `entityName` is one of the following:
-- dependencies
-- repo
-- version
--------------------------------
-let upstream = --
-in  upstream
-  with packageName.entityName = "new value"
--------------------------------
-
-Example:
--------------------------------
-let upstream = --
-in  upstream
-  with halogen.version = "master"
-  with halogen.repo = "https://example.com/path/to/git/repo.git"
-
-  with halogen-vdom.version = "v4.0.0"
--------------------------------
-
-### Additions
-
-Purpose:
-- Add packages that aren't already included in the default package set
-
-Syntax:
-where `<version>` is:
-- a tag (i.e. "v4.0.0")
-- a branch (i.e. "master")
-- commit hash (i.e. "701f3e44aafb1a6459281714858fadf2c4c2a977")
--------------------------------
-let upstream = --
-in  upstream
-  with new-package-name =
-    { dependencies =
-       [ "dependency1"
-       , "dependency2"
-       ]
-    , repo =
-       "https://example.com/path/to/git/repo.git"
-    , version =
-        "<version>"
-    }
--------------------------------
-
-Example:
--------------------------------
-let upstream = --
-in  upstream
-  with benchotron =
-      { dependencies =
-          [ "arrays"
-          , "exists"
-          , "profunctor"
-          , "strings"
-          , "quickcheck"
-          , "lcg"
-          , "transformers"
-          , "foldable-traversable"
-          , "exceptions"
-          , "node-fs"
-          , "node-buffer"
-          , "node-readline"
-          , "datetime"
-          , "now"
-          ]
-      , repo =
-          "https://github.com/hdgarrood/purescript-benchotron.git"
-      , version =
-          "v7.0.0"
-      }
--------------------------------
--}
 let upstream =
       https://github.com/purescript/package-sets/releases/download/psc-0.15.4-20230105/packages.dhall
         sha256:3e9fbc9ba03e9a1fcfd895f65e2d50ee2f5e86c4cd273f3d5c841b655a0e1bda
@@ -266,21 +160,27 @@ let additions =
       , cardano-serialization-lib =
         { dependencies =
           [ "aeson"
+          , "aff"
           , "argonaut"
           , "bifunctors"
           , "bytearrays"
           , "effect"
           , "either"
+          , "enums"
           , "maybe"
           , "nullable"
           , "ordered-collections"
+          , "partial"
           , "prelude"
           , "profunctor"
+          , "spec"
+          , "transformers"
           , "tuples"
+          , "unsafe-coerce"
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib"
-        , version = "26d437c3f398172c839b93b57c30eb43a7fa7ca0"
+        , version = "v1.0.0"
         }
       , cardano-plutus-data-schema =
         { dependencies = [ "prelude" ]
@@ -394,14 +294,15 @@ let additions =
       , cardano-types =
         { dependencies =
           [ "aeson"
+          , "aff"
           , "arraybuffer-types"
           , "arrays"
           , "bifunctors"
           , "bytearrays"
           , "cardano-plutus-data-schema"
           , "cardano-serialization-lib"
-          , "console"
           , "control"
+          , "datetime"
           , "effect"
           , "either"
           , "encoding"
@@ -415,6 +316,8 @@ let additions =
           , "literals"
           , "maybe"
           , "monad-logger"
+          , "mote"
+          , "mote-testplan"
           , "newtype"
           , "nonempty"
           , "nullable"
@@ -422,11 +325,12 @@ let additions =
           , "partial"
           , "prelude"
           , "profunctor"
+          , "profunctor-lenses"
           , "quickcheck"
           , "rationals"
           , "record"
           , "safe-coerce"
-          , "strings"
+          , "spec"
           , "these"
           , "tuples"
           , "typelevel-prelude"
@@ -435,7 +339,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "v1.0.2"
+        , version = "56877b43ea392ef6486e37d52e1c37d8c2b8c42d"
         }
       , cardano-message-signing =
         { dependencies =
@@ -535,7 +439,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "v1.0.0"
+        , version = "48866bd7f5eeb8e0870c97384264d08bda9c2725"
         }
       , cardano-transaction-lib =
         { dependencies =
@@ -601,6 +505,7 @@ let additions =
           , "node-process"
           , "node-readline"
           , "node-streams"
+          , "node-streams-aff"
           , "nonempty"
           , "now"
           , "nullable"
@@ -609,6 +514,7 @@ let additions =
           , "ordered-collections"
           , "orders"
           , "parallel"
+          , "parsing"
           , "partial"
           , "plutus-types"
           , "posix-types"
@@ -642,7 +548,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "ddbd601e882276958fe260b8c492b5c7f489f174"
+        , version = "70ab312ebe7615444c895fd1072b6be91e47430d"
         }
       }
 

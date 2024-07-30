@@ -9,7 +9,7 @@ module Ctl.Internal.Test.E2E.Route
 
 import Prelude
 
-import Cardano.Types (NetworkId(MainnetId))
+import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.RawBytes (RawBytes(RawBytes))
@@ -162,7 +162,7 @@ route configs tests = do
           Nothing -> do
             clusterSetup@{ keys: { payment, stake } } <-
               getClusterSetupRepeatedly
-            when (config.networkId /= MainnetId) do
+            when (config.networkId /= TestnetId) do
               liftEffect $ throw wrongNetworkIdOnCluster
             pure $ { paymentKey: payment, stakeKey: stake } /\ Just clusterSetup
         let
@@ -201,8 +201,9 @@ route configs tests = do
   wrongNetworkIdOnCluster :: String
   wrongNetworkIdOnCluster =
     "No payment keys were specified, which implies they should be retrieved "
-      <> "from a local cluster, however, network ID was set to TestnetId, "
-      <> "which is incompatible with Plutip, that always uses MainnetId."
+      <> "from a local cluster, however, network ID was set to MainnetId, "
+      <>
+        "which is incompatible with cardano-testnet, that always uses TestnetId."
 
   -- Override config values with parameters from cluster setup
   setClusterOptions

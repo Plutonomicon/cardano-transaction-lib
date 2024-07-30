@@ -183,7 +183,8 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set as Set
-import Data.Traversable (for, traverse_)
+import Data.Traversable (traverse_)
+import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff.Class (liftAff)
@@ -640,11 +641,6 @@ processConstraint
     MustPayToPubKeyAddress pkh skh mDatum scriptRef amount -> do
       networkId <- getNetworkId
       runExceptT do
-        -- If non-inline datum is presented, add it to 'datumWitnesses' and
-        -- Array of datums.
-        datum <- for mDatum \(dat /\ datp) -> do
-          when (datp == DatumWitness) $ lift $ addDatum dat
-          pure $ outputDatum dat datp
         let
           address = case skh of
             Just skh' -> BaseAddress
@@ -659,7 +655,7 @@ processConstraint
           txOut = TransactionOutput
             { address
             , amount
-            , datum
+            , datum: uncurry outputDatum <$> mDatum
             , scriptRef: scriptRef
             }
         _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
@@ -668,7 +664,6 @@ processConstraint
       networkId <- getNetworkId
       runExceptT do
         let
-          datum' = outputDatum dat datp
           txOut = TransactionOutput
             { address: case mbCredential of
                 Nothing -> EnterpriseAddress
@@ -681,11 +676,9 @@ processConstraint
                   , stakeCredential: wrap cred
                   }
             , amount
-            , datum: Just datum'
+            , datum: Just $ outputDatum dat datp
             , scriptRef: scriptRef
             }
-        -- Note we don't `addDatum` as this included as part of `mustPayToScript`
-        -- constraint already.
         _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustPayToNativeScript nsh mbCredential amount -> do

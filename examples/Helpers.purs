@@ -32,8 +32,7 @@ mkAssetName str =
     =<< byteArrayFromAscii str
 
 mustPayToPubKeyStakeAddress
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> Value
   -> Constraints.TxConstraints
@@ -43,8 +42,7 @@ mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
 
 mustPayToPubKeyStakeAddressWithDatum
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> PlutusData
   -> DatumPresence
@@ -56,8 +54,7 @@ mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) datum dtp =
   Constraints.mustPayToPubKeyAddressWithDatum pkh skh datum dtp
 
 mustPayToPubKeyStakeAddressWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> ScriptRef
   -> Value
@@ -67,8 +64,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing scriptRef =
 mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
   Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef
 
-submitAndLog
-  :: Transaction -> Contract Unit
+submitAndLog :: Transaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId

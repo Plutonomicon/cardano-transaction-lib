@@ -1,7 +1,7 @@
 module Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getScriptByHash
-  , getTxMetadata
+  , getTxAuxiliaryData
   , getUtxoByOref
   , getOutputAddressesByTxHash
   , isTxConfirmed
@@ -30,9 +30,10 @@ import Cardano.Types
   ( Address
   , BigNum
   , DataHash
-  , GeneralTransactionMetadata
+  , Language(PlutusV3)
   , MultiAsset
   , PlutusData
+  , PlutusScript(PlutusScript)
   , ScriptHash
   , Slot
   , TransactionHash(TransactionHash)
@@ -43,6 +44,7 @@ import Cardano.Types
   )
 import Cardano.Types.Address as Address
 import Cardano.Types.AssetName (mkAssetName)
+import Cardano.Types.AuxiliaryData (AuxiliaryData)
 import Cardano.Types.BigNum (toString) as BigNum
 import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.MultiAsset as MultiAsset
@@ -78,7 +80,7 @@ import Data.Generic.Rep (class Generic)
 import Data.HTTP.Method (Method(GET))
 import Data.Lens (_Right, to, (^?))
 import Data.Map (Map)
-import Data.Map (fromFoldable, isEmpty, lookup, values) as Map
+import Data.Map (fromFoldable, lookup, values) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
@@ -170,10 +172,10 @@ isTxConfirmedAff config txHash = runExceptT do
   -- Take the first utxo's slot to give the transactions slot
   pure $ uncons utxos <#> _.head >>> unwrapKupoUtxoSlot
 
-getTxMetadata
+getTxAuxiliaryData
   :: TransactionHash
-  -> QueryM (Either GetTxMetadataError GeneralTransactionMetadata)
-getTxMetadata txHash = runExceptT do
+  -> QueryM (Either GetTxMetadataError AuxiliaryData)
+getTxAuxiliaryData txHash = runExceptT do
   ExceptT (lmap GetTxMetadataClientError <$> isTxConfirmed txHash) >>= case _ of
     Nothing -> throwError GetTxMetadataTxNotFoundError
     Just slot -> do
@@ -181,16 +183,17 @@ getTxMetadata txHash = runExceptT do
         endpoint = "/metadata/" <> BigNum.toString (unwrap slot)
           <> "?transaction_id="
           <> txHashToHex txHash
-      kupoMetadata <- ExceptT $
+      kupoAuxData <- ExceptT $
         lmap GetTxMetadataClientError <<< handleAffjaxResponse <$>
           kupoGetRequest
             endpoint
-      case unwrapKupoMetadata kupoMetadata of
+      case unwrapKupoAuxData kupoAuxData of
         Nothing -> throwError GetTxMetadataMetadataEmptyOrMissingError
-        Just metadata
-          | Map.isEmpty (unwrap metadata) -> throwError
-              GetTxMetadataMetadataEmptyOrMissingError
-          | otherwise -> pure metadata
+        Just auxData
+          | unwrap auxData == mempty ->
+              throwError GetTxMetadataMetadataEmptyOrMissingError
+          | otherwise ->
+              pure auxData
 
 --------------------------------------------------------------------------------
 -- `utxosAt` response parsing
@@ -381,7 +384,11 @@ instance DecodeAeson KupoDatum where
 -- `getScriptByHash` response parsing
 --------------------------------------------------------------------------------
 
-data KupoScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
+data KupoScriptLanguage
+  = NativeScript
+  | PlutusV1Script
+  | PlutusV2Script
+  | PlutusV3Script
 
 derive instance Generic KupoScriptLanguage _
 
@@ -393,9 +400,10 @@ instance DecodeAeson KupoScriptLanguage where
     "native" -> pure NativeScript
     "plutus:v1" -> pure PlutusV1Script
     "plutus:v2" -> pure PlutusV2Script
+    "plutus:v3" -> pure PlutusV3Script
     invalid ->
       Left $ TypeMismatch $
-        "language: expected 'native' or 'plutus:v{1|2}', got: " <> invalid
+        "language: expected 'native' or 'plutus:v{1|2|3}', got: " <> invalid
 
 newtype KupoScriptRef = KupoScriptRef (Maybe ScriptRef)
 
@@ -422,6 +430,10 @@ instance DecodeAeson KupoScriptRef where
               PlutusV2Script ->
                 pure $ PlutusScriptRef $ PlutusScript.plutusV2Script $ wrap $
                   unwrap scriptBytes
+              PlutusV3Script ->
+                -- TODO: add plutusV3Script to Cardano.Types.PlutusScript
+                pure $ PlutusScriptRef $ PlutusScript $ unwrap scriptBytes /\
+                  PlutusV3
 
 -------------------------------------------------------------------------------
 -- `isTxConfirmed` response parsing
@@ -445,28 +457,28 @@ unwrapKupoUtxoSlot :: KupoUtxoSlot -> Slot
 unwrapKupoUtxoSlot (KupoUtxoSlot slot) = slot
 
 --------------------------------------------------------------------------------
--- `getTxMetadata` reponse parsing
+-- `getTxAuxiliaryData` response parsing
 --------------------------------------------------------------------------------
 
-newtype KupoMetadata = KupoMetadata (Maybe GeneralTransactionMetadata)
+newtype KupoAuxiliaryData = KupoAuxiliaryData (Maybe AuxiliaryData)
 
-derive instance Generic KupoMetadata _
-derive instance Eq KupoMetadata
+derive instance Generic KupoAuxiliaryData _
+derive instance Eq KupoAuxiliaryData
 
-instance Show KupoMetadata where
+instance Show KupoAuxiliaryData where
   show = genericShow
 
-instance DecodeAeson KupoMetadata where
+instance DecodeAeson KupoAuxiliaryData where
   decodeAeson = decodeAeson >=> case _ of
     [ { raw: cbor } :: { raw :: CborBytes } ] -> do
-      metadata <- note (TypeMismatch "Hexadecimal encoded Metadata") $
+      auxData <- note (TypeMismatch "Hexadecimal encoded AuxiliaryData") $
         decodeCbor cbor
-      pure $ KupoMetadata $ Just $ metadata
-    [] -> Right $ KupoMetadata Nothing
+      pure $ KupoAuxiliaryData $ Just auxData
+    [] -> Right $ KupoAuxiliaryData Nothing
     _ -> Left $ TypeMismatch "Singleton or Empty Array"
 
-unwrapKupoMetadata :: KupoMetadata -> Maybe GeneralTransactionMetadata
-unwrapKupoMetadata (KupoMetadata mbMetadata) = mbMetadata
+unwrapKupoAuxData :: KupoAuxiliaryData -> Maybe AuxiliaryData
+unwrapKupoAuxData (KupoAuxiliaryData mAuxData) = mAuxData
 
 --------------------------------------------------------------------------------
 -- Helpers

@@ -226,6 +226,6 @@ See [here](./key-management.md)
 
 For full testing with browser-based light wallets see [E2E Testing in the Browser](./e2e-testing.md).
 
-### Plutip integration
+### Cardano Testnet integration
 
-Plutip is a tool for testing contracts on a local testnet. See [CTL integration with Plutip](./plutip-testing.md).
+See [CTL integration with Cardano Testnet](./cardano-testnet-testing.md).

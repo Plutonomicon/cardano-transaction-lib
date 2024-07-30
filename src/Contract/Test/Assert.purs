@@ -89,7 +89,7 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Value as Value
 import Contract.Monad (Contract)
 import Contract.Prelude (Effect)
-import Contract.Transaction (getTxMetadata)
+import Contract.Transaction (getTxAuxiliaryData)
 import Contract.Utxos (utxosAt)
 import Contract.Wallet (getWalletBalance, getWalletUtxos)
 import Control.Monad.Error.Class (liftEither, throwError)
@@ -829,7 +829,10 @@ assertTxHasMetadata
 assertTxHasMetadata mdLabel txHash expectedMetadata = do
   generalMetadata <-
     assertContractMaybe (TransactionHasNoMetadata txHash Nothing)
-      =<< lift (hush <$> getTxMetadata txHash)
+      =<< lift
+        ( map ((=<<) (_.metadata <<< unwrap)) $ hush <$> getTxAuxiliaryData
+            txHash
+        )
 
   rawMetadata <-
     assertContractMaybe (TransactionHasNoMetadata txHash (Just mdLabel))

@@ -1,4 +1,4 @@
--- | This module implements a test suite that uses Plutip to automate running
+-- | This module implements a test suite that uses Cardano Testnet to automate running
 -- | contracts in temporary, private networks.
 module Test.Scaffold.Main (main, suite) where
 
@@ -6,15 +6,15 @@ import Contract.Prelude
 
 import Contract.Numeric.BigNum as BigNum
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Contract.Test.Plutip
-  ( InitialUTxOs
-  , PlutipTest
-  , defaultPlutipConfig
-  , testPlutipContracts
+import Contract.Test.Testnet
+  ( ContractTest
+  , InitialUTxOs
+  , defaultTestnetConfig
   , withKeyWallet
   , withWallets
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
+import Ctl.Internal.Testnet.Contract (testTestnetContracts)
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect.Aff
   ( Milliseconds(Milliseconds)
@@ -32,9 +32,9 @@ main = interruptOnSignal SIGINT =<< launchAff do
   flip cancelWith (effectCanceler (exitCode 1)) do
     interpretWithConfig
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true } $
-      testPlutipContracts defaultPlutipConfig suite
+      testTestnetContracts defaultTestnetConfig suite
 
-suite :: TestPlanM PlutipTest Unit
+suite :: TestPlanM ContractTest Unit
 suite = do
   group "Project tests" do
     test "Print PubKey" do

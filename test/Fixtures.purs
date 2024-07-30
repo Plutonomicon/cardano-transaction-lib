@@ -56,11 +56,6 @@ module Test.Ctl.Fixtures
   , txBinaryFixture5
   , txBinaryFixture6
   , txFixture1
-  , txFixture2
-  , txFixture3
-  , txFixture4
-  , txFixture5
-  , txFixture6
   , txInputFixture1
   , txOutputBinaryFixture1
   , txOutputFixture1
@@ -83,28 +78,12 @@ import Prelude
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Types
-  ( AuxiliaryData(AuxiliaryData)
-  , Bech32String
-  , Certificate
-      ( StakeRegistration
-      , StakeDeregistration
-      , StakeDelegation
-      , PoolRegistration
-      , PoolRetirement
-      , GenesisKeyDelegation
-      , MoveInstantaneousRewardsCert
-      )
+  ( Bech32String
   , Coin(Coin)
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
-  , Epoch(Epoch)
-  , ExUnitPrices(ExUnitPrices)
   , ExUnits(ExUnits)
-  , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , Language(PlutusV2)
-  , MIRPot(Reserves, Treasury)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , MoveInstantaneousReward(ToOtherPot, ToStakeCreds)
   , NativeScript
       ( TimelockExpiry
       , TimelockStart
@@ -114,22 +93,12 @@ import Cardano.Types
       , ScriptPubkey
       )
   , NetworkId(TestnetId, MainnetId)
-  , OutputDatum(OutputDatum)
   , PaymentPubKeyHash(PaymentPubKeyHash)
   , PlutusData(Integer, Bytes, Constr, List, Map)
   , PlutusScript(PlutusScript)
-  , PoolMetadata(PoolMetadata)
-  , PoolParams(PoolParams)
-  , PoolPubKeyHash(PoolPubKeyHash)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
-  , ProtocolParamUpdate(ProtocolParamUpdate)
-  , ProtocolVersion(ProtocolVersion)
   , Redeemer(Redeemer)
   , RedeemerTag(Spend)
-  , Relay(SingleHostAddr, SingleHostName, MultiHostName)
-  , RewardAddress
   , ScriptHash
-  , ScriptRef(NativeScriptRef)
   , Slot(Slot)
   , Transaction(Transaction)
   , TransactionBody(TransactionBody)
@@ -137,9 +106,6 @@ import Cardano.Types
   , TransactionOutput(TransactionOutput)
   , TransactionUnspentOutput(TransactionUnspentOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , URL(URL)
-  , UnitInterval(UnitInterval)
-  , Update(Update)
   , UtxoMap
   , Value(Value)
   , Vkey(Vkey)
@@ -154,12 +120,7 @@ import Cardano.Types.Mint (Mint(Mint))
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.PlutusScript (plutusV1Script, plutusV2Script)
 import Cardano.Types.PublicKey as PublicKey
-import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
-import Cardano.Types.TransactionMetadatum (TransactionMetadatum(Text))
-import Contract.Numeric.BigNum (BigNum)
 import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
-import Contract.Prim.ByteArray (hexToByteArray)
-import Data.Array as Array
 import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
@@ -177,7 +138,6 @@ import JS.BigInt as BigInt
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
@@ -241,61 +201,8 @@ txOutputBinaryFixture1 =
 pkhBech32 :: Bech32String
 pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
 
-stake1 :: Credential
-stake1 = unsafePartial $ fromJust do
-  PubKeyHashCredential <$> Ed25519KeyHash.fromBech32 pkhBech32
-
 ed25519KeyHash1 :: Ed25519KeyHash
 ed25519KeyHash1 = unsafePartial $ fromJust $ Ed25519KeyHash.fromBech32 pkhBech32
-
-bigNumOne :: BigNum
-bigNumOne = BigNum.fromInt 1
-
-rewardAddress1 :: RewardAddress
-rewardAddress1 = { networkId: TestnetId, stakeCredential: wrap stake1 }
-
-proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
-proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
-  Map.fromFoldable
-    [ ( unsafePartial $ fromJust $ decodeCbor $ wrap $ hexToByteArrayUnsafe
-          "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-      ) /\
-        ProtocolParamUpdate
-          { minfeeA: Just $ Coin $ BigNum.fromInt 1
-          , minfeeB: Just $ Coin $ BigNum.fromInt 1
-          , maxBlockBodySize: Just $ UInt.fromInt 10000
-          , maxTxSize: Just $ UInt.fromInt 10000
-          , maxBlockHeaderSize: Just $ UInt.fromInt 1000
-          , keyDeposit: Just $ Coin $ BigNum.fromInt 1
-          , poolDeposit: Just $ Coin $ BigNum.fromInt 1
-          , maxEpoch: Just $ Epoch one
-          , nOpt: Just $ UInt.fromInt 1
-          , poolPledgeInfluence: Just $ UnitInterval
-              { numerator: bigNumOne, denominator: bigNumOne }
-          , expansionRate: Just $ UnitInterval
-              { numerator: bigNumOne, denominator: bigNumOne }
-          , treasuryGrowthRate: Just $ UnitInterval
-              { numerator: bigNumOne, denominator: bigNumOne }
-          , protocolVersion: Just $ ProtocolVersion
-              { major: 1, minor: 1 }
-          , minPoolCost: Just $ wrap bigNumOne
-          , adaPerUtxoByte: Just $ wrap bigNumOne
-          , costModels: Just costModelsFixture1
-          , executionCosts: Just $ ExUnitPrices
-              { memPrice: UnitInterval
-                  { numerator: bigNumOne, denominator: bigNumOne }
-              , stepPrice: UnitInterval
-                  { numerator: bigNumOne, denominator: bigNumOne }
-              }
-          , maxTxExUnits: Just $ ExUnits
-              { mem: BigNum.fromInt 1, steps: BigNum.fromInt 1 }
-          , maxBlockExUnits: Just $ ExUnits
-              { mem: BigNum.fromInt 1, steps: BigNum.fromInt 1 }
-          , maxValueSize: Just $ UInt.fromInt 1
-          , collateralPercentage: Just $ UInt.fromInt 140
-          , maxCollateralInputs: Just $ UInt.fromInt 10
-          }
-    ]
 
 -- | Extend this for your needs.
 type SampleTxConfig =
@@ -325,7 +232,6 @@ mkSampleTx startTx changes =
             , ttl
             , certs
             , withdrawals
-            , update
             , auxiliaryDataHash
             , validityStartInterval
             , mint
@@ -336,6 +242,10 @@ mkSampleTx startTx changes =
             , networkId
             , collateralReturn
             , totalCollateral
+            , votingProposals
+            , votingProcedures
+            , currentTreasuryValue
+            , donation
             }
         , witnessSet
         , isValid
@@ -351,7 +261,6 @@ mkSampleTx startTx changes =
             , ttl
             , certs
             , withdrawals
-            , update
             , auxiliaryDataHash
             , validityStartInterval
             , mint
@@ -362,6 +271,10 @@ mkSampleTx startTx changes =
             , networkId
             , collateralReturn
             , totalCollateral
+            , votingProposals
+            , votingProcedures
+            , currentTreasuryValue
+            , donation
             }
         , witnessSet
         , isValid
@@ -404,7 +317,6 @@ txFixture1 =
         , ttl: Nothing
         , certs: []
         , withdrawals: Map.empty
-        , update: Nothing
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
@@ -415,92 +327,10 @@ txFixture1 =
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: []
-        , nativeScripts: []
-        , bootstraps: []
-        , plutusScripts: []
-        , plutusData: []
-        , redeemers: []
-        }
-    , isValid: true
-    , auxiliaryData: mempty
-    }
-
-txFixture2 :: Transaction
-txFixture2 =
-  Transaction
-    { body: TransactionBody
-        { inputs: [ txInputFixture1 ]
-        , outputs: [ txOutputFixture2 ]
-        , fee: Coin $ BigNum.fromInt 177513
-        , ttl: Nothing
-        , certs: []
-        , withdrawals: Map.empty
-        , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: []
-        , requiredSigners: []
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: witnessSetFixture3Value
-    , isValid: true
-    , auxiliaryData: mempty
-    }
-
-txFixture3 :: Transaction
-txFixture3 =
-  Transaction
-    { body: TransactionBody
-        { inputs: [ txInputFixture1 ]
-        , outputs:
-            [ TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigNum.fromInt 2353402) MultiAsset.empty
-                , datum: Nothing
-                , scriptRef: Nothing
-                }
-            , TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigNum.fromInt 1000000) MultiAsset.empty
-                , datum: Nothing
-                , scriptRef: Nothing
-                }
-            ]
-        , fee: Coin $ BigNum.fromInt 177513
-        , ttl: Nothing
-        , certs: []
-        , withdrawals: Map.empty
-        , update: Nothing
-        , referenceInputs: [ txInputFixture1 ]
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , scriptDataHash: Nothing
-        , collateral: []
-        , requiredSigners: []
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
+        , votingProposals: []
+        , votingProcedures: mempty
+        , currentTreasuryValue: Nothing
+        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
         { vkeys: []
@@ -530,230 +360,6 @@ mint0 = Mint $ Map.fromFoldable
 
 int1 :: Int.Int
 int1 = Int.newPositive BigNum.one
-
-txFixture4 :: Transaction
-txFixture4 =
-  Transaction
-    { body: TransactionBody
-        { inputs: [ txInputFixture1 ]
-        , outputs:
-            [ TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigNum.fromInt 2353402) MultiAsset.empty
-                , datum: Just $ OutputDatum plutusDataFixture1
-                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
-                }
-            , TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigNum.fromInt 1000000) MultiAsset.empty
-                , datum: Nothing
-                , scriptRef: Just $ NativeScriptRef nativeScriptFixture5
-                }
-            ]
-        , fee: Coin $ BigNum.fromInt 177513
-        , ttl: Just $ Slot $ BigNum.fromInt 123
-        , certs:
-            [ StakeRegistration $ wrap stake1
-            , StakeDeregistration $ wrap stake1
-            , StakeDelegation (wrap stake1)
-                (PoolPubKeyHash ed25519KeyHash1)
-            , PoolRegistration $ PoolParams
-                { operator: PoolPubKeyHash ed25519KeyHash1
-                , vrfKeyhash: unsafePartial $ fromJust $
-                    hexToByteArray
-                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-                      >>= wrap >>> decodeCbor
-                , pledge: bigNumOne
-                , cost: bigNumOne
-                , margin: UnitInterval
-                    { numerator: bigNumOne, denominator: bigNumOne }
-                , rewardAccount:
-                    { networkId: MainnetId, stakeCredential: wrap stake1 }
-                , poolOwners: [ ed25519KeyHash1 ]
-                , relays:
-                    [ SingleHostAddr
-                        { port: Just 8080
-                        , ipv4: decodeCbor $ wrap $ byteArrayFromIntArrayUnsafe
-                            [ 127, 0, 0, 1 ]
-                        , ipv6: decodeCbor $ wrap $ byteArrayFromIntArrayUnsafe
-                            $ Array.replicate 16 123
-                        }
-                    , SingleHostName
-                        { port: Just 8080
-                        , dnsName: "example.com"
-                        }
-                    , MultiHostName { dnsName: "example.com" }
-                    ]
-                , poolMetadata: Just $ PoolMetadata
-                    { url: URL "https://example.com/"
-                    , hash: unsafePartial $ fromJust $ decodeCbor $ wrap $
-                        hexToByteArrayUnsafe
-                          "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
-                    }
-                }
-            , PoolRetirement
-                { poolKeyHash: PoolPubKeyHash ed25519KeyHash1
-                , epoch: Epoch one
-                }
-            , GenesisKeyDelegation
-                { genesisHash: unsafePartial $ fromJust $ decodeCbor $ wrap $
-                    hexToByteArrayUnsafe
-                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , genesisDelegateHash: unsafePartial $ fromJust $ decodeCbor
-                    $ wrap
-                    $
-                      hexToByteArrayUnsafe
-                        "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , vrfKeyhash: unsafePartial $ fromJust $ decodeCbor $ wrap $
-                    hexToByteArrayUnsafe
-                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-                }
-            , MoveInstantaneousRewardsCert $ ToOtherPot
-                { pot: Reserves
-                , amount: wrap bigNumOne
-                }
-            , MoveInstantaneousRewardsCert $ ToStakeCreds
-                { pot: Treasury
-                , amounts: MIRToStakeCredentials $ Map.fromFoldable
-                    [ wrap stake1 /\ Int.newPositive bigNumOne ]
-                }
-            ]
-        , withdrawals: Map.fromFoldable
-            [ rewardAddress1 /\ Coin BigNum.one ]
-        , update: Just $ Update
-            { proposedProtocolParameterUpdates:
-                proposedProtocolParameterUpdates1
-            , epoch: Epoch zero
-            }
-        , auxiliaryDataHash: decodeCbor $ wrap
-            $ byteArrayFromIntArrayUnsafe
-            $ Array.replicate 32 0
-        , validityStartInterval: Nothing -- Just $ Slot $ BigNum.fromInt 124
-        , mint: Just $ Mint $ Map.fromFoldable
-            [ currencySymbol1 /\ Map.fromFoldable
-                [ tokenName2 /\ Int.newPositive BigNum.one
-                ]
-            ]
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: []
-        , requiredSigners: [ ed25519KeyHashFixture1 ]
-        , networkId: Just MainnetId
-        , collateralReturn: Just txOutputFixture1
-        , totalCollateral: Just $ Coin $ BigNum.fromInt 5_000_000
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: []
-        , nativeScripts: []
-        , bootstraps: []
-        , plutusScripts: []
-        , plutusData: []
-        , redeemers: []
-        }
-    , isValid: true
-    , auxiliaryData: mempty
-    }
-
-txFixture5 :: Transaction
-txFixture5 =
-  Transaction
-    { body: TransactionBody
-        { inputs: [ txInputFixture1 ]
-        , outputs:
-            [ TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigNum.fromInt 490234098)
-                    MultiAsset.empty
-                , datum: Just $ OutputDatum plutusDataFixture1
-                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture2
-                }
-            ]
-        , fee: Coin $ BigNum.fromInt 89489324
-        , ttl: Nothing
-        , certs: []
-        , withdrawals: Map.empty
-        , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: []
-        , requiredSigners: []
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: []
-        , nativeScripts: []
-        , bootstraps: []
-        , plutusScripts: []
-        , plutusData: []
-        , redeemers: []
-        }
-    , isValid: true
-    , auxiliaryData: mempty
-    }
-
-txFixture6 :: Transaction
-txFixture6 =
-  Transaction
-    { body: TransactionBody
-        { inputs: [ txInputFixture1 ]
-        , outputs: [ txOutputFixture1 ]
-        , fee: Coin $ BigNum.fromInt 177513
-        , ttl: Nothing
-        , certs: []
-        , withdrawals: Map.empty
-        , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: []
-        , requiredSigners: []
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: []
-        , nativeScripts: []
-        , bootstraps: []
-        , plutusScripts: []
-        , plutusData: []
-        , redeemers: []
-        }
-    , isValid: true
-    , auxiliaryData: Just $ AuxiliaryData
-        { metadata: Just $ GeneralTransactionMetadata
-            ( Map.fromFoldable
-                [ BigNum.fromInt 8 /\ Text "foo" ]
-            )
-        , nativeScripts: Nothing
-        , plutusScripts: Nothing
-        }
-    }
 
 -- | To quickly check a serialized tx, create a file with the following contents:
 -- |
