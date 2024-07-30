@@ -4,6 +4,7 @@ module Ctl.Internal.ServerConfig
   , blockfrostPublicMainnetServerConfig
   , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
+  , blockfrostPublicSanchonetServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
   , defaultOgmiosWsConfig
@@ -57,6 +58,14 @@ blockfrostPublicPreprodServerConfig :: ServerConfig
 blockfrostPublicPreprodServerConfig =
   { port: UInt.fromInt 443
   , host: "cardano-preprod.blockfrost.io"
+  , secure: true
+  , path: Just "/api/v0"
+  }
+
+blockfrostPublicSanchonetServerConfig :: ServerConfig
+blockfrostPublicSanchonetServerConfig =
+  { port: UInt.fromInt 443
+  , host: "cardano-sanchonet.blockfrost.io"
   , secure: true
   , path: Just "/api/v0"
   }

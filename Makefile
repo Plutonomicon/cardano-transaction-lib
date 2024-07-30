@@ -1,11 +1,15 @@
 SHELL := bash
 .ONESHELL:
-.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format format query-testnet-tip clean check-explicit-exports spago-build create-bundle-entrypoint create-html-entrypoint delete-bundle-entrypoint  run-template-checks
+.PHONY: esbuild-bundle esbuild-serve webpack-bundle webpack-serve check-format \
+				format query-preview-testnet-tip query-preprod-testnet-tip \
+				clean check-explicit-exports build create-bundle-entrypoint \
+				create-html-entrypoint delete-bundle-entrypoint
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $(shell fd --no-ignore-parent -epurs)
 nix-sources := $(shell fd --no-ignore-parent -enix --exclude='spago*')
 js-sources := $(shell fd --no-ignore-parent -ejs -ecjs)
+purs-args := "--stash --censor-lib --censor-codes=UserDefinedWarning,ImplicitImport,ImplicitQualifiedImport,ImplicitQualifiedImportReExport"
 
 ### Bundler setup
 
@@ -21,8 +25,8 @@ preview-node-ipc = $(shell docker volume inspect store_node-preview-ipc | jq -r 
 preprod-node-ipc = $(shell docker volume inspect store_node-preprod-ipc | jq -r '.[0].Mountpoint')
 serve-port := 4008
 
-spago-build:
-	@spago build
+build:
+	@spago build --purs-args ${purs-args}
 
 create-bundle-entrypoint:
 	@mkdir -p dist/
@@ -40,20 +44,20 @@ create-html-entrypoint:
 	</html>
 	EOF
 
-esbuild-bundle: spago-build create-bundle-entrypoint
+esbuild-bundle: build create-bundle-entrypoint
 	@mkdir -p dist/
 	BROWSER_RUNTIME=${browser-runtime} node esbuild/bundle.js ./dist/entrypoint.js dist/index.js
 	@make delete-bundle-entrypoint
 
-esbuild-serve: spago-build create-bundle-entrypoint create-html-entrypoint
+esbuild-serve: build create-bundle-entrypoint create-html-entrypoint
 	BROWSER_RUNTIME=1 node esbuild/serve.js ./dist/entrypoint.js dist/index.js dist/ ${serve-port}
 
-webpack-bundle: spago-build create-bundle-entrypoint
+webpack-bundle: build create-bundle-entrypoint
 	BROWSER_RUNTIME=${browser-runtime} webpack --mode=production \
 		-o dist/ --env entry=./dist/entrypoint.js
 	@make delete-bundle-entrypoint
 
-webpack-serve: spago-build create-bundle-entrypoint create-html-entrypoint
+webpack-serve: build create-bundle-entrypoint create-html-entrypoint
 	BROWSER_RUNTIME=1 webpack-dev-server --progress \
 		--port ${serve-port} \
 		-o dist/ --env entry=./dist/entrypoint.js
@@ -78,7 +82,7 @@ check-format: check-explicit-exports check-examples-imports check-whitespace
 	@purs-tidy check ${ps-sources}
 	@nixpkgs-fmt --check ${nix-sources}
 	@prettier --log-level warn -c ${js-sources}
-	@eslint --quiet ${js-sources} --parser-options 'sourceType: module'
+	@eslint --quiet ${js-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
@@ -97,14 +101,11 @@ query-preprod-testnet-tip:
 	CARDANO_NODE_SOCKET_PATH=${preprod-node-ipc}/node.socket cardano-cli query tip \
 	  --testnet-magic 1
 
-run-ci-actions:
+run-ci-actions: run-template-checks
 	nix build -L .#checks.x86_64-linux.formatting-check
-	nix build -L .#checks.x86_64-linux.template-deps-json
-	nix build -L .#checks.x86_64-linux.template-dhall-diff
-	nix build -L .#checks.x86_64-linux.template-version
 	nix build -L .#checks.x86_64-linux.ctl-unit-test
 	nix build -L .#checks.x86_64-linux.ctl-e2e-test
-	nix build -L .#checks.x86_64-linux.ctl-plutip-test
+	nix build -L .#checks.x86_64-linux.ctl-local-testnet-test
 	nix build -L .#checks.x86_64-linux.ctl-staking-test
 	nix build -L .#checks.x86_64-linux.examples-imports-check
 

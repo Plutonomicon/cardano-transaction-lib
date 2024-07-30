@@ -6,7 +6,6 @@ module Ctl.Internal.Contract.QueryHandle.Type
 import Cardano.Types
   ( Address
   , DataHash
-  , GeneralTransactionMetadata
   , NetworkId
   , PlutusData
   , PoolPubKeyHash
@@ -19,6 +18,7 @@ import Cardano.Types
   , TransactionOutput
   , UtxoMap
   )
+import Cardano.Types.AuxiliaryData (AuxiliaryData)
 import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
@@ -38,9 +38,9 @@ type AffE (a :: Type) = Aff (Either ClientError a)
 type QueryHandle =
   { getDatumByHash :: DataHash -> AffE (Maybe PlutusData)
   , getScriptByHash :: ScriptHash -> AffE (Maybe ScriptRef)
-  , getTxMetadata ::
+  , getTxAuxiliaryData ::
       TransactionHash
-      -> Aff (Either GetTxMetadataError GeneralTransactionMetadata)
+      -> Aff (Either GetTxMetadataError AuxiliaryData)
   , getUtxoByOref :: TransactionInput -> AffE (Maybe TransactionOutput)
   , getOutputAddressesByTxHash :: TransactionHash -> AffE (Array Address)
   , doesTxExist :: TransactionHash -> AffE Boolean

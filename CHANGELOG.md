@@ -7,66 +7,97 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [[v9.1.0]](#v910)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Removed](#removed)
+  - [Fixed](#fixed)
 - [[v9.0.0]](#v900)
   - [Deprecated](#deprecated)
-  - [Added](#added)
-  - [Removed](#removed)
-  - [Changed](#changed)
-  - [Fixed](#fixed)
-- [[v8.0.0]](#v800)
   - [Added](#added-1)
+  - [Removed](#removed-1)
   - [Changed](#changed-1)
   - [Fixed](#fixed-1)
-  - [Removed](#removed-1)
-- [[v7.0.0]](#v700)
+- [[v8.0.0]](#v800)
   - [Added](#added-2)
   - [Changed](#changed-2)
   - [Fixed](#fixed-2)
   - [Removed](#removed-2)
-- [[v6.0.0]](#v600)
+- [[v7.0.0]](#v700)
   - [Added](#added-3)
   - [Changed](#changed-3)
   - [Fixed](#fixed-3)
   - [Removed](#removed-3)
-- [[v5.0.0]](#v500)
+- [[v6.0.0]](#v600)
   - [Added](#added-4)
   - [Changed](#changed-4)
-  - [Removed](#removed-4)
   - [Fixed](#fixed-4)
-  - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed-5)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Removed](#removed-4)
+- [[v5.0.0]](#v500)
   - [Added](#added-5)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-6)
   - [Changed](#changed-5)
   - [Removed](#removed-5)
+  - [Fixed](#fixed-5)
+  - [Runtime Dependencies](#runtime-dependencies)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-6)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-6)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-7)
   - [Changed](#changed-6)
   - [Removed](#removed-6)
   - [Fixed](#fixed-7)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-8)
   - [Changed](#changed-7)
   - [Removed](#removed-7)
   - [Fixed](#fixed-8)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-9)
-  - [Removed](#removed-8)
   - [Changed](#changed-8)
+  - [Removed](#removed-8)
   - [Fixed](#fixed-9)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-10)
+  - [Removed](#removed-9)
+  - [Changed](#changed-9)
   - [Fixed](#fixed-10)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-11)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-12)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## [v9.1.0]
+
+This version provides basic Conway support and replaces Plutip with `cardano-testnet`.
+
+- `cardano-node`: 9.1.0
+- `ogmios`: 6.5.0
+- `kupo`: 2.9.0
+- `@mlabs-haskell/cardano-serialization-lib-gc`: `12.0.0-alpha.31` (wraps the same version of [CSL](https://github.com/Emurgo/cardano-serialization-lib/))
+- `@mlabs-haskell/uplc-apply-args`: `1.0.29-alpha` (wraps the same version of the [`uplc` crate](https://github.com/aiken-lang/aiken/tree/main/crates/uplc))
+
+### Added
+
+- `Contract.Transaction.getTxAuxiliaryData` for querying transaction data ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624)).
+
+### Changed
+
+- `Contract.Test.Plutip` is replaced with `Contract.Test.Testnet` that uses `cardano-testnet` instead of Plutip. As a result, we reduced the dependency footprint (`cardano-testnet` is distributed with `cardano-node`, so there are no internal Haskell components anymore in CTL) ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624))
+
+### Removed
+
+- `Contract.Transaction.getTxMetadata` - use `getTxAuxiliaryData` ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624))
+
+### Fixed
+
+- Non-deterministic `ClientHttpError` raised during tests on rare occasions ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624)).
 
 ## [v9.0.0]
 
@@ -94,6 +125,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- Bumped Ogmios to version 6.0.3 ([#1626](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1626))
 - `Contract.Transaction.mkUnbalancedTx` now returns a tuple: a transaction and the UTxOs it used.
 - `Contract.Transaction.balanceTx` accepts two extra argument: a list of used UTxOs (set to `Data.Map.empty` if none of them are coming from the outside of the wallet) and balancer constraints (set to `mempty` if not needed)
 - Default synchronization parameters: all [wallet <-> query layer synchronization primitives](./doc/query-layers.md) are now off by default. The reason is that the runtime overhead made the users unhappy and it was not worth it for most of the users. If your dApp sends transactions in quick succession, consider enabling the synchronization again by using `softSynchronizationParams` (old behavior) or `strictSynchronizationParams`.
@@ -129,7 +161,7 @@ Starting from this version, CTL does not use Plutus-domain types anymore. This c
 - Sharing wallets between Plutip tests - see [the docs for this feature](./doc/plutip-testing.md#sharing-wallet-state-between-tests) ([#1585](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1585))
   - `runPlutipTestPlan` is a new function that executes a `ContractTestPlan`.
   - `sameWallets` is a new function that creates a `ContractTestPlan` from a `UtxoDistribution` and a `TestPlanM` of the same wallets running different `Contract`s.
-- new `onClusterStartup` hook that allows to get cluster startup parameters (private keys, `cardano-node` socket and config paths). See [`Test.Ctl.Plutip.Contract.ClusterParameters`](./test/Plutip/Contract/ClusterParameters.purs). ([#1610](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1610))
+- new `onClusterStartup` hook that allows to get cluster startup parameters (private keys, `cardano-node` socket and config paths). See [`Test.Ctl.Plutip.Contract.ClusterParameters`](https://github.com/Plutonomicon/cardano-transaction-lib/blob/a5f9947/test/Plutip/Contract/ClusterParameters.purs). ([#1610](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1610))
 
 
 ### Changed

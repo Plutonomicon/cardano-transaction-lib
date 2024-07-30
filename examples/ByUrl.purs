@@ -15,11 +15,7 @@ import Contract.Config
       )
   , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
-  , mainnetFlintConfig
-  , mainnetGeroConfig
-  , mainnetLodeConfig
   , mainnetNamiConfig
-  , mainnetNuFiConfig
   , mkBlockfrostBackendParams
   , testnetConfig
   , testnetEternlConfig
@@ -41,6 +37,7 @@ import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.DropTokens as DropTokens
 import Ctl.Examples.ECDSA as ECDSA
+import Ctl.Examples.IncludeDatum (contract) as IncludeDatum
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
 import Ctl.Examples.OneShotMinting as OneShotMinting
@@ -167,12 +164,11 @@ wallets = Map.fromFoldable
   , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
   , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
   , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
-  -- Plutip cluster's network ID is set to mainnet:
-  , "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
-  , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
-  , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
-  , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
-  , "plutip-nufi-mock" /\ mainnetNuFiConfig /\ Just MockNuFi
+  , "plutip-nami-mock" /\ testnetNamiConfig /\ Just MockNami
+  , "plutip-gero-mock" /\ testnetGeroConfig /\ Just MockGero
+  , "plutip-flint-mock" /\ testnetFlintConfig /\ Just MockFlint
+  , "plutip-lode-mock" /\ testnetLodeConfig /\ Just MockLode
+  , "plutip-nufi-mock" /\ testnetNuFiConfig /\ Just MockNuFi
   ]
 
 mkBlockfrostPreviewConfig :: Maybe String -> ContractParams
@@ -226,6 +222,7 @@ examples = addSuccessLog <$> Map.fromFoldable
       ChangeGeneration.checkChangeOutputsDistribution 3 1 5
   , "ChangeGeneration1-3" /\
       ChangeGeneration.checkChangeOutputsDistribution 1 3 7
+  , "IncludeDatum" /\ IncludeDatum.contract
   ]
 
 addSuccessLog :: Contract Unit -> Contract Unit

@@ -22,7 +22,7 @@ import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getOutputAddressesByTxHash
   , getScriptByHash
-  , getTxMetadata
+  , getTxAuxiliaryData
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
@@ -57,7 +57,7 @@ queryHandleForCtlBackend runQueryM params backend =
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
   , getOutputAddressesByTxHash: runQueryM' <<< Kupo.getOutputAddressesByTxHash
   , doesTxExist: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
-  , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
+  , getTxAuxiliaryData: runQueryM' <<< Kupo.getTxAuxiliaryData
   , utxosAt: runQueryM' <<< Kupo.utxosAt
   , getChainTip: Right <$> runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
@@ -100,7 +100,7 @@ queryHandleForBlockfrostBackend logParams backend =
   , getOutputAddressesByTxHash: runBlockfrostServiceM' <<<
       Blockfrost.getOutputAddressesByTxHash
   , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
-  , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
+  , getTxAuxiliaryData: runBlockfrostServiceM' <<< Blockfrost.getTxAuxiliaryData
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
   , getCurrentEpoch:

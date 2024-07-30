@@ -3,7 +3,8 @@
 -- | and then spends the script Utxo. The script only checks
 -- | that the value of the datum is equal to 42.
 module Ctl.Examples.IncludeDatum
-  ( example
+  ( contract
+  , example
   , only42Script
   , main
   , payToIncludeDatum
@@ -53,16 +54,18 @@ main :: Effect Unit
 main = example testnetNamiConfig
 
 example :: ContractParams -> Effect Unit
-example cfg = launchAff_ do
-  runContract cfg do
-    logInfo' "Running Examples.IncludeDatum"
-    validator <- only42Script
-    let vhash = validatorHash validator
-    logInfo' "Attempt to lock value"
-    txId <- payToIncludeDatum vhash
-    awaitTxConfirmed txId
-    logInfo' "Tx submitted successfully, Try to spend locked values"
-    spendFromIncludeDatum vhash validator txId
+example = launchAff_ <<< flip runContract contract
+
+contract :: Contract Unit
+contract = do
+  logInfo' "Running Examples.IncludeDatum"
+  validator <- only42Script
+  let vhash = validatorHash validator
+  logInfo' "Attempt to lock value"
+  txId <- payToIncludeDatum vhash
+  awaitTxConfirmed txId
+  logInfo' "Tx submitted successfully, Try to spend locked values"
+  spendFromIncludeDatum vhash validator txId
 
 datum :: PlutusData
 datum = Integer $ BigInt.fromInt 42

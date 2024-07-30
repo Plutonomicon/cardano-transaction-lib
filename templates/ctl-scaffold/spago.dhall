@@ -27,6 +27,7 @@ You can edit this file as you like.
   , "plutus-types"
   , "posix-types"
   , "prelude"
+  , "safely"
   , "spec"
   ]
 , packages = ./packages.dhall

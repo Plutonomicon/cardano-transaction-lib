@@ -71,7 +71,7 @@ Both [CTL](./staking.md) and [Lucid](https://lucid.spacebudz.io/docs/getting-sta
 
 ### Testing
 
-CTL uses [Plutip](./plutip-testing.md), which is a tool to spawn real Cardano testnets on the fly, while Lucid uses an [emulator](https://lucid.spacebudz.io/docs/getting-started/test-emulate/).
+CTL uses [Cardano Testnet](./cardano-testnet-testing.md), while Lucid uses an [emulator](https://lucid.spacebudz.io/docs/getting-started/test-emulate/).
 
 Additionally, CTL supports [testing with real wallets](./e2e-testing.md) via headless browsers and provides [an assertion library](./test-utils.md).
 
