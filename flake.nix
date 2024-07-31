@@ -45,7 +45,7 @@
 
     # Get Ogmios and Kupo from cardano-nix
     cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios-v6.5.0";
+      url = "github:mlabs-haskell/cardano.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

@@ -2059,16 +2059,15 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1721651758,
-        "narHash": "sha256-pciT8ASgAovl6I0GsdiWnUhExNXPJtQZpD8dTcv1o60=",
+        "lastModified": 1722438671,
+        "narHash": "sha256-Nb8bROKPjRWFMsaHIK4BOvsTceL9klpF3Ucp/zHqRzM=",
         "owner": "mlabs-haskell",
         "repo": "cardano.nix",
-        "rev": "f6a7f0c43299783ca37bbdc73195c7289854e8da",
+        "rev": "7e696a77440d14f161c8b426d90fecfdb70ad8d8",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
-        "ref": "dshuiski/ogmios-v6.5.0",
         "repo": "cardano.nix",
         "type": "github"
       }
