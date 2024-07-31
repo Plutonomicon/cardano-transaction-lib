@@ -14,7 +14,7 @@ import Cardano.Transaction.Builder
   , TransactionBuilderStep(Pay, SpendOutput)
   )
 import Cardano.Types
-  ( Address
+  ( Address(EnterpriseAddress)
   , Credential(PubKeyHashCredential, ScriptHashCredential)
   , GeneralTransactionMetadata
   , PaymentCredential(PaymentCredential)
@@ -29,12 +29,15 @@ import Cardano.Types.Int as Int
 import Cardano.Types.Mint as Mint
 import Cardano.Types.PlutusData (unit) as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.PrivateKey (toPublicKey) as PrivateKey
+import Cardano.Types.PublicKey (hash) as PublicKey
 import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Cardano.Types.Value (lovelaceValueOf)
 import Contract.Address
   ( PaymentPubKeyHash(PaymentPubKeyHash)
   , StakePubKeyHash
+  , getNetworkId
   , mkAddress
   )
 import Contract.AuxiliaryData (setGeneralTxMetadata)
@@ -118,8 +121,13 @@ import Contract.Wallet
   , getWalletCollateral
   , getWalletUtxos
   , isWalletAvailable
+  , ownDrepPubKey
+  , ownDrepPubKeyHash
   , ownPaymentPubKeyHashes
+  , ownRegisteredPubStakeKeys
   , ownStakePubKeyHashes
+  , ownUnregisteredPubStakeKeys
+  , signData
   , withKeyWallet
   )
 import Control.Monad.Error.Class (try)
@@ -147,17 +155,17 @@ import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Examples.PlutusV2.OneShotMinting (contract) as OneShotMintingV2
-import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
-  ( contract
-  ) as ReferenceInputsAndScripts
+import Ctl.Examples.PlutusV2.ReferenceInputsAndScripts (contract) as ReferenceInputsAndScripts
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Ctl.Examples.Schnorr as Schnorr
 import Ctl.Examples.SendsToken (contract) as SendsToken
 import Ctl.Examples.TxChaining (contract) as TxChaining
+import Ctl.Internal.Test.UtxoDistribution (TestWalletSpec)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet.Cip30Mock (withCip30Mock)
 import Data.Array (head, (!!))
+import Data.Array (singleton) as Array
 import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
@@ -187,10 +195,16 @@ import Test.Ctl.Fixtures
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
-import Test.Ctl.Testnet.Common (privateStakeKey)
+import Test.Ctl.Testnet.Common (privateDrepKey, privateStakeKey)
 import Test.Ctl.Testnet.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Testnet.UtxoDistribution (checkUtxoDistribution)
-import Test.Spec.Assertions (shouldEqual, shouldNotEqual, shouldSatisfy)
+import Test.Spec.Assertions
+  ( expectError
+  , shouldEqual
+  , shouldNotEqual
+  , shouldReturn
+  , shouldSatisfy
+  )
 
 suite :: TestPlanM ContractTest Unit
 suite = do
@@ -2012,6 +2026,104 @@ suite = do
           getWalletBalance >>= flip shouldSatisfy
             (eq $ Just $ coinToValue $ Coin $ BigNum.fromInt 8_000_000)
 
+    test "ownDrepPubKey works" do
+      let
+        walletSpec :: TestWalletSpec
+        walletSpec = wrap
+          { utxos:
+              [ BigNum.fromInt 1_000_000_000
+              , BigNum.fromInt 50_000_000
+              ]
+          , stakeKey: Just privateStakeKey
+          , drepKey: Just privateDrepKey
+          }
+      withWallets walletSpec \alice ->
+        withCip30Mock alice "nami" $
+          ownDrepPubKey `shouldReturn`
+            PrivateKey.toPublicKey (unwrap privateDrepKey)
+
+    test "ownDrepPubKeyHash works" do
+      let
+        walletSpec :: TestWalletSpec
+        walletSpec = wrap
+          { utxos:
+              [ BigNum.fromInt 1_000_000_000
+              , BigNum.fromInt 50_000_000
+              ]
+          , stakeKey: Just privateStakeKey
+          , drepKey: Just privateDrepKey
+          }
+      withWallets walletSpec \alice ->
+        withCip30Mock alice "nami" $
+          ownDrepPubKeyHash `shouldReturn`
+            PublicKey.hash (PrivateKey.toPublicKey $ unwrap privateDrepKey)
+
+    test "ownRegisteredPubStakeKeys works" do
+      let
+        walletSpec :: TestWalletSpec
+        walletSpec = wrap
+          { utxos:
+              [ BigNum.fromInt 1_000_000_000
+              , BigNum.fromInt 50_000_000
+              ]
+          , stakeKey: Just privateStakeKey
+          , drepKey: Nothing
+          }
+      withWallets walletSpec \alice ->
+        withCip30Mock alice "nami" $
+          ownRegisteredPubStakeKeys `shouldReturn`
+            Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
+
+    test "ownUnregisteredPubStakeKeys works" do
+      let
+        walletSpec :: TestWalletSpec
+        walletSpec = wrap
+          { utxos:
+              [ BigNum.fromInt 1_000_000_000
+              , BigNum.fromInt 50_000_000
+              ]
+          , stakeKey: Just privateStakeKey
+          , drepKey: Nothing
+          }
+      withWallets walletSpec \alice ->
+        withCip30Mock alice "nami" $
+          ownUnregisteredPubStakeKeys `shouldReturn`
+            Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
+
+    test "signData using DRep key" do
+      let
+        walletSpec :: TestWalletSpec
+        walletSpec = wrap
+          { utxos:
+              [ BigNum.fromInt 1_000_000_000
+              , BigNum.fromInt 50_000_000
+              ]
+          , stakeKey: Just privateStakeKey
+          , drepKey: Just privateDrepKey
+          }
+      withWallets walletSpec \alice ->
+        withCip30Mock alice "nami" do
+          networkId <- getNetworkId
+          drepCred <- wrap <<< PubKeyHashCredential <$> ownDrepPubKeyHash
+          let
+            drepAddr = EnterpriseAddress
+              { networkId, paymentCredential: drepCred }
+          void $ signData drepAddr mempty
+
+    test "signData fails for wrong address" do
+      let
+        distribution :: InitialUTxOs
+        distribution =
+          [ BigNum.fromInt 1_000_000_000
+          , BigNum.fromInt 50_000_000
+          ]
+      withWallets (distribution /\ distribution) \(alice /\ bob) -> do
+        bobAddr <-
+          withCip30Mock bob "nami" do
+            liftedM "Could not get Bob's address" (head <$> getWalletAddresses)
+        withCip30Mock alice "nami" do
+          expectError $ signData bobAddr mempty
+
     test "CIP-30 utilities" do
       let
         distribution :: InitialUTxOsWithStakeKey
@@ -2022,6 +2134,7 @@ suite = do
       withWallets distribution \alice -> do
         withCip30Mock alice "nami" do
           Cip30.contract
+
     test "ECDSA example" do
       let
         distribution = withStakeKey privateStakeKey

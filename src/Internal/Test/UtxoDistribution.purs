@@ -9,6 +9,7 @@ module Ctl.Internal.Test.UtxoDistribution
   , InitialUTxOs
   , InitialUTxODistribution
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , TestWalletSpec(TestWalletSpec)
   , UtxoAmount
   ) where
 
@@ -27,6 +28,7 @@ import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Wallet.Key
   ( KeyWallet
+  , PrivateDrepKey
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey
   , privateKeysToKeyWallet
@@ -57,10 +59,12 @@ import Control.Monad.State.Trans (StateT(StateT), runStateT)
 import Data.Array (head)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Generic.Rep (class Generic)
 import Data.List (List, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -78,6 +82,18 @@ type InitialUTxOs = Array UtxoAmount
 -- | generated pre-funded Address.
 data InitialUTxOsWithStakeKey =
   InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
+
+newtype TestWalletSpec = TestWalletSpec
+  { utxos :: Array UtxoAmount
+  , stakeKey :: Maybe PrivateStakeKey
+  , drepKey :: Maybe PrivateDrepKey
+  }
+
+derive instance Generic TestWalletSpec _
+derive instance Newtype TestWalletSpec _
+
+instance Show TestWalletSpec where
+  show = genericShow
 
 -- | A spec for distribution of UTxOs between wallets.
 type InitialUTxODistribution = Array InitialUTxOs
@@ -118,6 +134,15 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
         tail
   keyWallets _ wallet = [ wallet ]
 
+instance UtxoDistribution TestWalletSpec KeyWallet where
+  encodeDistribution (TestWalletSpec { utxos }) = [ utxos ]
+  decodeWallets distr privateKeys = decodeWalletsDefault distr privateKeys
+  decodeWallets' (TestWalletSpec { stakeKey, drepKey }) privateKeys =
+    Array.uncons privateKeys <#> \{ head: key, tail } ->
+      privateKeysToKeyWallet (PrivatePaymentKey key) stakeKey drepKey /\
+        tail
+  keyWallets _ wallet = [ wallet ]
+
 instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
   encodeDistribution = encodeDistributionArray
   decodeWallets d = decodeWalletsDefault d
@@ -125,6 +150,12 @@ instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
   keyWallets = keyWalletsArray
 
 instance UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet) where
+  encodeDistribution = encodeDistributionArray
+  decodeWallets d = decodeWalletsDefault d
+  decodeWallets' = decodeWallets'Array
+  keyWallets = keyWalletsArray
+
+instance UtxoDistribution (Array TestWalletSpec) (Array KeyWallet) where
   encodeDistribution = encodeDistributionArray
   decodeWallets d = decodeWalletsDefault d
   decodeWallets' = decodeWallets'Array

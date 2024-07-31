@@ -253,9 +253,14 @@ let additions =
         }
       , cip30-mock =
         { dependencies =
-          [ "aff-promise", "console", "effect", "functions", "prelude" ]
+          [ "aff-promise"
+          , "console"
+          , "effect"
+          , "functions"
+          , "prelude"
+          ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-mock"
-        , version = "v1.0.0"
+        , version = "d00ba14769dceda1270658c63f14822db01f376d"
         }
       , cardano-collateral-select =
         { dependencies =

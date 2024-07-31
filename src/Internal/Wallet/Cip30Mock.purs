@@ -23,12 +23,13 @@ import Cardano.Wallet.Key
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
+import Cardano.Wallet.Key (getPrivateDrepKey, getPrivateStakeKey) as KeyWallet
 import Contract.Monad (Contract)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
-import Control.Promise (fromAff)
+import Control.Promise (Promise, fromAff)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftEither)
@@ -39,9 +40,10 @@ import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (mkFn2)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.UInt as UInt
+import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -49,8 +51,8 @@ import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 
--- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
--- | behind a CIP-30 interface and uses Ogmios to submit Txs.
+-- | Construct a CIP-30 + CIP-95 wallet mock that exposes `KeyWallet`
+-- | functionality behind a CIP-30 interface and uses Ogmios to submit Txs.
 -- | The wallet is injected directly to `window.cardano` object, under the
 -- | name corresponding to provided `WalletMock`. It works even in NodeJS
 -- | (we introduce a global `window` object and delete it afterwards).
@@ -62,6 +64,13 @@ import Partial.Unsafe (unsafePartial)
 -- | Note that this function implements single-address light wallet logic, so
 -- | it will have to be changed a lot to successfully mimic the behavior of
 -- | multi-address wallets, like Eternl.
+-- |
+-- | WARNING: The implementation of `getRegisteredPubStakeKeys` and
+-- | `getUnregisteredPubStakeKeys` for KeyWallet is partial. We cannot
+-- | differentiate between registered and unregistered stake keys due
+-- | to the limitations of the underlying query layer. As a result,
+-- | all controlled stake keys are returned, irrespective of their
+-- | registration status.
 withCip30Mock
   :: forall (a :: Type)
    . KeyWallet
@@ -107,6 +116,18 @@ mkCip30Mock pKey mSKey mbDrepKey = do
         queryHandle.utxosAt ownAddress
 
     keyWallet = privateKeysToKeyWallet pKey mSKey mbDrepKey
+
+    getPubStakeKeys :: Effect (Promise (Array String))
+    getPubStakeKeys = fromAff do
+      KeyWallet.getPrivateStakeKey keyWallet <#> case _ of
+        Just stakeKey ->
+          let
+            stakePubKey = PrivateKey.toPublicKey $ unwrap stakeKey
+          in
+            Array.singleton $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes
+              stakePubKey
+        Nothing ->
+          mempty
 
   addressHex <- liftAff $
     (byteArrayToHex <<< unwrap <<< encodeCbor) <$>
@@ -180,4 +201,11 @@ mkCip30Mock pKey mSKey mbDrepKey = do
           { key: byteArrayToHex $ unwrap key
           , signature: byteArrayToHex $ unwrap signature
           }
+    , getPubDrepKey: fromAff do
+        drepKey <- liftMaybe (error "Unable to get DRep key") =<<
+          KeyWallet.getPrivateDrepKey keyWallet
+        let drepPubKey = PrivateKey.toPublicKey $ unwrap drepKey
+        pure $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes drepPubKey
+    , getRegisteredPubStakeKeys: getPubStakeKeys
+    , getUnregisteredPubStakeKeys: getPubStakeKeys
     }

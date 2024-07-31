@@ -343,11 +343,11 @@ let
 
     "cip30-mock" = pkgs.stdenv.mkDerivation {
         name = "cip30-mock";
-        version = "v1.0.0";
+        version = "d00ba14769dceda1270658c63f14822db01f376d";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cip30-mock";
-          rev = "7b4b7b2800f6d0ebd25554de63141cbd8c1e14a0";
-          sha256 = "1b412s7p144h98csvy5w9z6vjhlpya9mqkxm2k8nxfdhq2znwfih";
+          rev = "d00ba14769dceda1270658c63f14822db01f376d";
+          sha256 = "1317qxibf4x3jbg0bljhdzlbi3z4mkywj1phlpqrhj0452d0g7xq";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
