@@ -296,7 +296,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
-        , version = "57261b623f0f3fc90a34611071e630b8521a115c"
+        , version = "3fe93e45ac1444a429abfe6e135addf568500c23"
         }
       , uplc-apply-args =
         { dependencies =

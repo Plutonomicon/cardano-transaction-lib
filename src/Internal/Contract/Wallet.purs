@@ -109,9 +109,14 @@ signData address payload =
   withWallet $
     actionBasedOnWallet
       (\w -> w.signData address payload)
-      \kw -> do
-        networkId <- asks _.networkId
-        liftAff $ (unwrap kw).signData networkId payload
+      ( \kw -> do
+          mDataSig <- liftAff $ (unwrap kw).signData address payload
+          liftM
+            ( error
+                "signData via KeyWallet: Unable to sign data for the supplied address"
+            )
+            mDataSig
+      )
 
 getWallet :: Contract (Maybe Wallet)
 getWallet = asks _.wallet

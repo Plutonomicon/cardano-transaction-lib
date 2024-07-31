@@ -235,11 +235,11 @@ let
 
     "cardano-key-wallet" = pkgs.stdenv.mkDerivation {
         name = "cardano-key-wallet";
-        version = "57261b623f0f3fc90a34611071e630b8521a115c";
+        version = "3fe93e45ac1444a429abfe6e135addf568500c23";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-key-wallet";
-          rev = "57261b623f0f3fc90a34611071e630b8521a115c";
-          sha256 = "1zng6mg2pip327qznnvg72rnkbp7b199sqiaz8f1dyywd0wpfrx3";
+          rev = "3fe93e45ac1444a429abfe6e135addf568500c23";
+          sha256 = "0dl0c14n6xq1pf97i94ix05z81padx1dkxv4jnswxm8y6zkab810";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

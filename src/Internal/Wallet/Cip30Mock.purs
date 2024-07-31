@@ -10,6 +10,7 @@ import Cardano.Types
   , StakeCredential(StakeCredential)
   )
 import Cardano.Types.Address (Address(RewardAddress))
+import Cardano.Types.Address (fromBech32) as Address
 import Cardano.Types.NetworkId (NetworkId(MainnetId, TestnetId))
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
@@ -23,6 +24,7 @@ import Cardano.Wallet.Key
   , privateKeysToKeyWallet
   )
 import Contract.Monad (Contract)
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
@@ -159,11 +161,21 @@ mkCip30Mock pKey mSKey mbDrepKey = do
           $ wrap txBytes
         witness <- (unwrap keyWallet).signTx tx
         pure $ byteArrayToHex $ unwrap $ encodeCbor witness
-    , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
-        msgBytes <- liftMaybe (error "Unable to convert CBOR") $
-          hexToByteArray msg
-        { key, signature } <- (unwrap keyWallet).signData env.networkId
-          (wrap msgBytes)
+    , signData: mkFn2 \addrRaw msg -> unsafePerformEffect $ fromAff do
+        let addrFromHex = (decodeCbor <<< wrap) <=< hexToByteArray
+        addr <-
+          liftMaybe
+            (error "Failed to decode Address")
+            (addrFromHex addrRaw <|> Address.fromBech32 addrRaw)
+        msgBytes <-
+          liftMaybe
+            (error "Failed to decode payload")
+            (hexToByteArray msg)
+        mDataSig <- (unwrap keyWallet).signData addr (wrap msgBytes)
+        { key, signature } <-
+          liftMaybe
+            (error "Unable to sign data for the supplied address")
+            mDataSig
         pure
           { key: byteArrayToHex $ unwrap key
           , signature: byteArrayToHex $ unwrap signature
