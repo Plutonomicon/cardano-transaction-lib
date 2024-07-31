@@ -253,9 +253,14 @@ let additions =
         }
       , cip30-mock =
         { dependencies =
-          [ "aff-promise", "console", "effect", "functions", "prelude" ]
+          [ "aff-promise"
+          , "console"
+          , "effect"
+          , "functions"
+          , "prelude"
+          ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-mock"
-        , version = "v1.0.0"
+        , version = "d00ba14769dceda1270658c63f14822db01f376d"
         }
       , cardano-collateral-select =
         { dependencies =
@@ -291,11 +296,12 @@ let additions =
           , "foldable-traversable"
           , "maybe"
           , "newtype"
+          , "ordered-collections"
           , "prelude"
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
-        , version = "a43c410a8430b552e42e88ab542eb6a43d09a633"
+        , version = "3fe93e45ac1444a429abfe6e135addf568500c23"
         }
       , uplc-apply-args =
         { dependencies =
@@ -470,7 +476,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "48866bd7f5eeb8e0870c97384264d08bda9c2725"
+        , version = "40628bbb1049f3eb5364d304f949135e2ee2a2fb"
         }
       , cardano-transaction-lib =
         { dependencies =
@@ -582,7 +588,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "69db7bac9c1ee4fc443510a39943734500f6f2d3"
+        , version = "51619c84e2f99ed24b2a82d352a7378387abb68d"
         }
       }
 

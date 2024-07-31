@@ -1840,17 +1840,17 @@
     "cardano-configurations": {
       "flake": false,
       "locked": {
-        "lastModified": 1720834069,
-        "narHash": "sha256-jWFjTUTpwAgvsSJsQ4INgKl/paR489n1si35GLtSkuU=",
+        "lastModified": 1721870874,
+        "narHash": "sha256-qiReN+xxtbb4kEfdIWbBcqcJpPGD8he0p/TVD7U3CqM=",
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "de80edfd569d82d5191d2c6103834e700787bb2d",
+        "rev": "7969a73e5c7ee1f3b2a40274b34191fdd8de170b",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
         "repo": "cardano-configurations",
-        "rev": "de80edfd569d82d5191d2c6103834e700787bb2d",
+        "rev": "7969a73e5c7ee1f3b2a40274b34191fdd8de170b",
         "type": "github"
       }
     },
@@ -2082,16 +2082,15 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1721651758,
-        "narHash": "sha256-pciT8ASgAovl6I0GsdiWnUhExNXPJtQZpD8dTcv1o60=",
+        "lastModified": 1722438671,
+        "narHash": "sha256-Nb8bROKPjRWFMsaHIK4BOvsTceL9klpF3Ucp/zHqRzM=",
         "owner": "mlabs-haskell",
         "repo": "cardano.nix",
-        "rev": "f6a7f0c43299783ca37bbdc73195c7289854e8da",
+        "rev": "7e696a77440d14f161c8b426d90fecfdb70ad8d8",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
-        "ref": "dshuiski/ogmios-v6.5.0",
         "repo": "cardano.nix",
         "type": "github"
       }
@@ -2125,16 +2124,16 @@
         "utils": "utils_7"
       },
       "locked": {
-        "lastModified": 1720029730,
-        "narHash": "sha256-ESE5/7XzXeIZldkYPbMd8CoMKQo9ghY1vOkhHpOj0K4=",
+        "lastModified": 1721843629,
+        "narHash": "sha256-F5wgRA820x16f+8c/LlEEBG0rMJIA1XWw6X0ZwX5UWs=",
         "owner": "input-output-hk",
         "repo": "cardano-node",
-        "rev": "2820a63dc934c6d5b5f450b6c2543b81c6476696",
+        "rev": "176f99e51155cb3eaa0711db1c3c969d67438958",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
-        "ref": "9.0.0",
+        "ref": "9.1.0",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -2782,17 +2781,17 @@
         "ogmios": "ogmios_2"
       },
       "locked": {
-        "lastModified": 1721923839,
-        "narHash": "sha256-Z1uSTkhjxFrcW/lOo1SNkQ8JqQ0k5O9A4wetaquAYoI=",
+        "lastModified": 1722461582,
+        "narHash": "sha256-PyLzZOj4ek/PnYj6E+wraZue5lPxWuanwEWf5MXSlrA=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "69db7bac9c1ee4fc443510a39943734500f6f2d3",
+        "rev": "51619c84e2f99ed24b2a82d352a7378387abb68d",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "69db7bac9c1ee4fc443510a39943734500f6f2d3",
+        "rev": "51619c84e2f99ed24b2a82d352a7378387abb68d",
         "type": "github"
       }
     },
