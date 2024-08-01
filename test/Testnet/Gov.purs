@@ -8,7 +8,7 @@ import Cardano.Types.BigNum (fromInt) as BigNum
 import Contract.Test (ContractTest)
 import Contract.Test.Mote (TestPlanM)
 import Contract.Test.Testnet (InitialUTxOs, withKeyWallet, withWallets)
-import Ctl.Examples.Gov.RegisterDrep (contract) as Gov.RegisterDrep
+import Ctl.Examples.Gov.ManageDrep (contract) as Gov.RegisterDrep
 import Mote (group, skip, test)
 
 suite :: TestPlanM ContractTest Unit
