@@ -32,6 +32,7 @@ import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Contract.Wallet (getRewardAddresses, ownDrepPubKeyHash)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
+import Ctl.Examples.Gov.ManageDrep (ContractPath(RegDrep), contractStep) as ManageDrep
 import Data.Array (head) as Array
 import Data.Map (empty, singleton) as Map
 
@@ -46,6 +47,7 @@ example = launchAff_ <<< flip runContract contract
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Gov.SubmitVoteSimple"
+  void $ ManageDrep.contractStep ManageDrep.RegDrep
   govActionId <- submitProposal
   logInfo' $ "Successfully submitted voting proposal. Action id: " <> show
     govActionId
@@ -81,8 +83,6 @@ submitProposal = do
   awaitTxConfirmed txHash
   pure $ wrap { transactionId: txHash, index: zero }
 
--- NOTE: The wallet must be registered as DRep to submit a vote.
--- See Ctl.Examples.Gov.RegisterDrep
 submitVote :: GovernanceActionId -> Contract Unit
 submitVote govActionId = do
   drepCred <- PubKeyHashCredential <$> ownDrepPubKeyHash

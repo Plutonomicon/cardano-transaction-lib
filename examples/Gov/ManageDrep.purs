@@ -1,5 +1,7 @@
 module Ctl.Examples.Gov.ManageDrep
-  ( contract
+  ( ContractPath(RegDrep, UpdateDrep, UnregDrep)
+  , contract
+  , contractStep
   , example
   , main
   ) where

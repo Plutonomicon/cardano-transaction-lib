@@ -10,7 +10,9 @@ import Cardano.Types
   , Certificate
       ( StakeDeregistration
       , StakeRegistration
+      , StakeRegDelegCert
       , VoteRegDelegCert
+      , StakeVoteRegDelegCert
       , RegDrepCert
       , UnregDrepCert
       )
@@ -833,17 +835,14 @@ getProposalsBalance tx =
   in
     deposits
 
--- | Accounts for:
--- |
--- | - stake registration deposit
--- | - stake deregistration deposit returns
--- | - stake withdrawals fees
--- | - drep registration deposit
 getCertsBalance :: Transaction -> ProtocolParameters -> BigInt
 getCertsBalance tx (ProtocolParameters pparams) =
   let
     stakeAddressDeposit :: BigInt
     stakeAddressDeposit = BigNum.toBigInt $ unwrap pparams.stakeAddressDeposit
+
+    toBi :: Coin -> BigInt
+    toBi = BigNum.toBigInt <<< unwrap
 
     deposits :: BigInt
     deposits =
@@ -856,14 +855,21 @@ getCertsBalance tx (ProtocolParameters pparams) =
               StakeDeregistration _ ->
                 negate $ stakeAddressDeposit
 
-              VoteRegDelegCert _ _ drepDeposit ->
-                BigNum.toBigInt $ unwrap drepDeposit
+              StakeRegDelegCert _ _ stakeCredDeposit ->
+                toBi stakeCredDeposit
+
+              VoteRegDelegCert _ _ stakeCredDeposit ->
+                toBi stakeCredDeposit
+
+              StakeVoteRegDelegCert _ _ _ stakeCredDeposit ->
+                toBi stakeCredDeposit
 
               RegDrepCert _ drepDeposit _ ->
-                BigNum.toBigInt $ unwrap drepDeposit
+                toBi drepDeposit
 
               UnregDrepCert _ drepDeposit ->
-                negate $ BigNum.toBigInt $ unwrap drepDeposit
+                negate $ toBi drepDeposit
+
               _ -> zero
           )
           >>> sum
