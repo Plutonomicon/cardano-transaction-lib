@@ -94,7 +94,8 @@ keys are returned, irrespective of their registration status.
 ([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
 
 - New examples demonstrating various interactions with the Cardano governance
-system: `Gov.RegisterDrep`, `Gov.DelegateVoteAbstain`, `Gov.SubmitVoteSimple`.
+system: `Gov.DelegateVoteAbstain`, `Gov.ManageDrep`, `Gov.ManageDrepScript`,
+`Gov.SubmitVote`, `Gov.SubmitVoteScript`.
 ([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
 
 ### Changed

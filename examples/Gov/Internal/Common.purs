@@ -1,13 +1,24 @@
 module Ctl.Examples.Gov.Internal.Common
-  ( dummyAnchor
+  ( asRewardAddress
+  , dummyAnchor
   ) where
 
 import Contract.Prelude
 
 import Cardano.AsCbor (decodeCbor)
-import Cardano.Types (Anchor(Anchor), URL(URL))
+import Cardano.Types
+  ( Address(RewardAddress)
+  , Anchor(Anchor)
+  , RewardAddress
+  , URL(URL)
+  )
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Partial.Unsafe (unsafePartial)
+
+asRewardAddress :: Address -> Maybe RewardAddress
+asRewardAddress = case _ of
+  RewardAddress rewardAddr -> Just rewardAddr
+  _ -> Nothing
 
 dummyAnchor :: Anchor
 dummyAnchor =

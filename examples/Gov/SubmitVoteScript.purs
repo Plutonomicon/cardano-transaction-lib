@@ -1,4 +1,4 @@
-module Ctl.Examples.Gov.SubmitVoteSimple
+module Ctl.Examples.Gov.SubmitVoteScript
   ( contract
   , example
   , main
@@ -7,19 +7,21 @@ module Ctl.Examples.Gov.SubmitVoteSimple
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( TransactionBuilderStep(SubmitProposal, SubmitVotingProcedure)
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SubmitProposal, SubmitVotingProcedure)
   )
 import Cardano.Types
-  ( Address(RewardAddress)
-  , Credential(PubKeyHashCredential)
+  ( Credential(ScriptHashCredential)
   , GovernanceActionId
-  , RewardAddress
   , Vote(VoteYes)
   , Voter(Drep)
   , VotingProcedure(VotingProcedure)
   , VotingProposal(VotingProposal)
   )
 import Cardano.Types (GovernanceAction(Info)) as GovAction
+import Cardano.Types.PlutusScript (hash) as PlutusScript
+import Cardano.Types.RedeemerDatum (unit) as RedeemerDatum
 import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
@@ -30,9 +32,10 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
-import Contract.Wallet (getRewardAddresses, ownDrepPubKeyHash)
-import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
-import Ctl.Examples.Gov.ManageDrep (ContractPath(RegDrep), contractStep) as ManageDrep
+import Contract.Wallet (getRewardAddresses)
+import Ctl.Examples.Gov.Internal.Common (asRewardAddress, dummyAnchor)
+import Ctl.Examples.Gov.ManageDrepScript (ContractPath(RegDrep), contractStep) as ManageDrep
+import Ctl.Examples.PlutusV3.Scripts.AlwaysMints (alwaysMintsPolicyScriptV3)
 import Data.Array (head) as Array
 import Data.Map (empty, singleton) as Map
 
@@ -46,7 +49,7 @@ example = launchAff_ <<< flip runContract contract
 
 contract :: Contract Unit
 contract = do
-  logInfo' "Running Examples.Gov.SubmitVoteSimple"
+  logInfo' "Running Examples.Gov.SubmitVoteScript"
   void $ ManageDrep.contractStep ManageDrep.RegDrep
   govActionId <- submitProposal
   logInfo' $ "Successfully submitted voting proposal. Action id: " <> show
@@ -57,15 +60,13 @@ contract = do
 {-
   { transactionId: unsafePartial fromJust $ decodeCbor $ wrap $
       hexToByteArrayUnsafe
-        "fec3c9c4c8bf9b02237bbdccca9460eee1e5b67a5052fdbd5eb1d7ec1719d9f0"
+        "78e7fa2f5ad34506208cbde6ced3c690df4f244000ba33b445da8d3791577ede"
   , index: zero
   }
 -}
 
 submitProposal :: Contract GovernanceActionId
 submitProposal = do
-  logInfo' "Running Examples.Gov.SubmitProposal"
-
   govActionDeposit <- _.govActionDeposit <<< unwrap <$> getProtocolParameters
   rewardAddr <- liftedM "Could not get reward address" $
     map (asRewardAddress <=< Array.head)
@@ -85,18 +86,17 @@ submitProposal = do
 
 submitVote :: GovernanceActionId -> Contract Unit
 submitVote govActionId = do
-  drepCred <- PubKeyHashCredential <$> ownDrepPubKeyHash
+  drepScript <- alwaysMintsPolicyScriptV3
+  let
+    drepCred = ScriptHashCredential $ PlutusScript.hash drepScript
+    drepCredWitness = PlutusScriptCredential (ScriptValue drepScript)
+      RedeemerDatum.unit
 
   tx <- submitTxFromBuildPlan Map.empty mempty
     [ SubmitVotingProcedure (Drep drepCred)
         ( Map.singleton govActionId $
             VotingProcedure { vote: VoteYes, anchor: Nothing }
         )
-        Nothing
+        (Just drepCredWitness)
     ]
   awaitTxConfirmed $ Transaction.hash tx
-
-asRewardAddress :: Address -> Maybe RewardAddress
-asRewardAddress = case _ of
-  RewardAddress rewardAddr -> Just rewardAddr
-  _ -> Nothing
