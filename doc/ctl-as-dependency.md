@@ -67,14 +67,12 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 
 3. **Update your JS dependencies**
 
-- If CTL has added any JS dependencies, these will also need to be added to your own `package.json`
-- Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
-- That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
-- If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
+- The NPM dependencies your project has must have the exact same versions CTL's own `package.json` specifies.
+- You have to update `package-lock.json` by running `npm install`. If you are in a nix shell and use our setup that symlinks `./node_modules`, npm will complain about inability to write to the filesystem, use `npm i --package-lock-only` to skip writing to `node_modules`. If your `node_modules` are managed by Nix, you will have to re-enter the shell for the changes to apply.
 
 4. **Update your webpack/esbuild config**
 
-- Sometimes the WebPack or esbuild configuration also comes with breaking changes. Use `git diff old-revision new-revision webpack.config.cjs` in the root of a cloned CTL repo, or use `git blame`.
+- Sometimes WebPack or esbuild configurations also come with breaking changes. Refer to the CHANGELOG.
 
 ## See also
 

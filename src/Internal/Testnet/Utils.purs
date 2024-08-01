@@ -30,7 +30,7 @@ module Ctl.Internal.Testnet.Utils
   , annotateError
   ) where
 
-import Contract.Prelude
+import Contract.Prelude hiding (log)
 
 import Contract.Config as Contract.Config
 import Contract.TextEnvelope
@@ -377,6 +377,11 @@ suppressAndLogErrors
 suppressAndLogErrors location = flip catchError $ message
   >>> append ("An error occured and suppressed at " <> location <> ": ")
   >>> log
+
+-- replace with Effect.Console.log to debug. Not providing an option at runtime,
+-- because it's just for the CTL developers.
+log :: forall m. Monad m => String -> m Unit
+log _ = pure unit
 
 newtype EventSource b = EventSource
   { subscribe ::

@@ -4,10 +4,10 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [Overview](#overview)
 - [Architecture](#architecture)
 - [Testing contracts](#testing-contracts)
   - [Testing with Mote](#testing-with-mote)
-    - [Overview](#overview)
     - [Using Mote testing interface](#using-mote-testing-interface)
     - [Internal implementation overview](#internal-implementation-overview)
   - [Testing in Aff context](#testing-in-aff-context)
@@ -22,6 +22,11 @@
 - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Overview
+
+[`cardano-testnet`](https://github.com/IntersectMBO/cardano-node/tree/master/cardano-testnet) is a tool for spinning up temporary local testnets. CTL integrates with it to provide an environment for `Contract` testing, that is very close to production.
+
 ## Architecture
 
 CTL depends on a number of binaries in the `$PATH` to execute tests on the
@@ -49,19 +54,12 @@ the Cardano Testnet:
 2. `nix run .#checks.x86_64-linux.ctl-scaffold-local-testnet-test`
    * where you'd usually replace `x86_64-linux` with the system you run tests on
    * and `ctl-scaffold-local-testnet-test` with the name of the test derivation for your project;
-   * note that building of your project via Nix will fail in case there are any PureScript compile-time warnings.
 
 ## Testing contracts
 
-CTL can help you test the offchain `Contract`s from your project (and
-consequently the interaction of onchain and offchain code) by connecting to the
-Cardano Testnet and making all your `Contract`s interact with it.
-
-There are two approaches to writing such tests.
+CTL provides integrated testing environment for Mote (a test framework in PureScript). Alternatively, testing in the `Aff` context is also available, which makes it possible to integrate with any testing framework (or none at all).
 
 ### Testing with Mote
-
-#### Overview
 
 [Mote](https://github.com/garyb/purescript-mote) is a DSL for defining and
 grouping tests (plus other quality of life features, e.g. skipping marked
@@ -144,8 +142,7 @@ the example above the environment and Testnet setup will happen 3 times.
 
 #### Internal implementation overview
 
-`Contract.Test.Testnet.testTestnetContracts` type is defined as follows (after
-expansion of the CTL's `TestPlanM` type synonym):
+`Contract.Test.Testnet.testTestnetContracts` type is defined as follows:
 
 ```purescript
 type TestPlanM :: Type -> Type -> Type
@@ -169,35 +166,22 @@ where
   * here we use `Aff` again
 * `a :: Type` is a result of the test suite, we use `Unit` here.
 
-`testTestnetContracts` also combines distributions of individual tests in a single
-big distribution (via nested tuples) and modifies tests to pluck their required
-distributions out of the big one. This allows to create wallets and fund them in
-one step, during the Testnet setup. See the comments in the
+`testTestnetContracts` also combines ADA distribution requirements of individual tests in a single ADA distribution requirement. This allows to create multiple wallets and
+fund them in one step, during the Testnet setup. See the comments in the
 [`Ctl.Internal.Testnet.Server` module](../src/Internal/Testnet/Contract.purs) for
-more info (relevant ones are in `execDistribution` and `testTestnetContracts`
-functions).
-
-In complicated protocols you might want to execute some `Contract`s in one test and
-then execute other `Contract`s which depend on some wallet-dependent state set up
-by the first batch of contracts, e.g. some authorization token is present at some
-wallet. Keeping these steps in separate sequential tests allows to pinpoint where
-things failed much easier, but currently CTL uses separate wallets for each test
-without an easy way to refer to wallets in other tests, so you have to call the
-first batch of contracts again to replicate the state of the wallets, which in turn
-might fail or mess up your protocol, because the chain state is shared between
-tests for each top-level group.
+more info.
 
 ### Testing in Aff context
 
-Second approach is to use the `Contract.Test.Testnet.runTestnetContract` function,
+If using Mote is not desired, it's possible to use the `Contract.Test.Testnet.runTestnetContract` function,
 which takes a single `Contract`, connects to the Testnet and executes the passed
 contract. This function runs in `Aff`; it will also throw an exception should
-contract fail for any reason. After the contract execution the Testnet is
-terminated. You can either call it directly from your test's main or use any
-library for grouping and describing tests which support effects in the test body,
-like Mote.
+contract fail for any reason. The testnet is terminated after `Contract` execution.
 
-`Contract.Test.Testnet.runTestnetContract`'s function type is defined as follows:
+You can either call this function directly from your test's `main` or use any
+library for grouping and describing tests which support `Aff` effects in test bodies.
+
+`Contract.Test.Testnet.runTestnetContract`'s type is defined as follows:
 
 ```purescript
 runTestnetContract
@@ -372,17 +356,11 @@ your project's `flake.nix`. This is done by default in the
   , era :: Era
   , slotLength :: Seconds
   , epochSize :: Maybe UInt
-  -- FIXME: , maxTxSize :: Maybe UInt
-  -- FIXME: , raiseExUnitsToMax :: Boolean
   }
 ```
 
 - `slotLength` and `epochSize` define time-related protocol parameters. Epoch size
   is specified in slots.
-- `maxTxSize` (in bytes) allows to stress-test protocols with more restrictive
-  transaction size limits.
-- `raiseExUnitsToMax` allows to bypass execution units limit (useful when compiling
-  the contract with tracing in development and without it in production).
 
 ### Current limitations
 

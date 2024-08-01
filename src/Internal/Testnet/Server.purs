@@ -7,7 +7,7 @@ module Ctl.Internal.Testnet.Server
   , makeClusterContractEnv
   ) where
 
-import Contract.Prelude
+import Contract.Prelude hiding (log)
 
 import Cardano.Types (NetworkId(MainnetId))
 import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
@@ -72,7 +72,6 @@ import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt (toString) as UInt
-import Debug (spy)
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
 import Effect.Aff.Retry
@@ -233,7 +232,6 @@ startTestnetCluster cfg cleanupRef = do
   kupo <- annotateError "Could not start kupo"
     $ startKupo' { paths, workdir: workdirAbsolute }
 
-  log "startTestnetCluster:done"
   pure $ MkStartedTestnetCluster
     { paths
     , ogmios
@@ -305,7 +303,7 @@ spawnCardanoTestnet { cwd } params = do
     opts = defaultSpawnOptions
       { cwd = Just cwd, env = Just $ Object.union env' env }
   workspaceRef <- liftEffect $ Ref.new mempty
-  ps <- spawn "cardano-testnet" (spy "cardano-testnet options: " options) opts $
+  ps <- spawn "cardano-testnet" options opts $
     Just
       ( \{ line } ->
           case String.stripPrefix (Pattern "Workspace: ") (String.trim line) of
@@ -381,7 +379,7 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
       $ liftEffect
       $ addCleanup cleanupRef
       $ liftEffect do
-          log "Cleaning up workidr"
+          log $ "Cleaning up workdir: " <> workspace
           _rmdirSync workspace
 
   _ <- redirectChannels
@@ -598,3 +596,8 @@ stopChildProcessWithPort port childProcess = do
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
+
+-- replace with Effect.Console.log to debug. Not providing an option at runtime,
+-- because it's just for the CTL developers.
+log :: forall m. Monad m => String -> m Unit
+log _ = pure unit

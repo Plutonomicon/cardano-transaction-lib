@@ -1,5 +1,11 @@
 import os from "os";
 
+try {
+  process.setMaxListeners(10000);
+} catch (e) {
+  console.warn(e);
+}
+
 export function tmpdir() {
   return os.tmpdir();
 }
