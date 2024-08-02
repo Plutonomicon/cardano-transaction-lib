@@ -38,8 +38,7 @@ import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value (Value, valueToCoin)
 import Cardano.Types.Value (geq, lovelaceValueOf, sum) as Value
 import Cardano.Wallet.Key
-  ( KeyWallet
-  , PrivateStakeKey(PrivateStakeKey)
+  ( PrivateStakeKey(PrivateStakeKey)
   , getPrivateDrepKey
   , getPrivateStakeKey
   )
@@ -307,23 +306,30 @@ ownRegisteredPubStakeKeys :: Contract (Array PublicKey)
 ownRegisteredPubStakeKeys =
   withWallet do
     actionBasedOnWallet _.getRegisteredPubStakeKeys
-      (kwPubStakeKeys "ownRegisteredPubStakeKeys")
+      ( \_kw -> do
+          logWarn' $ kwStakeKeysRegStatusWarning "ownRegisteredPubStakeKeys"
+          pure mempty
+      )
 
 ownUnregisteredPubStakeKeys :: Contract (Array PublicKey)
 ownUnregisteredPubStakeKeys =
   withWallet do
     actionBasedOnWallet _.getUnregisteredPubStakeKeys
-      (kwPubStakeKeys "ownUnregisteredPubStakeKeys")
+      ( \kw -> do
+          logWarn' $ kwStakeKeysRegStatusWarning "ownUnregisteredPubStakeKeys"
+          liftAff (getPrivateStakeKey kw) <#> case _ of
+            Just (PrivateStakeKey stakeKey) ->
+              Array.singleton $ PrivateKey.toPublicKey stakeKey
+            Nothing ->
+              mempty
+      )
 
-kwPubStakeKeys :: String -> KeyWallet -> Contract (Array PublicKey)
-kwPubStakeKeys funName kw = do
-  logWarn' $ funName <>
+kwStakeKeysRegStatusWarning :: String -> String
+kwStakeKeysRegStatusWarning funName =
+  funName <>
     " via KeyWallet: KeyWallet does not distinguish between \
     \registered and unregistered stake keys due to the limitations \
     \of the underlying query layer. This means that all controlled \
-    \stake keys are returned regardless of their registration status."
-  liftAff (getPrivateStakeKey kw) <#> case _ of
-    Just (PrivateStakeKey stakeKey) ->
-      Array.singleton $ PrivateKey.toPublicKey stakeKey
-    Nothing ->
-      mempty
+    \stake keys are returned as part of ownUnregisteredPubStakeKeys, \
+    \and the response of ownRegisteredPubStakeKeys is always an \
+    \empty array."

@@ -2075,8 +2075,7 @@ suite = do
           }
       withWallets walletSpec \alice ->
         withCip30Mock alice (walletName Nami) $
-          ownRegisteredPubStakeKeys `shouldReturn`
-            Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
+          ownRegisteredPubStakeKeys `shouldReturn` mempty
 
     test "ownUnregisteredPubStakeKeys works" do
       let
