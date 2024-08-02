@@ -27,8 +27,10 @@ import Contract.BalanceTxConstraints
   )
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Nami)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
+  , walletName
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -49,7 +51,8 @@ import Effect.Exception (throw)
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit

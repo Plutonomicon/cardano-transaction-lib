@@ -60,11 +60,13 @@ import Ctl.Internal.ServerConfig
   )
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
+  , KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
   , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
+  , walletName
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)

@@ -23,8 +23,10 @@ import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.Transaction as Transaction
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Nami)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
+  , walletName
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
@@ -35,7 +37,8 @@ import Data.Map as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
   }
 
 contract :: Contract Unit

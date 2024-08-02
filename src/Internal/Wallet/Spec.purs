@@ -1,13 +1,15 @@
 module Ctl.Internal.Wallet.Spec
-  ( WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
-  , Cip1852DerivationPath
-  , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
+  ( Cip1852DerivationPath
+  , KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivateDrepKeySource(PrivateDrepKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
+  , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
   , mkWalletBySpec
   , mkKeyWalletFromMnemonic
+  , walletName
   ) where
 
 import Prelude
@@ -102,6 +104,18 @@ derive instance Generic WalletSpec _
 
 instance Show WalletSpec where
   show = genericShow
+
+data KnownWallet = Nami | Gero | Flint | Eternl | Lode | Lace | NuFi
+
+walletName :: KnownWallet -> String
+walletName = case _ of
+  Nami -> "nami"
+  Gero -> "gerowallet"
+  Flint -> "flint"
+  Eternl -> "eternl"
+  Lode -> "LodeWallet"
+  Lace -> "lace"
+  NuFi -> "nufi"
 
 -- | Contains non-constant parameters for a CIP-1852 derivation path.
 -- | See https://cips.cardano.org/cips/cip1852/ and `doc/key-management.md`.

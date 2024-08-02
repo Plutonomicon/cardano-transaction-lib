@@ -13,15 +13,12 @@ import Contract.Prelude
 
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Nami)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
+  , walletName
   )
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractE
-  , runContract
-  )
+import Contract.Monad (Contract, launchAff_, liftContractE, runContract)
 import Contract.Scripts (PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction (TransactionInput)
@@ -34,7 +31,8 @@ import Effect.Exception (error)
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit

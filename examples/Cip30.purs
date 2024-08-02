@@ -17,8 +17,10 @@ import Cardano.Wallet.Cip30
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Nami)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
+  , walletName
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
@@ -35,7 +37,8 @@ import Effect.Exception (error)
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit

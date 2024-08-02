@@ -68,10 +68,12 @@ import Ctl.Internal.Wallet.Spec
   , mkKeyWalletFromMnemonic
   )
 import Ctl.Internal.Wallet.Spec
-  ( MnemonicSource(MnemonicString, MnemonicFile)
+  ( KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
+  , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
+  , walletName
   ) as X
 import Data.Array (head)
 import Data.Array as Array

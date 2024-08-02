@@ -21,8 +21,10 @@ import Cardano.Types (GovernanceAction(Info)) as GovAction
 import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
+  , walletName
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -36,7 +38,8 @@ import Data.Map (empty, singleton) as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "eternl" { cip95: true }
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: true }
   }
 
 example :: ContractParams -> Effect Unit

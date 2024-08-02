@@ -50,6 +50,10 @@ import Contract.BalanceTxConstraints
   , mustUseCollateralUtxos
   )
 import Contract.Chain (currentTime, waitUntilSlot)
+import Contract.Config
+  ( KnownWallet(Nami, Gero, Flint, Lode, NuFi)
+  , walletName
+  )
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Log (logInfo')
@@ -1898,33 +1902,33 @@ suite = do
           ]
       withWallets distribution \alice -> do
 
-        let nami = "nami"
+        let nami = walletName Nami
         withCip30Mock alice nami do
           (liftEffect $ isWalletAvailable nami) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable nami) >>= hush >>> shouldEqual
           (Just false)
 
-        let gerowallet = "gerowallet"
+        let gerowallet = walletName Gero
         withCip30Mock alice gerowallet do
           (liftEffect $ isWalletAvailable gerowallet) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable gerowallet) >>= hush >>>
           shouldEqual
             (Just false)
 
-        let flint = "flint"
+        let flint = walletName Flint
         withCip30Mock alice flint do
           (liftEffect $ isWalletAvailable flint) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable flint) >>= hush >>>
           shouldEqual
             (Just false)
 
-        let nufi = "nufi"
+        let nufi = walletName NuFi
         withCip30Mock alice nufi do
           (liftEffect $ isWalletAvailable nufi) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable nufi) >>= hush >>> shouldEqual
           (Just false)
 
-        let lode = "LodeWallet"
+        let lode = walletName Lode
         withCip30Mock alice lode do
           (liftEffect $ isWalletAvailable lode) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable lode) >>= hush >>>
@@ -1939,7 +1943,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           getWalletCollateral >>= liftEffect <<< case _ of
             Nothing -> throw "Unable to get collateral"
             Just
@@ -1962,7 +1966,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        utxos <- withCip30Mock alice "nami" do
+        utxos <- withCip30Mock alice (walletName Nami) do
           getWalletUtxos
         utxos `shouldSatisfy` isJust
 
@@ -1974,7 +1978,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        mockAddress <- withCip30Mock alice "nami" do
+        mockAddress <- withCip30Mock alice (walletName Nami) do
           mbAddr <- head <$> getWalletAddresses
           mbAddr `shouldSatisfy` isJust
           pure mbAddr
@@ -1990,7 +1994,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           pkh <- liftedM "Failed to get PKH" $ head <$>
             ownPaymentPubKeyHashes
           stakePkh <- join <<< head <$> ownStakePubKeyHashes
@@ -2008,7 +2012,7 @@ suite = do
           getWalletBalance >>= shouldEqual
             ( Just $ coinToValue $ Coin $ BigNum.fromInt 1_050_000_000
             )
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           getWalletBalance >>= shouldEqual
             ( Just $ coinToValue $ Coin $ BigNum.fromInt 1_050_000_000
             )
@@ -2022,7 +2026,7 @@ suite = do
           , BigNum.fromInt 1_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           getWalletBalance >>= flip shouldSatisfy
             (eq $ Just $ coinToValue $ Coin $ BigNum.fromInt 8_000_000)
 
@@ -2038,7 +2042,7 @@ suite = do
           , drepKey: Just privateDrepKey
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice "nami" $
+        withCip30Mock alice (walletName Nami) $
           ownDrepPubKey `shouldReturn`
             PrivateKey.toPublicKey (unwrap privateDrepKey)
 
@@ -2054,7 +2058,7 @@ suite = do
           , drepKey: Just privateDrepKey
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice "nami" $
+        withCip30Mock alice (walletName Nami) $
           ownDrepPubKeyHash `shouldReturn`
             PublicKey.hash (PrivateKey.toPublicKey $ unwrap privateDrepKey)
 
@@ -2070,7 +2074,7 @@ suite = do
           , drepKey: Nothing
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice "nami" $
+        withCip30Mock alice (walletName Nami) $
           ownRegisteredPubStakeKeys `shouldReturn`
             Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
 
@@ -2086,7 +2090,7 @@ suite = do
           , drepKey: Nothing
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice "nami" $
+        withCip30Mock alice (walletName Nami) $
           ownUnregisteredPubStakeKeys `shouldReturn`
             Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
 
@@ -2102,7 +2106,7 @@ suite = do
           , drepKey: Just privateDrepKey
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           networkId <- getNetworkId
           drepCred <- wrap <<< PubKeyHashCredential <$> ownDrepPubKeyHash
           let
@@ -2119,9 +2123,9 @@ suite = do
           ]
       withWallets (distribution /\ distribution) \(alice /\ bob) -> do
         bobAddr <-
-          withCip30Mock bob "nami" do
+          withCip30Mock bob (walletName Nami) do
             liftedM "Could not get Bob's address" (head <$> getWalletAddresses)
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           expectError $ signData bobAddr mempty
 
     test "CIP-30 utilities" do
@@ -2132,7 +2136,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice "nami" do
+        withCip30Mock alice (walletName Nami) do
           Cip30.contract
 
     test "ECDSA example" do
@@ -2145,7 +2149,7 @@ suite = do
           , BigNum.fromInt 2_000_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice "nami" $ ECDSA.contract
+        withCip30Mock alice (walletName Nami) $ ECDSA.contract
 
   group "CIP-49 Plutus Crypto Primitives" do
     test "ECDSA: a script that checks if a signature is correct" do

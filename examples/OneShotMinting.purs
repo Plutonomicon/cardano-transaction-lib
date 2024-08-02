@@ -19,11 +19,7 @@ import Cardano.Transaction.Builder
   , ScriptWitness(ScriptValue)
   , TransactionBuilderStep(SpendOutput, MintAsset)
   )
-import Cardano.Types
-  ( _body
-  , _fee
-  , _input
-  )
+import Cardano.Types (_body, _fee, _input)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
@@ -32,8 +28,10 @@ import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (fromUtxoMap)
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Nami)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
+  , walletName
   )
 import Contract.Log (logInfo')
 import Contract.Monad
@@ -71,7 +69,8 @@ import JS.BigInt (BigInt)
 
 main :: Effect Unit
 main = example $ testnetConfig
-  { walletSpec = Just $ ConnectToGenericCip30 "nami" { cip95: false }
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit
