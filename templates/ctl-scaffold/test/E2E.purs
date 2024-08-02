@@ -5,9 +5,10 @@ import Contract.Prelude
 
 import Contract.Config
   ( ContractParams
+  , KnownWallet(Nami, Gero, Flint, Eternl, Lode)
   , WalletSpec(ConnectToGenericCip30)
-  , mainnetConfig
   , testnetConfig
+  , walletName
   )
 import Contract.Monad (Contract)
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
@@ -21,35 +22,27 @@ main = do
   route configs tests
 
 configs :: Map E2EConfigName (ContractParams /\ Maybe String)
-configs = Map.fromFoldable
-  [ "nami" /\ testnetConfig' "nami" /\ Nothing
-  , "gero" /\ testnetConfig' "gerowallet" /\ Nothing
-  , "flint" /\ testnetConfig' "flint" /\ Nothing
-  , "eternl" /\ testnetConfig' "eternl" /\ Nothing
-  , "lode" /\ testnetConfig' "LodeWallet" /\ Nothing
-  , "nami-mock" /\ testnetConfig' "nami" /\ Just "nami"
-  , "gero-mock" /\ testnetConfig' "gerowallet" /\ Just "gerowallet"
-  , "flint-mock" /\ testnetConfig' "flint" /\ Just "flint"
-  , "lode-mock" /\ testnetConfig' "LodeWallet" /\ Just "LodeWallet"
-  -- Plutip cluster's network ID is set to mainnet:
-  , "plutip-nami-mock" /\ mainnetConfig' "nami" /\ Just "nami"
-  , "plutip-gero-mock" /\ mainnetConfig' "gerowallet" /\ Just "gerowallet"
-  , "plutip-flint-mock" /\ mainnetConfig' "flint" /\ Just "flint"
-  , "plutip-lode-mock" /\ mainnetConfig' "LodeWallet" /\ Just "LodeWallet"
+configs = map (map walletName) <$> Map.fromFoldable
+  [ "nami" /\ testnetConfig' Nami /\ Nothing
+  , "gero" /\ testnetConfig' Gero /\ Nothing
+  , "flint" /\ testnetConfig' Flint /\ Nothing
+  , "eternl" /\ testnetConfig' Eternl /\ Nothing
+  , "lode" /\ testnetConfig' Lode /\ Nothing
+  , "nami-mock" /\ testnetConfig' Nami /\ Just Nami
+  , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "flint-mock" /\ testnetConfig' Flint /\ Just Flint
+  , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
+  , "plutip-nami-mock" /\ testnetConfig' Nami /\ Just Nami
+  , "plutip-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "plutip-flint-mock" /\ testnetConfig' Flint /\ Just Flint
+  , "plutip-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
   where
-  testnetConfig' :: String -> ContractParams
+  testnetConfig' :: KnownWallet -> ContractParams
   testnetConfig' wallet =
     testnetConfig
       { walletSpec =
-          Just $ ConnectToGenericCip30 wallet { cip95: false }
-      }
-
-  mainnetConfig' :: String -> ContractParams
-  mainnetConfig' wallet =
-    mainnetConfig
-      { walletSpec =
-          Just $ ConnectToGenericCip30 wallet { cip95: false }
+          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
       }
 
 tests :: Map E2ETestName (Contract Unit)
