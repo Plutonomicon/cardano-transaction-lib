@@ -29,7 +29,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
-import Control.Promise (Promise, fromAff)
+import Control.Promise (fromAff)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftEither)
@@ -43,7 +43,6 @@ import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.UInt as UInt
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -65,12 +64,11 @@ import Partial.Unsafe (unsafePartial)
 -- | it will have to be changed a lot to successfully mimic the behavior of
 -- | multi-address wallets, like Eternl.
 -- |
--- | WARNING: The implementation of `getRegisteredPubStakeKeys` and
--- | `getUnregisteredPubStakeKeys` for KeyWallet is partial. We cannot
--- | differentiate between registered and unregistered stake keys due
--- | to the limitations of the underlying query layer. As a result,
--- | all controlled stake keys are returned, irrespective of their
--- | registration status.
+-- | WARNING: KeyWallet does not distinguish between registered and
+-- | unregistered stake keys due to the limitations of the underlying
+-- | query layer. This means that all controlled stake keys are
+-- | returned as part of getUnregisteredPubStakeKeys, and the response
+-- | of getRegisteredPubStakeKeys is always an empty array.
 withCip30Mock
   :: forall (a :: Type)
    . KeyWallet
@@ -116,18 +114,6 @@ mkCip30Mock pKey mSKey mbDrepKey = do
         queryHandle.utxosAt ownAddress
 
     keyWallet = privateKeysToKeyWallet pKey mSKey mbDrepKey
-
-    getPubStakeKeys :: Effect (Promise (Array String))
-    getPubStakeKeys = fromAff do
-      KeyWallet.getPrivateStakeKey keyWallet <#> case _ of
-        Just stakeKey ->
-          let
-            stakePubKey = PrivateKey.toPublicKey $ unwrap stakeKey
-          in
-            Array.singleton $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes
-              stakePubKey
-        Nothing ->
-          mempty
 
   addressHex <- liftAff $
     (byteArrayToHex <<< unwrap <<< encodeCbor) <$>
@@ -206,6 +192,15 @@ mkCip30Mock pKey mSKey mbDrepKey = do
           KeyWallet.getPrivateDrepKey keyWallet
         let drepPubKey = PrivateKey.toPublicKey $ unwrap drepKey
         pure $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes drepPubKey
-    , getRegisteredPubStakeKeys: getPubStakeKeys
-    , getUnregisteredPubStakeKeys: getPubStakeKeys
+    , getRegisteredPubStakeKeys: fromAff $ pure mempty
+    , getUnregisteredPubStakeKeys: fromAff do
+        KeyWallet.getPrivateStakeKey keyWallet <#> case _ of
+          Just stakeKey ->
+            let
+              stakePubKey = PrivateKey.toPublicKey $ unwrap stakeKey
+            in
+              Array.singleton $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes
+                stakePubKey
+          Nothing ->
+            mempty
     }
