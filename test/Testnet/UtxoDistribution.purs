@@ -30,6 +30,7 @@ import Contract.Test.Testnet
   , InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   , defaultTestnetConfig
+  , runTestnetContract
   , withStakeKey
   )
 import Contract.Utxos (utxosAt)
@@ -43,7 +44,6 @@ import Contract.Wallet
   )
 import Control.Lazy (fix)
 import Ctl.Internal.Test.UtxoDistribution (encodeDistribution, keyWallets)
-import Ctl.Internal.Testnet.Contract (runTestnetContract)
 import Data.Array (foldl, head, replicate, zip)
 import Data.Array.NonEmpty (fromNonEmpty) as NEArray
 import Data.Foldable (intercalate)

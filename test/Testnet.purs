@@ -5,10 +5,13 @@ module Test.Ctl.Testnet
 import Prelude
 
 import Contract.Test (noWallet)
-import Contract.Test.Testnet (defaultTestnetConfig)
+import Contract.Test.Testnet
+  ( defaultTestnetConfig
+  , runTestnetTestPlan
+  , testTestnetContracts
+  )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Testnet.Contract (runTestnetTestPlan, testTestnetContracts)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)

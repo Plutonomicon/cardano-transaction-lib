@@ -26,13 +26,13 @@ import Ctl.Internal.Testnet.Contract
   , runTestnetTestPlan
   , testTestnetContracts
   ) as X
-import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
+import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig) as X
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing))
 import Data.Time.Duration (Seconds(Seconds))
 import Data.UInt (fromInt) as UInt
 
-defaultTestnetConfig :: TestnetConfig
+defaultTestnetConfig :: X.TestnetConfig
 defaultTestnetConfig =
   { logLevel: Trace
   , ogmiosConfig:
@@ -52,7 +52,7 @@ defaultTestnetConfig =
   , hooks: emptyHooks
   , clusterConfig:
       { testnetMagic: 2
-      , era: Babbage
+      , era: X.Babbage
       , slotLength: Seconds 0.1
       , epochSize: Nothing
       }
