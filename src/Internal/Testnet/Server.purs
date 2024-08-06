@@ -72,7 +72,7 @@ import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt (toString) as UInt
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Aff as Aff
 import Effect.Aff.Retry
   ( RetryPolicy
@@ -381,6 +381,7 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
       $ liftEffect do
           log $ "Cleaning up workdir: " <> workspace
           _rmdirSync workspace
+          launchAff_ $ stop testnet
 
   _ <- redirectChannels
     { stderr: channels.stderr, stdout: channels.stdout }
