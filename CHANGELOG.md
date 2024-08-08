@@ -86,11 +86,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 its registered and unregistered public stake keys: `ownDrepPubKey`,
 `ownDrepPubKeyHash`, `ownRegisteredPubStakeKeys`, `ownUnregisteredPubStakeKeys`.
 These new functions can be imported from `Contract.Wallet`.
-**WARNING**: The implementation of `ownRegisteredPubStakeKeys` and
-`ownUnregisteredPubStakeKeys` for KeyWallet is partial. Currently, it is not
-possible to differentiate between registered and unregistered stake keys due to
-the limitations of the underlying query layer. As a result, all controlled stake
-keys are returned, irrespective of their registration status.
+**WARNING**: KeyWallet does not distinguish between registered and unregistered
+stake keys due to the limitations of the underlying query layer. This means that
+all controlled stake keys are returned as part of `ownUnregisteredPubStakeKeys`,
+and the response of `ownRegisteredPubStakeKeys` is always an empty array.
 ([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
 
 - New examples demonstrating various interactions with the Cardano governance
@@ -111,7 +110,9 @@ keys, an error will be thrown.
 ### Removed
 
 - Constructors for individual wallets (like Nami or Eternl) from `WalletSpec`.
-Use `ConnectToGenericCip30` with the right wallet identifier instead.
+Use `ConnectToGenericCip30` with the right wallet identifier instead. To obtain
+the identifier of a known wallet, refer to `KnownWallet` and `walletName` from
+`Contract.Config`.
 ([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
 
 ### Fixed
