@@ -10,11 +10,11 @@ import Contract.Test.Testnet
   ( ContractTest
   , InitialUTxOs
   , defaultTestnetConfig
+  , testTestnetContracts
   , withKeyWallet
   , withWallets
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Ctl.Internal.Testnet.Contract (testTestnetContracts)
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect.Aff
   ( Milliseconds(Milliseconds)

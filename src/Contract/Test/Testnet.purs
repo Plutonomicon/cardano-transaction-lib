@@ -27,6 +27,17 @@ import Ctl.Internal.Testnet.Contract
   , testTestnetContracts
   ) as X
 import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
+import Ctl.Internal.Testnet.Types
+  ( Era
+      ( Byron
+      , Shelley
+      , Allegra
+      , Mary
+      , Alonzo
+      , Babbage
+      )
+  , TestnetConfig
+  ) as X
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing))
 import Data.Time.Duration (Seconds(Seconds))
