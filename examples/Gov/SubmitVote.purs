@@ -71,12 +71,15 @@ submitProposal = do
       getRewardAddresses
 
   tx <- submitTxFromBuildPlan Map.empty mempty
-    [ SubmitProposal $ VotingProposal
-        { govAction: GovAction.Info
-        , anchor: dummyAnchor
-        , deposit: unwrap govActionDeposit
-        , returnAddr: rewardAddr
-        }
+    [ SubmitProposal
+        ( VotingProposal
+            { govAction: GovAction.Info
+            , anchor: dummyAnchor
+            , deposit: unwrap govActionDeposit
+            , returnAddr: rewardAddr
+            }
+        )
+        Nothing
     ]
   let txHash = Transaction.hash tx
   awaitTxConfirmed txHash
