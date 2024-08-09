@@ -26,7 +26,7 @@ import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )
-import Data.Array (length, range, replicate) as Array
+import Data.Array (range, replicate) as Array
 import Data.Foldable (fold)
 import Data.Int (hexadecimal) as Radix
 import Data.Int (toStringAs) as Int
