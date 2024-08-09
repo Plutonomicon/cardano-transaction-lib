@@ -379,11 +379,11 @@ let
 
     "cip95" = pkgs.stdenv.mkDerivation {
         name = "cip95";
-        version = "ddcabbcf96ec6e292ca821c86eada1f828da0daf";
+        version = "3b2761237d54e85fc313f5a9439444ebf1b827a8";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cip95";
-          rev = "ddcabbcf96ec6e292ca821c86eada1f828da0daf";
-          sha256 = "1vhan4fx4yq2h2p4ilvid97qnfs6wx5nj6rjyvyj30s1wi1cb1rz";
+          rev = "3b2761237d54e85fc313f5a9439444ebf1b827a8";
+          sha256 = "1javlxga7mv1z0inwpwlgh0w4b4dh0bikv5pypyvh1mk3s2605hp";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

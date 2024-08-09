@@ -142,13 +142,14 @@ let additions =
         { dependencies =
           [ "aff"
           , "aff-promise"
+          , "cip30"
           , "console"
           , "effect"
           , "newtype"
           , "prelude"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip95"
-        , version = "ddcabbcf96ec6e292ca821c86eada1f828da0daf"
+        , version = "3b2761237d54e85fc313f5a9439444ebf1b827a8"
         }
       , cip95-typesafe =
         { dependencies =

@@ -10,8 +10,8 @@ module Ctl.Internal.Wallet
 
 import Prelude
 
+import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30 (enable) as Cip30
-import Cardano.Wallet.Cip95 (Api)
 import Cardano.Wallet.Cip95 (enable) as Cip95
 import Cardano.Wallet.Key
   ( KeyWallet
@@ -30,7 +30,6 @@ import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
-import Unsafe.Coerce (unsafeCoerce)
 
 foreign import isWalletAvailable :: String -> Effect Boolean
 
@@ -80,7 +79,7 @@ mkWalletAff walletExtension = do
 enableWallet :: WalletExtension -> Aff Api
 enableWallet { name, exts: { cip95 } }
   | cip95 = Cip95.enable name
-  | otherwise = unsafeCoerce <$> Cip30.enable name mempty
+  | otherwise = Cip30.enable name mempty
 
 actionBasedOnWallet
   :: forall (m :: Type -> Type) (a :: Type)

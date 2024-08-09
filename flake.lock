@@ -2099,17 +2099,17 @@
         "utils": "utils_7"
       },
       "locked": {
-        "lastModified": 1721843629,
-        "narHash": "sha256-F5wgRA820x16f+8c/LlEEBG0rMJIA1XWw6X0ZwX5UWs=",
+        "lastModified": 1722955151,
+        "narHash": "sha256-pZUg2PbhK35QdMcEP0or6IyKXBr544KyebQ+xiNc6PE=",
         "owner": "input-output-hk",
         "repo": "cardano-node",
-        "rev": "176f99e51155cb3eaa0711db1c3c969d67438958",
+        "rev": "4f4e372a1641ac68cd09fb0339e6f55bef1ab85d",
         "type": "github"
       },
       "original": {
         "owner": "input-output-hk",
-        "ref": "9.1.0",
         "repo": "cardano-node",
+        "rev": "4f4e372a1641ac68cd09fb0339e6f55bef1ab85d",
         "type": "github"
       }
     },
