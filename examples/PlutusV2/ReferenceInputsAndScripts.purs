@@ -18,6 +18,7 @@ import Cardano.Types
   , OutputDatum(OutputDatum)
   , ScriptHash
   , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
@@ -50,7 +51,7 @@ import Contract.Value as Value
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Data.Array (find, head) as Array
+import Data.Array (find) as Array
 import Data.Map (empty, toUnfoldable) as Map
 import Effect.Exception (error)
 
@@ -125,7 +126,6 @@ spendFromAlwaysSucceeds
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   scriptAddressUtxos <- utxosAt scriptAddress
-  utxos <- utxosAt scriptAddress
   utxo <-
     liftM
       ( error
@@ -135,17 +135,18 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
               <> show scriptAddress
           )
       )
-      $ Array.head (lookupTxHash txId utxos)
+      $ Array.find hasNoRefScript
+      $ lookupTxHash txId scriptAddressUtxos
 
   refValidatorInput /\ _ <-
     liftContractM "Could not find unspent output containing ref validator"
       $ Array.find (hasRefPlutusScript validator)
-      $ Map.toUnfoldable utxos
+      $ Map.toUnfoldable scriptAddressUtxos
 
   refMpInput /\ _ <-
     liftContractM "Could not find unspent output containing ref minting policy"
       $ Array.find (hasRefPlutusScript mp)
-      $ Map.toUnfoldable utxos
+      $ Map.toUnfoldable scriptAddressUtxos
 
   let
     mph = PlutusScript.hash mp
@@ -165,8 +166,12 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   awaitTxConfirmed $ Transaction.hash spendTx
   logInfo' "Successfully spent locked values and minted tokens."
   where
-
   hasRefPlutusScript
-    :: PlutusScript -> _ /\ TransactionOutput -> Boolean
+    :: PlutusScript
+    -> _ /\ TransactionOutput
+    -> Boolean
   hasRefPlutusScript plutusScript (_ /\ txOutput) =
     (unwrap txOutput).scriptRef == Just (PlutusScriptRef plutusScript)
+
+  hasNoRefScript :: TransactionUnspentOutput -> Boolean
+  hasNoRefScript utxo = isNothing (unwrap (unwrap utxo).output).scriptRef
