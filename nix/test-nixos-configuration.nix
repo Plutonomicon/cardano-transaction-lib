@@ -35,8 +35,8 @@
     hostAddr = "0.0.0.0";
     socketPath = "/var/run/cardano-node/node.socket";
     systemdSocketActivation = false;
-    nodeConfigFile = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
-    topology = "${cardano-configurations}/network/sanchonet/cardano-node/topology.json";
+    nodeConfigFile = "${cardano-configurations}/network/preview/cardano-node/config.json";
+    topology = "${cardano-configurations}/network/preview/cardano-node/topology.json";
   };
 
   services.ogmios = {
@@ -46,7 +46,7 @@
     user = "cardano-node";
     group = "cardano-node";
     nodeSocketPath = "/var/run/cardano-node/node.socket";
-    nodeConfigPath = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
+    nodeConfigPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
   };
 
   services.kupo = {
@@ -56,6 +56,6 @@
     group = "cardano-node";
     host = "0.0.0.0";
     nodeSocketPath = "/var/run/cardano-node/node.socket";
-    nodeConfigPath = "${cardano-configurations}/network/sanchonet/cardano-node/config.json";
+    nodeConfigPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
   };
 }
