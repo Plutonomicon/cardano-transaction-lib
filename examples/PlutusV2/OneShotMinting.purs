@@ -11,13 +11,14 @@ module Ctl.Examples.PlutusV2.OneShotMinting
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractE
-  , runContract
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
   )
+import Contract.Monad (Contract, launchAff_, liftContractE, runContract)
 import Contract.Scripts (PlutusScript)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction (TransactionInput)
@@ -29,7 +30,10 @@ import Ctl.Examples.OneShotMinting
 import Effect.Exception (error)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

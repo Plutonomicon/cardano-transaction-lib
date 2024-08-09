@@ -1,23 +1,15 @@
 module Ctl.Internal.Wallet.Spec
-  ( WalletSpec
-      ( UseKeys
-      , UseMnemonic
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToEternl
-      , ConnectToLode
-      , ConnectToNuFi
-      , ConnectToLace
-      , ConnectToGenericCip30
-      )
-  , Cip1852DerivationPath
-  , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
+  ( Cip1852DerivationPath
+  , KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
+  , PrivateDrepKeySource(PrivateDrepKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
+  , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
+  , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
   , mkWalletBySpec
   , mkKeyWalletFromMnemonic
+  , walletName
   ) where
 
 import Prelude
@@ -25,28 +17,21 @@ import Prelude
 import Cardano.Wallet.HD
   ( bip32ToPrivateKey
   , cip1852AccountFromMnemonic
+  , deriveDrepKey
   , derivePaymentKey
   , deriveStakeKey
   )
 import Cardano.Wallet.Key
   ( KeyWallet
+  , PrivateDrepKey(PrivateDrepKey)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
   )
 import Control.Monad.Error.Class (liftEither)
 import Ctl.Internal.Wallet
-  ( Wallet(KeyWallet)
-  , WalletExtension
-      ( NamiWallet
-      , GeroWallet
-      , FlintWallet
-      , EternlWallet
-      , LodeWallet
-      , NuFiWallet
-      , LaceWallet
-      , GenericCip30Wallet
-      )
+  ( Cip30Extensions
+  , Wallet(KeyWallet)
   , mkKeyWallet
   , mkWalletAff
   )
@@ -85,6 +70,13 @@ derive instance Generic PrivateStakeKeySource _
 instance Show PrivateStakeKeySource where
   show = genericShow
 
+data PrivateDrepKeySource = PrivateDrepKeyValue PrivateDrepKey
+
+derive instance Generic PrivateDrepKeySource _
+
+instance Show PrivateDrepKeySource where
+  show = genericShow
+
 data MnemonicSource
   = MnemonicString String
   | MnemonicFile FilePath
@@ -104,20 +96,26 @@ instance Show StakeKeyPresence where
 -- | A data type to describe instructions on how to initialize a wallet.
 data WalletSpec
   = UseKeys PrivatePaymentKeySource (Maybe PrivateStakeKeySource)
+      (Maybe PrivateDrepKeySource)
   | UseMnemonic MnemonicSource Cip1852DerivationPath StakeKeyPresence
-  | ConnectToNami
-  | ConnectToGero
-  | ConnectToFlint
-  | ConnectToEternl
-  | ConnectToLode
-  | ConnectToNuFi
-  | ConnectToLace
-  | ConnectToGenericCip30 String
+  | ConnectToGenericCip30 String Cip30Extensions
 
 derive instance Generic WalletSpec _
 
 instance Show WalletSpec where
   show = genericShow
+
+data KnownWallet = Nami | Gero | Flint | Eternl | Lode | Lace | NuFi
+
+walletName :: KnownWallet -> String
+walletName = case _ of
+  Nami -> "nami"
+  Gero -> "gerowallet"
+  Flint -> "flint"
+  Eternl -> "eternl"
+  Lode -> "LodeWallet"
+  Lace -> "lace"
+  NuFi -> "nufi"
 
 -- | Contains non-constant parameters for a CIP-1852 derivation path.
 -- | See https://cips.cardano.org/cips/cip1852/ and `doc/key-management.md`.
@@ -128,7 +126,7 @@ type Cip1852DerivationPath =
 
 mkWalletBySpec :: WalletSpec -> Aff Wallet
 mkWalletBySpec = case _ of
-  UseKeys paymentKeySpec mbStakeKeySpec -> do
+  UseKeys paymentKeySpec mbStakeKeySpec mbDrepKeySpec -> do
     privatePaymentKey <- case paymentKeySpec of
       PrivatePaymentKeyFile filePath ->
         privatePaymentKeyFromFile filePath
@@ -136,7 +134,9 @@ mkWalletBySpec = case _ of
     mbPrivateStakeKey <- for mbStakeKeySpec case _ of
       PrivateStakeKeyFile filePath -> privateStakeKeyFromFile filePath
       PrivateStakeKeyValue key -> pure key
-    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey
+    mbDrepKey <- for mbDrepKeySpec case _ of
+      PrivateDrepKeyValue key -> pure key
+    pure $ mkKeyWallet privatePaymentKey mbPrivateStakeKey mbDrepKey
   UseMnemonic (MnemonicString mnemonic) derivationPath stakeKeyPresence -> do
     map KeyWallet $ liftEither $ lmap error $
       mkKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence
@@ -144,14 +144,7 @@ mkWalletBySpec = case _ of
     mnemonic <- readTextFile Encoding.UTF8 path
     map KeyWallet $ liftEither $ lmap error $
       mkKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence
-  ConnectToNami -> mkWalletAff NamiWallet
-  ConnectToGero -> mkWalletAff GeroWallet
-  ConnectToFlint -> mkWalletAff FlintWallet
-  ConnectToEternl -> mkWalletAff EternlWallet
-  ConnectToLode -> mkWalletAff LodeWallet
-  ConnectToNuFi -> mkWalletAff NuFiWallet
-  ConnectToLace -> mkWalletAff LaceWallet
-  ConnectToGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
+  ConnectToGenericCip30 name exts -> mkWalletAff { name, exts }
 
 -- | Create a wallet given a mnemonic phrase, account index, address index and
 -- | stake key presence flag.
@@ -165,10 +158,14 @@ mkKeyWalletFromMnemonic phrase { accountIndex, addressIndex } stakeKeyPresence =
   do
     account <- cip1852AccountFromMnemonic phrase accountIndex
     let
-      paymentKey = derivePaymentKey account addressIndex # bip32ToPrivateKey
-      mbStakeKeySpec = case stakeKeyPresence of
+      paymentKey =
+        PrivatePaymentKey $ bip32ToPrivateKey $ derivePaymentKey account
+          addressIndex
+      drepKey = Just $ PrivateDrepKey $ bip32ToPrivateKey $ deriveDrepKey
+        account
+      mbStakeKey = case stakeKeyPresence of
         WithStakeKey -> Just $ PrivateStakeKey $
           deriveStakeKey account #
             bip32ToPrivateKey
         WithoutStakeKey -> Nothing
-    pure $ privateKeysToKeyWallet (PrivatePaymentKey paymentKey) mbStakeKeySpec
+    pure $ privateKeysToKeyWallet paymentKey mbStakeKey drepKey

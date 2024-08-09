@@ -138,6 +138,40 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
         , version = "d72e51fbc0255eb3246c9132d295de7f65e16a99"
         }
+      , cip95 =
+        { dependencies =
+          [ "aff"
+          , "aff-promise"
+          , "cip30"
+          , "console"
+          , "effect"
+          , "newtype"
+          , "prelude"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip95"
+        , version = "3b2761237d54e85fc313f5a9439444ebf1b827a8"
+        }
+      , cip95-typesafe =
+        { dependencies =
+          [ "aff"
+          , "bifunctors"
+          , "cip30"
+          , "cip30-typesafe"
+          , "cip95"
+          , "console"
+          , "control"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "maybe"
+          , "prelude"
+          , "spec"
+          , "transformers"
+          , "variant"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cip95-typesafe"
+        , version = "84cf1a18abc274222b31d7fcb829195ae2e673c4"
+        }
       , bytearrays =
         { dependencies =
           [ "aeson"
@@ -220,9 +254,14 @@ let additions =
         }
       , cip30-mock =
         { dependencies =
-          [ "aff-promise", "console", "effect", "functions", "prelude" ]
+          [ "aff-promise"
+          , "console"
+          , "effect"
+          , "functions"
+          , "prelude"
+          ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-mock"
-        , version = "v1.0.0"
+        , version = "d00ba14769dceda1270658c63f14822db01f376d"
         }
       , cardano-collateral-select =
         { dependencies =
@@ -258,13 +297,12 @@ let additions =
           , "foldable-traversable"
           , "maybe"
           , "newtype"
+          , "ordered-collections"
           , "prelude"
-          , "profunctor-lenses"
-          , "typelevel-prelude"
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
-        , version = "v1.0.0"
+        , version = "3fe93e45ac1444a429abfe6e135addf568500c23"
         }
       , uplc-apply-args =
         { dependencies =
@@ -365,7 +403,7 @@ let additions =
           , "uint"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-hd-wallet"
-        , version = "v1.0.0"
+        , version = "cc1073ddf8bce72407ef6671e3decb59f422e304"
         }
       , mote-testplan =
         { dependencies =
@@ -439,11 +477,11 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "48866bd7f5eeb8e0870c97384264d08bda9c2725"
+        , version = "a9c033b9a2bb78b134ae5309209f73e47f3d5791"
         }
       , cardano-transaction-lib =
         { dependencies =
-          [ "aeson"
+           [ "aeson"
           , "aff"
           , "aff-promise"
           , "aff-retry"
@@ -467,6 +505,8 @@ let additions =
           , "cip30"
           , "cip30-mock"
           , "cip30-typesafe"
+          , "cip95"
+          , "cip95-typesafe"
           , "console"
           , "control"
           , "crypto"
@@ -528,6 +568,7 @@ let additions =
           , "record"
           , "refs"
           , "safe-coerce"
+          , "safely"
           , "spec"
           , "spec-quickcheck"
           , "strings"
@@ -548,7 +589,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "70ab312ebe7615444c895fd1072b6be91e47430d"
+        , version = "01708d64e858a2ed3cbbc7a9a235d3acf79a7b91"
         }
       }
 

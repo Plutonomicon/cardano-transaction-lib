@@ -59,6 +59,7 @@ contractParams = do
           }
     , logLevel = Info
     , walletSpec = Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
+        Nothing
     }
 
 blockfrostConfigFromApiKey :: String -> Effect ServerConfig

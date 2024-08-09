@@ -33,7 +33,7 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/9.1.0";
+    cardano-node.url = "github:input-output-hk/cardano-node/4f4e372a1641ac68cd09fb0339e6f55bef1ab85d";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
@@ -43,9 +43,9 @@
       flake = false;
     };
 
-    # Get Ogmios from cardano-nix
+    # Get Ogmios and Kupo from cardano-nix
     cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix/dshuiski/ogmios-v6.5.0";
+      url = "github:mlabs-haskell/cardano.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -172,9 +172,6 @@
                 nodePackages.eslint
                 nodePackages.prettier
                 blockfrost-backend-ryo
-                cardano-node.packages.${system}.cardano-testnet
-                cardano-node.packages.${system}.cardano-cli
-                cardano-node.packages.${system}.cardano-node
               ];
             };
           };

@@ -68,9 +68,9 @@ sublists n xs = List.take (List.length xs - n + 1) $ sublists' n xs
 -- | Used for fee calculation.
 -- | We try to calculate maximum number of signers from the script itself,
 -- | following its logic.
--- | But we must not count `requiredSigners` as signers from native scripts
--- | twice, because that would lead to excessive fees. Hence we accept a set
--- | of already known signers to be ignored in this function.
+-- | But we must not count `requiredSigners` and `selfSigners` as signers from
+-- | native scripts twice, because that would lead to excessive fees. Hence we
+-- | accept a set of already known signers to be ignored in this function.
 getMaximumSigners :: Set Ed25519KeyHash -> NativeScript -> Int
 getMaximumSigners alreadyCounted =
   sizes >>> maximumBy (compare `on` Set.size) >>> map Set.size >>> fromMaybe 0

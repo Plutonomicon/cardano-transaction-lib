@@ -69,7 +69,7 @@ main =
             }
       , logLevel = Info
       , walletSpec =
-          Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
+          Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing Nothing
       }
 
 generateFixtures :: Int -> Contract Unit

@@ -11,5 +11,12 @@ import Scaffold as Scaffold
 main :: Effect Unit
 main = Contract.Monad.launchAff_
   $ void
-  $ Contract.Monad.runContract Contract.Config.testnetNamiConfig
+  $ Contract.Monad.runContract contractParams
   $ Scaffold.contract
+
+contractParams :: Contract.Config.ContractParams
+contractParams =
+  Contract.Config.testnetConfig
+    { walletSpec =
+        Just $ Contract.Config.ConnectToGenericCip30 "nami" { cip95: false }
+    }

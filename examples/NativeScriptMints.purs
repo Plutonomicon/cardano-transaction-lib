@@ -21,7 +21,13 @@ import Cardano.Types.Int as Int
 import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.Transaction as Transaction
 import Contract.Address (PaymentPubKeyHash, mkAddress)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Scripts (NativeScript(ScriptPubkey))
@@ -35,7 +41,10 @@ import Data.Map as Map
 import JS.BigInt as BigInt
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do

@@ -5,9 +5,13 @@ module Ctl.Internal.Contract.Wallet
   , getWalletAddresses
   , signData
   , getWallet
+  , ownDrepPubKey
+  , ownDrepPubKeyHash
   , ownPubKeyHashes
   , ownPaymentPubKeyHashes
+  , ownRegisteredPubStakeKeys
   , ownStakePubKeyHashes
+  , ownUnregisteredPubStakeKeys
   , withWallet
   , getWalletCollateral
   , getWalletBalance
@@ -17,15 +21,28 @@ module Ctl.Internal.Contract.Wallet
 import Prelude
 
 import Cardano.Types (Ed25519KeyHash, RawBytes)
-import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
+import Cardano.Types.Address
+  ( Address(RewardAddress)
+  , getPaymentCredential
+  , getStakeCredential
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Credential as Credential
 import Cardano.Types.PaymentPubKeyHash (PaymentPubKeyHash)
+import Cardano.Types.PrivateKey (toPublicKey) as PrivateKey
+import Cardano.Types.PublicKey (PublicKey)
+import Cardano.Types.PublicKey (hash) as PublicKey
 import Cardano.Types.StakePubKeyHash (StakePubKeyHash)
 import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Types.Value (Value, valueToCoin)
 import Cardano.Types.Value (geq, lovelaceValueOf, sum) as Value
+import Cardano.Wallet.Key
+  ( PrivateStakeKey(PrivateStakeKey)
+  , getPrivateDrepKey
+  , getPrivateStakeKey
+  )
+import Contract.Log (logWarn')
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
@@ -68,8 +85,13 @@ getRewardAddresses =
   withWallet $ actionBasedOnWallet _.getRewardAddresses
     \kw -> do
       networkId <- asks _.networkId
-      addr <- liftAff $ (unwrap kw).address networkId
-      pure $ Array.singleton addr
+      mStakeCred <- liftAff $ getStakeCredential <$> (unwrap kw).address
+        networkId
+      pure $ maybe mempty
+        ( Array.singleton <<< RewardAddress <<<
+            { networkId, stakeCredential: _ }
+        )
+        mStakeCred
 
 -- | Get all `Address`es of the browser wallet.
 getWalletAddresses :: Contract (Array Address)
@@ -86,9 +108,14 @@ signData address payload =
   withWallet $
     actionBasedOnWallet
       (\w -> w.signData address payload)
-      \kw -> do
-        networkId <- asks _.networkId
-        liftAff $ (unwrap kw).signData networkId payload
+      ( \kw -> do
+          mDataSig <- liftAff $ (unwrap kw).signData address payload
+          liftM
+            ( error
+                "signData via KeyWallet: Unable to sign data for the supplied address"
+            )
+            mDataSig
+      )
 
 getWallet :: Contract (Maybe Wallet)
 getWallet = asks _.wallet
@@ -251,3 +278,58 @@ getWalletUtxos = do
   toUtxoMap :: Array TransactionUnspentOutput -> UtxoMap
   toUtxoMap = Map.fromFoldable <<< map
     (unwrap >>> \({ input, output }) -> input /\ output)
+
+ownDrepPubKey :: Contract PublicKey
+ownDrepPubKey =
+  withWallet do
+    actionBasedOnWallet _.getPubDrepKey
+      ( \kw -> do
+          drepKey <- liftAff $ liftedM
+            (error "ownDrepPubKey: Unable to get KeyWallet DRep key")
+            (getPrivateDrepKey kw)
+          pure $ PrivateKey.toPublicKey $ unwrap drepKey
+      )
+
+ownDrepPubKeyHash :: Contract Ed25519KeyHash
+ownDrepPubKeyHash =
+  withWallet do
+    actionBasedOnWallet (map PublicKey.hash <<< _.getPubDrepKey)
+      ( \kw -> do
+          drepKey <- liftAff $ liftedM
+            (error "ownDrepPubKeyHash: Unable to get KeyWallet DRep key")
+            (getPrivateDrepKey kw)
+          pure $ PublicKey.hash $ PrivateKey.toPublicKey $
+            unwrap drepKey
+      )
+
+ownRegisteredPubStakeKeys :: Contract (Array PublicKey)
+ownRegisteredPubStakeKeys =
+  withWallet do
+    actionBasedOnWallet _.getRegisteredPubStakeKeys
+      ( \_kw -> do
+          logWarn' $ kwStakeKeysRegStatusWarning "ownRegisteredPubStakeKeys"
+          pure mempty
+      )
+
+ownUnregisteredPubStakeKeys :: Contract (Array PublicKey)
+ownUnregisteredPubStakeKeys =
+  withWallet do
+    actionBasedOnWallet _.getUnregisteredPubStakeKeys
+      ( \kw -> do
+          logWarn' $ kwStakeKeysRegStatusWarning "ownUnregisteredPubStakeKeys"
+          liftAff (getPrivateStakeKey kw) <#> case _ of
+            Just (PrivateStakeKey stakeKey) ->
+              Array.singleton $ PrivateKey.toPublicKey stakeKey
+            Nothing ->
+              mempty
+      )
+
+kwStakeKeysRegStatusWarning :: String -> String
+kwStakeKeysRegStatusWarning funName =
+  funName <>
+    " via KeyWallet: KeyWallet does not distinguish between \
+    \registered and unregistered stake keys due to the limitations \
+    \of the underlying query layer. This means that all controlled \
+    \stake keys are returned as part of ownUnregisteredPubStakeKeys, \
+    \and the response of ownRegisteredPubStakeKeys is always an \
+    \empty array."

@@ -269,7 +269,7 @@ startTestnetContractEnv cfg distr cleanupRef = do
       traverse
         ( \location -> do
             paymentKey <- read872GenesisKey location
-            pure $ mkKeyWalletFromPrivateKeys paymentKey Nothing
+            pure $ mkKeyWalletFromPrivateKeys paymentKey Nothing Nothing
         )
         (unwrap cluster).paths.genesisKeys
 

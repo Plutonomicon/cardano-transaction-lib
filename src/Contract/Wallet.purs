@@ -24,6 +24,7 @@ import Cardano.Wallet.Key
   , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
   ) as X
+import Cardano.Wallet.Key (PrivateDrepKey)
 import Contract.Config (PrivatePaymentKey, PrivateStakeKey)
 import Contract.Log (logTrace')
 import Contract.Monad (Contract)
@@ -37,8 +38,12 @@ import Ctl.Internal.Contract.Wallet
   , getUnusedAddresses
   , getWallet
   , getWalletAddresses
+  , ownDrepPubKey
+  , ownDrepPubKeyHash
   , ownPaymentPubKeyHashes
+  , ownRegisteredPubStakeKeys
   , ownStakePubKeyHashes
+  , ownUnregisteredPubStakeKeys
   , signData
   ) as X
 import Ctl.Internal.Contract.Wallet
@@ -49,21 +54,13 @@ import Ctl.Internal.Contract.Wallet
 import Ctl.Internal.Contract.Wallet (getWalletUtxos) as Wallet
 import Ctl.Internal.Contract.Wallet as Contract
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet
-  ( Wallet(KeyWallet, GenericCip30)
+  ( Cip30Extensions
+  , Wallet(KeyWallet, GenericCip30)
   , WalletExtension
-      ( NamiWallet
-      , GeroWallet
-      , FlintWallet
-      , EternlWallet
-      , LodeWallet
-      , LaceWallet
-      , NuFiWallet
-      , GenericCip30Wallet
-      )
   , isWalletAvailable
   ) as X
+import Ctl.Internal.Wallet (Wallet(KeyWallet)) as Wallet
 import Ctl.Internal.Wallet.KeyFile (formatPaymentKey, formatStakeKey) as X
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
@@ -71,21 +68,12 @@ import Ctl.Internal.Wallet.Spec
   , mkKeyWalletFromMnemonic
   )
 import Ctl.Internal.Wallet.Spec
-  ( MnemonicSource(MnemonicString, MnemonicFile)
+  ( KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
+  , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
-  , WalletSpec
-      ( UseKeys
-      , UseMnemonic
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToLode
-      , ConnectToLace
-      , ConnectToEternl
-      , ConnectToNuFi
-      , ConnectToGenericCip30
-      )
+  , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
+  , walletName
   ) as X
 import Data.Array (head)
 import Data.Array as Array
@@ -121,7 +109,10 @@ withKeyWalletFromMnemonic mnemonic derivationPath stakeKeyPresence contract = do
   addNote = append "withKeyWalletFromMnemonic: "
 
 mkKeyWalletFromPrivateKeys
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> KeyWallet
+  :: PrivatePaymentKey
+  -> Maybe PrivateStakeKey
+  -> Maybe PrivateDrepKey
+  -> KeyWallet
 mkKeyWalletFromPrivateKeys payment mbStake = privateKeysToKeyWallet payment
   mbStake
 

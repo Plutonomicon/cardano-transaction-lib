@@ -1,6 +1,6 @@
 module Ctl.Internal.Testnet.Types
   ( CardanoTestnetStartupParams
-  , Era(Byron, Shelley, Allegra, Mary, Alonzo, Babbage)
+  , Era(Byron, Shelley, Allegra, Mary, Alonzo, Babbage, Conway)
   , LoggingFormat(LogAsJson, LogAsText)
   , TestnetPaths
   , Event(Ready872, Finished, Failed, StartupFailed)
@@ -55,6 +55,7 @@ data Era
   | Mary
   | Alonzo
   | Babbage
+  | Conway
 
 data StartupFailure
   = SpawnFailed
@@ -84,6 +85,7 @@ instance Show Era where
     Mary -> "mary-era"
     Alonzo -> "alonzo-era"
     Babbage -> "babbage-era"
+    Conway -> "conway-era"
 
 data LoggingFormat = LogAsJson | LogAsText
 
