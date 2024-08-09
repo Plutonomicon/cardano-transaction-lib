@@ -53,7 +53,7 @@ import Contract.Staking
   , getValidatorHashDelegationsAndRewards
   )
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Contract.Test.Testnet (defaultTestnetConfig)
+import Contract.Test.Testnet (defaultTestnetConfig, runTestnetContract)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getCurrentEpoch)
 import Contract.Transaction
@@ -78,7 +78,6 @@ import Ctl.Internal.Test.UtxoDistribution
   ( InitialUTxOs
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
   )
-import Ctl.Internal.Testnet.Contract (runTestnetContract)
 import Data.Array (head)
 import Data.Array as Array
 import Data.Either (hush)

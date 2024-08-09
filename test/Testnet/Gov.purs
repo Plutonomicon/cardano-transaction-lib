@@ -7,7 +7,7 @@ import Prelude
 import Cardano.Types.BigNum (fromInt) as BigNum
 import Contract.Test (ContractTest)
 import Contract.Test.Mote (TestPlanM)
-import Contract.Test.Testnet (InitialUTxOs, withKeyWallet, withWallets)
+import Contract.Test.Testnet (withKeyWallet, withWallets)
 import Ctl.Examples.Gov.DelegateVoteAbstain (contract) as Gov.DelegateVoteAbstain
 import Ctl.Examples.Gov.ManageDrep (contract) as Gov.ManageDrep
 import Ctl.Examples.Gov.ManageDrepScript (contract) as Gov.ManageDrepScript

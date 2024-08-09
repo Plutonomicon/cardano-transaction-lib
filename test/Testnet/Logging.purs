@@ -5,8 +5,7 @@ module Test.Ctl.Testnet.Logging
 import Prelude
 
 import Contract.Log (logWarn')
-import Contract.Test.Testnet (defaultTestnetConfig)
-import Ctl.Internal.Testnet.Contract (runTestnetContract)
+import Contract.Test.Testnet (defaultTestnetConfig, runTestnetContract)
 import Data.Log.Level (LogLevel(Error))
 import Data.Maybe (Maybe(Just))
 import Effect.Aff (Aff, try)
