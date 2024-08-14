@@ -1,21 +1,7 @@
 -- | Exposes some pre-defined Contract configurations. Re-exports all modules needed to modify `ContractParams`.
 module Contract.Config
   ( testnetConfig
-  , testnetNamiConfig
-  , testnetGeroConfig
-  , testnetFlintConfig
-  , testnetEternlConfig
-  , testnetLodeConfig
-  , testnetNuFiConfig
-  , testnetLaceConfig
   , mainnetConfig
-  , mainnetNamiConfig
-  , mainnetGeroConfig
-  , mainnetFlintConfig
-  , mainnetEternlConfig
-  , mainnetLodeConfig
-  , mainnetNuFiConfig
-  , mainnetLaceConfig
   , defaultSynchronizationParams
   , strictSynchronizationParams
   , softSynchronizationParams
@@ -74,26 +60,17 @@ import Ctl.Internal.ServerConfig
   )
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
+  , KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
   , StakeKeyPresence(WithStakeKey, WithoutStakeKey)
-  , WalletSpec
-      ( UseKeys
-      , UseMnemonic
-      , ConnectToNami
-      , ConnectToGero
-      , ConnectToFlint
-      , ConnectToEternl
-      , ConnectToLode
-      , ConnectToNuFi
-      , ConnectToLace
-      , ConnectToGenericCip30
-      )
+  , WalletSpec(UseKeys, UseMnemonic, ConnectToGenericCip30)
+  , walletName
   )
 import Data.Log.Level (LogLevel(Trace, Debug, Info, Warn, Error))
 import Data.Log.Message (Message)
-import Data.Maybe (Maybe(Just, Nothing))
+import Data.Maybe (Maybe(Nothing))
 import Data.Number (infinity)
 import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 
@@ -112,6 +89,9 @@ testnetConfig =
   , timeParams: defaultTimeParams
   , synchronizationParams: defaultSynchronizationParams
   }
+
+mainnetConfig :: ContractParams
+mainnetConfig = testnetConfig { networkId = MainnetId }
 
 -- | - `syncWallet` specifies delay and timeout for `syncWalletWithTransaction`
 -- | and `syncWalletWithTxInputs` synchronization primitives.
@@ -173,48 +153,3 @@ strictSynchronizationParams =
   , syncWalletWithTxInputs: { errorOnTimeout: true, beforeCip30Sign: true }
   , syncWalletWithTransaction: { errorOnTimeout: true, beforeTxConfirmed: true }
   }
-
-testnetNamiConfig :: ContractParams
-testnetNamiConfig = testnetConfig { walletSpec = Just ConnectToNami }
-
-testnetGeroConfig :: ContractParams
-testnetGeroConfig = testnetConfig { walletSpec = Just ConnectToGero }
-
-testnetFlintConfig :: ContractParams
-testnetFlintConfig = testnetConfig { walletSpec = Just ConnectToFlint }
-
-testnetEternlConfig :: ContractParams
-testnetEternlConfig = testnetConfig { walletSpec = Just ConnectToEternl }
-
-testnetLodeConfig :: ContractParams
-testnetLodeConfig = testnetConfig { walletSpec = Just ConnectToLode }
-
-testnetNuFiConfig :: ContractParams
-testnetNuFiConfig = testnetConfig { walletSpec = Just ConnectToNuFi }
-
-testnetLaceConfig :: ContractParams
-testnetLaceConfig = testnetConfig { walletSpec = Just ConnectToLace }
-
-mainnetConfig :: ContractParams
-mainnetConfig = testnetConfig { networkId = MainnetId }
-
-mainnetNamiConfig :: ContractParams
-mainnetNamiConfig = mainnetConfig { walletSpec = Just ConnectToNami }
-
-mainnetGeroConfig :: ContractParams
-mainnetGeroConfig = mainnetConfig { walletSpec = Just ConnectToGero }
-
-mainnetFlintConfig :: ContractParams
-mainnetFlintConfig = mainnetConfig { walletSpec = Just ConnectToFlint }
-
-mainnetEternlConfig :: ContractParams
-mainnetEternlConfig = mainnetConfig { walletSpec = Just ConnectToEternl }
-
-mainnetLodeConfig :: ContractParams
-mainnetLodeConfig = mainnetConfig { walletSpec = Just ConnectToLode }
-
-mainnetNuFiConfig :: ContractParams
-mainnetNuFiConfig = mainnetConfig { walletSpec = Just ConnectToNuFi }
-
-mainnetLaceConfig :: ContractParams
-mainnetLaceConfig = mainnetConfig { walletSpec = Just ConnectToLace }

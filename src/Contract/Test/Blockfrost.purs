@@ -102,6 +102,7 @@ runContractTestsWithBlockfrost
       { backendParams = BlockfrostBackendParams backendParams mbCtlBackendParams
       , walletSpec = Just $ UseKeys privateKeySources.payment
           privateKeySources.stake
+          Nothing
       }
 
 -- | Reads environment variables containing Blockfrost test suite configuration

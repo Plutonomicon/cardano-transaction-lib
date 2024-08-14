@@ -13,7 +13,7 @@ const checkNotNode = () => {
   }
 };
 
-const isWalletAvailable = walletName => () => {
+export const isWalletAvailable = walletName => () => {
   checkNotNode();
   return (
     typeof getWindow().cardano != "undefined" &&
@@ -21,5 +21,3 @@ const isWalletAvailable = walletName => () => {
     typeof getWindow().cardano[walletName].enable == "function"
   );
 };
-
-export { isWalletAvailable as _isWalletAvailable };

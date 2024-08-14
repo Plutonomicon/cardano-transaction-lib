@@ -5,10 +5,13 @@ module Test.Ctl.Testnet
 import Prelude
 
 import Contract.Test (noWallet)
-import Contract.Test.Testnet (defaultTestnetConfig)
+import Contract.Test.Testnet
+  ( defaultTestnetConfig
+  , runTestnetTestPlan
+  , testTestnetContracts
+  )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Testnet.Contract (runTestnetTestPlan, testTestnetContracts)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -28,6 +31,7 @@ import Test.Ctl.Testnet.Contract.Assert as Assert
 import Test.Ctl.Testnet.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Testnet.Contract.OgmiosMempool as OgmiosMempool
 import Test.Ctl.Testnet.ExUnits as ExUnits
+import Test.Ctl.Testnet.Gov as Gov
 import Test.Ctl.Testnet.Logging as Logging
 import Test.Ctl.Testnet.SameWallets as SameWallets
 import Test.Ctl.Testnet.UtxoDistribution as UtxoDistribution
@@ -55,6 +59,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
               (noWallet <<< wrapQueryM)
             ChangeGeneration.suite
             Contract.suite
+            Gov.suite
           UtxoDistribution.suite
           testTestnetContracts config OgmiosMempool.suite
           runTestnetTestPlan config SameWallets.suite

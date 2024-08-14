@@ -26,7 +26,19 @@ import Ctl.Internal.Testnet.Contract
   , runTestnetTestPlan
   , testTestnetContracts
   ) as X
-import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
+import Ctl.Internal.Testnet.Types
+  ( Era
+      ( Byron
+      , Shelley
+      , Allegra
+      , Mary
+      , Alonzo
+      , Babbage
+      , Conway
+      )
+  , TestnetConfig
+  ) as X
+import Ctl.Internal.Testnet.Types (Era(Conway), TestnetConfig)
 import Data.Log.Level (LogLevel(Trace))
 import Data.Maybe (Maybe(Nothing))
 import Data.Time.Duration (Seconds(Seconds))
@@ -52,7 +64,7 @@ defaultTestnetConfig =
   , hooks: emptyHooks
   , clusterConfig:
       { testnetMagic: 2
-      , era: Babbage
+      , era: Conway
       , slotLength: Seconds 0.1
       , epochSize: Nothing
       }

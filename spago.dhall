@@ -28,6 +28,8 @@ You can edit this file as you like.
   , "cip30"
   , "cip30-mock"
   , "cip30-typesafe"
+  , "cip95"
+  , "cip95-typesafe"
   , "console"
   , "control"
   , "crypto"

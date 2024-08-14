@@ -1,13 +1,5 @@
 module Ctl.Internal.Wallet.Cip30Mock
   ( withCip30Mock
-  , WalletMock
-      ( MockFlint
-      , MockGero
-      , MockNami
-      , MockLode
-      , MockNuFi
-      , MockGenericCip30
-      )
   ) where
 
 import Prelude
@@ -18,6 +10,7 @@ import Cardano.Types
   , StakeCredential(StakeCredential)
   )
 import Cardano.Types.Address (Address(RewardAddress))
+import Cardano.Types.Address (fromBech32) as Address
 import Cardano.Types.NetworkId (NetworkId(MainnetId, TestnetId))
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.PublicKey as PublicKey
@@ -25,11 +18,14 @@ import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput
 import Cardano.Wallet.Cip30Mock (Cip30Mock, injectCip30Mock)
 import Cardano.Wallet.Key
   ( KeyWallet(KeyWallet)
+  , PrivateDrepKey
   , PrivatePaymentKey
   , PrivateStakeKey
   , privateKeysToKeyWallet
   )
+import Cardano.Wallet.Key (getPrivateDrepKey, getPrivateStakeKey) as KeyWallet
 import Contract.Monad (Contract)
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
@@ -37,25 +33,14 @@ import Control.Promise (fromAff)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.Wallet
-  ( Wallet
-  , WalletExtension
-      ( LodeWallet
-      , NamiWallet
-      , GeroWallet
-      , FlintWallet
-      , NuFiWallet
-      , GenericCip30Wallet
-      )
-  , mkWalletAff
-  )
+import Ctl.Internal.Wallet (mkWalletAff)
 import Data.Array as Array
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Either (hush)
 import Data.Foldable (fold, foldMap)
 import Data.Function.Uncurried (mkFn2)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just), maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.UInt as UInt
 import Effect.Aff (Aff)
@@ -65,16 +50,8 @@ import Effect.Exception (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 
-data WalletMock
-  = MockFlint
-  | MockGero
-  | MockNami
-  | MockLode
-  | MockNuFi
-  | MockGenericCip30 String
-
--- | Construct a CIP-30 wallet mock that exposes `KeyWallet` functionality
--- | behind a CIP-30 interface and uses Ogmios to submit Txs.
+-- | Construct a CIP-30 + CIP-95 wallet mock that exposes `KeyWallet`
+-- | functionality behind a CIP-30 interface and uses Ogmios to submit Txs.
 -- | The wallet is injected directly to `window.cardano` object, under the
 -- | name corresponding to provided `WalletMock`. It works even in NodeJS
 -- | (we introduce a global `window` object and delete it afterwards).
@@ -86,43 +63,35 @@ data WalletMock
 -- | Note that this function implements single-address light wallet logic, so
 -- | it will have to be changed a lot to successfully mimic the behavior of
 -- | multi-address wallets, like Eternl.
+-- |
+-- | WARNING: KeyWallet does not distinguish between registered and
+-- | unregistered stake keys due to the limitations of the underlying
+-- | query layer. This means that all controlled stake keys are
+-- | returned as part of getUnregisteredPubStakeKeys, and the response
+-- | of getRegisteredPubStakeKeys is always an empty array.
 withCip30Mock
   :: forall (a :: Type)
    . KeyWallet
-  -> WalletMock
+  -> String
   -> Contract a
   -> Contract a
 withCip30Mock (KeyWallet keyWallet) mock contract = do
   kwPaymentKey <- liftAff keyWallet.paymentKey
   kwMStakeKey <- liftAff keyWallet.stakeKey
-  cip30Mock <- mkCip30Mock kwPaymentKey kwMStakeKey
-  deleteMock <- liftEffect $ injectCip30Mock mockString cip30Mock
-  wallet <- liftAff mkWalletAff'
+  kwMDrepKey <- liftAff keyWallet.drepKey
+  cip30Mock <- mkCip30Mock kwPaymentKey kwMStakeKey kwMDrepKey
+  deleteMock <- liftEffect $ injectCip30Mock mock cip30Mock
+  wallet <- liftAff $ mkWalletAff { name: mock, exts: { cip95: true } }
   res <- try $ local _ { wallet = Just wallet } contract
   liftEffect deleteMock
   liftEither res
-  where
-  mkWalletAff' :: Aff Wallet
-  mkWalletAff' = case mock of
-    MockFlint -> mkWalletAff FlintWallet
-    MockGero -> mkWalletAff GeroWallet
-    MockNami -> mkWalletAff NamiWallet
-    MockLode -> mkWalletAff LodeWallet
-    MockNuFi -> mkWalletAff NuFiWallet
-    MockGenericCip30 name -> mkWalletAff (GenericCip30Wallet name)
-
-  mockString :: String
-  mockString = case mock of
-    MockFlint -> "flint"
-    MockGero -> "gerowallet"
-    MockNami -> "nami"
-    MockLode -> "LodeWallet"
-    MockNuFi -> "nufi"
-    MockGenericCip30 name -> name
 
 mkCip30Mock
-  :: PrivatePaymentKey -> Maybe PrivateStakeKey -> Contract Cip30Mock
-mkCip30Mock pKey mSKey = do
+  :: PrivatePaymentKey
+  -> Maybe PrivateStakeKey
+  -> Maybe PrivateDrepKey
+  -> Contract Cip30Mock
+mkCip30Mock pKey mSKey mbDrepKey = do
   env <- ask
   queryHandle <- getQueryHandle
   let
@@ -144,7 +113,7 @@ mkCip30Mock pKey mSKey = do
       liftMaybe (error "No UTxOs at address") <<< hush =<< do
         queryHandle.utxosAt ownAddress
 
-    keyWallet = privateKeysToKeyWallet pKey mSKey
+    keyWallet = privateKeysToKeyWallet pKey mSKey mbDrepKey
 
   addressHex <- liftAff $
     (byteArrayToHex <<< unwrap <<< encodeCbor) <$>
@@ -199,13 +168,39 @@ mkCip30Mock pKey mSKey = do
           $ wrap txBytes
         witness <- (unwrap keyWallet).signTx tx
         pure $ byteArrayToHex $ unwrap $ encodeCbor witness
-    , signData: mkFn2 \_addr msg -> unsafePerformEffect $ fromAff do
-        msgBytes <- liftMaybe (error "Unable to convert CBOR") $
-          hexToByteArray msg
-        { key, signature } <- (unwrap keyWallet).signData env.networkId
-          (wrap msgBytes)
+    , signData: mkFn2 \addrRaw msg -> unsafePerformEffect $ fromAff do
+        let addrFromHex = (decodeCbor <<< wrap) <=< hexToByteArray
+        addr <-
+          liftMaybe
+            (error "Failed to decode Address")
+            (addrFromHex addrRaw <|> Address.fromBech32 addrRaw)
+        msgBytes <-
+          liftMaybe
+            (error "Failed to decode payload")
+            (hexToByteArray msg)
+        mDataSig <- (unwrap keyWallet).signData addr (wrap msgBytes)
+        { key, signature } <-
+          liftMaybe
+            (error "Unable to sign data for the supplied address")
+            mDataSig
         pure
           { key: byteArrayToHex $ unwrap key
           , signature: byteArrayToHex $ unwrap signature
           }
+    , getPubDrepKey: fromAff do
+        drepKey <- liftMaybe (error "Unable to get DRep key") =<<
+          KeyWallet.getPrivateDrepKey keyWallet
+        let drepPubKey = PrivateKey.toPublicKey $ unwrap drepKey
+        pure $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes drepPubKey
+    , getRegisteredPubStakeKeys: fromAff $ pure mempty
+    , getUnregisteredPubStakeKeys: fromAff do
+        KeyWallet.getPrivateStakeKey keyWallet <#> case _ of
+          Just stakeKey ->
+            let
+              stakePubKey = PrivateKey.toPublicKey $ unwrap stakeKey
+            in
+              Array.singleton $ byteArrayToHex $ unwrap $ PublicKey.toRawBytes
+                stakePubKey
+          Nothing ->
+            mempty
     }

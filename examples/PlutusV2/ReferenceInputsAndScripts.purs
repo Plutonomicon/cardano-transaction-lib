@@ -18,6 +18,7 @@ import Cardano.Types
   , OutputDatum(OutputDatum)
   , ScriptHash
   , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
@@ -26,7 +27,13 @@ import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.Transaction as Transaction
 import Contract.Address (mkAddress)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.Scripts (PlutusScript)
@@ -44,12 +51,15 @@ import Contract.Value as Value
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Data.Array (find, head) as Array
+import Data.Array (find) as Array
 import Data.Map (empty, toUnfoldable) as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
@@ -116,7 +126,6 @@ spendFromAlwaysSucceeds
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   scriptAddressUtxos <- utxosAt scriptAddress
-  utxos <- utxosAt scriptAddress
   utxo <-
     liftM
       ( error
@@ -126,17 +135,18 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
               <> show scriptAddress
           )
       )
-      $ Array.head (lookupTxHash txId utxos)
+      $ Array.find hasNoRefScript
+      $ lookupTxHash txId scriptAddressUtxos
 
   refValidatorInput /\ _ <-
     liftContractM "Could not find unspent output containing ref validator"
       $ Array.find (hasRefPlutusScript validator)
-      $ Map.toUnfoldable utxos
+      $ Map.toUnfoldable scriptAddressUtxos
 
   refMpInput /\ _ <-
     liftContractM "Could not find unspent output containing ref minting policy"
       $ Array.find (hasRefPlutusScript mp)
-      $ Map.toUnfoldable utxos
+      $ Map.toUnfoldable scriptAddressUtxos
 
   let
     mph = PlutusScript.hash mp
@@ -156,8 +166,12 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
   awaitTxConfirmed $ Transaction.hash spendTx
   logInfo' "Successfully spent locked values and minted tokens."
   where
-
   hasRefPlutusScript
-    :: PlutusScript -> _ /\ TransactionOutput -> Boolean
+    :: PlutusScript
+    -> _ /\ TransactionOutput
+    -> Boolean
   hasRefPlutusScript plutusScript (_ /\ txOutput) =
     (unwrap txOutput).scriptRef == Just (PlutusScriptRef plutusScript)
+
+  hasNoRefScript :: TransactionUnspentOutput -> Boolean
+  hasNoRefScript utxo = isNothing (unwrap (unwrap utxo).output).scriptRef

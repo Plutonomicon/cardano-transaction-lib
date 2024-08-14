@@ -15,7 +15,7 @@ import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.RawBytes (RawBytes(RawBytes))
 import Contract.Config (ContractParams)
 import Contract.Monad (Contract, runContract)
-import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
+import Contract.Test.Cip30Mock (withCip30Mock)
 import Contract.Wallet
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
@@ -28,7 +28,7 @@ import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback.Browser (getClusterSetupRepeatedly)
 import Ctl.Internal.Test.E2E.Feedback.Hooks (addE2EFeedbackHooks)
-import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToEternl))
+import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToGenericCip30))
 import Data.Array (last)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
@@ -104,7 +104,7 @@ parseRoute queryString =
     mkPrivateKey str <#> PrivateStakeKey
 
 addLinks
-  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  :: Map E2EConfigName (ContractParams /\ Maybe String)
   -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 addLinks configMaps testMaps = do
@@ -136,7 +136,7 @@ addLinks configMaps testMaps = do
 -- | from the cluster should be used. If there's no local cluster, an error
 -- | will be thrown.
 route
-  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  :: Map E2EConfigName (ContractParams /\ Maybe String)
   -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 route configs tests = do
@@ -176,7 +176,7 @@ route configs tests = do
         do
           runContract configWithHooks
             $ withCip30Mock
-                (privateKeysToKeyWallet paymentKey stakeKey)
+                (privateKeysToKeyWallet paymentKey stakeKey Nothing) -- FIXME
                 mock
                 test
   where
@@ -184,7 +184,7 @@ route configs tests = do
   delayIfEternl :: ContractParams -> Aff Unit
   delayIfEternl config =
     case config.walletSpec of
-      Just ConnectToEternl ->
+      Just (ConnectToGenericCip30 "eternl" _) ->
         delay $ wrap 3000.0
       _ -> pure unit
 

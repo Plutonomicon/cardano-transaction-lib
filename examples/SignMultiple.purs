@@ -5,9 +5,7 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Cardano.Transaction.Builder
-  ( TransactionBuilderStep(Pay)
-  )
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
 import Cardano.Types
   ( Credential(PubKeyHashCredential)
   , OutputDatum(OutputDatumHash)
@@ -20,7 +18,13 @@ import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.Transaction as Transaction
 import Contract.Address (mkAddress)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo', logWarn')
 import Contract.Monad
   ( Contract
@@ -55,14 +59,17 @@ import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
 
+main :: Effect Unit
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
+
 getLockedInputs
   :: Contract (Map TransactionHash (Set UInt))
 getLockedInputs = do
   cache <- asks _.usedTxOuts
   liftEffect $ Ref.read $ unwrap cache
-
-main :: Effect Unit
-main = example testnetNamiConfig
 
 contract :: Contract Unit
 contract = do

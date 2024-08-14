@@ -11,7 +11,13 @@ import Contract.Prelude
 import Cardano.Types (TransactionOutput)
 import Cardano.Types.BigNum as BigNum
 import Contract.Address (Address)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
@@ -57,7 +63,10 @@ type ContractResult =
   }
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract

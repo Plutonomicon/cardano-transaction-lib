@@ -4,27 +4,14 @@ import Prelude
 
 import Contract.Config
   ( ContractParams
-  , WalletSpec
-      ( ConnectToNami
-      , ConnectToGero
-      , ConnectToLode
-      , ConnectToEternl
-      , ConnectToFlint
-      , ConnectToNuFi
-      , ConnectToLace
-      )
+  , KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
+  , WalletSpec(ConnectToGenericCip30)
   , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
-  , mainnetNamiConfig
+  , mainnetConfig
   , mkBlockfrostBackendParams
   , testnetConfig
-  , testnetEternlConfig
-  , testnetFlintConfig
-  , testnetGeroConfig
-  , testnetLaceConfig
-  , testnetLodeConfig
-  , testnetNamiConfig
-  , testnetNuFiConfig
+  , walletName
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract)
@@ -53,9 +40,6 @@ import Ctl.Examples.SignMultiple as SignMultiple
 import Ctl.Examples.TxChaining as TxChaining
 import Ctl.Examples.Utxos as Utxos
 import Ctl.Examples.Wallet as Wallet
-import Ctl.Internal.Wallet.Cip30Mock
-  ( WalletMock(MockNami, MockGero, MockFlint, MockLode, MockNuFi)
-  )
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
@@ -74,6 +58,8 @@ main = do
   -- To set it up, run `npm run e2e-browser` and follow the instructions.
   mbApiKey <- getBlockfrostApiKey
   let
+    connectTo wallet =
+      Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
     walletsWithBlockfrost =
       wallets `Map.union`
         if isNothing mbApiKey then Map.empty
@@ -81,59 +67,59 @@ main = do
           Map.fromFoldable
             [ "blockfrost-nami-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToNami }
+                  { walletSpec = connectTo Nami }
                 /\ Nothing
             , "blockfrost-gero-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToGero }
+                  { walletSpec = connectTo Gero }
                 /\ Nothing
             , "blockfrost-eternl-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToEternl }
+                  { walletSpec = connectTo Eternl }
                 /\ Nothing
             , "blockfrost-lode-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToLode }
+                  { walletSpec = connectTo Lode }
                 /\ Nothing
             , "blockfrost-flint-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToFlint }
+                  { walletSpec = connectTo Flint }
                 /\ Nothing
             , "blockfrost-nufi-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToNuFi }
+                  { walletSpec = connectTo NuFi }
                 /\ Nothing
             , "blockfrost-lace-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = Just ConnectToLace }
+                  { walletSpec = connectTo Lace }
                 /\ Nothing
             , "blockfrost-nami-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToNami }
+                  { walletSpec = connectTo Nami }
                 /\ Nothing
             , "blockfrost-gero-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToGero }
+                  { walletSpec = connectTo Gero }
                 /\ Nothing
             , "blockfrost-eternl-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToEternl }
+                  { walletSpec = connectTo Eternl }
                 /\ Nothing
             , "blockfrost-lode-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToLode }
+                  { walletSpec = connectTo Lode }
                 /\ Nothing
             , "blockfrost-flint-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToFlint }
+                  { walletSpec = connectTo Flint }
                 /\ Nothing
             , "blockfrost-nufi-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToNuFi }
+                  { walletSpec = connectTo NuFi }
                 /\ Nothing
             , "blockfrost-lace-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = Just ConnectToLace }
+                  { walletSpec = connectTo Lace }
                 /\ Nothing
             ]
   addLinks walletsWithBlockfrost examples
@@ -150,26 +136,40 @@ getBlockfrostApiKey = do
     Console.log "  localStorage.setItem('BLOCKFROST_API_KEY', 'your-key-here');"
   pure res
 
-wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
-wallets = Map.fromFoldable
-  [ "nami" /\ testnetNamiConfig /\ Nothing
-  , "gero" /\ testnetGeroConfig /\ Nothing
-  , "flint" /\ testnetFlintConfig /\ Nothing
-  , "eternl" /\ testnetEternlConfig /\ Nothing
-  , "lode" /\ testnetLodeConfig /\ Nothing
-  , "nufi" /\ testnetNuFiConfig /\ Nothing
-  , "lace" /\ testnetLaceConfig /\ Nothing
+wallets :: Map E2EConfigName (ContractParams /\ Maybe String)
+wallets = map (map walletName) <$> Map.fromFoldable
+  [ "nami" /\ testnetConfig' Nami /\ Nothing
+  , "gero" /\ testnetConfig' Gero /\ Nothing
+  , "flint" /\ testnetConfig' Flint /\ Nothing
+  , "eternl" /\ testnetConfig' Eternl /\ Nothing
+  , "lode" /\ testnetConfig' Lode /\ Nothing
+  , "nufi" /\ testnetConfig' NuFi /\ Nothing
+  , "lace" /\ testnetConfig' Lace /\ Nothing
   , "nami-mainnet" /\ mainnetNamiConfig /\ Nothing
-  , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
-  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
-  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
-  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
-  , "plutip-nami-mock" /\ testnetNamiConfig /\ Just MockNami
-  , "plutip-gero-mock" /\ testnetGeroConfig /\ Just MockGero
-  , "plutip-flint-mock" /\ testnetFlintConfig /\ Just MockFlint
-  , "plutip-lode-mock" /\ testnetLodeConfig /\ Just MockLode
-  , "plutip-nufi-mock" /\ testnetNuFiConfig /\ Just MockNuFi
+  , "nami-mock" /\ testnetConfig' Nami /\ Just Nami
+  , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "flint-mock" /\ testnetConfig' Flint /\ Just Flint
+  , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
+  , "plutip-nami-mock" /\ testnetConfig' Nami /\ Just Nami
+  , "plutip-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "plutip-flint-mock" /\ testnetConfig' Flint /\ Just Flint
+  , "plutip-lode-mock" /\ testnetConfig' Lode /\ Just Lode
+  , "plutip-nufi-mock" /\ testnetConfig' NuFi /\ Just NuFi
   ]
+  where
+  testnetConfig' :: KnownWallet -> ContractParams
+  testnetConfig' wallet =
+    testnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
+      }
+
+  mainnetNamiConfig :: ContractParams
+  mainnetNamiConfig =
+    mainnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      }
 
 mkBlockfrostPreviewConfig :: Maybe String -> ContractParams
 mkBlockfrostPreviewConfig apiKey =

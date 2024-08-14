@@ -6,7 +6,13 @@ import Contract.Prelude
 
 import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.Value as Value
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
@@ -20,7 +26,10 @@ import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (nullPaymentPubKeyHash)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do

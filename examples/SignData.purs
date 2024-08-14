@@ -6,9 +6,14 @@ import Cardano.AsCbor (encodeCbor)
 import Cardano.MessageSigning (DataSignature)
 import Cardano.Types (CborBytes, PublicKey, RawBytes)
 import Cardano.Types.PublicKey as PublicKey
-import Cardano.Wallet.Cip30.SignData (COSEKey, COSESign1)
 import Contract.Address (Address)
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Wallet (getChangeAddress, getRewardAddresses, signData)
@@ -21,7 +26,10 @@ import Effect.Exception (throw, throwException)
 import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
@@ -181,3 +189,6 @@ foreign import verifySignature
 
 foreign import fromBytesCoseSign1 :: CborBytes -> Effect COSESign1
 foreign import fromBytesCoseKey :: CborBytes -> Effect COSEKey
+
+foreign import data COSEKey :: Type
+foreign import data COSESign1 :: Type

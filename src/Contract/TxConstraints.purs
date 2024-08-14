@@ -41,6 +41,7 @@ import Ctl.Internal.Types.TxConstraints
   , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
   , mustReferenceOutput
+  , mustRegisterDrep
   , mustRegisterPool
   , mustRegisterStakePubKey
   , mustRegisterStakeScript

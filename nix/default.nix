@@ -133,6 +133,9 @@ let
                 [
                   pkgs.ogmios
                   pkgs.kupo
+                  pkgs.cardano-testnet
+                  pkgs.cardano-node
+                  pkgs.cardano-cli
                 ]
               )
             )
