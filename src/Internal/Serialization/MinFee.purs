@@ -26,7 +26,7 @@ import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )
-import Data.Array (length, range, replicate) as Array
+import Data.Array (range, replicate) as Array
 import Data.Foldable (fold)
 import Data.Int (hexadecimal) as Radix
 import Data.Int (toStringAs) as Int
@@ -34,7 +34,7 @@ import Data.Lens ((.~))
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
-import Data.Set (fromFoldable, size) as Set
+import Data.Set (fromFoldable, isEmpty, size) as Set
 import Data.String (length) as String
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
@@ -68,31 +68,35 @@ calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
 addFakeSignatures :: Set Ed25519KeyHash -> Transaction -> Transaction
 addFakeSignatures selfSigners tx =
   let
-    -- requiredSigners field of a transaction
+    -- `requiredSigners` field of the transaction
     requiredSigners :: Set Ed25519KeyHash
     requiredSigners =
       tx # unwrap >>> _.body >>> unwrap >>> _.requiredSigners
         >>> Set.fromFoldable
 
-    -- All possible signers from NativeScript.
-    nsPossibleSigners :: Int
-    nsPossibleSigners = getMaximumSigners requiredSigners $ ScriptAll
-      ( tx # unwrap >>> _.witnessSet >>> unwrap >>> _.nativeScripts
-      )
+    requiredAndSelfSigners :: Set Ed25519KeyHash
+    requiredAndSelfSigners = requiredSigners <> selfSigners
 
-    -- We want to add space for required signatures (at least one, if
-    -- none specified).
-    nRequiredSigners = tx # unwrap >>> _.body >>> unwrap >>> _.requiredSigners
-      >>> Array.length
+    -- All possible signers from native scripts.
+    numNativeScriptSigners :: Int
+    numNativeScriptSigners =
+      getMaximumSigners requiredAndSelfSigners $
+        ScriptAll
+          ( tx # unwrap >>> _.witnessSet >>> unwrap >>> _.nativeScripts
+          )
 
-    nSelfSigners = let n = Set.size selfSigners in if n == 0 then 1 else n
-
-    nFakeSigs = nRequiredSigners + nsPossibleSigners + nSelfSigners
+    numFakeSigs :: Int
+    numFakeSigs =
+      Set.size requiredAndSelfSigners
+        + numNativeScriptSigners
+        -- We want to add space for required signatures
+        -- (at least one, if none specified).
+        + if Set.isEmpty selfSigners then one else zero
   in
     -- Generate unique vkeys because Vkeywitnesses now has Set
     -- semantics.
     tx # _witnessSet <<< _vkeys .~ map mkFakeVkeyWitness
-      (Array.range one nFakeSigs)
+      (Array.range one numFakeSigs)
 
 mkFakeVkeyWitness :: Int -> Vkeywitness
 mkFakeVkeyWitness n = Vkeywitness

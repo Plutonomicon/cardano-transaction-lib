@@ -14,7 +14,13 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.Transaction as Transaction
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Transaction (awaitTxConfirmedWithTimeout, submitTxFromBuildPlan)
@@ -24,7 +30,10 @@ import Data.Array (head)
 import Data.Map as Map
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do

@@ -162,7 +162,6 @@ explainMkUnbalancedTxError = case _ of
       <> "\nPlease report this as a bug here: "
       <> bugTrackerLink
   where
-
   prettyAssetName :: AssetName -> String
   prettyAssetName = fromAssetName byteArrayToHex show
 

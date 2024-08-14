@@ -31,7 +31,7 @@ import Data.Lens (_Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(Just), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -57,6 +57,7 @@ suite = do
                 ( Just $ PrivateStakeKeyFile
                     "fixtures/test/parsing/PrivateKey/stake.skey"
                 )
+                Nothing
             , suppressLogs = true
             }
       runContract cfg do
