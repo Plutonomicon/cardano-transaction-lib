@@ -6,7 +6,6 @@ import Cardano.AsCbor (encodeCbor)
 import Cardano.MessageSigning (DataSignature)
 import Cardano.Types (CborBytes, PublicKey, RawBytes)
 import Cardano.Types.PublicKey as PublicKey
-import Cardano.Wallet.Cip30.SignData (COSEKey, COSESign1)
 import Contract.Address (Address)
 import Contract.Config
   ( ContractParams
@@ -190,3 +189,6 @@ foreign import verifySignature
 
 foreign import fromBytesCoseSign1 :: CborBytes -> Effect COSESign1
 foreign import fromBytesCoseKey :: CborBytes -> Effect COSEKey
+
+foreign import data COSEKey :: Type
+foreign import data COSESign1 :: Type

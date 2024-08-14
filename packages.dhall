@@ -118,7 +118,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30"
-        , version = "8f1b34b48825fcec5e9c67f33e255770b1e0bc45"
+        , version = "v1.0.0"
         }
       , cip30-typesafe =
         { dependencies =
@@ -136,7 +136,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-typesafe"
-        , version = "d72e51fbc0255eb3246c9132d295de7f65e16a99"
+        , version = "v1.0.0"
         }
       , cip95 =
         { dependencies =
@@ -149,7 +149,7 @@ let additions =
           , "prelude"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip95"
-        , version = "3b2761237d54e85fc313f5a9439444ebf1b827a8"
+        , version = "v1.0.0"
         }
       , cip95-typesafe =
         { dependencies =
@@ -170,7 +170,7 @@ let additions =
           , "variant"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip95-typesafe"
-        , version = "84cf1a18abc274222b31d7fcb829195ae2e673c4"
+        , version = "v1.0.0"
         }
       , bytearrays =
         { dependencies =
@@ -254,14 +254,9 @@ let additions =
         }
       , cip30-mock =
         { dependencies =
-          [ "aff-promise"
-          , "console"
-          , "effect"
-          , "functions"
-          , "prelude"
-          ]
+          [ "aff-promise", "console", "effect", "functions", "prelude" ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30-mock"
-        , version = "d00ba14769dceda1270658c63f14822db01f376d"
+        , version = "v1.1.0"
         }
       , cardano-collateral-select =
         { dependencies =
@@ -302,7 +297,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-key-wallet"
-        , version = "3fe93e45ac1444a429abfe6e135addf568500c23"
+        , version = "v2.0.0"
         }
       , uplc-apply-args =
         { dependencies =
@@ -377,7 +372,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "56877b43ea392ef6486e37d52e1c37d8c2b8c42d"
+        , version = "v2.0.1"
         }
       , cardano-message-signing =
         { dependencies =
