@@ -282,27 +282,22 @@ startTestnetCluster cfg cleanupRef = do
       }
     pure { process: ogmios, channels: ogmiosChannels }
 
--- | Runs cardano-testnet executable with provided params.
+-- | Spawns cardano-testnet process with provided parameters.
 spawnCardanoTestnet
   :: { cwd :: FilePath }
   -> TestnetClusterConfig
   -> Aff { testnet :: ManagedProcess, workspace :: FilePath }
 spawnCardanoTestnet { cwd } params = do
   env <- liftEffect Node.Process.getEnv
-  -- initCwd <- liftMaybe (error "Couldn't find INIT_CWD env variable")
-  --   $ Object.lookup "INIT_CWD" env
   let
     env' = Object.fromFoldable
-      [ "TMPDIR" /\ cwd -- only for 8.1.1; 8.7.2 puts it's testnet directory into cwd instead
-      -- , "CARDANO_NODE_SRC" /\ (initCwd <</>> "cardano-testnet-files")
-      , "CARDANO_CLI" /\ "cardano-cli"
-      , "CREATE_SCRIPT_CONTEXT" /\ "create-script-context"
+      [ "CARDANO_CLI" /\ "cardano-cli"
       , "CARDANO_NODE" /\ "cardano-node"
-      , "CARDANO_SUBMIT_API" /\ "cardano-submit-api"
-      , "CARDANO_NODE_CHAIRMAN" /\ "cardano-node-chairman"
       ]
     opts = defaultSpawnOptions
-      { cwd = Just cwd, env = Just $ Object.union env' env }
+      { cwd = Just cwd
+      , env = Just $ Object.union env' env
+      }
   workspaceRef <- liftEffect $ Ref.new mempty
   ps <- spawn "cardano-testnet" options opts $
     Just
