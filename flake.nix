@@ -75,12 +75,9 @@
     , ...
     }@inputs:
     let
-      supportedSystems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
+      darwinSystems = [ "x86_64-darwin" "aarch64-darwin" ];
+      supportedSystems = linuxSystems ++ darwinSystems;
 
       ogmiosVersion = "6.5.0";
       kupoVersion = "2.9.0";
@@ -140,7 +137,7 @@
           cp -rT ogmios $out
         '';
 
-      psProjectFor = pkgs:
+      psProjectFor = pkgs: system:
         let
           projectName = "cardano-transaction-lib";
           # `filterSource` will still trigger rebuilds with flakes, even if a
@@ -161,18 +158,19 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
-              withRuntime = true;
+              withRuntime = system == "x86_64-linux";
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
-              packages = with pkgs; [
-                arion
-                fd
-                psmisc
-                nixpkgs-fmt
-                nodePackages.eslint
-                nodePackages.prettier
-                blockfrost-backend-ryo
-              ];
+              packages = with pkgs;
+                (if (builtins.elem system linuxSystems) then [ psmisc ] else [ ]) ++
+                [
+                  arion
+                  fd
+                  nixpkgs-fmt
+                  nodePackages.eslint
+                  nodePackages.prettier
+                  blockfrost-backend-ryo
+                ];
             };
           };
           exportOgmiosFixtures =
@@ -297,11 +295,11 @@
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
-        default = (psProjectFor (nixpkgsFor system)).devShell;
+        default = (psProjectFor (nixpkgsFor system) system).devShell;
       });
 
       packages = perSystem (system:
-        (psProjectFor (nixpkgsFor system)).packages
+        (psProjectFor (nixpkgsFor system) system).packages
       );
 
       apps = perSystem (system:
