@@ -306,7 +306,7 @@
         let
           pkgs = nixpkgsFor system;
         in
-        (psProjectFor pkgs).apps // {
+        (psProjectFor pkgs system).apps // {
           ctl-runtime = pkgs.launchCtlRuntime { };
           ctl-runtime-blockfrost = pkgs.launchCtlRuntime { blockfrost.enable = true; };
           default = self.apps.${system}.ctl-runtime;
@@ -324,7 +324,7 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-          psProject = psProjectFor pkgs;
+          psProject = psProjectFor pkgs system;
         in
         psProject.checks
         // {
