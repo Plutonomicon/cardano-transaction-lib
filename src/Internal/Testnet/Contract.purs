@@ -77,7 +77,7 @@ import Effect.Aff (try)
 import Effect.Exception (error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read, write) as Ref
-import Internal.CardanoCli.QueryHandler (withCardanoCliCompletion)
+import Internal.CardanoCli.QueryHandle (withCardanoCliCompletion)
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
