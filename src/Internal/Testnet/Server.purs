@@ -10,6 +10,7 @@ module Ctl.Internal.Testnet.Server
 import Contract.Prelude hiding (log)
 
 import Cardano.Types (NetworkId(MainnetId))
+import Cardano.Types.BigNum (maxValue, toString) as BigNum
 import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (ContractEnv)
 import Control.Alt ((<|>))
@@ -318,18 +319,18 @@ spawnCardanoTestnet { cwd } params = do
   flag :: String -> String
   flag name = "--" <> name
 
-  option :: forall a. Show a => String -> a -> Array String
-  option name value = [ flag name, show value ]
-
   options :: Array String
   options = join
     [ [ "cardano" ]
-    , option "testnet-magic" params.testnetMagic
     , [ flag $ show params.era ]
-    , option "slot-length" $ unwrap params.slotLength
     , maybe mempty
         (\epochSize -> [ flag "epoch-length", UInt.toString epochSize ])
         params.epochSize
+    , [ flag "slot-length", show (unwrap params.slotLength) ]
+    , [ flag "testnet-magic", show params.testnetMagic ]
+    -- FIXME: max-lovelace-supply option has no effect, should be fixed upstream
+    -- https://github.com/IntersectMBO/cardano-node/issues/5953
+    , [ flag "max-lovelace-supply", BigNum.toString BigNum.maxValue ]
     ]
 
 startCardanoTestnet
