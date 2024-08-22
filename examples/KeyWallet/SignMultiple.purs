@@ -2,12 +2,12 @@ module Ctl.Examples.KeyWallet.SignMultiple where
 
 import Contract.Prelude
 
+import Cardano.Types (Transaction)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, throwContractError)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , TransactionHash
+  ( TransactionHash
   , awaitTxConfirmed
   , signTransaction
   , submit
@@ -42,14 +42,24 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
     lookups :: Lookups.ScriptLookups
     lookups = mempty
 
-  unbalancedTx0 <- mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- mkUnbalancedTx lookups constraints
+  unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups constraints
+  unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
 
-  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
-    locked <- getLockedInputs
-    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
-      <> show locked
-    traverse (submitAndLog <=< signTransaction) balancedTxs
+  txIds <-
+    withBalancedTxs
+      [ { transaction: unbalancedTx0
+        , usedUtxos: usedUtxos0
+        , balancerConstraints: mempty
+        }
+      , { transaction: unbalancedTx1
+        , usedUtxos: usedUtxos1
+        , balancerConstraints: mempty
+        }
+      ] $ \balancedTxs -> do
+      locked <- getLockedInputs
+      logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+        <> show locked
+      traverse (submitAndLog <=< signTransaction) balancedTxs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
@@ -65,7 +75,7 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   liftEffect unlock
   where
   submitAndLog
-    :: BalancedSignedTransaction
+    :: Transaction
     -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx

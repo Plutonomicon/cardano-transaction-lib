@@ -4,26 +4,32 @@ module Ctl.Examples.DropTokens (main, example, contract) where
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.Value as Value
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.TxConstraints as Helpers
-import Contract.Value
-  ( coinToValue
-  , flattenNonAdaAssets
-  , negation
-  , singleton
-  , valueToCoin
-  )
+import Contract.Value (singleton)
 import Contract.Wallet (getWalletBalance)
 import Data.Array as Array
+import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (nullPaymentPubKeyHash)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
@@ -33,15 +39,16 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.DropTokens"
   logInfo' "Going to get rid of half of the tokens available"
-  value <- getWalletBalance <#> fold
+  value <- unsafePartial $ getWalletBalance <#> fold
 
   let
-    tokenValue = value <> negation (coinToValue (valueToCoin value))
     halfArray arr = Array.take (Array.length arr `div` 2) arr
     -- drop half of the tokens
     tokenValueHalf =
-      fold $ halfArray (flattenNonAdaAssets tokenValue) <#>
-        \(cs /\ tn /\ n) -> singleton cs tn n
+      unsafePartial $ fold
+        $ halfArray (MultiAsset.flatten $ Value.getMultiAsset value)
+        <#>
+          \(cs /\ tn /\ n) -> singleton cs tn n
 
     constraints :: Constraints.TxConstraints
     constraints = Helpers.mustPayToPubKey nullPaymentPubKeyHash tokenValueHalf

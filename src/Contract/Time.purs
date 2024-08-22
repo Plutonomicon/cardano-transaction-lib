@@ -10,16 +10,18 @@ module Contract.Time
   , module ExportOgmios
   , module ExportSystemStart
   , module Interval
-  , module SerializationAddress
+  , module X
   ) where
 
 import Prelude
 
+import Cardano.Types (BigNum, Epoch(Epoch), Slot)
+import Cardano.Types (Slot(Slot)) as X
+import Cardano.Types.BigNum as BigNum
 import Contract.Chain (getTip) as Chain
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Cardano.Types.Transaction (Epoch(Epoch))
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
 import Ctl.Internal.Helpers (liftM)
@@ -28,8 +30,6 @@ import Ctl.Internal.QueryM.Ogmios
   ( CurrentEpoch(CurrentEpoch)
   , OgmiosEraSummaries(OgmiosEraSummaries)
   ) as ExportOgmios
-import Ctl.Internal.Serialization.Address (BlockId(BlockId), Slot(Slot)) as SerializationAddress
-import Ctl.Internal.Serialization.Address (Slot)
 import Ctl.Internal.Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
@@ -44,10 +44,7 @@ import Ctl.Internal.Types.EraSummaries
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
   ) as ExportEraSummaries
-import Ctl.Internal.Types.EraSummaries
-  ( EraSummaries
-  , EraSummary
-  )
+import Ctl.Internal.Types.EraSummaries (EraSummaries, EraSummary)
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -77,7 +74,6 @@ import Ctl.Internal.Types.Interval
   , after
   , always
   , before
-  , beginningOfTime
   , contains
   , findSlotEraSummary
   , findTimeEraSummary
@@ -178,10 +174,10 @@ normalizeTimeInterval = case _ of
 getCurrentEpoch :: Contract Epoch
 getCurrentEpoch = do
   queryHandle <- getQueryHandle
-  CurrentEpoch bigInt <- liftAff $ queryHandle.getCurrentEpoch
+  CurrentEpoch bigNum <- liftAff $ queryHandle.getCurrentEpoch
   map Epoch $ liftM (error "Unable to convert CurrentEpoch")
     $ UInt.fromString
-    $ BigInt.toString (bigInt :: BigInt.BigInt)
+    $ BigNum.toString (bigNum :: BigNum)
 
 -- | Get `EraSummaries` as used for Slot arithemetic.
 -- |

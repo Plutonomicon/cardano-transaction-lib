@@ -20,11 +20,13 @@ module Ctl.Examples.Datums (main, contract, example) where
 
 import Contract.Prelude
 
+import Cardano.AsCbor (decodeCbor)
 import Contract.Config (ContractParams, testnetConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (DataHash, getDatumByHash, getDatumsByHashes)
-import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
+import Data.ByteArray (hexToByteArrayUnsafe)
+import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = example testnetConfig
@@ -44,7 +46,8 @@ contract = do
     ]
   where
   mkDatumHash :: String -> DataHash
-  mkDatumHash = wrap <<< hexToByteArrayUnsafe
+  mkDatumHash = unsafePartial $ fromJust <<< decodeCbor <<< wrap <<<
+    hexToByteArrayUnsafe
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do

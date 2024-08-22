@@ -2,22 +2,20 @@ module Test.Ctl.PrivateKey where
 
 import Prelude
 
-import Contract.Config (testnetConfig)
-import Contract.Monad (runContract)
-import Contract.Transaction
-  ( FinalizedTransaction(FinalizedTransaction)
-  , signTransaction
-  )
-import Ctl.Internal.Cardano.Types.Transaction
+import Cardano.Types
   ( Ed25519Signature
-  , Transaction(Transaction)
   , TransactionWitnessSet(TransactionWitnessSet)
   , Vkeywitness(Vkeywitness)
-  , mkEd25519Signature
+  , _witnessSet
   )
-import Ctl.Internal.Serialization (publicKeyHash)
-import Ctl.Internal.Serialization.Keys (publicKeyFromPrivateKey)
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Cardano.Types.Ed25519Signature as Ed25519Signature
+import Contract.Config (testnetConfig)
+import Contract.Hashing (publicKeyHash)
+import Contract.Monad (runContract)
+import Contract.Transaction
+  ( signTransaction
+  )
+import Contract.Wallet.Key (publicKeyFromPrivateKey)
 import Ctl.Internal.Wallet.KeyFile
   ( privatePaymentKeyFromFile
   , privatePaymentKeyToFile
@@ -29,15 +27,16 @@ import Ctl.Internal.Wallet.Spec
   , PrivateStakeKeySource(PrivateStakeKeyFile)
   , WalletSpec(UseKeys)
   )
-import Data.Lens (_2, _Just, (^?))
+import Data.Lens (_Just, (^?))
 import Data.Lens.Index (ix)
 import Data.Lens.Iso.Newtype (unto)
 import Data.Lens.Record (prop)
-import Data.Maybe (Maybe(Just), fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (unwrap)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Node.FS.Sync (unlink)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Fixtures (txFixture1)
@@ -58,24 +57,23 @@ suite = do
                 ( Just $ PrivateStakeKeyFile
                     "fixtures/test/parsing/PrivateKey/stake.skey"
                 )
+                Nothing
             , suppressLogs = true
             }
       runContract cfg do
-        signedTx <- unwrap <$> signTransaction (FinalizedTransaction txFixture1)
+        signedTx <- signTransaction txFixture1
         let
           signature :: Maybe Ed25519Signature
           signature =
             Just signedTx ^? _Just
-              <<< unto Transaction
-              <<< prop (Proxy :: Proxy "witnessSet")
+              <<< _witnessSet
               <<< unto TransactionWitnessSet
               <<< prop (Proxy :: Proxy "vkeys")
-              <<< _Just
               <<< ix 0
               <<< unto Vkeywitness
-              <<< _2
+              <<< prop (Proxy :: Proxy "signature")
         signature `shouldEqual` Just
-          ( unsafePartial $ fromJust $ mkEd25519Signature $
+          ( unsafePartial $ fromJust $ Ed25519Signature.fromBech32 $
               "ed25519_sig1w7nkmvk57r6094j9u85r4pddve0hg3985ywl9yzwecx03aa9fnfspl9zmtngmqmczd284lnusjdwkysgukxeq05a548dyepr6vn62qs744wxz"
           )
     test "privateKeyToFile round-trips" do

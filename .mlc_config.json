@@ -4,6 +4,9 @@
             "pattern": "^https://gerowallet.io"
         },
         {
+            "pattern": "^https://stackoverflow.com"
+        },
+        {
             "pattern": "^https://singularitynet.io"
         },
         {

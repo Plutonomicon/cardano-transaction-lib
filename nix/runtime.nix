@@ -3,6 +3,8 @@ rec {
   defaultConfig = final: with final; {
     inherit (inputs) cardano-configurations;
     # { name = "preprod"; magic = 1; }
+    # { name = "preview"; magic = 2; }
+    # { name = "sanchonet"; magic = 4; }
     # { name = "mainnet"; magic = null; }
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
     # for info on how to switch networks.
@@ -27,7 +29,6 @@ rec {
       port = 1442;
       since = "origin";
       match = "*/*"; # matches Shelley addresses only
-      tag = "v2.2.0";
       deferDbIndexes = true; # whether to pass --defer-db-indexes
       pruneUtxo = true; # whether to pass --prune-utxo
       # TODO: Do we want to support connection through ogmios?
@@ -137,7 +138,7 @@ rec {
               "${pkgs.bash}/bin/sh"
               "-c"
               ''
-                ${inputs.kupo-nixos.packages.${pkgs.system}.kupo}/bin/kupo \
+                ${pkgs.kupo}/bin/kupo \
                   --node-config /config/cardano-node/config.json \
                   --node-socket "${nodeSocketPath}" \
                   --since "${kupo.since}" \

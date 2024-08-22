@@ -2,6 +2,7 @@ module Test.Ctl.Blockfrost.GenerateFixtures.NativeScript (main) where
 
 import Contract.Prelude
 
+import Cardano.Types.BigNum as BigNum
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
@@ -29,10 +30,11 @@ import Ctl.Internal.Service.Blockfrost
   , BlockfrostRawResponse
   , runBlockfrostServiceTestM
   )
-import Ctl.Internal.Service.Blockfrost (getScriptByHash) as Blockfrost
+import Ctl.Internal.Service.Blockfrost
+  ( getScriptByHash
+  ) as Blockfrost
 import Data.Array (mapWithIndex)
 import Data.UInt (fromInt) as UInt
-import JS.BigInt (fromInt) as BigInt
 import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
   ( blockfrostBackend
   , getSkeyFilepathFromEnv
@@ -67,7 +69,7 @@ main =
             }
       , logLevel = Info
       , walletSpec =
-          Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
+          Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing Nothing
       }
 
 generateFixtures :: Int -> Contract Unit
@@ -87,7 +89,7 @@ generateFixtures numFixtures = do
       constraints :: Constraints.TxConstraints
       constraints =
         mustPayToPubKeyStakeAddressWithScriptRef pkh skh nativeScriptRef
-          (Value.lovelaceValueOf $ BigInt.fromInt 2_000_000)
+          (Value.lovelaceValueOf $ BigNum.fromInt 2_000_000)
 
     txHash <- submitTxFromConstraints mempty constraints
     awaitTxConfirmed txHash

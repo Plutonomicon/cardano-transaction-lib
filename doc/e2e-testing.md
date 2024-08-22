@@ -22,7 +22,7 @@ CTL comes with advanced machinery for E2E testing in the browser, which can be u
   - [Using custom unauthorized extensions](#using-custom-unauthorized-extensions)
   - [Serving the Contract to be tested](#serving-the-contract-to-be-tested)
   - [Mocking CIP-30 interface](#mocking-cip-30-interface)
-  - [Using CIP-30 mock with Plutip](#using-cip-30-mock-with-plutip)
+  - [Using CIP-30 mock with Cardano Testnet](#using-cip-30-mock-with-cardano-testnet)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -112,6 +112,7 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | Test timeout                                                           | `--test-timeout`            | `E2E_TEST_TIMEOUT`         |
 | Browser binary path or name                                            | `--browser`                 | `E2E_BROWSER`              |
 | Don't use headless mode                                                | `--no-headless`             | `E2E_NO_HEADLESS`          |
+| Pass browser logs to the shell console                                 | `--pass-browser-logs`       | `E2E_PASS_BROWSER_LOGS`    |
 | Path to the user settings archive                                      | `--settings-archive`        | `E2E_SETTINGS_ARCHIVE`     |
 | URL of settings archive asset                                          | `--settings-archive-url`    | `E2E_SETTINGS_ARCHIVE_URL` |
 | Path to the user data directory                                        | `--chrome-user-data`        | `E2E_CHROME_USER_DATA`     |
@@ -292,9 +293,9 @@ The `nami:` prefix should not be specified, otherwise CTL will refuse to overwri
 
 In order to use the keys, their corresponding address must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral), so it's best to make two transactions.
 
-### Using CIP-30 mock with Plutip
+### Using CIP-30 mock with Cardano Testnet
 
-It's possible to run headless browser tests on top of a temporary plutip cluster. In this case, key generation and pre-funding will be handled by `plutip-server`, as well as deployment of all the query layer services.
+It's possible to run headless browser tests on top of a Cardano Testnet cluster.
 
 To do that, it's enough to define a config name that:
 
@@ -306,10 +307,10 @@ E.g.:
 ```purescript
 wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 wallets = Map.fromFoldable
-  [ "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
-  , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
-  , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
-  , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
+  [ "testnet-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
+  , "testnet-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
+  , "testnet-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
+  , "testnet-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
   ]
 ```
 
@@ -326,4 +327,4 @@ Full example can be found [in the template](../templates/ctl-scaffold/test/E2E.p
 There are a few important caveats/limitations:
 
 - We only allow base addresses (with a stake pubkey hash present) to be used. If there's a need to use enterprise addresses, the users should move some ada to their own enterprise address, e.g. with `mustPayToPubKey`
-- The amount of tAda is fixed to `1000000000000` and divided into 5 UTxOs equally
+- The amount of tAda is fixed to `25_000_000_000` lovelace and divided into 5 UTxOs equally

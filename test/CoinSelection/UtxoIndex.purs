@@ -2,6 +2,7 @@ module Test.Ctl.CoinSelection.UtxoIndex (suite) where
 
 import Prelude
 
+import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.CoinSelection.UtxoIndex
   ( SelectionFilter
   , UtxoIndex
@@ -17,8 +18,6 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexInsertEntry
   , utxoIndexPartition
   ) as UtxoIndex
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)
@@ -26,6 +25,7 @@ import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Unsafe (unsafePerformEffect)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Ctl.CoinSelection.Arbitrary
   ( ArbitraryTxUnspentOut
   , ArbitraryUtxoIndex
@@ -34,7 +34,7 @@ import Test.Ctl.CoinSelection.Arbitrary
 import Test.QuickCheck (Result(Failed, Success)) as QuickCheck
 import Test.QuickCheck ((===))
 import Test.Spec.Assertions (shouldEqual)
-import Test.Spec.QuickCheck (quickCheck)
+import Test.Spec.QuickCheck (quickCheck, quickCheck')
 
 suite :: TestPlanM (Aff Unit) Unit
 suite =
@@ -49,10 +49,10 @@ suite =
       quickCheck prop_partition_disjoint
 
     test "prop_utxoIndexInsertEntry_invariant" do
-      quickCheck prop_utxoIndexInsertEntry_invariant
+      quickCheck' 30 prop_utxoIndexInsertEntry_invariant
 
     test "prop_utxoIndexDeleteEntry_invariant" do
-      quickCheck prop_utxoIndexDeleteEntry_invariant
+      quickCheck' 30 prop_utxoIndexDeleteEntry_invariant
 
     group "SelectRandom" do
       test "prop_selectRandom_invariant" do

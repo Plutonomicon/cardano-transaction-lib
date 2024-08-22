@@ -5,41 +5,48 @@ module Ctl.Examples.Pkh2Pkh (main, contract, example) where
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
+import Cardano.Types
+  ( OutputDatum(OutputDatumHash)
+  , TransactionOutput(TransactionOutput)
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.Transaction as Transaction
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.ScriptLookups as Lookups
-import Contract.Transaction
-  ( awaitTxConfirmedWithTimeout
-  , submitTxFromConstraints
-  )
-import Contract.TxConstraints as Constraints
+import Contract.Transaction (awaitTxConfirmedWithTimeout, submitTxFromBuildPlan)
 import Contract.Value as Value
-import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
+import Contract.Wallet (getWalletAddresses)
 import Data.Array (head)
-import JS.BigInt as BigInt
+import Data.Map as Map
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeyHashes
-
-  let
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustPayToPubKeyAddress pkh skh
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  txId <- submitTxFromConstraints lookups constraints
-
+  address <- liftedM "Failed to get own address" $ head <$> getWalletAddresses
+  txId <- Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address
+        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
   awaitTxConfirmedWithTimeout (wrap 100.0) txId
   logInfo' $ "Tx submitted successfully!"
 

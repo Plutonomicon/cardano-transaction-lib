@@ -66,7 +66,7 @@ Contract.Wallet.Key.mkKeyWalletFromMnemonic
   :: String -> Cip1852DerivationPath -> StakeKeyPresence -> Either String KeyWallet
 ```
 
-`Contract.Wallet.withKeyWalletFromMnemonic` is another helper function that lets to construct and use wallets on the fly, which is convenient for [Plutip tests](./plutip-testing.md).
+`Contract.Wallet.withKeyWalletFromMnemonic` is another helper function that lets to construct and use wallets on the fly, which is convenient for [Cardano Testnet tests](./cardano-testnet-testing.md).
 
 In `ContractParams`, these values can be conveniently passed as the `walletSpec` via the `UseMnemonic` constructor:
 

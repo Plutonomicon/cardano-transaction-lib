@@ -47,7 +47,7 @@ Go to https://blockfrost.io to generate a new API key and specify it as `BLOCKFR
 
 ### Generating private keys
 
-Follow https://developers.cardano.org/docs/stake-pool-course/handbook/keys-addresses/ to generate a private payment key (and, optionally, a stake key). You can use [this script](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/scripts/generate-keys.sh) for convenience instead of following instructions in this section manually.
+Follow [this guide](https://developers.cardano.org/docs/operate-a-stake-pool/generating-wallet-keys) to generate a private payment key (and, optionally, a stake key). You can use [this script](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/scripts/generate-keys.sh) for convenience instead of following instructions in this section manually.
 
 The generated keys should look like this:
 
@@ -210,4 +210,5 @@ This function is never used for constraints resolution, the only way to make it 
 
 ## See also
 
+- [key-directory test suite](./keydir.md) that is used under the hood by `executeContractTestsWithBlockfrost`. This test machinery can be used with any runtime backend, not just Blockfrost.
 - [Testing utilities for CTL](./test-utils.md).

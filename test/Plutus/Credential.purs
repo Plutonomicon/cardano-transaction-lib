@@ -5,20 +5,17 @@ module Test.Ctl.Internal.Plutus.Credential
 
 import Prelude
 
-import Ctl.Internal.Plutus.Types.Credential
-  ( Credential(ScriptCredential, PubKeyCredential)
+import Cardano.Types (Bech32String)
+import Cardano.Types.Credential
+  ( Credential(ScriptHashCredential, PubKeyHashCredential)
   )
-import Ctl.Internal.Serialization.Hash
-  ( ed25519KeyHashFromBech32
-  , scriptHashFromBech32
-  )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.Aliases (Bech32String)
+import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
+import Cardano.Types.ScriptHash as ScriptHash
 import Data.Maybe (fromJust)
-import Data.Newtype (wrap)
 import Data.Traversable (for_)
 import Effect.Aff (Aff)
 import Mote (group)
+import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Test.Ctl.Utils (toFromAesonTest)
 
@@ -40,8 +37,8 @@ paymentKeyBech32 =
 
 pubKeyCredential :: Credential
 pubKeyCredential =
-  PubKeyCredential <<< wrap <<< unsafePartial fromJust $
-    ed25519KeyHashFromBech32 paymentKeyBech32
+  PubKeyHashCredential <<< unsafePartial fromJust $
+    Ed25519KeyHash.fromBech32 paymentKeyBech32
 
 scriptBech32 :: Bech32String
 scriptBech32 =
@@ -49,5 +46,5 @@ scriptBech32 =
 
 scriptCredential :: Credential
 scriptCredential =
-  ScriptCredential <<< wrap <<< unsafePartial fromJust $
-    scriptHashFromBech32 scriptBech32
+  ScriptHashCredential <<< unsafePartial fromJust $
+    ScriptHash.fromBech32 scriptBech32

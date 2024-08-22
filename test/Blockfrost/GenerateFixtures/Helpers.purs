@@ -24,7 +24,7 @@ import Ctl.Internal.Contract.QueryBackend
   , defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   )
-import Ctl.Internal.Hashing (md5HashHex)
+import Ctl.Internal.ServerConfig (blockfrostPublicSanchonetServerConfig)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String (take) as String
 import Effect.Exception (throw)
@@ -33,6 +33,7 @@ import Node.FS.Aff (writeTextFile)
 import Node.FS.Sync (exists)
 import Node.Path (concat)
 import Node.Process (lookupEnv)
+import Test.Ctl.Internal.Hashing (md5HashHex)
 
 blockfrostBackend :: Effect BlockfrostBackend
 blockfrostBackend = do
@@ -58,6 +59,7 @@ contractParams = do
           }
     , logLevel = Info
     , walletSpec = Just $ UseKeys (PrivatePaymentKeyFile skeyFilepath) Nothing
+        Nothing
     }
 
 blockfrostConfigFromApiKey :: String -> Effect ServerConfig
@@ -68,6 +70,8 @@ blockfrostConfigFromApiKey = String.take networkPrefixLength >>> case _ of
     pure blockfrostPublicPreviewServerConfig
   "preprod" ->
     pure blockfrostPublicPreprodServerConfig
+  "sanchon" ->
+    pure blockfrostPublicSanchonetServerConfig
   _ ->
     throw "Failed to derive server config from Blockfrost API key"
   where

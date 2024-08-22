@@ -7,26 +7,27 @@ module Ctl.Internal.Metadata.MetadataType
 
 import Prelude
 
-import Ctl.Internal.Metadata.FromMetadata (class FromMetadata, fromMetadata)
-import Ctl.Internal.Metadata.ToMetadata (class ToMetadata, toMetadata)
-import Ctl.Internal.Types.TransactionMetadata
-  ( GeneralTransactionMetadata
-  , TransactionMetadatumLabel
-  )
+import Cardano.FromMetadata (class FromMetadata, fromMetadata)
+import Cardano.ToMetadata (class ToMetadata, toMetadata)
+import Cardano.Types (GeneralTransactionMetadata)
+import Ctl.Internal.Types.MetadataLabel (MetadataLabel)
 import Data.Map (lookup, singleton) as Map
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap, wrap)
 import Type.Proxy (Proxy(Proxy))
 
+-- | Associates a metadata label with a type. E.g. a CIP-25 metadata type could be associated with label `721`.
 class (FromMetadata a, ToMetadata a) <= MetadataType (a :: Type) where
-  metadataLabel :: Proxy a -> TransactionMetadatumLabel
+  metadataLabel :: Proxy a -> MetadataLabel
 
 fromGeneralTxMetadata
   :: forall (a :: Type). MetadataType a => GeneralTransactionMetadata -> Maybe a
 fromGeneralTxMetadata =
-  fromMetadata <=< Map.lookup (metadataLabel (Proxy :: Proxy a)) <<< unwrap
+  fromMetadata <=< Map.lookup (unwrap $ metadataLabel (Proxy :: Proxy a)) <<<
+    unwrap
 
 toGeneralTxMetadata
   :: forall (a :: Type). MetadataType a => a -> GeneralTransactionMetadata
 toGeneralTxMetadata =
-  wrap <<< Map.singleton (metadataLabel (Proxy :: Proxy a)) <<< toMetadata
+  wrap <<< Map.singleton (unwrap $ metadataLabel (Proxy :: Proxy a)) <<<
+    toMetadata

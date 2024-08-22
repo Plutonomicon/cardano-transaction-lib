@@ -4,19 +4,20 @@
 module Contract.Scripts
   ( getScriptByHash
   , getScriptsByHashes
-  , module ExportScripts
-  , module Hash
-  , module NativeScript
-  , module TypesScripts
   , module X
+  , Validator
+  , ValidatorHash
+  , validatorHash
   ) where
 
 import Prelude
 
-import Contract.Monad (Contract)
-import Control.Parallel (parTraverse)
-import Ctl.Internal.ApplyArgs (ApplyArgsError(ApplyArgsError), applyArgs) as X
-import Ctl.Internal.Cardano.Types.NativeScript
+import Cardano.Types
+  ( PlutusScript(PlutusScript)
+  , ScriptHash
+  ) as X
+import Cardano.Types (ScriptHash)
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -25,35 +26,21 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockStart
       , TimelockExpiry
       )
-  ) as NativeScript
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef)
+  ) as X
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.ScriptRef (ScriptRef)
+import Contract.Monad (Contract)
+import Control.Parallel (parTraverse)
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.NativeScripts (NativeScriptHash(NativeScriptHash)) as X
-import Ctl.Internal.Scripts
-  ( mintingPolicyHash
-  , nativeScriptStakeValidatorHash
-  , plutusScriptStakeValidatorHash
-  , validatorHash
-  ) as ExportScripts
-import Ctl.Internal.Serialization.Hash (ScriptHash)
-import Ctl.Internal.Serialization.Hash (ScriptHash) as Hash
 import Ctl.Internal.Service.Error (ClientError)
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicy(PlutusMintingPolicy, NativeMintingPolicy)
-  , MintingPolicyHash(MintingPolicyHash)
-  , NativeScriptStakeValidator(NativeScriptStakeValidator)
-  , PlutusScript(PlutusScript)
-  , PlutusScriptStakeValidator(PlutusScriptStakeValidator)
-  , StakeValidatorHash(StakeValidatorHash)
-  , Validator(Validator)
-  , ValidatorHash(ValidatorHash)
-  ) as TypesScripts
 import Data.Either (Either)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Tuple (Tuple(Tuple))
 import Effect.Aff.Class (liftAff)
+import Prim.TypeError (class Warn, Text)
 
 -- | Retrieve a `ScriptRef` given the hash
 getScriptByHash :: ScriptHash -> Contract (Either ClientError (Maybe ScriptRef))
@@ -69,3 +56,16 @@ getScriptsByHashes hashes = do
   queryHandle <- getQueryHandle
   liftAff $ Map.fromFoldable <$> flip parTraverse hashes
     \sh -> queryHandle.getScriptByHash sh <#> Tuple sh
+
+-- | Deprecated. Use `Cardano.Types.PlutusScript`
+type Validator = PlutusScript
+
+-- | Deprecated. Use `Cardano.Types.ScriptHash`
+type ValidatorHash = ScriptHash
+
+validatorHash
+  :: Warn
+       (Text "Deprecated: validatorHash. Use Cardano.Types.PlutusScript.hash")
+  => PlutusScript
+  -> ScriptHash
+validatorHash = PlutusScript.hash

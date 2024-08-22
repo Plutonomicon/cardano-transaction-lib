@@ -4,20 +4,18 @@ module Test.Ctl.Wallet.Bip32
 
 import Contract.Prelude
 
+import Cardano.Types.Address as Address
+import Cardano.Types.NetworkId (NetworkId(MainnetId))
+import Cardano.Wallet.Key (KeyWallet)
 import Contract.Wallet.Key
   ( StakeKeyPresence(WithStakeKey)
   , mkKeyWalletFromMnemonic
   )
-import Ctl.Internal.Serialization.Address
-  ( NetworkId(MainnetId)
-  , addressFromBech32
-  )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Wallet.Key (KeyWallet(KeyWallet))
 import Data.Lens (_Left, preview)
 import Data.UInt as UInt
 import Effect.Aff (Aff)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Test.Spec.Assertions (shouldEqual)
 
 suite :: TestPlanM (Aff Unit) Unit
@@ -33,15 +31,19 @@ suite = do
               <> ")"
           )
           do
-            addressFromBech32 addressStr `shouldEqual`
-              hush
-                ( mkKeyWalletFromMnemonic phrase1
+            addr <- liftAff $ do
+              case
+                ( hush $ mkKeyWalletFromMnemonic phrase1
                     { accountIndex: UInt.fromInt accountIndex
                     , addressIndex: UInt.fromInt addressIndex
                     }
-                    WithStakeKey <#>
-                    \(KeyWallet wallet) -> wallet.address MainnetId
+                    WithStakeKey
                 )
+                of
+                Nothing -> pure Nothing
+                Just (wlt :: KeyWallet) -> do
+                  Just <$> (unwrap wlt).address MainnetId
+            Address.fromBech32 addressStr `shouldEqual` addr
   group "Invalid mnemonics" do
     test "handles errors for invalid phrases" do
       blush (mkKeyWalletFromMnemonic invalidPhrase zero WithStakeKey)

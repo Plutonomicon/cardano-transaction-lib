@@ -1,6 +1,5 @@
 module Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
+  ( mkAssetName
   , mustPayToPubKeyStakeAddress
   , mustPayToPubKeyStakeAddressWithDatum
   , mustPayToPubKeyStakeAddressWithScriptRef
@@ -9,39 +8,31 @@ module Ctl.Examples.Helpers
 
 import Contract.Prelude
 
-import Contract.Address (PaymentPubKeyHash, StakePubKeyHash)
+import Cardano.Types
+  ( AssetName
+  , PaymentPubKeyHash
+  , PlutusData
+  , ScriptRef
+  , StakePubKeyHash
+  , Transaction
+  , Value
+  )
+import Cardano.Types.AssetName as AssetName
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM)
-import Contract.PlutusData (Datum)
 import Contract.Prim.ByteArray (byteArrayFromAscii)
-import Contract.Scripts (MintingPolicy)
-import Contract.Transaction
-  ( BalancedSignedTransaction
-  , ScriptRef
-  , awaitTxConfirmed
-  , submit
-  )
+import Contract.Transaction (awaitTxConfirmed, submit)
 import Contract.TxConstraints (DatumPresence)
 import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName, Value)
-import Contract.Value (mkTokenName, scriptCurrencySymbol) as Value
 
-mkCurrencySymbol
-  :: Contract MintingPolicy
-  -> Contract (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  let cs = Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
-
-mkTokenName :: String -> Contract TokenName
-mkTokenName =
-  liftContractM "Cannot make token name"
-    <<< (Value.mkTokenName <=< byteArrayFromAscii)
+mkAssetName :: String -> Contract AssetName
+mkAssetName str =
+  liftContractM ("Cannot make token name from: " <> str)
+    $ AssetName.mkAssetName
+    =<< byteArrayFromAscii str
 
 mustPayToPubKeyStakeAddress
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> Value
   -> Constraints.TxConstraints
@@ -51,10 +42,9 @@ mustPayToPubKeyStakeAddress pkh (Just skh) =
   Constraints.mustPayToPubKeyAddress pkh skh
 
 mustPayToPubKeyStakeAddressWithDatum
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
-  -> Datum
+  -> PlutusData
   -> DatumPresence
   -> Value
   -> Constraints.TxConstraints
@@ -64,8 +54,7 @@ mustPayToPubKeyStakeAddressWithDatum pkh (Just skh) datum dtp =
   Constraints.mustPayToPubKeyAddressWithDatum pkh skh datum dtp
 
 mustPayToPubKeyStakeAddressWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> ScriptRef
   -> Value
@@ -75,8 +64,7 @@ mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing scriptRef =
 mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) scriptRef =
   Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh scriptRef
 
-submitAndLog
-  :: BalancedSignedTransaction -> Contract Unit
+submitAndLog :: Transaction -> Contract Unit
 submitAndLog bsTx = do
   txId <- submit bsTx
   logInfo' $ "Tx ID: " <> show txId

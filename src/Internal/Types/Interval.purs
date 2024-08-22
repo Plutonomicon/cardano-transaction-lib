@@ -28,7 +28,6 @@ module Ctl.Internal.Types.Interval
   , after
   , always
   , before
-  , beginningOfTime
   , contains
   , findSlotEraSummary
   , findTimeEraSummary
@@ -77,42 +76,35 @@ import Aeson
   , isNull
   , (.:)
   )
-import Control.Monad.Error.Class (throwError)
-import Control.Monad.Except (runExcept)
-import Ctl.Internal.FromData (class FromData, fromData, genericFromData)
-import Ctl.Internal.Helpers
-  ( contentsProp
-  , encodeTagged'
-  , liftEither
-  , liftM
-  , mkErrorRecord
-  , showWithParens
-  , tagProp
-  )
-import Ctl.Internal.Plutus.Types.DataSchema
+import Cardano.FromData (class FromData, fromData, genericFromData)
+import Cardano.Plutus.DataSchema
   ( class HasPlutusSchema
   , type (:+)
   , type (:=)
   , type (@@)
   , PNil
+  , S
+  , Z
   )
-import Ctl.Internal.QueryM.Ogmios (aesonObject, slotLengthFactor)
-import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.ToData (class ToData, genericToData, toData)
-import Ctl.Internal.TypeLevel.Nat (S, Z)
-import Ctl.Internal.Types.BigNum
-  ( add
-  , fromBigInt
-  , maxValue
-  , one
-  , toBigInt
-  , zero
-  ) as BigNum
+import Cardano.ToData (class ToData, genericToData, toData)
+import Cardano.Types.BigNum (add, fromBigInt, maxValue, one, toBigInt, zero) as BigNum
+import Cardano.Types.PlutusData (PlutusData(Constr))
+import Cardano.Types.Slot (Slot(Slot))
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except (runExcept)
+import Ctl.Internal.Helpers
+  ( encodeTagged'
+  , liftEither
+  , liftM
+  , mkErrorRecord
+  , showWithParens
+  , unsafeFromJust
+  )
+import Ctl.Internal.QueryM.Ogmios (aesonObject)
 import Ctl.Internal.Types.EraSummaries
   ( EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
   )
-import Ctl.Internal.Types.PlutusData (PlutusData(Constr))
 import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
@@ -127,7 +119,7 @@ import Data.Lattice
   , class JoinSemilattice
   , class MeetSemilattice
   )
-import Data.Maybe (Maybe(Just, Nothing), fromJust, maybe)
+import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Number (trunc, (%)) as Math
 import Data.Show.Generic (genericShow)
@@ -135,8 +127,7 @@ import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
 import JS.BigInt (BigInt)
-import JS.BigInt (fromInt, fromNumber, fromString, toNumber) as BigInt
-import Partial.Unsafe (unsafePartial)
+import JS.BigInt (fromInt, fromNumber, toNumber) as BigInt
 import Prim.TypeError (class Warn, Text)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (Gen, frequency)
@@ -601,14 +592,6 @@ instance Show OnchainPOSIXTimeRange where
 
 type SlotRange = Interval Slot
 
--- | 'beginningOfTime' corresponds to the Shelley launch date
--- | (2020-07-29T21:44:51Z) which is 1596059091000 in POSIX time
--- | (number of milliseconds since 1970-01-01T00:00:00Z).
-beginningOfTime :: BigInt
-beginningOfTime =
-  unsafePartial fromJust $
-    BigInt.fromString "1596059091000"
-
 -- | Maximum slot (u64)
 maxSlot :: Slot
 maxSlot = wrap BigNum.maxValue
@@ -651,7 +634,8 @@ instance EncodeAeson SlotToPosixTimeError where
       slotToPosixTimeErrorStr
       "endTimeLessThanTime"
       -- We assume the numbers are finite
-      [ unsafePartial $ fromJust $ finiteNumber absTime ]
+      [ unsafeFromJust "EncodeAeson SlotToPosixTimeError" $ finiteNumber absTime
+      ]
   encodeAeson CannotGetBigIntFromNumber = do
     encodeAeson $ mkErrorRecord
       slotToPosixTimeErrorStr
@@ -848,6 +832,9 @@ absTimeFromRelTime (EraSummary { start, end }) (RelTime relTime) = do
 
   wrap <$> (liftM CannotGetBigIntFromNumber $ BigInt.fromNumber absTime)
 
+slotLengthFactor :: Number
+slotLengthFactor = 1000.0
+
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
 -- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
@@ -944,7 +931,8 @@ posixTimeToSlot eraSummaries sysStart pt'@(POSIXTime pt) = runExcept do
   -- to a conversion from a Number, which may be an infinity or NaN in the
   -- general case. However, we know that system time cannot be either of these
   -- things.
-  let sysStartPosix = unsafePartial $ fromJust $ sysStartUnixTime sysStart
+  let
+    sysStartPosix = unsafeFromJust "posixTimeToSlot" $ sysStartUnixTime sysStart
   -- Ensure the time we are converting is after the system start, otherwise
   -- we have negative slots.
   unless (sysStartPosix <= pt)
@@ -992,8 +980,9 @@ relTimeFromAbsTime (EraSummary { start }) at@(AbsTime absTime) = do
   -- This conversion cannot fail: since 'relTime' is an offset from the start of
   -- an era, we can't overflow the 64-bit limit.
   let
-    relTimeBi = unsafePartial $ fromJust $ BigInt.fromNumber $ Math.trunc
-      relTime
+    relTimeBi = unsafeFromJust "relTimeFromAbsTime" $ BigInt.fromNumber $
+      Math.trunc
+        relTime
   pure $ wrap relTimeBi
 
 -- | Converts relative time to a relative slot (using Euclidean division) and
@@ -1016,7 +1005,7 @@ relSlotFromRelTime eraSummary (RelTime relTime) =
       (wrap $ toBigIntUnsafe modTime)
   where
   toBigIntUnsafe :: Number -> BigInt
-  toBigIntUnsafe x = unsafePartial $ fromJust $ BigInt.fromNumber x
+  toBigIntUnsafe x = unsafeFromJust "relSlotFromRelTime" $ BigInt.fromNumber x
 
 slotFromRelSlot
   :: EraSummary -> RelSlot /\ ModTime -> Either PosixTimeToSlotError Slot
@@ -1038,7 +1027,7 @@ slotFromRelSlot
       end
   -- Slot numbers should convert without error: they're meant to be 64-bit
   -- integers anyway.
-  let bnSlot = unsafePartial $ fromJust $ BigNum.fromBigInt slot
+  let bnSlot = unsafeFromJust "slotFromRelSlot" $ BigNum.fromBigInt slot
   -- Check we are less than the end slot, or if equal, there is no excess:
   unless (slot < endSlot || slot == endSlot && modTime == zero)
     (throwError $ EndSlotLessThanSlotOrModNonZero (wrap bnSlot) mt)
@@ -1174,12 +1163,12 @@ instance (EncodeAeson a) => EncodeAeson (Extended a) where
 instance (DecodeAeson a) => DecodeAeson (Extended a) where
   decodeAeson a = lmap (Named "Extended") do
     obj <- decodeAeson a
-    tag <- obj .: tagProp
+    tag <- obj .: "tag"
     case tag of
       "NegInf" -> pure NegInf
       "PosInf" -> pure PosInf
-      "Finite" -> Finite <$> obj .: contentsProp
-      _ -> Left $ AtKey tagProp $ UnexpectedValue $ encodeString tag
+      "Finite" -> Finite <$> obj .: "contents"
+      _ -> Left $ AtKey "tag" $ UnexpectedValue $ encodeString tag
 
 toOnChainPosixTimeRangeErrorStr :: String
 toOnChainPosixTimeRangeErrorStr = "ToOnChainPosixTimeRangeError"

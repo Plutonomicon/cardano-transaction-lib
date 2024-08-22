@@ -6,7 +6,6 @@ import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson, stringifyAeson)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Hashing (md5HashHex)
 import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.JsWebSocket
   ( _mkWebSocket
@@ -45,6 +44,7 @@ import Effect.Ref as Ref
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Path (concat)
+import Test.Ctl.Internal.Hashing (md5HashHex)
 
 -- A simple websocket for testing
 mkWebSocket
@@ -127,7 +127,6 @@ main =
         , mkQuery' "queryLedgerState/protocolParameters"
         , mkQuery' "queryLedgerState/stakePools"
         ]
-
     resps <- flip parTraverse queries \(Query qc method args) -> do
       resp <- mkRequestAff listeners ws (\_ _ -> pure unit) qc identity args
       pure { resp, method }

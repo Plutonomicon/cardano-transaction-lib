@@ -11,27 +11,39 @@ module Ctl.Examples.ContractTestUtils
 
 import Contract.Prelude
 
-import Contract.Address
-  ( Address
-  , PaymentPubKeyHash
-  , StakePubKeyHash
-  , getNetworkId
-  , payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, MintAsset)
   )
-import Contract.AuxiliaryData (setTxMetadata)
+import Cardano.Types
+  ( BigNum
+  , Coin
+  , ExUnits(ExUnits)
+  , PaymentCredential(PaymentCredential)
+  , StakeCredential(StakeCredential)
+  , TransactionOutput(TransactionOutput)
+  , _body
+  , _datum
+  , _fee
+  , _output
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Credential (Credential(PubKeyHashCredential))
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.Int as Int
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.ScriptRef (ScriptRef(PlutusScriptRef))
+import Contract.Address (Address, PaymentPubKeyHash, StakePubKeyHash, mkAddress)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
-import Contract.Metadata (Cip25Metadata)
 import Contract.Monad (Contract, liftContractM, liftedM)
 import Contract.PlutusData (Datum, OutputDatum(OutputDatumHash))
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy)
 import Contract.Test.Assert
   ( ContractCheck
   , assertOutputHasDatum
   , assertOutputHasRefScript
-  , assertTxHasMetadata
   , assertionToCheck
   , checkExUnitsNotExceed
   , checkGainAtAddress'
@@ -41,20 +53,14 @@ import Contract.Test.Assert
   )
 import Contract.Transaction
   ( TransactionHash
-  , TransactionOutputWithRefScript
   , TransactionUnspentOutput
-  , _output
   , awaitTxConfirmed
   , balanceTx
-  , getTxFinalFee
+  , buildTx
   , lookupTxHash
-  , scriptRefFromMintingPolicy
   , signTransaction
   , submit
   )
-import Contract.TxConstraints (DatumPresence(DatumWitness))
-import Contract.TxConstraints as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Utxos (utxosAt)
 import Contract.Value (CurrencySymbol, TokenName, Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
@@ -63,27 +69,24 @@ import Contract.Wallet
   , ownPaymentPubKeyHashes
   , ownStakePubKeyHashes
   )
-import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddress) as Helpers
 import Data.Array (head)
 import Data.Lens (view)
+import Data.Map as Map
 import Effect.Exception (throw)
-import JS.BigInt (BigInt)
-import JS.BigInt as BigInt
 
 type ContractParams =
   { receiverPkh :: PaymentPubKeyHash
   , receiverSkh :: Maybe StakePubKeyHash
-  , adaToSend :: BigInt
-  , mintingPolicy :: MintingPolicy
-  , tokensToMint :: Tuple3 CurrencySymbol TokenName BigInt
+  , adaToSend :: Coin
+  , mintingPolicy :: PlutusScript
+  , tokensToMint :: Tuple3 CurrencySymbol TokenName BigNum
   , datumToAttach :: Datum
-  , txMetadata :: Cip25Metadata
   }
 
 type ContractResult =
   { txHash :: TransactionHash
-  , txFinalFee :: BigInt
-  , txOutputUnderTest :: TransactionOutputWithRefScript
+  , txFinalFee :: Coin
+  , txOutputUnderTest :: TransactionOutput
   }
 
 mkChecks
@@ -92,40 +95,40 @@ mkChecks
 mkChecks p = do
   senderAddress <-
     liftedM "Failed to get sender address" $ head <$> getWalletAddresses
-  receiverAddress <-
-    liftedM "Failed to get receiver address" (getReceiverAddress p)
+  receiverAddress <- getReceiverAddress p
   let dhash = datumHash p.datumToAttach
   pure
     [ checkGainAtAddress' (label receiverAddress "Receiver")
-        p.adaToSend
+        (BigNum.toBigInt $ unwrap p.adaToSend)
 
     , checkLossAtAddress (label senderAddress "Sender")
         case _ of
-          Just { txFinalFee } -> pure (p.adaToSend + txFinalFee)
+          Just { txFinalFee } -> pure
+            ( BigNum.toBigInt (unwrap p.adaToSend) + BigNum.toBigInt
+                (unwrap txFinalFee)
+            )
           Nothing -> liftEffect $
             throw "Unable to estimate expected loss in wallet"
 
     , checkTokenGainAtAddress' (label senderAddress "Sender")
-        ( uncurry3 (\cs tn amount -> cs /\ tn /\ amount)
+        ( uncurry3 (\cs tn amount -> cs /\ tn /\ BigNum.toBigInt amount)
             p.tokensToMint
         )
 
     , checkExUnitsNotExceed
-        { mem: BigInt.fromInt 800, steps: BigInt.fromInt 161100 }
+        (ExUnits { mem: BigNum.fromInt 800, steps: BigNum.fromInt 161100 })
 
     , assertionToCheck "Sender's output has a datum"
         \{ txOutputUnderTest } ->
-          assertOutputHasDatum (OutputDatumHash dhash)
+          assertOutputHasDatum (Just $ OutputDatumHash dhash)
             (label txOutputUnderTest "Sender's output with datum hash")
 
     , assertionToCheck "Output has a reference script"
         \{ txOutputUnderTest } ->
           assertOutputHasRefScript
-            (scriptRefFromMintingPolicy p.mintingPolicy)
+            (PlutusScriptRef p.mintingPolicy)
             (label txOutputUnderTest "Sender's output with reference script")
 
-    , assertionToCheck "Contains CIP-25 metadata" \{ txHash } ->
-        assertTxHasMetadata "CIP25 Metadata" txHash p.txMetadata
     ]
 
 mkContract :: ContractParams -> Contract ContractResult
@@ -133,36 +136,40 @@ mkContract p = do
   logInfo' "Running Examples.ContractTestUtils"
   ownPkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   ownSkh <- join <<< head <$> ownStakePubKeyHashes
+  receiverAddress <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap p.receiverPkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> p.receiverSkh)
+  ownAddress <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap ownPkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> ownSkh)
   let
-    mustPayToPubKeyStakeAddressWithDatumAndScriptRef =
-      ownSkh # maybe Constraints.mustPayToPubKeyWithDatumAndScriptRef
-        \skh pkh ->
-          Constraints.mustPayToPubKeyAddressWithDatumAndScriptRef pkh skh
-
     adaValue :: Value
-    adaValue = Value.lovelaceValueOf p.adaToSend
+    adaValue = Value.lovelaceValueOf (unwrap p.adaToSend)
 
     nonAdaValue :: Value
     nonAdaValue = uncurry3 Value.singleton p.tokensToMint
 
-    constraints :: Constraints.TxConstraints
-    constraints = mconcat
-      [ Helpers.mustPayToPubKeyStakeAddress p.receiverPkh p.receiverSkh adaValue
-
-      , Constraints.mustMintValue nonAdaValue
-
-      , mustPayToPubKeyStakeAddressWithDatumAndScriptRef ownPkh p.datumToAttach
-          DatumWitness
-          (scriptRefFromMintingPolicy p.mintingPolicy)
-          nonAdaValue
+    scriptHash /\ assetName /\ mintAmount /\ _ = p.tokensToMint
+    plan =
+      [ Pay $ TransactionOutput
+          { address: receiverAddress
+          , amount: adaValue
+          , datum: Nothing
+          , scriptRef: Nothing
+          }
+      , MintAsset scriptHash assetName (Int.newPositive mintAmount)
+          $ PlutusScriptCredential (ScriptValue p.mintingPolicy)
+              RedeemerDatum.unit
+      , Pay $ TransactionOutput
+          { address: ownAddress
+          , amount: nonAdaValue
+          , datum: Just $ OutputDatumHash $ hashPlutusData p.datumToAttach
+          , scriptRef: Just $ PlutusScriptRef p.mintingPolicy
+          }
       ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy p.mintingPolicy
-
-  unbalancedTx <- mkUnbalancedTx lookups constraints
-  unbalancedTxWithMetadata <- setTxMetadata unbalancedTx p.txMetadata
-  balancedTx <- balanceTx unbalancedTxWithMetadata
+  unbalancedTx <- buildTx plan
+  balancedTx <- balanceTx unbalancedTx Map.empty mempty
   balancedSignedTx <- signTransaction balancedTx
 
   txId <- submit balancedSignedTx
@@ -182,21 +189,17 @@ mkContract p = do
 
   pure
     { txHash: txId
-    , txFinalFee: getTxFinalFee balancedSignedTx
+    , txFinalFee: view (_body <<< _fee) balancedSignedTx
     , txOutputUnderTest
     }
   where
   hasDatumHash :: TransactionUnspentOutput -> Boolean
-  hasDatumHash = view _output >>> unwrap >>> _.output >>> unwrap >>> _.datum >>>
+  hasDatumHash = view (_output <<< _datum) >>>
     case _ of
-      OutputDatumHash _ -> true
+      Just (OutputDatumHash _) -> true
       _ -> false
 
-getReceiverAddress :: ContractParams -> Contract (Maybe Address)
+getReceiverAddress :: ContractParams -> Contract Address
 getReceiverAddress { receiverPkh, receiverSkh } =
-  getNetworkId <#> \networkId ->
-    case receiverSkh of
-      Just skh ->
-        payPubKeyHashBaseAddress networkId receiverPkh skh
-      Nothing ->
-        payPubKeyHashEnterpriseAddress networkId receiverPkh
+  mkAddress (wrap $ PubKeyHashCredential $ unwrap receiverPkh)
+    (wrap <<< PubKeyHashCredential <<< unwrap <$> receiverSkh)

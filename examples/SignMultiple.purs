@@ -5,7 +5,26 @@ module Ctl.Examples.SignMultiple (example, contract, main) where
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
+import Cardano.Types
+  ( Credential(PubKeyHashCredential)
+  , OutputDatum(OutputDatumHash)
+  , PaymentCredential(PaymentCredential)
+  , StakeCredential(StakeCredential)
+  , Transaction
+  , TransactionOutput(TransactionOutput)
+  )
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.Transaction as Transaction
+import Contract.Address (mkAddress)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo', logWarn')
 import Contract.Monad
   ( Contract
@@ -14,19 +33,17 @@ import Contract.Monad
   , runContract
   , throwContractError
   )
-import Contract.ScriptLookups as Lookups
+import Contract.Numeric.BigNum as BigNum
 import Contract.Transaction
-  ( BalancedSignedTransaction
-  , TransactionHash
+  ( TransactionHash
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
+  , buildTx
   , signTransaction
   , submit
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   , withBalancedTxs
   )
-import Contract.TxConstraints as Constraints
-import Contract.UnbalancedTx (mkUnbalancedTx)
 import Contract.Value (leq)
 import Contract.Value as Value
 import Contract.Wallet
@@ -37,10 +54,16 @@ import Contract.Wallet
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.Map (Map, filter)
+import Data.Map as Map
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
-import JS.BigInt as BigInt
+
+main :: Effect Unit
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 getLockedInputs
   :: Contract (Map TransactionHash (Set UInt))
@@ -48,38 +71,47 @@ getLockedInputs = do
   cache <- asks _.usedTxOuts
   liftEffect $ Ref.read $ unwrap cache
 
-main :: Effect Unit
-main = example testnetNamiConfig
-
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.SignMultiple"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeyHashes
+  skh <- liftedM "Failed to get own SKH" $ head <$> ownStakePubKeyHashes
 
   -- Early fail if not enough utxos present for 2 transactions
   unlessM hasSufficientUtxos do
     logWarn' "Insufficient Utxos for 2 transactions"
     createAdditionalUtxos
-
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustPayToPubKeyAddress pkh skh
-      $ Value.lovelaceValueOf
-      $ BigInt.fromInt 2_000_000
+    plan =
+      [ Pay $ TransactionOutput
+          { address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
+  unbalancedTx0 <- buildTx plan
+  unbalancedTx1 <- buildTx plan
 
-  unbalancedTx0 <- mkUnbalancedTx lookups constraints
-  unbalancedTx1 <- mkUnbalancedTx lookups constraints
-
-  txIds <- withBalancedTxs [ unbalancedTx0, unbalancedTx1 ] $ \balancedTxs -> do
-    locked <- getLockedInputs
-    logInfo' $ "Locked inputs inside bracket (should be nonempty): "
-      <> show locked
-    traverse (submitAndLog <=< signTransaction) balancedTxs
+  txIds <-
+    withBalancedTxs
+      [ { transaction: unbalancedTx0
+        , usedUtxos: Map.empty
+        , balancerConstraints: mempty
+        }
+      , { transaction: unbalancedTx1
+        , usedUtxos: Map.empty
+        , balancerConstraints: mempty
+        }
+      ] $ \balancedTxs -> do
+      locked <- getLockedInputs
+      logInfo' $ "Locked inputs inside bracket (should be nonempty): "
+        <> show locked
+      traverse (submitAndLog <=< signTransaction) balancedTxs
 
   locked <- getLockedInputs
   logInfo' $ "Locked inputs after bracket (should be empty): " <> show locked
@@ -94,7 +126,7 @@ contract = do
 
   where
   submitAndLog
-    :: BalancedSignedTransaction
+    :: Transaction
     -> Contract TransactionHash
   submitAndLog bsTx = do
     txId <- submit bsTx
@@ -105,8 +137,8 @@ contract = do
   hasSufficientUtxos = do
     let
       -- 4 Ada: enough to cover 2 Ada transfer and fees
-      isUtxoValid u = (Value.lovelaceValueOf $ BigInt.fromInt 4_000_000) `leq`
-        (unwrap (unwrap u).output).amount
+      isUtxoValid u = (Value.lovelaceValueOf $ BigNum.fromInt 4_000_000) `leq`
+        (unwrap u).amount
 
     walletValidUtxos <- liftedM "Failed to get wallet Utxos"
       $ map (filter isUtxoValid)
@@ -118,27 +150,29 @@ createAdditionalUtxos :: Contract Unit
 createAdditionalUtxos = do
   logInfo' "Creating additional UTxOs for SignMultiple example"
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- liftedM "Failed to get own SKH" $ join <<< head <$>
-    ownStakePubKeyHashes
-
+  skh <- liftedM "Failed to get own SKH" $ head <$> ownStakePubKeyHashes
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    constraints :: Constraints.TxConstraints
-    constraints =
-      Constraints.mustPayToPubKeyAddress pkh skh
-        ( Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
-        ) <>
-        Constraints.mustPayToPubKeyAddress pkh skh
-          ( Value.lovelaceValueOf
-              $ BigInt.fromInt 2_000_000
-          )
+    plan =
+      [ Pay $ TransactionOutput
+          { address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      , Pay $ TransactionOutput
+          { address
+          , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+          , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+          , scriptRef: Nothing
+          }
+      ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
+  tx <- submitTxFromBuildPlan Map.empty mempty plan
 
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmedWithTimeout (wrap 100.0) txId
+  awaitTxConfirmedWithTimeout (wrap 100.0) $ Transaction.hash tx
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

@@ -14,6 +14,7 @@ module.exports = env => {
       layers: false,
       lazyCompilation: false,
       outputModule: true,
+      // `syncWebAssembly` must be set to `true` because CTL internal code expects it.
       syncWebAssembly: true,
       topLevelAwait: true
     },
@@ -58,9 +59,6 @@ module.exports = env => {
     },
 
     plugins: [
-      new webpack.DefinePlugin({
-        BROWSER_RUNTIME: isBrowser
-      }),
       new webpack.LoaderOptionsPlugin({
         debug: true
       }),

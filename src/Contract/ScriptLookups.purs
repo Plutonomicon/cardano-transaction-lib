@@ -2,18 +2,13 @@
 -- | transaction.
 module Contract.ScriptLookups (module X) where
 
-import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx(UnbalancedTx)) as X
 import Ctl.Internal.Types.ScriptLookups
   ( ScriptLookups(ScriptLookups)
   , datum
-  , mintingPolicy
-  , mintingPolicyM
+  , nativeMintingPolicy
   , ownPaymentPubKeyHash
-  , ownPaymentPubKeyHashM
   , ownStakePubKeyHash
-  , ownStakePubKeyHashM
+  , plutusMintingPolicy
   , unspentOutputs
-  , unspentOutputsM
   , validator
-  , validatorM
   ) as X

@@ -6,30 +6,22 @@ CTL can be imported as an additional dependency into a Purescript project built 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Caveats](#caveats)
-- [Using CTL's overlays](#using-ctls-overlays)
+- [Using CTL's Nix overlays](#using-ctls-nix-overlays)
 - [Upgrading CTL](#upgrading-ctl)
 - [See also](#see-also)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Caveats
-
-The following caveats alway applies when using CTL from your project:
-
-1. Only bundling with Webpack is supported (this is due to our internal dependency on `cardano-serialization-lib` which uses WASM with top-level `await`; only Webpack is reliably capable of bundling this properly)
-2. The environment variable `BROWSER_RUNTIME` determines which version of `cardano-serialization-lib` is loaded by CTL, so you must use it as well (i.e. set it to `1` for the browser; leave it unset for NodeJS)
-
-## Using CTL's overlays
+## Using CTL's Nix overlays
 
 CTL exposes two `overlay`s from its flake. You can use these in the Nix setup of your own project to use the same setup as we do, e.g. the same packages and PS builders:
 
-- `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), and run CTL contracts on a private testnet using Plutip (`runPlutipTest`).
-- `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, and `plutip-server`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
+- `overlays.purescript` contains Purescript builders to compile Purescript sources, build bundles with Webpack/esbuild (`bundlePursProject`), run unit tests using NodeJS (`runPursTest`), and run CTL contracts using Cardano Testnet (`runLocalTestnetTest`).
+- `overlays.runtime` contains various packages and other tools used in CTL's runtime, including `ogmios`, `kupo`, and `cardano-node`. It also defines `buildCtlRuntime` and `launchCtlRuntime` to help you quickly launch all runtime services (see the [runtime docs](./runtime.md))
 
 We've split the overlays into two components to allow users to more easily choose which parts of CTL's Nix infrastructure they would like to directly consume. For example, some users do not require a pre-packaged runtime and would prefer to build it themselves with more control over its components (e.g. by directly using `ogmios` from their own `inputs`). Such users might still like to use our `purescript` overlay -- splitting the `overlays` allows us to support this. `overlays.runtime` also contains several haskell.nix packages which may cause issues with `hackage.nix` versions in your own project.
 
-Do note that `runPlutipTest` in `overlays.purescript` requires the presence of all of our runtime components. If you choose not to consume `overlays.runtime`, please ensure that your package set contains these (e.g. by adding them to your own `overlays` when instantiating `nixpkgs`). You can find a complete list of the required runtime services [here](./plutip-testing.md#architecture).
+Do note that `runLocalTestnetTest` in `overlays.purescript` requires the presence of all of our runtime components. If you choose not to consume `overlays.runtime`, please ensure that your package set contains these (e.g. by adding them to your own `overlays` when instantiating `nixpkgs`). You can find a complete list of the required runtime services [here](./cardano-testnet-testing.md#architecture).
 
 To see an example project that uses both `overlays`, please refer to our [scaffolding template](../templates/ctl-scaffold/flake.nix). You can also use this template to conveniently initialize a new CTL-based project (`nix flake init -t github:Plutonomicon/cardano-transaction-lib` in a new directory). It will take a significant amount of time for spago to download the dependencies.
 
@@ -75,14 +67,12 @@ Make sure to perform **all** of the following steps, otherwise you **will** enco
 
 3. **Update your JS dependencies**
 
-- If CTL has added any JS dependencies, these will also need to be added to your own `package.json`
-- Similarly, if any of CTL's JS dependencies have changed versions, you will need to use the **exact** same version in your own `package.json`
-- That is, avoid using the `~` or `^` prefixes (e.g use versions like `"1.6.51"` instead of `"^1.6.51"`)
-- If you're using a `package-lock.json` (which is _highly_ recommended), you can update the lockfile with `npm i --package-lock-only`
+- The NPM dependencies your project has must have the exact same versions CTL's own `package.json` specifies.
+- You have to update `package-lock.json` by running `npm install`. If you are in a nix shell and use our setup that symlinks `./node_modules`, npm will complain about inability to write to the filesystem, use `npm i --package-lock-only` to skip writing to `node_modules`. If your `node_modules` are managed by Nix, you will have to re-enter the shell for the changes to apply.
 
-4. **Update your webpack config**
+4. **Update your webpack/esbuild config**
 
-- Sometimes the WebPack configuration also comes with breaking changes. Common source of problems are changes to `resolve.fallback`, `plugins` and `experiments` fields of the WebPack config. Use `git diff old-revision new-revision webpack.config.js` in the root of a cloned CTL repo, or use `git blame`.
+- Sometimes WebPack or esbuild configurations also come with breaking changes. Refer to the CHANGELOG.
 
 ## See also
 

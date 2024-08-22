@@ -7,74 +7,319 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[Unreleased]](#unreleased)
+- [[v9.2.0]](#v920)
   - [Added](#added)
   - [Changed](#changed)
-  - [Fixed](#fixed)
   - [Removed](#removed)
-- [[v7.0.0]](#v700)
+  - [Fixed](#fixed)
+- [[v9.1.0]](#v910)
   - [Added](#added-1)
   - [Changed](#changed-1)
-  - [Fixed](#fixed-1)
   - [Removed](#removed-1)
-- [[v6.0.0]](#v600)
+  - [Fixed](#fixed-1)
+- [[v9.0.0]](#v900)
+  - [Deprecated](#deprecated)
   - [Added](#added-2)
+  - [Removed](#removed-2)
   - [Changed](#changed-2)
   - [Fixed](#fixed-2)
-  - [Removed](#removed-2)
-- [[v5.0.0]](#v500)
+- [[v8.0.0]](#v800)
   - [Added](#added-3)
   - [Changed](#changed-3)
-  - [Removed](#removed-3)
   - [Fixed](#fixed-3)
-  - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed-4)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Removed](#removed-3)
+- [[v7.0.0]](#v700)
   - [Added](#added-4)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-5)
   - [Changed](#changed-4)
+  - [Fixed](#fixed-4)
   - [Removed](#removed-4)
-  - [Fixed](#fixed-5)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
-  - [Added](#added-6)
+- [[v6.0.0]](#v600)
+  - [Added](#added-5)
   - [Changed](#changed-5)
+  - [Fixed](#fixed-5)
   - [Removed](#removed-5)
-  - [Fixed](#fixed-6)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
-  - [Added](#added-7)
+- [[v5.0.0]](#v500)
+  - [Added](#added-6)
   - [Changed](#changed-6)
   - [Removed](#removed-6)
+  - [Fixed](#fixed-6)
+  - [Runtime Dependencies](#runtime-dependencies)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-7)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-7)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-8)
-  - [Removed](#removed-7)
   - [Changed](#changed-7)
+  - [Removed](#removed-7)
   - [Fixed](#fixed-8)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+  - [Added](#added-9)
+  - [Changed](#changed-8)
+  - [Removed](#removed-8)
   - [Fixed](#fixed-9)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Added](#added-10)
+  - [Changed](#changed-9)
+  - [Removed](#removed-9)
   - [Fixed](#fixed-10)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-11)
+  - [Removed](#removed-10)
+  - [Changed](#changed-10)
+  - [Fixed](#fixed-11)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+  - [Fixed](#fixed-12)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-13)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## [Unreleased]
+## [v9.2.0]
 
 ### Added
+
+- CIP-95 methods for querying the connected wallet account's public DRep key and
+its registered and unregistered public stake keys: `ownDrepPubKey`,
+`ownDrepPubKeyHash`, `ownRegisteredPubStakeKeys`, `ownUnregisteredPubStakeKeys`.
+These new functions can be imported from `Contract.Wallet`.
+**WARNING**: KeyWallet does not distinguish between registered and unregistered
+stake keys due to the limitations of the underlying query layer. This means that
+all controlled stake keys are returned as part of `ownUnregisteredPubStakeKeys`,
+and the response of `ownRegisteredPubStakeKeys` is always an empty array.
+([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
+
+- New examples demonstrating various interactions with the Cardano governance
+system: `Gov.DelegateVoteAbstain`, `Gov.ManageDrep`, `Gov.ManageDrepScript`,
+`Gov.SubmitVote`, `Gov.SubmitVoteScript`.
+([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
+
+### Changed
+
+- `signData` for KeyWallet: Previously, the supplied address was discarded,
+and the wallet's address was used as part of the COSE `Sig_structure`. Now,
+the provided address is inspected, and the keys associated with that address
+are used. Additionally, KeyWallet now supports signing with the DRep key as
+specified in CIP-95. Keep in mind that if the wallet does not have the required
+keys, an error will be thrown.
+([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
+
+### Removed
+
+- Constructors for individual wallets (like Nami or Eternl) from `WalletSpec`.
+Use `ConnectToGenericCip30` with the right wallet identifier instead. To obtain
+the identifier of a known wallet, refer to `KnownWallet` and `walletName` from
+`Contract.Config`.
+([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
+
+### Fixed
+
+- `getRewardAddresses` for KeyWallet now returns actual reward addresses
+without the payment part.
+([#1638](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1638))
+
+## [v9.1.0]
+
+This version provides basic Conway support and replaces Plutip with `cardano-testnet`.
+
+- `cardano-node`: 9.1.0
+- `ogmios`: 6.5.0
+- `kupo`: 2.9.0
+- `@mlabs-haskell/cardano-serialization-lib-gc`: `12.0.0-alpha.31` (wraps the same version of [CSL](https://github.com/Emurgo/cardano-serialization-lib/))
+- `@mlabs-haskell/uplc-apply-args`: `1.0.29-alpha` (wraps the same version of the [`uplc` crate](https://github.com/aiken-lang/aiken/tree/main/crates/uplc))
+
+### Added
+
+- `Contract.Transaction.getTxAuxiliaryData` for querying transaction data ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624)).
+
+### Changed
+
+- `Contract.Test.Plutip` is replaced with `Contract.Test.Testnet` that uses `cardano-testnet` instead of Plutip. As a result, we reduced the dependency footprint (`cardano-testnet` is distributed with `cardano-node`, so there are no internal Haskell components anymore in CTL) ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624))
+
+### Removed
+
+- `Contract.Transaction.getTxMetadata` - use `getTxAuxiliaryData` ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624))
+
+### Fixed
+
+- Non-deterministic `ClientHttpError` raised during tests on rare occasions ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624)).
+
+## [v9.0.0]
+
+### Deprecated
+
+> [!WARNING]
+> **IMPORTANT** Constraints interface (`Contract.TxConstraints` & `Contract.ScriptLookups`) has been deprecated and will be removed in a future version. Please use [`purescript-cardano-transaction-builder`](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder) (via `Contract.Transaction.buildTx`) for new contracts. The motivation for deprecation is that it was unnecessarily complex, not flexible enough, and existed only because of the desire to provide code-level compatibility with PAB. See [this Catalyst proposal](https://cardano.ideascale.com/c/idea/101478) for more info.
+
+### Added
+
+- `Contract.Transaction.buildTx :: Array TransactionBuilderStep -> Contract Transaction` that provides a `Contract`-based interface for the [new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
+- `Contract.Transaction.submitTxFromBuildPlan :: UtxoMap -> BalanceTxConstraintsBuilder -> Array TransactionBuilderStep -> Contract Transaction` - a convenience function that executes the whole transaction creation pipeline starting from a build plan for [the new transaction builder](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder).
+- `Contract.ClientError.pprintClientError` to provide readable error reports.
+- `Contract.Staking.getStakeCredentialDelegationsAndRewards` utility function
+
+### Removed
+
+- **IMPORTANT** `UnbalancedTx` type has been removed. This change was motivated by the fact that `UnbalancedTx` existed simply to tie together transaction building and balancing by keeping extra context. Now that transaction builder is placed in [its own package](https://github.com/mlabs-haskell/purescript-cardano-transaction-builder), there is no more need in `UnbalancedTx`, that is not used with the new builder.
+- **IMPORTANT** `balanceTxWithConstraints`, `balanceTxWithConstraintsE` - use `balanceTx`
+- **IMPORTANT** `balanceTxsWithConstraints` - use `balanceTxs`
+- **IMPORTANT** `withBalancedTxWithConstraints`, `withBalancedTxWithConstraints` - use `withBalancedTxs`
+- **IMPORTANT** `Contract.Scripts.applyArgs` - use `Cardano.Plutus.ApplyArgs.applyArgs` from [purescript-uplc-apply-args](https://github.com/mlabs-haskell/purescript-uplc-apply-args).
+- `Contract.Transaction.submitTxFromConstraintsReturningFee` - too niche use case to be allowed in the public API.
+- `Contract.Transaction` lens values. Use lenses from `Cardano.Types.Transaction`
+
+### Changed
+
+- Bumped Ogmios to version 6.0.3 ([#1626](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1626))
+- `Contract.Transaction.mkUnbalancedTx` now returns a tuple: a transaction and the UTxOs it used.
+- `Contract.Transaction.balanceTx` accepts two extra argument: a list of used UTxOs (set to `Data.Map.empty` if none of them are coming from the outside of the wallet) and balancer constraints (set to `mempty` if not needed)
+- Default synchronization parameters: all [wallet <-> query layer synchronization primitives](./doc/query-layers.md) are now off by default. The reason is that the runtime overhead made the users unhappy and it was not worth it for most of the users. If your dApp sends transactions in quick succession, consider enabling the synchronization again by using `softSynchronizationParams` (old behavior) or `strictSynchronizationParams`.
+- `BalanceTxConstraintsBuilder` has been renamed to `BalancerConstraints`. It is still available under the old name as a type synonym.
+
+### Fixed
+
+## [v8.0.0]
+
+In this version, we've refactored CTL and split it into multiple reusable sub-packages, most notably:
+
+- this package
+- `purescript-cardano-types` - (`Cardano.Types.*`) - domain types for Cardano ledger
+- `purescript-cardano-serialization-lib` - (`Cardano.Serialization.Lib.*`) - PureScript wrapper for CSL
+- `purescript-plutus-types` - (`Cardano.Plutus.*`) - Plutus-style domain types used only for `ToData`/`FromData` instances.
+
+See the [cardano-purescript repo](https://github.com/klntsky/cardano-purescript) for a complete list of new packages.
+
+These packages maintain their own public API, so the interfaces you should use are not necessarily namespaced under `Contract.*` anymore. E.g. `Cardano.Types.*` from `purescript-cardano-types` is public.
+
+Starting from this version, CTL does not use Plutus-domain types anymore. This change comes with some downsides (e.g. the need to provide NetworkId in `Address`es), but the benefit of not caring about conversions for basic functionality will hopefully be more noticeable. The only case when a conversion is needed is when the developer wants to use [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types), which is a package that offers `PlutusData` encodings compatible with Plutus. Its main purpose is to be used when there is a need to apply arguments to parametrized scripts.
+
+### Added
+
+- New purescript dependencies:
+  - [`purescript-bytearrays`](https://github.com/mlabs-haskell/purescript-bytearrays)
+  - [`purescript-cardano-hd-wallet`](https://github.com/mlabs-haskell/purescript-cardano-hd-wallet)
+  - [`purescript-cardano-message-signing`](https://github.com/mlabs-haskell/purescript-cardano-message-signing)
+  - [`purescript-cardano-plutus-data-schema`](https://github.com/mlabs-haskell/purescript-cardano-plutus-data-schema)
+  - [`purescript-cardano-serialization-lib`](https://github.com/mlabs-haskell/purescript-cardano-serialization-lib)
+  - [`purescript-cardano-types`](https://github.com/mlabs-haskell/purescript-cardano-types)
+- `Contract.Address.mkAddress` - a helper that automatically uses the correct `NetworkId` to construct an `Address`.
+- Sharing wallets between Plutip tests - see [the docs for this feature](./doc/plutip-testing.md#sharing-wallet-state-between-tests) ([#1585](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1585))
+  - `runPlutipTestPlan` is a new function that executes a `ContractTestPlan`.
+  - `sameWallets` is a new function that creates a `ContractTestPlan` from a `UtxoDistribution` and a `TestPlanM` of the same wallets running different `Contract`s.
+- new `onClusterStartup` hook that allows to get cluster startup parameters (private keys, `cardano-node` socket and config paths). See [`Test.Ctl.Plutip.Contract.ClusterParameters`](https://github.com/Plutonomicon/cardano-transaction-lib/blob/a5f9947/test/Plutip/Contract/ClusterParameters.purs). ([#1610](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1610))
+
 
 ### Changed
 
 - Replaced custom CIP-30 wrapper code with [`purescript-cip30-typesafe`](https://github.com/mlabs-haskell/purescript-cip30-typesafe/) - ([#1583](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1583))
+- Renamings for better conformity with CSL:
+  - `TokenName` renamed to `AssetName`
+  - `NonAdaAsset` renamed to `MultiAsset`
+  - `CurrencySymbol` renamed to `ScriptHash`
+- `Coin` now wraps BigNum instead of BigInt (in line with CSL)
+- `NoOutputDatum` variant has been removed from `OutputDatum`: instead, it was made optional via `Maybe` in `TransactionOutput`
+- `TransactionMetadatum` constructor naming change, in PS and in JSON encoding: `MetadataMap` -> `Map`, `MetadataList` -> `List`
+- `Contract.PlutusData.Redeemer` has been renamed to `RedeemerDatum` (to resolve naming conflict with `cardano-ledger`-style redeemer)
+- `Contract.PlutusData.Datum` has been deprecated, use `Cardano.Types.PlutusData`
+- `plutusScriptV1FromEnvelope`, `plutusScriptV2FromEnvelope` have been replaced with `plutusScriptFromEnvelope` (the script is tagged with its language anyway)
 
 ### Fixed
+- Plutip cluster's Kupo instances don't share the same working folder anymore - ([#1570](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1570))
+- WebAssembly memory leaks (`csl-gc-wrapper` used to depend on unstable `wasm-bidngen` API [that got changed](https://github.com/mlabs-haskell/csl-gc-wrapper/commit/2dea38228b77f7c904aafef12eece7e5af195977)) ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1595))
 
 ### Removed
 
+- **[IMPORTANT]** Removed use of conditional code rewriting based on `BROWSER_RUNTIME` env variable during bundling ([#1595](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1598)). This change simplifies the bundling process, but it requires a number of updates for all CTL-dependent projects:
+
+   * WebPack users should make this change to the webpack config:
+   ```diff
+       plugins: [
+   -      new webpack.DefinePlugin({
+   -        BROWSER_RUNTIME: isBrowser
+   -      }),
+   ```
+   * Esbuild users should make this change:
+   ```diff
+   const config = {
+     ...
+   -    define: {
+   -      BROWSER_RUNTIME: isBrowser ? "true" : '""'
+   -    },
+   ```
+   * All users should update the runtime dependencies:
+   ```diff
+   -    "@emurgo/cardano-message-signing-browser": "1.0.1",
+   -    "@emurgo/cardano-message-signing-nodejs": "1.0.1",
+   +    "@mlabs-haskell/cardano-message-signing": "1.0.1",
+   -    "apply-args-browser": "0.0.1",
+   -    "apply-args-nodejs": "0.0.1",
+   +    "@mlabs-haskell/uplc-apply-args": "1.0.0",
+   +    "isomorphic-ws": "^5.0.0",
+   -    "ws": "8.4.0",
+   +    "ws": "^8.16.0",
+   +    "web-encoding": "^1.1.5",
+   ```
+- NPM runtime dependencies:
+
+```diff
+     "bip39": "^3.1.0",
+-    "blakejs": "1.2.1",
+     "bufferutil": "4.0.5",
+-    "jssha": "3.2.0",
+     "puppeteer-core": "^15.3.2",
+     "reconnecting-webs
+```
+
+- `Contract.Address` utilities to work with `Address` - use `mkAddress` and machinery from `Cardano.Types.Address`
+- `Contract.RewardAddress` - use `Cardano.Types.RewardAddress`
+- `Contract.Transaction`:
+  - Removed newtypes for `Transaction`:
+     - `BalancedSignedTransaction`
+     - `FinalizedTransaction`
+- `Contract.Scripts`:
+  - `MintingPolicy` type. It was not used anywhere except of `mintingPolicy` lookup. Use `plutusMintingPolicy` and `nativeMintingPolicy` lookups instead.
+- `Contract.ScriptLookups`:
+  - synonyms for lookup functions that use `Maybe` have been removed: `mintingPolicyM`, `ownPaymentPubKeyHashM`, `ownStakePubKeyHashM`, `unspentOutputsM`, `validatorM`
+- `Contract.Credential` renamings:
+  - `PubKeyCredential` -> `PubKeyHashCredential`
+  - `ScriptCredential` -> `ScriptHashCredential`
 - `ModifyTx` error: made conversion functions total and removed the need to handle it
+- `Contract.CborBytes` utils:
+  - `cborBytesToByteArray`
+  - `cborBytesFromByteArray`
+  - `cborBytesFromAscii`
+  - `cborBytesToIntArray`
+  - `cborBytesFromIntArray`
+  - `cborBytesFromIntArrayUnsafe`
+  - `cborBytesToHex`
+  - `cborByteLength`
+  - `hexToCborBytes`
+  - `hexToCborBytesUnsafe`
+  - `rawBytesAsCborBytes`
+- `ToData`/`FromData` Instances for `purescript-noble-secp256k1` types (PS does not allow orphans)
+- `ToMetadata`/`FromMetadata` instance for `BigInt`: it was partial and unsafe
+- `Cardano.Types.BigNum.toInt'` method
+- `Contract.Address`:
+   - `scriptHashAddress` - use `Contract.Address.mkAddress`
+   - `payPubKeyHashBaseAddress` - use `Contract.Address.mkAddress`
+   - `payPubKeyHashEnterpriseAddress` - use `Contract.Address.mkAddress`
+- `Contract.Value`:
+   - `flattenNonAdaAssets` - use `Cardano.Types.Value.flatten`.
+- `Contract.PlutusData`:
+   - `Datum`: removed, use `Cardano.Types.PlutusData`
+   - `unitDatum`
+- `Contract.TextEnvelope`:
+   - `plutusScriptV1FromEnvelope` - use `plutusScriptFromEnvelope`
+- `Contract.Hashing`
+- `Contract.Transaction`:
+   - `TransactionOutputWithRefScript` - use `Cardano.Types.TransactionOutput`. It comes with refscript included.
+   - `getTxFinalFee`
+- `Contract.Numeric.NatRatio` - the module was not used in the library.
+- `Contract.AssocMap` - use `Cardano.Plutus.Types.Map` from [`purescript-plutus-types`](https://github.com/mlabs-haskell/purescript-plutus-types)
+- CIP-25 metadata machinery (we need to keep the API surface thin for CTL)
 
 ## [v7.0.0]
 
@@ -340,7 +585,7 @@ Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuil
 
 ### Added
 
-- Support passing the inital UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
+- Support passing the initial UTxO distribution as an Array and also get the KeyWallets as an Array when writing Plutip tests. ([#1018](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1018)). An usage example can be found [here](doc/plutip-testing.md).
 - New `Contract.Test.Utils` assertions and checks: `assertOutputHasRefScript`, `checkOutputHasRefScript`, `checkTxHasMetadata` ([#1044](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1044))
 - `Parallel` instance to `Contract` monad. Parallel capabilities are in the associated `ParContract` datatype ([#1037](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1037))
 - Balancer constraints interface (check [Building and submitting transactions](https://github.com/Plutonomicon/cardano-transaction-lib/blob/95bdd213eff16a5e00df82fb27bbe2479e8b4196/doc/getting-started.md#building-and-submitting-transactions) and `examples/BalanceTxConstraints.purs` for reference) ([#1053](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1053))
@@ -392,7 +637,7 @@ Then consult with [the template's build scripts](./templates/ctl-scaffold/esbuil
 - Adapted Gero wallet extension to `preview` network in E2E test suite ([#1086](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1086))
 - `Contact.TextEnvelope` how provides more type safe interface with simplified error handling ([#988](https://github.com/Plutonomicon/cardano-transaction-lib/issues/988))
 - Forbid minting zero tokens. ([#1156](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156))
-- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Adress)`. ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
+- Modified functions `getWalletAddress`, `ownPubKeyHash`, `ownStakePubKeyHash`, `getWalletAddressWithNetworkTag` and `ownPaymentPubKeyHash` to return `Contract r (Array Address)`. ([#1045](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1045))
 - `pubKeyHashAddress` and `scriptHashAddress` now both accept an optional `Credential` that corresponds to the staking component of the address ([#1060](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1060))
 - `utxosAt` and `getUtxo` now use Kupo internally, `utxosAt` returns `UtxoMap` without `Maybe` context. The users will need to set `kupoConfig` in `ConfigParams`. ([#1185](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1185))
 - `Interval` type is redesigned to restrain some finite intervals to be expressed in the system ([#1041](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1041))

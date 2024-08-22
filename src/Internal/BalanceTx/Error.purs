@@ -16,6 +16,7 @@ module Ctl.Internal.BalanceTx.Error
       , ReindexRedeemersError
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
+      , NumericOverflowError
       )
   , Expected(Expected)
   , printTxEvaluationFailure
@@ -24,20 +25,21 @@ module Ctl.Internal.BalanceTx.Error
 
 import Prelude
 
-import Ctl.Internal.BalanceTx.RedeemerIndex (UnindexedRedeemer)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Redeemer(Redeemer)
+import Cardano.AsCbor (encodeCbor)
+import Cardano.Transaction.Edit (DetachedRedeemer)
+import Cardano.Types
+  ( Coin
+  , Redeemer(Redeemer)
   , Transaction
-  , TransactionOutput
-  , UtxoMap
   , _redeemers
   , _witnessSet
-  , pprintUtxoMap
   )
-import Ctl.Internal.Cardano.Types.Value (pprintValue)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.TransactionInput (TransactionInput(TransactionInput))
+import Cardano.Types.TransactionOutput (TransactionOutput)
+import Cardano.Types.UtxoMap (UtxoMap, pprintUtxoMap)
+import Cardano.Types.Value (Value)
 import Ctl.Internal.Helpers (bugTrackerLink, pprintTagSet)
-import Ctl.Internal.Plutus.Conversion.Value (fromPlutusValue)
-import Ctl.Internal.Plutus.Types.Value (Value)
 import Ctl.Internal.QueryM.Ogmios
   ( RedeemerPointer
   , ScriptFailure
@@ -53,18 +55,18 @@ import Ctl.Internal.QueryM.Ogmios
       )
   , TxEvaluationFailure(UnparsedError, AdditionalUtxoOverlap, ScriptFailures)
   ) as Ogmios
-import Ctl.Internal.Types.Natural (toBigInt) as Natural
-import Ctl.Internal.Types.ProtocolParameters (CoinsPerUtxoUnit)
-import Ctl.Internal.Types.Transaction (TransactionInput)
+import Ctl.Internal.Types.Val (Val, pprintVal)
 import Data.Array (catMaybes, filter, uncons) as Array
 import Data.Bifunctor (bimap)
+import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either(Left, Right), either, isLeft)
-import Data.Foldable (find, foldMap, foldl, length)
+import Data.Foldable (find, fold, foldMap, foldl, length)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Function (applyN)
 import Data.Generic.Rep (class Generic)
 import Data.Int (ceil, decimal, toNumber, toStringAs)
-import Data.Lens (non, (^.))
+import Data.Lens ((^.))
+import Data.Log.Tag (TagSet, tag)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
@@ -72,22 +74,24 @@ import Data.String (Pattern(Pattern))
 import Data.String.CodePoints (length) as String
 import Data.String.Common (joinWith, split) as String
 import Data.String.Utils (padEnd)
-import JS.BigInt (toString) as BigInt
+import Data.UInt as UInt
+import JS.BigInt as BigInt
 
 -- | Errors conditions that may possibly arise during transaction balancing
 data BalanceTxError
-  = BalanceInsufficientError Expected Actual
+  = BalanceInsufficientError Val Val
   | CouldNotConvertScriptOutputToTxInput
   | CouldNotGetCollateral
   | InsufficientCollateralUtxos UtxoMap
   | CouldNotGetUtxos
   | CollateralReturnError
-  | CollateralReturnMinAdaValueCalcError CoinsPerUtxoUnit TransactionOutput
+  | CollateralReturnMinAdaValueCalcError Coin TransactionOutput
   | ExUnitsEvaluationFailed Transaction Ogmios.TxEvaluationFailure
   | InsufficientUtxoBalanceToCoverAsset String
-  | ReindexRedeemersError UnindexedRedeemer
-  | UtxoLookupFailedFor TransactionInput
+  | ReindexRedeemersError DetachedRedeemer
+  | UtxoLookupFailedFor TransactionInput UtxoMap
   | UtxoMinAdaValueCalculationFailed
+  | NumericOverflowError (Maybe Val)
 
 derive instance Generic BalanceTxError _
 
@@ -97,9 +101,9 @@ instance Show BalanceTxError where
 explainBalanceTxError :: BalanceTxError -> String
 explainBalanceTxError = case _ of
   BalanceInsufficientError expected actual ->
-    "Insufficient balance. " <> prettyValue "Expected" (unwrap expected)
+    "Insufficient balance. " <> prettyVal "Expected" expected
       <> ", "
-      <> prettyValue "actual" (unwrap actual)
+      <> prettyVal "Actual" actual
   InsufficientCollateralUtxos utxos ->
     "Could not cover collateral requirements. " <>
       pprintTagSet "UTxOs for collateral selection:" (pprintUtxoMap utxos)
@@ -118,8 +122,11 @@ explainBalanceTxError = case _ of
       <> show coinsPerUtxoUnit
       <> "\nTransaction output: "
       <> show txOut
-  ExUnitsEvaluationFailed _ _ ->
-    "Script evaluation failure while trying to estimate ExUnits"
+  ExUnitsEvaluationFailed tx err ->
+    "Script evaluation failure while trying to estimate ExUnits. Tx: "
+      <> show tx
+      <> ", error: "
+      <> show err
   InsufficientUtxoBalanceToCoverAsset asset ->
     "Insufficient UTxO balance to cover asset named "
       <> asset
@@ -130,17 +137,26 @@ explainBalanceTxError = case _ of
       <> show uir
       <> "\nThis should be impossible: please report this as a bug to "
       <> bugTrackerLink
-  UtxoLookupFailedFor ti ->
-    "Could not look up UTxO for "
-      <> show ti
-      <> " from a given set of UTxOs.\n"
-      <> "This should be impossible: please report this as a bug to "
-      <> bugTrackerLink
+  UtxoLookupFailedFor ti mp ->
+    "Could not look up UTxO "
+      <> pprintTagSet "for" (pprintTransactionInput ti)
+      <> " from a "
+      <> pprintTagSet "given set of UTxOs:" (pprintUtxoMap mp)
   UtxoMinAdaValueCalculationFailed ->
     "Could not calculate min ADA for UTxO"
+  NumericOverflowError mbVal ->
+    "Could not compute output value due to numeric overflow. Decrease the quantity of assets. "
+      <> fold (prettyVal "Value:" <$> mbVal)
   where
-  prettyValue :: String -> Value -> String
-  prettyValue str = fromPlutusValue >>> pprintValue >>> pprintTagSet str
+  prettyVal :: String -> Val -> String
+  prettyVal str = pprintVal >>> pprintTagSet str
+
+  pprintTransactionInput :: TransactionInput -> TagSet
+  pprintTransactionInput (TransactionInput { transactionId, index }) =
+    "TransactionInput" `tag`
+      ( byteArrayToHex (unwrap (encodeCbor transactionId)) <> "#" <>
+          show (UInt.toInt index)
+      )
 
 newtype Actual = Actual Value
 
@@ -190,10 +206,10 @@ number ary = freeze (foldl go [] ary)
   biggestPrefix :: String
   biggestPrefix = toStringAs decimal (length (Array.filter isLeft ary)) <> ". "
 
-  width :: Int
+  width :: Prim.Int
   width = ceil (toNumber (String.length biggestPrefix) / 2.0) * 2
 
-  numberLine :: Int -> String -> String
+  numberLine :: Prim.Int -> String -> String
   numberLine i l = padEnd width (toStringAs decimal (i + 1) <> ". ") <> l
 
   indentLine :: String -> String
@@ -218,15 +234,15 @@ printTxEvaluationFailure transaction e =
   lookupRedeemerPointer
     :: Ogmios.RedeemerPointer -> Maybe Redeemer
   lookupRedeemerPointer ptr =
-    flip find (transaction ^. _witnessSet <<< _redeemers <<< non [])
+    flip find (transaction ^. _witnessSet <<< _redeemers)
       $ \(Redeemer { index, tag }) -> tag == ptr.redeemerTag && index ==
-          Natural.toBigInt ptr.redeemerIndex
+          (BigNum.fromInt $ UInt.toInt ptr.redeemerIndex)
 
   printRedeemerPointer :: Ogmios.RedeemerPointer -> PrettyString
   printRedeemerPointer ptr =
     line
       ( show ptr.redeemerTag <> ":" <> BigInt.toString
-          (Natural.toBigInt ptr.redeemerIndex)
+          (BigInt.fromInt $ UInt.toInt ptr.redeemerIndex)
       )
 
   -- TODO Investigate if more details can be printed, for example minting
@@ -279,8 +295,8 @@ printTxEvaluationFailure transaction e =
     Ogmios.IllFormedExecutionBudget (Just { memory, steps }) ->
       line "Ill formed execution budget:"
         <> bullet
-          ( line ("Memory: " <> BigInt.toString (Natural.toBigInt memory))
-              <> line ("Steps: " <> BigInt.toString (Natural.toBigInt steps))
+          ( line ("Memory: " <> BigNum.toString memory)
+              <> line ("Steps: " <> BigNum.toString steps)
           )
     Ogmios.NoCostModelForLanguage languages ->
       line "No cost model for languages:"

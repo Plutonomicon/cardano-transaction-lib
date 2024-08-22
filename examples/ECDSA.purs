@@ -2,13 +2,30 @@ module Ctl.Examples.ECDSA (contract) where
 
 import Contract.Prelude
 
-import Contract.Address (getNetworkId, validatorHashEnterpriseAddress)
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, Pay)
+  )
+import Cardano.Types
+  ( OutputDatum(OutputDatumHash)
+  , TransactionOutput(TransactionOutput)
+  )
+import Cardano.Types.Credential (Credential(ScriptHashCredential))
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (_input, fromUtxoMap, toUtxoMap)
+import Contract.Address (mkAddress)
 import Contract.Crypto.Secp256k1.ECDSA
   ( ECDSAPublicKey
   , ECDSASignature
   , MessageHash
   , deriveEcdsaSecp256k1PublicKey
   , signEcdsaSecp256k1
+  , unECDSAPublicKey
+  , unMessageHash
   )
 import Contract.Crypto.Secp256k1.Utils
   ( hashMessageSha256
@@ -20,24 +37,23 @@ import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( class ToData
   , PlutusData(Constr)
-  , Redeemer(Redeemer)
+  , RedeemerDatum(RedeemerDatum)
   , toData
-  , unitDatum
   )
 import Contract.Prim.ByteArray (byteArrayFromIntArrayUnsafe)
-import Contract.ScriptLookups as Lookups
 import Contract.Scripts (Validator, validatorHash)
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
+import Data.Array as Array
+import Data.Lens (view)
 import Data.Map as Map
-import Data.Set as Set
+import Noble.Secp256k1.ECDSA (unECDSASignature)
 
 newtype ECDSARedemeer = ECDSARedemeer
   { msg :: MessageHash
@@ -50,7 +66,10 @@ derive instance Newtype ECDSARedemeer _
 
 instance ToData ECDSARedemeer where
   toData (ECDSARedemeer { msg, sig, pk }) = Constr BigNum.zero
-    [ toData msg, toData sig, toData pk ]
+    [ toData $ unMessageHash msg
+    , toData $ unECDSASignature sig
+    , toData $ unECDSAPublicKey pk
+    ]
 
 contract :: Contract Unit
 contract = do
@@ -59,54 +78,54 @@ contract = do
 -- | Prepare the ECDSA test by locking some funds at the validator address
 prepTest :: Contract TransactionHash
 prepTest = do
-  validator <- liftContractM "Caonnot get validator" getValidator
+  validator <- liftContractM "Cannot get validator" getValidator
   let
     valHash = validatorHash validator
-
-    val = Value.lovelaceValueOf one
-
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustPayToScript valHash unitDatum
-      Constraints.DatumInline
-      val
-  txId <- submitTxFromConstraints lookups constraints
+    val = Value.lovelaceValueOf BigNum.one
+  scriptAddress <- mkAddress
+    (wrap $ ScriptHashCredential valHash)
+    Nothing
+  tx <- submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: val
+        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
+  let txId = Transaction.hash tx
   logInfo' $ "Submitted ECDSA test preparation tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
-
   pure txId
 
 -- | Attempt to unlock one utxo using an ECDSA signature
 testVerification
   :: TransactionHash -> ECDSARedemeer -> Contract TransactionHash
 testVerification txId ecdsaRed = do
-  let red = Redeemer $ toData ecdsaRed
+  let redeemer = RedeemerDatum $ toData ecdsaRed
 
   validator <- liftContractM "Can't get validator" getValidator
   let valHash = validatorHash validator
 
-  netId <- getNetworkId
-  valAddr <- liftContractM "cannot get validator address"
-    (validatorHashEnterpriseAddress netId valHash)
+  valAddr <- mkAddress (wrap $ ScriptHashCredential valHash) Nothing
 
   scriptUtxos <- utxosAt valAddr
-  txIn <- liftContractM "No UTxOs found at validator address"
-    $ Set.toUnfoldable
-    $ Set.filter (unwrap >>> _.transactionId >>> eq txId)
-    $ Map.keys scriptUtxos
+  utxo <- liftContractM "No UTxOs found at validator address"
+    $ Array.head
+    $ Array.filter (view _input >>> unwrap >>> _.transactionId >>> eq txId)
+    $ fromUtxoMap scriptUtxos
 
-  let
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs
-        (Map.filterKeys ((unwrap >>> _.transactionId >>> eq txId)) scriptUtxos)
-
-    constraints :: Constraints.TxConstraints
-    constraints = Constraints.mustSpendScriptOutput txIn red
-  txId' <- submitTxFromConstraints lookups constraints
+  tx <- submitTxFromBuildPlan (toUtxoMap [ utxo ]) mempty
+    [ SpendOutput utxo $ Just
+        $ PlutusScriptOutput
+            (ScriptValue validator)
+            redeemer
+        $ Just
+        $ DatumValue
+        $ PlutusData.unit
+    ]
+  let txId' = Transaction.hash tx
   logInfo' $ "Submitted ECDSA test verification tx: " <> show txId'
   awaitTxConfirmed txId'
   logInfo' $ "Transaction confirmed: " <> show txId'
@@ -130,7 +149,7 @@ testECDSA txId = do
 
 getValidator :: Maybe Validator
 getValidator =
-  decodeTextEnvelope validateECDSA >>= plutusScriptV2FromEnvelope >>> map wrap
+  decodeTextEnvelope validateECDSA >>= plutusScriptFromEnvelope
 
 validateECDSA :: String
 validateECDSA =

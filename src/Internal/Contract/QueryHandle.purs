@@ -6,12 +6,13 @@ module Ctl.Internal.Contract.QueryHandle
 
 import Prelude
 
+import Cardano.AsCbor (encodeCbor)
+import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
 import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend, CtlBackend)
 import Ctl.Internal.Contract.QueryHandle.Type (QueryHandle)
-import Ctl.Internal.Hashing (transactionHash) as Hashing
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
@@ -21,7 +22,7 @@ import Ctl.Internal.QueryM.Kupo
   ( getDatumByHash
   , getOutputAddressesByTxHash
   , getScriptByHash
-  , getTxMetadata
+  , getTxAuxiliaryData
   , getUtxoByOref
   , isTxConfirmed
   , utxosAt
@@ -32,7 +33,6 @@ import Ctl.Internal.QueryM.Pools
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   ) as QueryM
-import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
 import Ctl.Internal.Service.Blockfrost
   ( BlockfrostServiceM
   , runBlockfrostServiceM
@@ -41,9 +41,8 @@ import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Ctl.Internal.Service.Error (ClientError(ClientOtherError))
 import Data.Either (Either(Left, Right))
 import Data.Maybe (fromMaybe, isJust)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (wrap)
 import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
 import Effect.Exception (error)
 
 queryHandleForCtlBackend
@@ -58,22 +57,25 @@ queryHandleForCtlBackend runQueryM params backend =
   , getUtxoByOref: runQueryM' <<< Kupo.getUtxoByOref
   , getOutputAddressesByTxHash: runQueryM' <<< Kupo.getOutputAddressesByTxHash
   , doesTxExist: runQueryM' <<< map (map isJust) <<< Kupo.isTxConfirmed
-  , getTxMetadata: runQueryM' <<< Kupo.getTxMetadata
+  , getTxAuxiliaryData: runQueryM' <<< Kupo.getTxAuxiliaryData
   , utxosAt: runQueryM' <<< Kupo.utxosAt
   , getChainTip: Right <$> runQueryM' QueryM.getChainTip
   , getCurrentEpoch: runQueryM' QueryM.getCurrentEpoch
   , submitTx: \tx -> runQueryM' do
-      cslTx <- liftEffect $ Serialization.convertTransaction tx
-      let txHash = Hashing.transactionHash cslTx
+      let txHash = Transaction.hash tx
       logDebug' $ "Pre-calculated tx hash: " <> show txHash
-      let txCborBytes = Serialization.toBytes cslTx
-      result <- QueryM.submitTxOgmios (unwrap txHash) txCborBytes
-      case result of
-        SubmitTxSuccess a -> pure $ pure $ wrap a
-        SubmitFail err -> pure $ Left $ ClientOtherError $ show err
+      let txCborBytes = encodeCbor tx
+      result <- QueryM.submitTxOgmios txHash txCborBytes
+      pure $ case result of
+        SubmitTxSuccess th -> do
+          if th == txHash then Right th
+          else Left
+            ( ClientOtherError
+                "Computed TransactionHash is not equal to the one returned by Ogmios, please report as bug!"
+            )
+        SubmitFail err -> Left $ ClientOtherError $ show err
   , evaluateTx: \tx additionalUtxos -> runQueryM' do
-      txBytes <- Serialization.toBytes <$> liftEffect
-        (Serialization.convertTransaction tx)
+      let txBytes = encodeCbor tx
       QueryM.evaluateTxOgmios txBytes additionalUtxos
   , getEraSummaries: Right <$> runQueryM' QueryM.getEraSummaries
   , getPoolIds: Right <$> runQueryM' QueryM.getPoolIds
@@ -82,7 +84,7 @@ queryHandleForCtlBackend runQueryM params backend =
         (QueryM.getPubKeyHashDelegationsAndRewards pubKeyHash)
   , getValidatorHashDelegationsAndRewards: \_ validatorHash ->
       Right <$> runQueryM'
-        (QueryM.getValidatorHashDelegationsAndRewards validatorHash)
+        (QueryM.getValidatorHashDelegationsAndRewards $ wrap validatorHash)
   }
 
   where
@@ -98,7 +100,7 @@ queryHandleForBlockfrostBackend logParams backend =
   , getOutputAddressesByTxHash: runBlockfrostServiceM' <<<
       Blockfrost.getOutputAddressesByTxHash
   , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
-  , getTxMetadata: runBlockfrostServiceM' <<< Blockfrost.getTxMetadata
+  , getTxAuxiliaryData: runBlockfrostServiceM' <<< Blockfrost.getTxAuxiliaryData
   , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
   , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
   , getCurrentEpoch:
@@ -118,7 +120,7 @@ queryHandleForBlockfrostBackend logParams backend =
   , getValidatorHashDelegationsAndRewards: \networkId stakeValidatorHash ->
       runBlockfrostServiceM'
         ( Blockfrost.getValidatorHashDelegationsAndRewards networkId
-            stakeValidatorHash
+            (wrap stakeValidatorHash)
         )
   }
   where

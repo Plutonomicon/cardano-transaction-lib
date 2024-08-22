@@ -6,7 +6,9 @@ module Ctl.Internal.NativeScripts
 
 import Prelude
 
-import Ctl.Internal.Cardano.Types.NativeScript
+import Cardano.Serialization.Lib (nativeScript_hash)
+import Cardano.Types (Ed25519KeyHash, ScriptHash)
+import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptPubkey
       , ScriptAll
@@ -16,9 +18,7 @@ import Ctl.Internal.Cardano.Types.NativeScript
       , TimelockExpiry
       )
   )
-import Ctl.Internal.Serialization.Hash (Ed25519KeyHash, ScriptHash)
-import Ctl.Internal.Serialization.Hash as Hashing
-import Ctl.Internal.Serialization.NativeScript (convertNativeScript)
+import Cardano.Types.NativeScript as NativeScript
 import Data.Array as Array
 import Data.Foldable (foldr, maximumBy)
 import Data.Function (on)
@@ -39,7 +39,7 @@ instance Show NativeScriptHash where
   show (NativeScriptHash sh) = "(NativeScriptHash " <> show sh <> ")"
 
 nativeScriptHash :: NativeScript -> NativeScriptHash
-nativeScriptHash = wrap <<< Hashing.nativeScriptHash <<< convertNativeScript
+nativeScriptHash = wrap <<< wrap <<< nativeScript_hash <<< NativeScript.toCsl
 
 -- | `SetChoice` is an internal type representing internal state of
 -- | `getMaximumSigners` algorithm.
@@ -68,9 +68,9 @@ sublists n xs = List.take (List.length xs - n + 1) $ sublists' n xs
 -- | Used for fee calculation.
 -- | We try to calculate maximum number of signers from the script itself,
 -- | following its logic.
--- | But we must not count `requiredSigners` as signers from native scripts
--- | twice, because that would lead to excessive fees. Hence we accept a set
--- | of already known signers to be ignored in this function.
+-- | But we must not count `requiredSigners` and `selfSigners` as signers from
+-- | native scripts twice, because that would lead to excessive fees. Hence we
+-- | accept a set of already known signers to be ignored in this function.
 getMaximumSigners :: Set Ed25519KeyHash -> NativeScript -> Int
 getMaximumSigners alreadyCounted =
   sizes >>> maximumBy (compare `on` Set.size) >>> map Set.size >>> fromMaybe 0

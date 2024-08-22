@@ -4,16 +4,16 @@ module Contract.Backend.Ogmios
   , submitTxE
   ) where
 
-import Contract.Prelude
+import Prelude
 
+import Cardano.Types (PoolParams, PoolPubKeyHash)
+import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
-import Contract.Transaction (PoolPubKeyHash)
-import Ctl.Internal.Cardano.Types.Transaction (PoolRegistrationParams)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
 import Ctl.Internal.QueryM (submitTxOgmios) as QueryM
-import Ctl.Internal.QueryM.Ogmios (SubmitTxR, TxHash)
+import Ctl.Internal.QueryM.Ogmios (SubmitTxR)
 import Ctl.Internal.QueryM.Pools (getPoolParameters) as QueryM
-import Ctl.Internal.Types.CborBytes (CborBytes)
 
 -- | **This function can only run with Ogmios backend**
 -- |
@@ -21,9 +21,9 @@ import Ctl.Internal.Types.CborBytes (CborBytes)
 -- | https://github.com/blockfrost/blockfrost-backend-ryo/issues/82
 getPoolParameters
   :: PoolPubKeyHash
-  -> Contract PoolRegistrationParams
+  -> Contract PoolParams
 getPoolParameters = wrapQueryM <<< QueryM.getPoolParameters
 
 -- | Error returning variant
-submitTxE :: TxHash -> CborBytes -> Contract SubmitTxR
+submitTxE :: TransactionHash -> CborBytes -> Contract SubmitTxR
 submitTxE txhash cbor = wrapQueryM $ QueryM.submitTxOgmios txhash cbor

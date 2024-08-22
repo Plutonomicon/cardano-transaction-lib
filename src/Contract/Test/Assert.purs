@@ -65,45 +65,46 @@ module Contract.Test.Assert
 
 import Prelude
 
-import Contract.Address (Address)
-import Contract.Monad (Contract)
-import Contract.PlutusData (OutputDatum)
-import Contract.Prelude (Effect)
-import Contract.Transaction
-  ( ScriptRef
+import Cardano.FromMetadata (fromMetadata)
+import Cardano.Serialization.Lib (toBytes)
+import Cardano.Types
+  ( Address
+  , Asset(Asset)
+  , AssetName
+  , ExUnits(ExUnits)
+  , OutputDatum
+  , ScriptHash
+  , ScriptRef
+  , Transaction
   , TransactionHash
-  , TransactionOutputWithRefScript
-  , getTxMetadata
+  , TransactionOutput
+  , Value
+  , _amount
+  , _datum
+  , _redeemers
+  , _scriptRef
+  , _witnessSet
   )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Value as Value
+import Contract.Monad (Contract)
+import Contract.Prelude (Effect)
+import Contract.Transaction (getTxAuxiliaryData)
 import Contract.Utxos (utxosAt)
-import Contract.Value (CurrencySymbol, TokenName, Value, valueOf, valueToCoin')
 import Contract.Wallet (getWalletBalance, getWalletUtxos)
 import Control.Monad.Error.Class (liftEither, throwError)
 import Control.Monad.Error.Class as E
 import Control.Monad.Reader (ReaderT, ask, local, mapReaderT, runReaderT)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( ExUnits
-  , Transaction
-  , _redeemers
-  , _witnessSet
-  )
 import Ctl.Internal.Contract.Monad (ContractEnv)
-import Ctl.Internal.Metadata.FromMetadata (fromMetadata)
 import Ctl.Internal.Metadata.MetadataType (class MetadataType, metadataLabel)
-import Ctl.Internal.Plutus.Types.Transaction
-  ( _amount
-  , _datum
-  , _output
-  , _scriptRef
-  )
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
 import Data.Array (foldr)
 import Data.Array (fromFoldable, length, mapWithIndex, partition) as Array
+import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either, either, hush)
-import Data.Foldable (fold, foldMap, null, sum)
+import Data.Foldable (fold, foldMap, null)
 import Data.Generic.Rep (class Generic)
-import Data.Lens (non, to, traversed, view, (%~), (^.), (^..))
+import Data.Lens (to, view, (%~), (^.))
 import Data.Lens.Record (prop)
 import Data.List (List(Cons, Nil))
 import Data.Map (empty, filterKeys, lookup, values) as Map
@@ -118,6 +119,7 @@ import Effect.Exception (Error, error, message, throw, try)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import JS.BigInt (BigInt)
+import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy(Proxy))
 
 -- | Monad allowing for accumulation of assertion failures.
@@ -132,13 +134,13 @@ data ContractAssertionFailure
   = CouldNotGetTxByHash TransactionHash
   | CouldNotParseMetadata Label
   | TransactionHasNoMetadata TransactionHash (Maybe Label)
-  | UnexpectedDatumInOutput (Labeled TransactionOutputWithRefScript)
-      (ExpectedActual OutputDatum)
+  | UnexpectedDatumInOutput (Labeled TransactionOutput)
+      (ExpectedActual (Maybe OutputDatum))
   | UnexpectedLovelaceDelta (Maybe (Labeled Address)) (ExpectedActual BigInt)
   | UnexpectedMetadataValue Label (ExpectedActual String)
-  | UnexpectedRefScriptInOutput (Labeled TransactionOutputWithRefScript)
+  | UnexpectedRefScriptInOutput (Labeled TransactionOutput)
       (ExpectedActual (Maybe ScriptRef))
-  | UnexpectedTokenDelta (Maybe (Labeled Address)) TokenName
+  | UnexpectedTokenDelta (Maybe (Labeled Address)) AssetName
       (ExpectedActual BigInt)
   | FailedToGetExpectedValue String
   | MaxExUnitsExceeded (ExpectedActual ExUnits)
@@ -229,13 +231,21 @@ printContractAssertionFailure = case _ of
     "Error while trying to get expected value: " <> err
 
   MaxExUnitsExceeded expectedActual ->
-    "ExUnits limit exceeded: " <> printExpectedActual expectedActual
+    "ExUnits limit exceeded: " <> printExpectedActualWith printExUnits
+      expectedActual
 
   CustomFailure msg -> msg
   SkippedTest msg -> msg
 
 showTxHash :: TransactionHash -> String
-showTxHash = byteArrayToHex <<< unwrap
+showTxHash = byteArrayToHex <<< toBytes <<< unwrap
+
+printExUnits :: ExUnits -> String
+printExUnits (ExUnits { mem, steps }) =
+  "{ mem: " <> BigNum.toString mem
+    <> ", steps: "
+    <> BigNum.toString steps
+    <> " }"
 
 type Label = String
 
@@ -273,8 +283,15 @@ instance Show a => Show (ExpectedActual a) where
 derive instance Functor ExpectedActual
 
 printExpectedActual :: forall (a :: Type). Show a => ExpectedActual a -> String
-printExpectedActual (ExpectedActual expected actual) =
-  " Expected: " <> show expected <> ", Actual: " <> show actual <> " "
+printExpectedActual = printExpectedActualWith show
+
+printExpectedActualWith
+  :: forall (a :: Type)
+   . (a -> String)
+  -> ExpectedActual a
+  -> String
+printExpectedActualWith format (ExpectedActual expected actual) =
+  " Expected: " <> format expected <> ", Actual: " <> format actual <> " "
 
 --------------------------------------------------------------------------------
 -- Different types of assertions, Assertion composition, Basic functions
@@ -402,7 +419,7 @@ assertNewUtxosAtAddress
   :: forall (a :: Type)
    . Labeled Address
   -> TransactionHash
-  -> (Array TransactionOutputWithRefScript -> ContractAssertion a)
+  -> (Array TransactionOutput -> ContractAssertion a)
   -> ContractAssertion a
 assertNewUtxosAtAddress addr txHash check =
   lift (utxosAt $ unlabel addr) >>= \utxos ->
@@ -413,7 +430,7 @@ assertNewUtxosAtAddress addr txHash check =
 assertNewUtxosInWallet
   :: forall (a :: Type)
    . TransactionHash
-  -> (Array TransactionOutputWithRefScript -> ContractAssertion a)
+  -> (Array TransactionOutput -> ContractAssertion a)
   -> ContractAssertion a
 assertNewUtxosInWallet txHash check =
   lift getWalletUtxos >>= fromMaybe Map.empty >>> \utxos ->
@@ -432,18 +449,21 @@ checkExUnitsNotExceed
    . ExUnits
   -> ContractCheck a
 checkExUnitsNotExceed maxExUnits contract = do
-  (ref :: Ref ExUnits) <- liftEffect $ Ref.new { mem: zero, steps: zero }
+  (ref :: Ref ExUnits) <- liftEffect $ Ref.new $ ExUnits
+    { mem: BigNum.zero, steps: BigNum.zero }
   let
     submitHook :: Transaction -> Effect Unit
     submitHook tx = do
       let
-        (newExUnits :: ExUnits) = sum $ tx ^..
-          _witnessSet
-            <<< _redeemers
-            <<< non []
-            <<< traversed
-            <<< to (unwrap >>> _.exUnits)
-      Ref.modify_ (add newExUnits) ref
+        (newExUnits :: ExUnits) =
+          unsafePartial
+            $ foldr append (ExUnits { mem: BigNum.zero, steps: BigNum.zero })
+            $ tx
+                ^.
+                  _witnessSet
+                    <<< _redeemers
+                    <<< to (map (unwrap >>> _.exUnits))
+      Ref.modify_ (unsafePartial $ append newExUnits) ref
 
     setSubmitHook :: ContractEnv -> ContractEnv
     setSubmitHook =
@@ -459,7 +479,9 @@ checkExUnitsNotExceed maxExUnits contract = do
     finalize = do
       exUnits <- liftEffect $ Ref.read ref
       assertContract (MaxExUnitsExceeded (ExpectedActual maxExUnits exUnits))
-        (maxExUnits.mem >= exUnits.mem && maxExUnits.steps >= exUnits.steps)
+        ( (unwrap maxExUnits).mem >= (unwrap exUnits).mem &&
+            (unwrap maxExUnits).steps >= (unwrap exUnits).steps
+        )
 
   pure (mapReaderT (local setSubmitHook) contract /\ finalize)
 
@@ -505,7 +527,8 @@ checkLovelaceDeltaAtAddress addr getExpected comp contract = do
       \expected -> do
         let
           actual :: BigInt
-          actual = valueToCoin' valueAfter - valueToCoin' valueBefore
+          actual = BigNum.toBigInt (unwrap (Value.getCoin valueAfter)) -
+            BigNum.toBigInt (unwrap $ Value.getCoin valueBefore)
 
           unexpectedLovelaceDelta :: ContractAssertionFailure
           unexpectedLovelaceDelta =
@@ -556,7 +579,7 @@ checkLossAtAddress' addr minLoss =
 checkTokenDeltaAtAddress
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName)
+  -> (ScriptHash /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> (BigInt -> BigInt -> Boolean)
   -> ContractCheck a
@@ -570,7 +593,9 @@ checkTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
       \expected -> do
         let
           actual :: BigInt
-          actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
+          actual =
+            (BigNum.toBigInt $ Value.valueOf (Asset cs tn) valueAfter) -
+              (BigNum.toBigInt $ Value.valueOf (Asset cs tn) valueBefore)
 
           unexpectedTokenDelta :: ContractAssertionFailure
           unexpectedTokenDelta =
@@ -583,7 +608,7 @@ checkTokenDeltaAtAddress addr (cs /\ tn) getExpected comp contract =
 checkTokenGainAtAddress
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName)
+  -> (ScriptHash /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenGainAtAddress addr token getMinGain =
@@ -594,7 +619,7 @@ checkTokenGainAtAddress addr token getMinGain =
 checkTokenGainAtAddress'
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> (ScriptHash /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
   checkTokenGainAtAddress addr (cs /\ tn) (const $ pure minGain)
@@ -604,7 +629,7 @@ checkTokenGainAtAddress' addr (cs /\ tn /\ minGain) =
 checkTokenLossAtAddress
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName)
+  -> (ScriptHash /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenLossAtAddress addr token getMinLoss =
@@ -615,7 +640,7 @@ checkTokenLossAtAddress addr token getMinLoss =
 checkTokenLossAtAddress'
   :: forall (a :: Type)
    . Labeled Address
-  -> (CurrencySymbol /\ TokenName /\ BigInt)
+  -> (ScriptHash /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenLossAtAddress' addr (cs /\ tn /\ minLoss) =
   checkTokenLossAtAddress addr (cs /\ tn) (const $ pure minLoss)
@@ -629,11 +654,11 @@ checkValueDeltaInWallet
    . (Maybe a -> Value -> Value -> ContractAssertion Unit)
   -> ContractCheck a
 checkValueDeltaInWallet check contract = do
-  valueBefore <- lift $ getWalletBalance <#> fold
+  valueBefore <- lift $ unsafePartial $ getWalletBalance <#> fold
   ref <- liftEffect $ Ref.new Nothing
   let
     finalize = do
-      valueAfter <- lift $ getWalletBalance <#> fold
+      valueAfter <- unsafePartial $ lift $ getWalletBalance <#> fold
       liftEffect (Ref.read ref) >>= \res -> check res valueBefore valueAfter
     run = do
       res <- contract
@@ -656,7 +681,8 @@ checkLovelaceDeltaInWallet getExpected comp contract = do
       \expected -> do
         let
           actual :: BigInt
-          actual = valueToCoin' valueAfter - valueToCoin' valueBefore
+          actual = BigNum.toBigInt (unwrap (Value.getCoin valueAfter)) -
+            BigNum.toBigInt (unwrap (Value.getCoin valueBefore))
 
           unexpectedLovelaceDelta :: ContractAssertionFailure
           unexpectedLovelaceDelta =
@@ -702,7 +728,7 @@ checkLossInWallet' minLoss =
 
 checkTokenDeltaInWallet
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName)
+   . (ScriptHash /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> (BigInt -> BigInt -> Boolean)
   -> ContractCheck a
@@ -716,7 +742,8 @@ checkTokenDeltaInWallet (cs /\ tn) getExpected comp contract =
       \expected -> do
         let
           actual :: BigInt
-          actual = valueOf valueAfter cs tn - valueOf valueBefore cs tn
+          actual = BigNum.toBigInt (Value.valueOf (Asset cs tn) valueAfter) -
+            BigNum.toBigInt (Value.valueOf (Asset cs tn) valueBefore)
 
           unexpectedTokenDelta :: ContractAssertionFailure
           unexpectedTokenDelta =
@@ -728,7 +755,7 @@ checkTokenDeltaInWallet (cs /\ tn) getExpected comp contract =
 -- | by calling the contract.
 checkTokenGainInWallet
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName)
+   . (ScriptHash /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenGainInWallet token getMinGain =
@@ -738,7 +765,7 @@ checkTokenGainInWallet token getMinGain =
 -- | by calling the contract.
 checkTokenGainInWallet'
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName /\ BigInt)
+   . (ScriptHash /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenGainInWallet' (cs /\ tn /\ minGain) =
   checkTokenGainInWallet (cs /\ tn) (const $ pure minGain)
@@ -747,7 +774,7 @@ checkTokenGainInWallet' (cs /\ tn /\ minGain) =
 -- | by calling the contract.
 checkTokenLossInWallet
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName)
+   . (ScriptHash /\ AssetName)
   -> (Maybe a -> Contract BigInt)
   -> ContractCheck a
 checkTokenLossInWallet token getMinLoss =
@@ -757,21 +784,21 @@ checkTokenLossInWallet token getMinLoss =
 -- | by calling the contract.
 checkTokenLossInWallet'
   :: forall (a :: Type)
-   . (CurrencySymbol /\ TokenName /\ BigInt)
+   . (ScriptHash /\ AssetName /\ BigInt)
   -> ContractCheck a
 checkTokenLossInWallet' (cs /\ tn /\ minLoss) =
   checkTokenLossInWallet (cs /\ tn) (const $ pure minLoss)
 
 --------------------- Datums and scripts ----------------------------------------
 
--- | Requires that the transaction output contains the specified datum or
--- | datum hash.
+-- | Requires that the transaction output contains the specified datum,
+-- | datum hash or does not contain anything.
 assertOutputHasDatum
-  :: OutputDatum
-  -> Labeled TransactionOutputWithRefScript
+  :: Maybe OutputDatum
+  -> Labeled TransactionOutput
   -> ContractAssertion Unit
 assertOutputHasDatum expectedDatum txOutput = do
-  let actualDatum = unlabel txOutput ^. _output <<< _datum
+  let actualDatum = unlabel txOutput ^. _datum
   assertContractExpectedActual (UnexpectedDatumInOutput txOutput)
     expectedDatum
     actualDatum
@@ -780,7 +807,7 @@ assertOutputHasDatum expectedDatum txOutput = do
 -- | script.
 assertOutputHasRefScript
   :: ScriptRef
-  -> Labeled TransactionOutputWithRefScript
+  -> Labeled TransactionOutput
   -> ContractAssertion Unit
 assertOutputHasRefScript expectedRefScript txOutput = do
   let actualRefScript = unlabel txOutput ^. _scriptRef
@@ -802,11 +829,14 @@ assertTxHasMetadata
 assertTxHasMetadata mdLabel txHash expectedMetadata = do
   generalMetadata <-
     assertContractMaybe (TransactionHasNoMetadata txHash Nothing)
-      =<< lift (hush <$> getTxMetadata txHash)
+      =<< lift
+        ( map ((=<<) (_.metadata <<< unwrap)) $ hush <$> getTxAuxiliaryData
+            txHash
+        )
 
   rawMetadata <-
     assertContractMaybe (TransactionHasNoMetadata txHash (Just mdLabel))
-      ( Map.lookup (metadataLabel (Proxy :: Proxy metadata))
+      ( Map.lookup (unwrap $ metadataLabel (Proxy :: Proxy metadata))
           (unwrap generalMetadata)
       )
 
@@ -823,7 +853,7 @@ assertTxHasMetadata mdLabel txHash expectedMetadata = do
 getValueAtAddress
   :: Labeled Address
   -> ContractAssertion Value
-getValueAtAddress = map (foldMap (view (_output <<< _amount))) <<< lift
+getValueAtAddress = map (unsafePartial $ foldMap (view (_amount))) <<< lift
   <<< utxosAt
   <<< unlabel
 

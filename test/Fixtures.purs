@@ -11,17 +11,13 @@
 -- ```
 module Test.Ctl.Fixtures
   ( addressString1
-  , cip25MetadataFixture1
-  , cip25MetadataFixture2
-  , cip25MetadataFixture3
-  , cip25MetadataFixture4
-  , cip25MetadataJsonFixture1
-  , cip25MetadataJsonFixture2
-  , cip25MetadataJsonFixture3
   , currencySymbol1
   , ed25519KeyHash1
   , ed25519KeyHashFixture1
   , fullyAppliedScriptFixture
+  , int1
+  , mint0
+  , mint1
   , mkSampleTx
   , mkTxInput
   , nativeScriptFixture1
@@ -32,8 +28,8 @@ module Test.Ctl.Fixtures
   , nativeScriptFixture6
   , nativeScriptFixture7
   , nullPaymentPubKeyHash
-  , ogmiosEvaluateTxFailScriptErrorsFixture
   , ogmiosEvaluateTxFailIncompatibleEraFixture
+  , ogmiosEvaluateTxFailScriptErrorsFixture
   , ogmiosEvaluateTxInvalidPointerFormatFixture
   , ogmiosEvaluateTxValidRespFixture
   , partiallyAppliedScriptFixture
@@ -47,6 +43,9 @@ module Test.Ctl.Fixtures
   , plutusDataFixture8
   , plutusDataFixture8Bytes
   , plutusDataFixture8Bytes'
+  , plutusScriptFixture1
+  , plutusScriptFixture2
+  , plutusScriptFixture3
   , redeemerFixture1
   , tokenName1
   , tokenName2
@@ -57,164 +56,81 @@ module Test.Ctl.Fixtures
   , txBinaryFixture5
   , txBinaryFixture6
   , txFixture1
-  , txFixture2
-  , txFixture3
-  , txFixture4
-  , txFixture5
-  , txFixture6
   , txInputFixture1
   , txOutputBinaryFixture1
   , txOutputFixture1
   , txOutputFixture2
   , unappliedScriptFixture
-  , unsafeMkCip25String
   , utxoFixture1
   , utxoFixture1'
+  , utxoMapFixture
   , witnessSetFixture1
   , witnessSetFixture2
   , witnessSetFixture2Value
   , witnessSetFixture3
   , witnessSetFixture3Value
   , witnessSetFixture4
-  , utxoMapFixture
+  , txMetadatumFixture
   ) where
 
 import Prelude
 
 import Aeson (Aeson, aesonNull, decodeAeson, fromString, parseJsonStringToAeson)
-import Contract.Numeric.BigNum (BigNum)
-import Contract.Numeric.BigNum (fromBigInt, fromInt, one, zero) as BigNum
-import Contract.Transaction
-  ( PoolPubKeyHash(PoolPubKeyHash)
-  , vrfKeyHashFromBytes
-  )
-import Ctl.Internal.Cardano.Types.NativeScript
-  ( NativeScript
-      ( ScriptPubkey
-      , ScriptAll
-      , ScriptAny
-      , ScriptNOfK
+import Cardano.AsCbor (decodeCbor)
+import Cardano.Types
+  ( Bech32String
+  , Coin(Coin)
+  , Credential(PubKeyHashCredential)
+  , Ed25519KeyHash
+  , ExUnits(ExUnits)
+  , Language(PlutusV2)
+  , NativeScript
+      ( TimelockExpiry
       , TimelockStart
-      , TimelockExpiry
+      , ScriptNOfK
+      , ScriptAny
+      , ScriptAll
+      , ScriptPubkey
       )
-  )
-import Ctl.Internal.Cardano.Types.ScriptRef
-  ( ScriptRef(PlutusScriptRef, NativeScriptRef)
-  )
-import Ctl.Internal.Cardano.Types.Transaction
-  ( AuxiliaryData(AuxiliaryData)
-  , AuxiliaryDataHash(AuxiliaryDataHash)
-  , Certificate
-      ( MoveInstantaneousRewardsCert
-      , GenesisKeyDelegation
-      , PoolRetirement
-      , PoolRegistration
-      , StakeDelegation
-      , StakeDeregistration
-      , StakeRegistration
-      )
-  , Epoch(Epoch)
-  , GenesisDelegateHash(GenesisDelegateHash)
-  , GenesisHash(GenesisHash)
-  , Ipv4(Ipv4)
-  , Ipv6(Ipv6)
-  , MIRToStakeCredentials(MIRToStakeCredentials)
-  , Mint(Mint)
-  , MoveInstantaneousReward(ToStakeCreds, ToOtherPot)
-  , PoolMetadata(PoolMetadata)
-  , PoolMetadataHash(PoolMetadataHash)
-  , ProposedProtocolParameterUpdates(ProposedProtocolParameterUpdates)
+  , NetworkId(TestnetId, MainnetId)
+  , PaymentPubKeyHash(PaymentPubKeyHash)
+  , PlutusData(Integer, Bytes, Constr, List, Map)
+  , PlutusScript(PlutusScript)
   , Redeemer(Redeemer)
-  , Relay(MultiHostName, SingleHostName, SingleHostAddr)
-  , RequiredSigner(RequiredSigner)
+  , RedeemerTag(Spend)
+  , ScriptHash
+  , Slot(Slot)
   , Transaction(Transaction)
+  , TransactionBody(TransactionBody)
+  , TransactionInput(TransactionInput)
   , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
   , TransactionWitnessSet(TransactionWitnessSet)
-  , TxBody(TxBody)
-  , URL(URL)
   , UtxoMap
+  , Value(Value)
   , Vkey(Vkey)
   , Vkeywitness(Vkeywitness)
-  , mkEd25519Signature
-  , mkPublicKey
   )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , CurrencySymbol
-  , Value(Value)
-  , mkCurrencySymbol
-  , mkNonAdaAsset
-  , mkSingletonNonAdaAsset
-  )
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.Metadata.Cip25.Cip25String (Cip25String, mkCip25String)
-import Ctl.Internal.Metadata.Cip25.Common (Cip25TokenName(Cip25TokenName))
-import Ctl.Internal.Metadata.Cip25.V2
-  ( Cip25Metadata(Cip25Metadata)
-  , Cip25MetadataEntry(Cip25MetadataEntry)
-  , Cip25MetadataFile(Cip25MetadataFile)
-  )
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , NetworkId(MainnetId, TestnetId)
-  , Slot(Slot)
-  , StakeCredential
-  , baseAddress
-  , baseAddressToAddress
-  , keyHashCredential
-  , rewardAddress
-  )
-import Ctl.Internal.Serialization.Hash
-  ( Ed25519KeyHash
-  , ScriptHash
-  , ed25519KeyHashFromBech32
-  , ed25519KeyHashFromBytes
-  , scriptHashFromBytes
-  )
-import Ctl.Internal.Types.Aliases (Bech32String)
-import Ctl.Internal.Types.ByteArray
+import Cardano.Types.Address (Address(BaseAddress))
+import Cardano.Types.AssetName (AssetName, mkAssetName)
+import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
+import Cardano.Types.Ed25519Signature as Ed25519Signature
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint (Mint(Mint))
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.PlutusScript (plutusV1Script, plutusV2Script)
+import Cardano.Types.PublicKey as PublicKey
+import Contract.Numeric.BigNum (fromInt, one, zero) as BigNum
+import Data.ByteArray
   ( ByteArray
   , byteArrayFromIntArrayUnsafe
-  , hexToByteArray
   , hexToByteArrayUnsafe
   )
-import Ctl.Internal.Types.CborBytes (CborBytes(CborBytes))
-import Ctl.Internal.Types.Int as Int
-import Ctl.Internal.Types.OutputDatum (OutputDatum(NoOutputDatum, OutputDatum))
-import Ctl.Internal.Types.PlutusData as PD
-import Ctl.Internal.Types.PubKeyHash
-  ( PaymentPubKeyHash(PaymentPubKeyHash)
-  , PubKeyHash(PubKeyHash)
-  )
-import Ctl.Internal.Types.RedeemerTag (RedeemerTag(Spend))
-import Ctl.Internal.Types.RewardAddress (RewardAddress(RewardAddress))
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicyHash(MintingPolicyHash)
-  , PlutusScript
-  , Validator
-  , plutusV1Script
-  , plutusV2Script
-  )
-import Ctl.Internal.Types.TokenName (TokenName, mkTokenName)
-import Ctl.Internal.Types.Transaction
-  ( TransactionHash(TransactionHash)
-  , TransactionInput(TransactionInput)
-  )
-import Ctl.Internal.Types.TransactionMetadata
-  ( GeneralTransactionMetadata(GeneralTransactionMetadata)
-  , TransactionMetadatum(Text)
-  , TransactionMetadatumLabel(TransactionMetadatumLabel)
-  )
-import Data.Array as Array
 import Data.Either (fromRight, hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
-import Data.Set (Set)
-import Data.Set (singleton) as Set
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested ((/\))
 import Data.UInt as UInt
 import Effect (Effect)
@@ -222,28 +138,29 @@ import JS.BigInt as BigInt
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Partial.Unsafe (unsafePartial)
-import Test.Ctl.Fixtures.CostModels (costModelsFixture1)
 
 txOutputFixture1 :: TransactionOutput
 txOutputFixture1 =
   TransactionOutput
-    { address: baseAddressToAddress $ baseAddress
-        { network: TestnetId
-        , delegationCred:
-            keyHashCredential $ unsafePartial $ fromJust
-              $ ed25519KeyHashFromBytes
+    { address: BaseAddress
+        { networkId: TestnetId
+        , stakeCredential:
+            wrap $ PubKeyHashCredential $ unsafePartial $ fromJust
+              $ decodeCbor
+              $ wrap
               -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
               $ hexToByteArrayUnsafe
                   "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
-        , paymentCred:
-            keyHashCredential $ unsafePartial $ fromJust
-              $ ed25519KeyHashFromBytes
+        , paymentCredential:
+            wrap $ PubKeyHashCredential $ unsafePartial $ fromJust
+              $ decodeCbor
+              $ wrap
               -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
               $ hexToByteArrayUnsafe
                   "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
-    , amount: Value (Coin $ BigInt.fromInt 0) mempty
-    , datum: NoOutputDatum
+    , amount: Value (Coin $ BigNum.fromInt 0) MultiAsset.empty
+    , datum: Nothing
     , scriptRef: Nothing
     }
 
@@ -254,30 +171,27 @@ txOutputFixture2 =
         { stake: "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
         , payment: "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
         }
-    , amount: Value (Coin $ BigInt.fromInt 0) $
-        mkSingletonNonAdaAsset currencySymbol1 tokenName1
-          (BigInt.fromInt 1000000)
-    , datum: NoOutputDatum
+    , amount: Value (Coin $ BigNum.fromInt 0) $
+        MultiAsset.singleton currencySymbol1 tokenName1
+          (BigNum.fromInt 1000000)
+    , datum: Nothing
     , scriptRef: Nothing
     }
 
-currencySymbol1 :: CurrencySymbol
-currencySymbol1 = unsafePartial $ fromJust $ mkCurrencySymbol $
+currencySymbol1 :: ScriptHash
+currencySymbol1 = unsafePartial $ fromJust $ decodeCbor $ wrap $
   hexToByteArrayUnsafe
     "1d6445ddeda578117f393848e685128f1e78ad0c4e48129c5964dc2e"
 
-tokenNameFromString :: String -> TokenName
-tokenNameFromString s = unsafePartial $ fromJust $ mkTokenName $
+tokenNameFromString :: String -> AssetName
+tokenNameFromString s = unsafePartial $ fromJust $ mkAssetName $
   hexToByteArrayUnsafe s
 
-tokenName1 :: TokenName
+tokenName1 :: AssetName
 tokenName1 = tokenNameFromString "4974657374546f6b656e"
 
-tokenName2 :: TokenName
+tokenName2 :: AssetName
 tokenName2 = tokenNameFromString "54657374546f6b656e32"
-
-tokenName4 :: TokenName
-tokenName4 = tokenNameFromString "abcdef"
 
 txOutputBinaryFixture1 :: String
 txOutputBinaryFixture1 =
@@ -287,62 +201,12 @@ txOutputBinaryFixture1 =
 pkhBech32 :: Bech32String
 pkhBech32 = "addr_vkh1zuctrdcq6ctd29242w8g84nlz0q38t2lnv3zzfcrfqktx0c9tzp"
 
-stake1 :: StakeCredential
-stake1 = unsafePartial $ fromJust do
-  keyHashCredential <$> ed25519KeyHashFromBech32 pkhBech32
-
 ed25519KeyHash1 :: Ed25519KeyHash
-ed25519KeyHash1 = unsafePartial $ fromJust $ ed25519KeyHashFromBech32 pkhBech32
-
-bigNumOne :: BigNum
-bigNumOne = unsafePartial $ fromJust $ BigNum.fromBigInt $ BigInt.fromInt 1
-
-rewardAddress1 :: RewardAddress
-rewardAddress1 = RewardAddress $ rewardAddress
-  { network: TestnetId, paymentCred: stake1 }
-
-proposedProtocolParameterUpdates1 :: ProposedProtocolParameterUpdates
-proposedProtocolParameterUpdates1 = ProposedProtocolParameterUpdates $
-  Map.fromFoldable
-    [ GenesisHash
-        ( hexToByteArrayUnsafe
-            "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-        ) /\
-        { minfeeA: Just $ Coin $ BigInt.fromInt 1
-        , minfeeB: Just $ Coin $ BigInt.fromInt 1
-        , maxBlockBodySize: Just $ UInt.fromInt 10000
-        , maxTxSize: Just $ UInt.fromInt 10000
-        , maxBlockHeaderSize: Just $ UInt.fromInt 1000
-        , keyDeposit: Just $ Coin $ BigInt.fromInt 1
-        , poolDeposit: Just $ Coin $ BigInt.fromInt 1
-        , maxEpoch: Just $ Epoch one
-        , nOpt: Just $ UInt.fromInt 1
-        , poolPledgeInfluence: Just
-            { numerator: bigNumOne, denominator: bigNumOne }
-        , expansionRate: Just { numerator: bigNumOne, denominator: bigNumOne }
-        , treasuryGrowthRate: Just
-            { numerator: bigNumOne, denominator: bigNumOne }
-        , protocolVersion: Just
-            { major: UInt.fromInt 1, minor: UInt.fromInt 1 }
-        , minPoolCost: Just bigNumOne
-        , adaPerUtxoByte: Just bigNumOne
-        , costModels: Just costModelsFixture1
-        , executionCosts: Just
-            { memPrice: { numerator: bigNumOne, denominator: bigNumOne }
-            , stepPrice: { numerator: bigNumOne, denominator: bigNumOne }
-            }
-        , maxTxExUnits: Just { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
-        , maxBlockExUnits: Just
-            { mem: BigInt.fromInt 1, steps: BigInt.fromInt 1 }
-        , maxValueSize: Just $ UInt.fromInt 1
-        , collateralPercentage: Just $ UInt.fromInt 140
-        , maxCollateralInputs: Just $ UInt.fromInt 10
-        }
-    ]
+ed25519KeyHash1 = unsafePartial $ fromJust $ Ed25519KeyHash.fromBech32 pkhBech32
 
 -- | Extend this for your needs.
 type SampleTxConfig =
-  { inputs :: Set TransactionInput }
+  { inputs :: Array TransactionInput }
 
 -- | Build a sample transaction using convenient config
 -- | and existing one as a base.
@@ -356,19 +220,18 @@ mkSampleTx startTx changes =
   where
   buildChanges
     :: Transaction -> (SampleTxConfig -> SampleTxConfig) -> SampleTxConfig
-  buildChanges (Transaction { body: TxBody { inputs } }) mkChanges =
+  buildChanges (Transaction { body: TransactionBody { inputs } }) mkChanges =
     mkChanges { inputs }
 
   applyChanges :: Transaction -> SampleTxConfig -> Transaction
   applyChanges
     ( Transaction
-        { body: TxBody
+        { body: TransactionBody
             { outputs
             , fee
             , ttl
             , certs
             , withdrawals
-            , update
             , auxiliaryDataHash
             , validityStartInterval
             , mint
@@ -379,6 +242,10 @@ mkSampleTx startTx changes =
             , networkId
             , collateralReturn
             , totalCollateral
+            , votingProposals
+            , votingProcedures
+            , currentTreasuryValue
+            , donation
             }
         , witnessSet
         , isValid
@@ -387,14 +254,13 @@ mkSampleTx startTx changes =
     )
     { inputs: newInputs } =
     ( Transaction
-        { body: TxBody
+        { body: TransactionBody
             { inputs: newInputs
             , outputs
             , fee
             , ttl
             , certs
             , withdrawals
-            , update
             , auxiliaryDataHash
             , validityStartInterval
             , mint
@@ -405,6 +271,10 @@ mkSampleTx startTx changes =
             , networkId
             , collateralReturn
             , totalCollateral
+            , votingProposals
+            , votingProcedures
+            , currentTreasuryValue
+            , donation
             }
         , witnessSet
         , isValid
@@ -423,350 +293,73 @@ plutusScriptFixture2 = unsafePartial $ fromJust $ map plutusV2Script $ hush
   $ decodeAeson
   $ fromString "4d010000deadbeef33222220051200120011"
 
+txMetadatumFixture :: ByteArray
+txMetadatumFixture = hexToByteArrayUnsafe "60" -- "a11902d1a278383733336136646663363063613639396261616236346336353836663464633138653263613733343232363730333439666361396235346339a174537061636550756773476c617373504334393730ab646e616d65781b5370616365205075677320476c617373202d20504320233439373065696d6167657835697066733a2f2f516d516f4d61554e3239554278776154515373566b48783748324d57627365794e6d4c78386f745a7a5167395a34696d656469615479706569696d6167652f6769666b6465736372697074696f6e606566696c657381a3646e616d6574537061636550756773476c617373504334393730696d656469615479706569766964656f2f6d7034637372637835697066733a2f2f516d57646b7231634b42345065764739784a4b76536e71336d33354a5478726771673158725742475062456f62696a4261636b67726f756e646b507572706c652046656c7463546f706e517565656e204f6620436c75627366426f74746f6d754a61636b204f662048656172747320426f74746f6d6644657369676e75323920284d616420446f672043617220436c756229664578747261737157696e73746f6e20436875726368696c6c684c69676874696e676c4e6f726d616c204c696768746776657273696f6e63312e30"
+
+plutusScriptFixture3 :: PlutusScript
+plutusScriptFixture3 =
+  ( PlutusScript
+      ( Tuple
+          ( hexToByteArrayUnsafe
+              "59088501000032332232323233223232323232323232323322323232323232322223232533532325335001101b13357389211d556e657870656374656420646174756d206174206f776e20696e7075740001a323253335002153335001101c2101c2101c2153335002101c21333573466ebc00800407807484074854ccd400840708407484ccd5cd19b8f00200101e01d323500122220023235001220013553353500222350022222222222223333500d2501e2501e2501e233355302d12001321233001225335002210031001002501e2350012253355335333573466e3cd400888008d4010880080b40b04ccd5cd19b873500222001350042200102d02c102c1350220031502100d21123001002162001300a0053333573466e1cd55cea80124000466442466002006004646464646464646464646464646666ae68cdc39aab9d500c480008cccccccccccc88888888888848cccccccccccc00403403002c02802402001c01801401000c008cd4054058d5d0a80619a80a80b1aba1500b33501501735742a014666aa034eb94064d5d0a804999aa80d3ae501935742a01066a02a0426ae85401cccd54068089d69aba150063232323333573466e1cd55cea801240004664424660020060046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40b1d69aba15002302d357426ae8940088c98c80bccd5ce01901881689aab9e5001137540026ae854008c8c8c8cccd5cd19b8735573aa004900011991091980080180119a8163ad35742a004605a6ae84d5d1280111931901799ab9c03203102d135573ca00226ea8004d5d09aba2500223263202b33573805c05a05226aae7940044dd50009aba1500533501575c6ae854010ccd540680788004d5d0a801999aa80d3ae200135742a00460406ae84d5d1280111931901399ab9c02a029025135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d55cf280089baa00135742a00460206ae84d5d1280111931900c99ab9c01c01b017101a132632018335738921035054350001a135573ca00226ea800448c88c008dd6000990009aa80d111999aab9f0012501c233501b30043574200460066ae8800805c8c8c8cccd5cd19b8735573aa004900011991091980080180118069aba150023005357426ae8940088c98c8054cd5ce00c00b80989aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180b1aba1500233500e015357426ae8940088c98c8068cd5ce00e80e00c09aab9e5001137540026ae854010ccd54025d728041aba150033232323333573466e1d400520042300b357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403866ae7007c0780680640604d55cea80089baa00135742a00466a014eb8d5d09aba2500223263201633573803203002826ae8940044d5d1280089aab9e500113754002424446004008266aa002eb9d6889119118011bab00132001355016223233335573e0044a032466a03066442466002006004600c6aae754008c014d55cf280118021aba200301413574200224464646666ae68cdc3a800a400046a00e600a6ae84d55cf280191999ab9a3370ea00490011280391931900919ab9c01501401000f135573aa00226ea800448488c00800c44880048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01301200e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00f00e00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00680600409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00b00a80880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae7003c0380280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801801600e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7003403002001c0184d55cea80089baa0012323333573466e1d40052002200623333573466e1d40092000200623263200633573801201000800626aae74dd5000a4c24400424400224002920103505431003200135500322112225335001135003220012213335005220023004002333553007120010050040011122002122122330010040031123230010012233003300200200101"
+          )
+          PlutusV2
+      )
+  )
+
 txFixture1 :: Transaction
 txFixture1 =
   Transaction
-    { body: TxBody
-        { inputs: Set.singleton txInputFixture1
+    { body: TransactionBody
+        { inputs: [ txInputFixture1 ]
         , outputs: [ txOutputFixture1 ]
-        , fee: Coin $ BigInt.fromInt 177513
+        , fee: Coin $ BigNum.fromInt 177513
         , ttl: Nothing
-        , certs: Nothing
-        , withdrawals: Nothing
-        , update: Nothing
+        , certs: []
+        , withdrawals: Map.empty
         , auxiliaryDataHash: Nothing
         , validityStartInterval: Nothing
         , mint: Nothing
         , referenceInputs: mempty
         , scriptDataHash: Nothing
-        , collateral: Nothing
-        , requiredSigners: Nothing
+        , collateral: []
+        , requiredSigners: []
         , networkId: Just MainnetId
         , collateralReturn: Nothing
         , totalCollateral: Nothing
+        , votingProposals: []
+        , votingProcedures: mempty
+        , currentTreasuryValue: Nothing
+        , donation: Nothing
         }
     , witnessSet: TransactionWitnessSet
-        { vkeys: Nothing
-        , nativeScripts: Nothing
-        , bootstraps: Nothing
-        , plutusScripts: Nothing
-        , plutusData: Nothing
-        , redeemers: Nothing
+        { vkeys: []
+        , nativeScripts: []
+        , bootstraps: []
+        , plutusScripts: []
+        , plutusData: []
+        , redeemers: []
         }
     , isValid: true
-    , auxiliaryData: Nothing
+    , auxiliaryData: mempty
     }
 
-txFixture2 :: Transaction
-txFixture2 =
-  Transaction
-    { body: TxBody
-        { inputs: Set.singleton txInputFixture1
-        , outputs: [ txOutputFixture2 ]
-        , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Nothing
-        , certs: Nothing
-        , withdrawals: Nothing
-        , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: Nothing
-        , requiredSigners: Nothing
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: Nothing
-        , nativeScripts: Nothing
-        , bootstraps: Nothing
-        , plutusScripts: Nothing
-        , plutusData: Nothing
-        , redeemers: Nothing
-        }
-    , isValid: true
-    , auxiliaryData: Nothing
-    }
+mint1 :: Mint
+mint1 = Mint $ Map.fromFoldable
+  [ currencySymbol1 /\ Map.fromFoldable
+      [ tokenName2 /\ Int.newPositive BigNum.one
+      ]
+  ]
 
-txFixture3 :: Transaction
-txFixture3 =
-  Transaction
-    { body: TxBody
-        { inputs: Set.singleton txInputFixture1
-        , outputs:
-            [ TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , datum: NoOutputDatum
-                , scriptRef: Nothing
-                }
-            , TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , datum: NoOutputDatum
-                , scriptRef: Nothing
-                }
-            ]
-        , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Nothing
-        , certs: Nothing
-        , withdrawals: Nothing
-        , update: Nothing
-        , referenceInputs: Set.singleton txInputFixture1
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , scriptDataHash: Nothing
-        , collateral: Nothing
-        , requiredSigners: Nothing
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: Nothing
-        , nativeScripts: Nothing
-        , bootstraps: Nothing
-        , plutusScripts: Nothing
-        , plutusData: Nothing
-        , redeemers: Nothing
-        }
-    , isValid: true
-    , auxiliaryData: Nothing
-    }
+mint0 :: Mint
+mint0 = Mint $ Map.fromFoldable
+  [ currencySymbol1 /\ Map.fromFoldable
+      [ tokenName2 /\ Int.newPositive BigNum.zero
+      ]
+  ]
 
-txFixture4 :: Transaction
-txFixture4 =
-  Transaction
-    { body: TxBody
-        { inputs: Set.singleton txInputFixture1
-        , outputs:
-            [ TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigInt.fromInt 2353402) mempty
-                , datum: OutputDatum $ wrap plutusDataFixture1
-                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture1
-                }
-            , TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigInt.fromInt 1000000) mempty
-                , datum: NoOutputDatum
-                , scriptRef: Just $ NativeScriptRef nativeScriptFixture5
-                }
-            ]
-        , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Just $ Slot $ BigNum.fromInt 123
-        , certs: Just
-            [ StakeRegistration stake1
-            , StakeDeregistration stake1
-            , StakeDelegation stake1
-                (PoolPubKeyHash $ PubKeyHash ed25519KeyHash1)
-            , PoolRegistration
-                { operator: PoolPubKeyHash $ PubKeyHash ed25519KeyHash1
-                , vrfKeyhash: unsafePartial $ fromJust $
-                    hexToByteArray
-                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-                      >>= vrfKeyHashFromBytes
-                , pledge: bigNumOne
-                , cost: bigNumOne
-                , margin: { numerator: bigNumOne, denominator: bigNumOne }
-                , rewardAccount: RewardAddress $ rewardAddress
-                    { network: MainnetId, paymentCred: stake1 }
-                , poolOwners: [ wrap $ wrap ed25519KeyHash1 ]
-                , relays:
-                    [ SingleHostAddr
-                        { port: Just 8080
-                        , ipv4: Just $ Ipv4 $ byteArrayFromIntArrayUnsafe
-                            [ 127, 0, 0, 1 ]
-                        , ipv6: Just $ Ipv6 $ byteArrayFromIntArrayUnsafe
-                            $ Array.replicate 16 123
-                        }
-                    , SingleHostName
-                        { port: Just 8080
-                        , dnsName: "example.com"
-                        }
-                    , MultiHostName { dnsName: "example.com" }
-                    ]
-                , poolMetadata: Just $ PoolMetadata
-                    { url: URL "https://example.com/"
-                    , hash: PoolMetadataHash $
-                        hexToByteArrayUnsafe
-                          "94b8cac47761c1140c57a48d56ab15d27a842abff041b3798b8618fa84641f5a"
-                    }
-                }
-            , PoolRetirement
-                { poolKeyHash: PoolPubKeyHash $ PubKeyHash ed25519KeyHash1
-                , epoch: Epoch one
-                }
-            , GenesisKeyDelegation
-                { genesisHash: GenesisHash $
-                    hexToByteArrayUnsafe
-                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , genesisDelegateHash: GenesisDelegateHash $
-                    hexToByteArrayUnsafe
-                      "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-                , vrfKeyhash: unsafePartial $ fromJust $
-                    hexToByteArray
-                      "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
-                      >>= vrfKeyHashFromBytes
-                }
-            , MoveInstantaneousRewardsCert $ ToOtherPot
-                { pot: one
-                , amount: bigNumOne
-                }
-            , MoveInstantaneousRewardsCert $ ToStakeCreds
-                { pot: one
-                , amounts: MIRToStakeCredentials $ Map.fromFoldable
-                    [ stake1 /\ Int.newPositive bigNumOne ]
-                }
-            ]
-        , withdrawals: Just $ Map.fromFoldable
-            [ rewardAddress1 /\ Coin one ]
-        , update: Just
-            { proposedProtocolParameterUpdates:
-                proposedProtocolParameterUpdates1
-            , epoch: Epoch one
-            }
-        , auxiliaryDataHash: Just $ AuxiliaryDataHash
-            $ byteArrayFromIntArrayUnsafe
-            $ Array.replicate 32 0
-        , validityStartInterval: Just $ Slot $ BigNum.fromInt 124
-        , mint: Just $ Mint $ mkNonAdaAsset $ Map.fromFoldable
-            [ currencySymbol1 /\ Map.fromFoldable [ tokenName1 /\ one ] ]
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: Nothing
-        , requiredSigners: Just [ RequiredSigner ed25519KeyHashFixture1 ]
-        , networkId: Just MainnetId
-        , collateralReturn: Just txOutputFixture1
-        , totalCollateral: Just $ Coin $ BigInt.fromInt 5_000_000
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: Nothing
-        , nativeScripts: Nothing
-        , bootstraps: Nothing
-        , plutusScripts: Nothing
-        , plutusData: Nothing
-        , redeemers: Nothing
-        }
-    , isValid: true
-    , auxiliaryData: Nothing
-    }
-
-txFixture5 :: Transaction
-txFixture5 =
-  Transaction
-    { body: TxBody
-        { inputs: Set.singleton txInputFixture1
-        , outputs:
-            [ TransactionOutput
-                { address: keyHashBaseAddress
-                    { stake:
-                        "0f45aaf1b2959db6e5ff94dbb1f823bf257680c3c723ac2d49f97546"
-                    -- $ T.Bech32 "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
-                    , payment:
-                        "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
-                    }
-                , amount: Value (Coin $ BigInt.fromInt 490234098) mempty
-                , datum: OutputDatum $ wrap plutusDataFixture1
-                , scriptRef: Just $ PlutusScriptRef plutusScriptFixture2
-                }
-            ]
-        , fee: Coin $ BigInt.fromInt 89489324
-        , ttl: Nothing
-        , certs: Nothing
-        , withdrawals: Nothing
-        , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: Nothing
-        , requiredSigners: Nothing
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: Nothing
-        , nativeScripts: Nothing
-        , bootstraps: Nothing
-        , plutusScripts: Nothing
-        , plutusData: Nothing
-        , redeemers: Nothing
-        }
-    , isValid: true
-    , auxiliaryData: Nothing
-    }
-
-txFixture6 :: Transaction
-txFixture6 =
-  Transaction
-    { body: TxBody
-        { inputs: Set.singleton txInputFixture1
-        , outputs: [ txOutputFixture1 ]
-        , fee: Coin $ BigInt.fromInt 177513
-        , ttl: Nothing
-        , certs: Nothing
-        , withdrawals: Nothing
-        , update: Nothing
-        , auxiliaryDataHash: Nothing
-        , validityStartInterval: Nothing
-        , mint: Nothing
-        , referenceInputs: mempty
-        , scriptDataHash: Nothing
-        , collateral: Nothing
-        , requiredSigners: Nothing
-        , networkId: Just MainnetId
-        , collateralReturn: Nothing
-        , totalCollateral: Nothing
-        }
-    , witnessSet: TransactionWitnessSet
-        { vkeys: Nothing
-        , nativeScripts: Nothing
-        , bootstraps: Nothing
-        , plutusScripts: Nothing
-        , plutusData: Nothing
-        , redeemers: Nothing
-        }
-    , isValid: true
-    , auxiliaryData: Just $ AuxiliaryData
-        { metadata: Just $ GeneralTransactionMetadata
-            ( Map.fromFoldable
-                [ TransactionMetadatumLabel (BigInt.fromInt 8) /\ Text "foo" ]
-            )
-        , nativeScripts: Nothing
-        , plutusScripts: Nothing
-        }
-    }
+int1 :: Int.Int
+int1 = Int.newPositive BigNum.one
 
 -- | To quickly check a serialized tx, create a file with the following contents:
 -- |
@@ -885,7 +478,7 @@ utxoFixture1 = hexToByteArrayUnsafe
 input :: TransactionInput
 input = TransactionInput
   { index: UInt.fromInt 0
-  , transactionId: TransactionHash
+  , transactionId: unsafePartial $ fromJust $ decodeCbor $ wrap
       ( byteArrayFromIntArrayUnsafe
           [ 198
           , 181
@@ -926,10 +519,12 @@ input = TransactionInput
 output :: TransactionOutput
 output =
   ( TransactionOutput
-      { address: baseAddressToAddress $ baseAddress
-          { network: TestnetId
-          , paymentCred: keyHashCredential $ unsafePartial $ fromJust
-              $ ed25519KeyHashFromBytes
+      { address: BaseAddress
+          { networkId: TestnetId
+          , paymentCredential: wrap $ PubKeyHashCredential $ unsafePartial
+              $ fromJust
+              $ decodeCbor
+              $ wrap
               $
                 byteArrayFromIntArrayUnsafe
                   [ 243
@@ -961,43 +556,44 @@ output =
                   , 223
                   , 36
                   ]
-          , delegationCred: keyHashCredential $ unsafePartial $ fromJust
-              $ ed25519KeyHashFromBytes
-              $
-                ( byteArrayFromIntArrayUnsafe
-                    [ 57
-                    , 3
-                    , 16
-                    , 58
-                    , 231
-                    , 6
-                    , 129
-                    , 67
-                    , 155
-                    , 84
-                    , 118
-                    , 254
-                    , 245
-                    , 159
-                    , 67
-                    , 155
-                    , 139
-                    , 200
-                    , 109
-                    , 132
-                    , 191
-                    , 178
-                    , 211
-                    , 118
-                    , 252
-                    , 63
-                    , 86
-                    , 23
-                    ]
-                )
+          , stakeCredential: wrap $ PubKeyHashCredential $ unsafePartial
+              $ fromJust
+              $ decodeCbor
+              $ wrap
+                  ( byteArrayFromIntArrayUnsafe
+                      [ 57
+                      , 3
+                      , 16
+                      , 58
+                      , 231
+                      , 6
+                      , 129
+                      , 67
+                      , 155
+                      , 84
+                      , 118
+                      , 254
+                      , 245
+                      , 159
+                      , 67
+                      , 155
+                      , 139
+                      , 200
+                      , 109
+                      , 132
+                      , 191
+                      , 178
+                      , 211
+                      , 118
+                      , 252
+                      , 63
+                      , 86
+                      , 23
+                      ]
+                  )
           }
-      , amount: Value (Coin (BigInt.fromInt 5000000)) mempty
-      , datum: NoOutputDatum
+      , amount: Value (Coin (BigNum.fromInt 5000000)) MultiAsset.empty
+      , datum: Nothing
       , scriptRef: Nothing
       }
   )
@@ -1094,24 +690,24 @@ witnessSetFixture2 = hexToByteArrayUnsafe
 witnessSetFixture2Value :: TransactionWitnessSet
 witnessSetFixture2Value =
   TransactionWitnessSet
-    { bootstraps: Nothing
-    , nativeScripts: Nothing
-    , plutusData: Nothing
-    , plutusScripts: Nothing
-    , redeemers: Nothing
-    , vkeys: Just
+    { bootstraps: []
+    , nativeScripts: []
+    , plutusData: []
+    , plutusScripts: []
+    , redeemers: []
+    , vkeys:
         [ Vkeywitness
-            ( Vkey
-                ( unsafePartial $ fromJust $ mkPublicKey
+            { vkey: Vkey
+                ( unsafePartial $ fromJust $ PublicKey.fromBech32
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
-                /\
-                  ( unsafePartial $ fromJust <<< mkEd25519Signature $
-                      "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
-                      \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
-                      \kzs9m6t6x"
-                  )
-            )
+            , signature:
+                ( unsafePartial $ fromJust <<< Ed25519Signature.fromBech32 $
+                    "ed25519_sig1mr6pm5kanam2wkmae70jx7fjkzepghefj0lmnczu6fra\
+                    \6auf2urgrte5axxhunw4x34l3l8tj9c0t4le39tj8lpjdgxmqnujw07t\
+                    \kzs9m6t6x"
+                )
+            }
         ]
     }
 
@@ -1125,62 +721,61 @@ witnessSetFixture3 = hexToByteArrayUnsafe
 witnessSetFixture3Value :: TransactionWitnessSet
 witnessSetFixture3Value =
   TransactionWitnessSet
-    { bootstraps: Nothing
-    , nativeScripts: Nothing
+    { bootstraps: []
+    , nativeScripts: []
     , plutusData:
-        Just
-          [ PD.Bytes
-              ( byteArrayFromIntArrayUnsafe
-                  [ 43
-                  , 184
-                  , 13
-                  , 83
-                  , 123
-                  , 29
-                  , 163
-                  , 227
-                  , 139
-                  , 211
-                  , 3
-                  , 97
-                  , 170
-                  , 133
-                  , 86
-                  , 134
-                  , 189
-                  , 224
-                  , 234
-                  , 205
-                  , 113
-                  , 98
-                  , 254
-                  , 246
-                  , 162
-                  , 95
-                  , 233
-                  , 123
-                  , 245
-                  , 39
-                  , 162
-                  , 91
-                  ]
-              )
-          ]
-    , plutusScripts: Nothing
-    , redeemers: Nothing
-    , vkeys: Just
+        [ Bytes
+            ( byteArrayFromIntArrayUnsafe
+                [ 43
+                , 184
+                , 13
+                , 83
+                , 123
+                , 29
+                , 163
+                , 227
+                , 139
+                , 211
+                , 3
+                , 97
+                , 170
+                , 133
+                , 86
+                , 134
+                , 189
+                , 224
+                , 234
+                , 205
+                , 113
+                , 98
+                , 254
+                , 246
+                , 162
+                , 95
+                , 233
+                , 123
+                , 245
+                , 39
+                , 162
+                , 91
+                ]
+            )
+        ]
+    , plutusScripts: [ plutusScriptFixture3 ]
+    , redeemers: []
+    , vkeys:
         [ Vkeywitness
-            ( Vkey
-                ( unsafePartial $ fromJust $ mkPublicKey
+            { vkey: Vkey
+                ( unsafePartial $ fromJust $ PublicKey.fromBech32
                     "ed25519_pk1p9sf9wz3t46u9ghht44203gerxt82kzqaqw74fqrmwjmdy8sjxmqknzq8j"
                 )
-                /\
-                  ( unsafePartial $ fromJust <<< mkEd25519Signature $
-                      "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
-                      \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
-                      \6faxl6"
-                  )
-            )
+            , signature:
+                ( unsafePartial $ fromJust <<< Ed25519Signature.fromBech32 $
+                    "ed25519_sig1clmhgxx9e9t24wzgkmcsr44uq98j935evsjnrj8nn7ge08\
+                    \qrz0mgdxv5qtz8dyghs47q3lxwk4akq3u2ty8v4egeqvtl02ll0nfcqqq\
+                    \6faxl6"
+                )
+            }
         ]
     }
 
@@ -1198,7 +793,7 @@ addressString1 =
 mkTxInput :: { txId :: String, ix :: Int } -> TransactionInput
 mkTxInput { txId, ix } =
   TransactionInput
-    { transactionId: TransactionHash $
+    { transactionId: unsafePartial $ fromJust $ decodeCbor $ wrap $
         hexToByteArrayUnsafe txId
     , index: UInt.fromInt ix
     }
@@ -1213,7 +808,8 @@ ed25519KeyHashFixture1 :: Ed25519KeyHash
 ed25519KeyHashFixture1 =
   -- $ Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
   unsafePartial $ fromJust
-    $ ed25519KeyHashFromBytes
+    $ decodeCbor
+    $ wrap
     $ hexToByteArrayUnsafe
         "1c12f03c1ef2e935acc35ec2e6f96c650fd3bfba3e96550504d53361"
 
@@ -1221,7 +817,8 @@ ed25519KeyHashFixture2 :: Ed25519KeyHash
 ed25519KeyHashFixture2 =
   -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
   unsafePartial $ fromJust
-    $ ed25519KeyHashFromBytes
+    $ decodeCbor
+    $ wrap
     $ hexToByteArrayUnsafe
         "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
 
@@ -1248,45 +845,47 @@ nativeScriptFixture7 :: NativeScript
 nativeScriptFixture7 = TimelockExpiry $ Slot $ BigNum.fromInt 2000
 
 keyHashBaseAddress :: { payment :: String, stake :: String } -> Address
-keyHashBaseAddress { payment, stake } = baseAddressToAddress $ baseAddress
-  { network: TestnetId
-  , delegationCred:
-      keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+keyHashBaseAddress { payment, stake } = BaseAddress
+  { networkId: TestnetId
+  , stakeCredential:
+      wrap $ PubKeyHashCredential $ unsafePartial $ fromJust $ decodeCbor
         -- $ T.Bech32 "hstk_1rsf0q0q77t5nttxrtmpwd7tvv58a80a686t92pgy65ekz0s8ncu"
+        $ wrap
         $ hexToByteArrayUnsafe stake
-  , paymentCred:
-      keyHashCredential $ unsafePartial $ fromJust $ ed25519KeyHashFromBytes
+  , paymentCredential:
+      wrap $ PubKeyHashCredential $ unsafePartial $ fromJust $ decodeCbor
         -- "hbas_1xranhpfej50zdup5jy995dlj9juem9x36syld8wm465hz92acfp"
+        $ wrap
         $ hexToByteArrayUnsafe payment
   }
 
-plutusDataFixture1 :: PD.PlutusData
-plutusDataFixture1 = PD.List []
+plutusDataFixture1 :: PlutusData
+plutusDataFixture1 = List []
 
-plutusDataFixture2 :: PD.PlutusData
-plutusDataFixture2 = PD.List [ plutusDataFixture1 ]
+plutusDataFixture2 :: PlutusData
+plutusDataFixture2 = List [ plutusDataFixture1 ]
 
-plutusDataFixture3 :: PD.PlutusData
-plutusDataFixture3 = PD.Bytes
+plutusDataFixture3 :: PlutusData
+plutusDataFixture3 = Bytes
   ( hexToByteArrayUnsafe
       "30fb3b8539951e26f034910a5a37f22cb99d94d1d409f69ddbaea971"
   )
 
-plutusDataFixture4 :: PD.PlutusData
-plutusDataFixture4 = PD.Constr BigNum.one
+plutusDataFixture4 :: PlutusData
+plutusDataFixture4 = Constr BigNum.one
   [ plutusDataFixture2, plutusDataFixture3 ]
 
-plutusDataFixture5 :: PD.PlutusData
-plutusDataFixture5 = PD.Integer (BigInt.fromInt 42)
+plutusDataFixture5 :: PlutusData
+plutusDataFixture5 = Integer (BigInt.fromInt 42)
 
-plutusDataFixture6 :: PD.PlutusData
-plutusDataFixture6 = PD.Map
+plutusDataFixture6 :: PlutusData
+plutusDataFixture6 = Map
   [ plutusDataFixture1 /\ plutusDataFixture2
   , plutusDataFixture3 /\ plutusDataFixture4
   ]
 
-plutusDataFixture7 :: PD.PlutusData
-plutusDataFixture7 = PD.List
+plutusDataFixture7 :: PlutusData
+plutusDataFixture7 = List
   [ plutusDataFixture1
   , plutusDataFixture2
   , plutusDataFixture3
@@ -1295,23 +894,23 @@ plutusDataFixture7 = PD.List
   , plutusDataFixture6
   ]
 
-plutusDataFixture8 :: PD.PlutusData
-plutusDataFixture8 = PD.Constr BigNum.zero
-  [ PD.Bytes
+plutusDataFixture8 :: PlutusData
+plutusDataFixture8 = Constr BigNum.zero
+  [ Bytes
       ( hexToByteArrayUnsafe
           "da13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e"
       )
-  , PD.Integer (BigInt.fromInt 500000000)
-  , PD.Bytes
+  , Integer (BigInt.fromInt 500000000)
+  , Bytes
       ( hexToByteArrayUnsafe
           "82325cbfc20b85bd1ca12e5d12b44b83f68662d8395167b45f1ff7fa"
       )
-  , PD.Bytes (hexToByteArrayUnsafe "746f6e6573206f6620736b7920")
-  , PD.Bytes
+  , Bytes (hexToByteArrayUnsafe "746f6e6573206f6620736b7920")
+  , Bytes
       ( hexToByteArrayUnsafe
           "da13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e"
       )
-  , PD.Integer (BigInt.fromInt 45)
+  , Integer (BigInt.fromInt 45)
   ]
 
 plutusDataFixture8Bytes :: ByteArray
@@ -1328,122 +927,12 @@ plutusDataFixture8Bytes' = hexToByteArrayUnsafe
   \206f6620736b7920581cda13ed22b9294f1d86bbd530e99b1456884c7364bf16c90edc1ae41e\
   \182d"
 
-scriptHashFromString :: String -> ScriptHash
-scriptHashFromString s = unsafePartial $ fromJust $ scriptHashFromBytes $
-  hexToByteArrayUnsafe s
-
-scriptHash1 :: ScriptHash
-scriptHash1 = scriptHashFromString
-  "5d677265fa5bb21ce6d8c7502aca70b9316d10e958611f3c6b758f65"
-
-scriptHash4 :: ScriptHash
-scriptHash4 = scriptHashFromString
-  "1e4409ba69fb38887c23d15a766476384085b66a755530934938abfe"
-
-policyId :: MintingPolicyHash
-policyId = MintingPolicyHash scriptHash1
-
-policyId4 :: MintingPolicyHash
-policyId4 = MintingPolicyHash scriptHash4
-
-cip25MetadataFilesFixture1 :: Array Cip25MetadataFile
-cip25MetadataFilesFixture1 = Cip25MetadataFile <$>
-  [ { name: unsafeMkCip25String "file_name_1"
-    , mediaType: unsafeMkCip25String "media_type"
-    , src: "uri1"
-    }
-  , { name: unsafeMkCip25String "file_name_2"
-    , mediaType: unsafeMkCip25String "media_type_2"
-    , src: "uri4"
-    }
-  ]
-
-cip25MetadataEntryFixture1 :: Cip25MetadataEntry
-cip25MetadataEntryFixture1 = Cip25MetadataEntry
-  { policyId: policyId
-  , assetName: Cip25TokenName tokenName1
-  , name: unsafeMkCip25String "ItestToken"
-  , image: "image_uri1"
-  , mediaType: Just $ unsafeMkCip25String "media_type"
-  , description: Just "desc1"
-  , files: cip25MetadataFilesFixture1
-  }
-
-cip25MetadataEntryFixture2 :: Cip25MetadataEntry
-cip25MetadataEntryFixture2 = Cip25MetadataEntry
-  { policyId: policyId
-  , assetName: Cip25TokenName tokenName2
-  , name: unsafeMkCip25String "TestToken2"
-  , image: "image_uri1"
-  , mediaType: Nothing
-  , description: Nothing
-  , files: []
-  }
-
-cip25MetadataFixture1 :: Cip25Metadata
-cip25MetadataFixture1 = Cip25Metadata
-  [ cip25MetadataEntryFixture1, cip25MetadataEntryFixture2 ]
-
-cip25MetadataFixture2 :: Cip25Metadata
-cip25MetadataFixture2 = Cip25Metadata
-  [ Cip25MetadataEntry
-      { policyId: policyId
-      , assetName: Cip25TokenName tokenName1
-      , name: unsafeMkCip25String "ItestToken"
-      , image: "image_uri1"
-      , mediaType: Nothing
-      , description: Nothing
-      , files: []
-      }
-  ]
-
-cip25MetadataFixture3 :: Cip25Metadata
-cip25MetadataFixture3 = Cip25Metadata
-  [ Cip25MetadataEntry
-      { policyId: policyId
-      , assetName: Cip25TokenName tokenName1
-      , name: unsafeMkCip25String "monkey.jpg"
-      , image:
-          -- checking long strings
-          "https://upload.wikimedia.org/wikipedia/commons/3/35/Olive_baboon_Ngorongoro.jpg?download"
-      , mediaType: Nothing
-      , description: Nothing
-      , files: []
-      }
-  ]
-
-cip25MetadataFixture4 :: Cip25Metadata
-cip25MetadataFixture4 = Cip25Metadata
-  [ Cip25MetadataEntry
-      { policyId: policyId4
-      , assetName: Cip25TokenName tokenName4
-      , name: unsafeMkCip25String "Allium"
-      , image: "ipfs://k2cwuee3arxg398hwxx6c0iferxitu126xntuzg8t765oo020h5y6npn"
-      , mediaType: Nothing
-      , description: Just "From pixabay"
-      , files: []
-      }
-  ]
-
-unsafeMkCip25String :: String -> Cip25String
-unsafeMkCip25String str = unsafePartial $ fromJust $ mkCip25String str
-
 readJsonFixtureFile :: String -> Effect Aeson
 readJsonFixtureFile path =
   readTextFile UTF8 path >>=
     pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
-cip25MetadataJsonFixture1 :: Effect Aeson
-cip25MetadataJsonFixture1 =
-  readJsonFixtureFile "test/Fixtures/cip25MetadataJsonFixture1.json"
-
-cip25MetadataJsonFixture2 :: Effect Aeson
-cip25MetadataJsonFixture2 =
-  readJsonFixtureFile "test/Fixtures/cip25MetadataJsonFixture2.json"
-
-cip25MetadataJsonFixture3 :: Effect Aeson
-cip25MetadataJsonFixture3 =
-  readJsonFixtureFile "test/Fixtures/cip25MetadataJsonFixture3.json"
+-- TODO: remove CIP25 fixtures below
 
 ogmiosEvaluateTxValidRespFixture :: Effect Aeson
 ogmiosEvaluateTxValidRespFixture =
@@ -1467,43 +956,43 @@ ogmiosEvaluateTxFailScriptErrorsFixture =
 redeemerFixture1 :: Redeemer
 redeemerFixture1 = Redeemer
   { tag: Spend
-  , index: BigInt.fromInt 0
-  , data: plutusDataFixture7
-  , exUnits:
-      { mem: BigInt.fromInt 1
-      , steps: BigInt.fromInt 1
+  , index: BigNum.fromInt 0
+  , data: wrap plutusDataFixture7
+  , exUnits: ExUnits
+      { mem: BigNum.fromInt 1
+      , steps: BigNum.fromInt 1
       }
   }
 
-unappliedScriptFixture :: Validator
+unappliedScriptFixture :: PlutusScript
 unappliedScriptFixture =
-  wrap $ plutusV1Script $ hexToByteArrayUnsafe $
+  plutusV1Script $ wrap $ hexToByteArrayUnsafe $
     "586f010000333222323233222233222225335300c33225335300e0021001100f333500b223\
     \33573466e1c00800404003c0152002333500b22333573466e3c00800404003c01122010010\
     \091326353008009498cd4015d680119a802bae001120012001120011200112200212200120\
     \0101"
 
-partiallyAppliedScriptFixture :: Validator
+partiallyAppliedScriptFixture :: PlutusScript
 partiallyAppliedScriptFixture =
-  wrap $ plutusV1Script $ hexToByteArrayUnsafe $
+  plutusV1Script $ wrap $ hexToByteArrayUnsafe $
     "58750100003333222323233222233222225335300c33225335300e0021001100f333500b22\
     \333573466e1c00800404003c0152002333500b22333573466e3c00800404003c0112210010\
     \091326353008009498cd4015d680119a802bae001120012001120011200112200212200120\
     \014c010218200001"
 
-fullyAppliedScriptFixture :: Validator
+fullyAppliedScriptFixture :: PlutusScript
 fullyAppliedScriptFixture =
-  wrap $ plutusV1Script $ hexToByteArrayUnsafe $
+  plutusV1Script $ wrap $ hexToByteArrayUnsafe $
     "587f01000033333222323233222233222225335300c33225335300e0021001100f333500b2\
     \2333573466e1c00800404003c0152002333500b22333573466e3c00800404003c011220100\
     \10091326353008009498cd4015d680119a802bae0011200120011200112001122002122001\
     \20014c01021820004c010544746573740001"
 
 nullPaymentPubKeyHash :: PaymentPubKeyHash
-nullPaymentPubKeyHash = PaymentPubKeyHash $ PubKeyHash
+nullPaymentPubKeyHash = PaymentPubKeyHash
   $ unsafePartial
   $ fromJust
-  $ fromBytes
-  $ CborBytes
+  $ decodeCbor
+  $ wrap
   $ hexToByteArrayUnsafe
       "f9dca21a6c826ec8acb4cf395cbc24351937bfe6560b2683ab8b415f"

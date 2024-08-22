@@ -23,14 +23,13 @@ import Ctl.Internal.QueryM.Ogmios
   , aesonObject
   )
 import Ctl.Internal.QueryM.Ogmios as O
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), hush)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), maybe)
-import Data.String (toLower)
+import Data.String (null, toLower) as String
 import Data.String.Regex (match, regex)
 import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for_)
@@ -41,6 +40,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Foreign.Object (update) as Object
 import Mote (group, skip, test)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (FilePath, basename, concat)
@@ -127,16 +127,19 @@ loadFixtures = do
     catMaybes <$> flip parTraverse (ourFixtures <> ogmiosFixtures) \fp -> do
       let bn = basename fp
       contents <- readTextFile UTF8 fp
-      aeson <- liftEither $ lmap
-        (error <<< ((bn <> "\n  ") <> _) <<< printJsonDecodeError)
-        (Aeson.parseJsonStringToAeson contents)
-      pure case pattern >>= flip match bn >>> map tail of
-        Just [ Just query ] -> Just
-          { query
-          , bn
-          , aeson
-          }
-        _ -> Nothing
+      -- ignore empty (corrupted) fixtures
+      if String.null contents then pure Nothing
+      else do
+        aeson <- liftEither $ lmap
+          (error <<< ((bn <> "\n  ") <> _) <<< printJsonDecodeError)
+          (Aeson.parseJsonStringToAeson contents)
+        pure case pattern >>= flip match bn >>> map tail of
+          Just [ Just query ] -> Just
+            { query
+            , bn
+            , aeson
+            }
+          _ -> Nothing
 
   let
     groupedFiles =
@@ -151,12 +154,12 @@ suite = group "Ogmios Aeson tests" do
   groupedFiles <- lift loadFixtures
   let
     (tested' :: Map.Map String Check) = Map.fromFoldable $ map
-      (\(q /\ c) -> (toLower q /\ c))
+      (\(q /\ c) -> (String.toLower q /\ c))
       tested
 
   for_ groupedFiles \(query /\ files') ->
     let
-      query' = toLower query
+      query' = String.toLower query
     in
       let
         test' ch = test (query <> " (" <> show (length files') <> ")") $ for_

@@ -2,20 +2,15 @@ module Test.Ctl.ApplyArgs (main, suite, contract) where
 
 import Contract.Prelude
 
+import Cardano.Plutus.ApplyArgs (applyArgs)
 import Contract.Monad (Contract, launchAff_)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData (PlutusData(List, Map, Bytes, Constr), toData)
 import Contract.Prim.ByteArray (hexToByteArrayUnsafe)
 import Contract.Scripts (PlutusScript)
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  , plutusScriptV2FromEnvelope
-  )
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Control.Monad.Error.Class (class MonadError)
-import Ctl.Internal.ApplyArgs (applyArgs)
 import Ctl.Internal.Cardano.TextEnvelope (TextEnvelope)
-import Ctl.Internal.Test.TestPlanM (TestPlanM, interpret)
 import Data.List.Lazy (replicate)
 import Data.Profunctor.Choice (left)
 import Effect.Aff (Error, error, throwError)
@@ -23,6 +18,7 @@ import Foreign.Object (Object)
 import Foreign.Object as Object
 import JS.BigInt (fromInt)
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM, interpret)
 import Test.Spec.Assertions (shouldEqual)
 
 scriptSources :: Object String
@@ -356,7 +352,7 @@ v1
   => Object String
   -> String
   -> m PlutusScript
-v1 scripts name = lookupAux plutusScriptV1FromEnvelope scripts name
+v1 scripts name = lookupAux plutusScriptFromEnvelope scripts name
 
 v2
   :: forall (m :: Type -> Type)
@@ -364,7 +360,7 @@ v2
   => Object String
   -> String
   -> m PlutusScript
-v2 scripts name = lookupAux plutusScriptV2FromEnvelope scripts name
+v2 scripts name = lookupAux plutusScriptFromEnvelope scripts name
 
 lookupAux
   :: forall (m :: Type -> Type)

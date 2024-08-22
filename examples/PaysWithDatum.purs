@@ -8,16 +8,21 @@ module Ctl.Examples.PaysWithDatum (contract, example, main) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( Address
+import Cardano.Types (TransactionOutput)
+import Cardano.Types.BigNum as BigNum
+import Contract.Address (Address)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
   )
-import Contract.Config (ContractParams, testnetNamiConfig)
 import Contract.Hashing (datumHash)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.PlutusData
   ( DataHash
-  , Datum(Datum)
   , OutputDatum(OutputDatum, OutputDatumHash)
   , PlutusData(Integer)
   )
@@ -33,7 +38,6 @@ import Contract.Test.Assert
   )
 import Contract.Transaction
   ( TransactionHash
-  , TransactionOutputWithRefScript
   , awaitTxConfirmed
   , submitTxFromConstraints
   )
@@ -54,12 +58,15 @@ import JS.BigInt (fromInt) as BigInt
 type ContractResult =
   { address :: Address
   , txHash :: TransactionHash
-  , datum :: Datum
+  , datum :: PlutusData
   , datumHash :: DataHash
   }
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example = launchAff_ <<< flip runContract contract
@@ -73,11 +80,11 @@ contract = do
   address <- liftedM "Could not get own address" (head <$> getWalletAddresses)
 
   let
-    datum = Datum $ Integer $ BigInt.fromInt 42
+    datum = Integer $ BigInt.fromInt 42
     datumHash' = datumHash datum
 
     value :: Value
-    value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
+    value = Value.lovelaceValueOf (BigNum.fromInt 2_000_000)
 
     constraints :: Constraints.TxConstraints
     constraints =
@@ -126,6 +133,6 @@ assertTxCreatesOutputWithDatumHash = assertionToCheck
           hasOutputWithOutputDatum (OutputDatumHash datumHash) outputs
 
 hasOutputWithOutputDatum
-  :: OutputDatum -> Array TransactionOutputWithRefScript -> Boolean
+  :: OutputDatum -> Array TransactionOutput -> Boolean
 hasOutputWithOutputDatum datum =
-  any (eq datum <<< _.datum <<< unwrap <<< _.output <<< unwrap)
+  any (eq (Just datum) <<< _.datum <<< unwrap)

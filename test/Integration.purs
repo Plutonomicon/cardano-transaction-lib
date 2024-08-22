@@ -2,7 +2,8 @@ module Test.Ctl.Integration (main, testPlan, stakingSuite) where
 
 import Prelude
 
-import Contract.Address (Ed25519KeyHash, StakePubKeyHash(StakePubKeyHash))
+import Cardano.AsCbor (decodeCbor)
+import Contract.Address (Ed25519KeyHash)
 import Contract.Backend.Ogmios (getPoolParameters)
 import Contract.Config (testnetConfig)
 import Contract.Monad (runContract)
@@ -13,7 +14,6 @@ import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getEraSummaries, getSystemStart)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.Serialization.Hash (ed25519KeyHashFromBytes)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
@@ -77,15 +77,13 @@ stakingSuite = do
         void $ getPoolIds
     test "getPubKeyHashDelegationsAndRewards #1" do
       noWallet do
-        res <- getPubKeyHashDelegationsAndRewards $ StakePubKeyHash $ wrap
-          ed25519KeyHash1
+        res <- getPubKeyHashDelegationsAndRewards ed25519KeyHash1
         res `shouldEqual` Nothing
     test "getPubKeyHashDelegationsAndRewards #2" do
       noWallet do
-        void $ getPubKeyHashDelegationsAndRewards $ StakePubKeyHash $ wrap
-          ed25519KeyHash2
+        void $ getPubKeyHashDelegationsAndRewards ed25519KeyHash2
 
 ed25519KeyHash2 :: Ed25519KeyHash
-ed25519KeyHash2 = unsafePartial $ fromJust $ ed25519KeyHashFromBytes $
+ed25519KeyHash2 = unsafePartial $ fromJust $ decodeCbor $ wrap $
   hexToByteArrayUnsafe
     "541d6a23b07ebe1363671f49c833f6c33176ec968de1482fdf15cc1f"

@@ -22,6 +22,7 @@ This document outlines development workflows for CTL itself. You may also wish t
   - [JS](#js)
 - [Switching development networks](#switching-development-networks)
 - [Maintaining the template](#maintaining-the-template)
+- [Updating the template](#updating-the-template)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -73,20 +74,20 @@ To **build** the project **without bundling and for a NodeJS environment**:
 
 - `npm run unit-test` for unit tests (no need for a runtime) -  [entry point](../test/Unit.purs)
 - `npm run integration-test` for integration tests (requires a [runtime](./runtime.md#ctl-backend)) -  [entry point](../test/Integration.purs)
-- `npm run plutip-test` for Plutip integration tests (does not require a runtime) - [entry point](../test/Plutip.purs)
-- `npm run staking-test` to run [Plutip](./plutip-testing.md)-powered tests for ADA staking functionality - [entry point](../test/Plutip/Staking.purs)
+- `npm run testnet-test` for Cardano Testnet integration tests (does not require a runtime) - [entry point](../test/Testnet.purs)
+- `npm run staking-test` to run [Cardano Testnet](./cardano-testnet-testing.md)-powered tests for ADA staking functionality - [entry point](../test/Testnet/Staking.purs)
 - `npm run blockfrost-test` for [Blockfrost-powered tests](./blockfrost.md) (does not require a runtime, but needs [some setup](./blockfrost.md#setting-up-a-blockfrost-powered-test-suite)) - [entry point](../test/Blockfrost/Contract.purs)
 - `npm run blockfrost-local-test` for self-hosted [Blockfrost-powered tests](./blockfrost.md) (requires a [local Blockfrost runtime](./blockfrost.md#running-blockfrost-locally)) - [entry point](../test/Blockfrost/Contract.purs)
-- `npm run e2e-test` for [tests with a headless browser](./e2e-testing.md) (requires a runtime and the tests served via HTTP: `npm run start-runtime` and `npm run webpack-serve` or `esbuild-serve`)
+- `npm run e2e-test` for [tests with a headless browser](./e2e-testing.md) (requires a runtime and the tests served via HTTP: `npm run start-runtime` and `npm run e2e-serve` or `esbuild-serve`)
 
 #### With Nix
 
 Here and below, `<SYSTEM>` should be replaced with [one of the supported systems](https://github.com/Plutonomicon/cardano-transaction-lib/blob/15fd9c5b683df47134dce4a0479f1edc30d4b6f7/flake.nix#L51) that you use, e.g. `x86_64-linux`.
 
 - Unit tests: `nix build .#checks.<SYSTEM>.ctl-unit-test`
-- [E2E tests in Nix with wallet mocks](./e2e-testing.md#using-cip-30-mock-with-plutip): `nix build -L .#checks.<SYSTEM>.ctl-e2e-test`
-- Contract tests ([Plutip](./plutip-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-plutip-test`
-- [Staking](./staking.md) tests ([Plutip](./plutip-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-staking-test`
+- [E2E tests in Nix with wallet mocks](./e2e-testing.md#using-cip-30-mock-with-cardano-testnet): `nix build -L .#checks.<SYSTEM>.ctl-e2e-test`
+- Contract tests ([Cardano Testnet](./cardano-testnet-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-local-testnet-test`
+- [Staking](./staking.md) tests ([Cardano Testnet](./cardano-testnet-testing.md)): `nix build -L .#checks.<SYSTEM>.ctl-staking-test`
 
 #### Nix checks
 
@@ -100,14 +101,14 @@ Here and below, `<SYSTEM>` should be replaced with [one of the supported systems
 
 To run or build/bundle the project for the browser:
 
-- `npm run webpack-serve` will start a Webpack development server at `localhost:4008`, which is required for [E2E tests](./e2e-testing.md)
+- `npm run {webpack|esbuild}-serve` will start a Webpack development server at `localhost:4008`, which is required for [E2E tests](./e2e-testing.md)
 - `npm run {webpack|esbuild}-bundle` will output a bundled example module to `dist` (or `nix build -L .#ctl-example-bundle-web-{webpack|esbuild}` to build an example module using Nix into `./result/`)
 
-By default, Webpack will build a [Purescript module](../examples/ByUrl.purs) that serves multiple example `Contract`s depending on URL (see [here](./e2e-testing.md#serving-the-contract-to-be-tested)). You can point Webpack to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
+By default, the bundler will build a [Purescript module](../examples/ByUrl.purs) that serves multiple example `Contract`s depending on URL (see [here](./e2e-testing.md#serving-the-contract-to-be-tested)). You can point the bundler to another Purescript entrypoint by changing the `ps-bundle` variable in the Makefile or in the `main` argument in the flake's `packages.ctl-examples-bundle-web`.
 
-You will also need a light wallet extension pre-configured to run a `Contract`.
+You will also need a light wallet extension pre-configured for the correct Cardano network to run a `Contract`.
 
-**Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For Node environments, leave this variable unset.
+**Note**: The `BROWSER_RUNTIME` environment variable must be set to `1` in order to build/bundle the project properly for the browser (e.g. `BROWSER_RUNTIME=1 webpack ...`). For NodeJS environments, leave this variable unset.
 
 **Note**: The `KUPO_HOST` environment variable must be set to the base URL of the Kupo service in order to successfully serve the project for the browser (by default, `KUPO_HOST=http://localhost:1442`).
 
@@ -147,5 +148,14 @@ Set new `network.name` and `network.magic` in `runtime.nix`. Also see [Changing 
 ## Maintaining the template
 
 [The template](../templates/ctl-scaffold/) must be kept up-to-date with the repo. Although there are some checks for common problems in CI, it's still possible to forget to update the `package-lock.json` file.
+
+## Updating the template
+
+1. Update the revision of CTL in the template's `flake.nix`
+2. Update the npm packages in the `package.json` (if needed)
+3. Run `npm i` to update the lockfile (if there are NPM dependency version changes)
+4. Update the revisions in the template's `packages.dhall` (CTL version must match the one in `flake.nix`)
+5. Run `spago2nix generate`
+6. Run `nix develop`
 
 [This helper script](../scripts/template-check.sh) can be used to make sure the template can be initialized properly from a given revision.

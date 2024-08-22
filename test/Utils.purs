@@ -10,6 +10,7 @@ module Test.Ctl.Utils
   , readAeson
   , toFromAesonTest
   , toFromAesonTestWith
+  , fromBytesEffect
   ) where
 
 import Prelude
@@ -23,19 +24,23 @@ import Aeson
   , encodeAeson
   , parseJsonStringToAeson
   )
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
+import Cardano.Serialization.Lib (class IsBytes, fromBytes)
+import Cardano.Serialization.Lib.Internal (class IsCsl)
+import Data.ByteArray (ByteArray)
 import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right), either)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (class Duration, Milliseconds, Seconds)
 import Data.Time.Duration (fromDuration, toDuration) as Duration
+import Effect (Effect)
 import Effect.Aff (Aff, error)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console (log)
 import Effect.Exception (throw, throwException)
 import Effect.Now (now)
 import Mote (test)
+import Mote.TestPlanM (TestPlanM)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (FilePath)
@@ -163,3 +168,10 @@ aesonRoundTrip = aesonRoundTripWith identity
 readAeson :: forall (m :: Type -> Type). MonadEffect m => FilePath -> m Aeson
 readAeson = errEither <<< parseJsonStringToAeson
   <=< liftEffect <<< readTextFile UTF8
+
+fromBytesEffect
+  :: forall (a :: Type). IsCsl a => IsBytes a => ByteArray -> Effect a
+fromBytesEffect bytes =
+  case fromBytes bytes of
+    Nothing -> throw "from_bytes() call failed"
+    Just a -> pure a

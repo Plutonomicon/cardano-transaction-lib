@@ -3,10 +3,20 @@ module Ctl.Internal.Partition
   , class Partition
   , equipartition
   , partition
+  , equipartitionValueWithTokenQuantityUpperBound
   ) where
 
 import Prelude
 
+import Cardano.Types.AssetName (AssetName)
+import Cardano.Types.BigInt (divCeil)
+import Cardano.Types.BigNum (BigNum)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.MultiAsset (MultiAsset)
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.ScriptHash (ScriptHash)
+import Cardano.Types.Value (Value(Value))
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Data.Array (replicate)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty
@@ -19,19 +29,26 @@ import Data.Array.NonEmpty
   , zip
   , zipWith
   ) as NEArray
-import Data.Foldable (any, length, sum)
+import Data.Foldable (any, foldl, length, sum)
 import Data.Function (on)
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Data.Newtype (class Newtype, unwrap)
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ordering (invert) as Ordering
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt (BigInt)
 import JS.BigInt (fromInt, toInt) as BigInt
 import Partial.Unsafe (unsafePartial)
+import Prelude as Prelude
 
 class Partition (a :: Type) where
   partition :: a -> NonEmptyArray a -> Maybe (NonEmptyArray a)
+
+instance Partition BigNum where
+  partition bigNum = unsafePartial $ map BigNum.toBigInt
+    >>> partition (BigNum.toBigInt bigNum)
+    >>> map
+      (map $ unsafeFromJust "instance Partition BigNum" <<< BigNum.fromBigInt)
 
 -- | Partitions a `BigInt` into a number of parts, where the size of each part
 -- | is proportional to the size of its corresponding element in the given
@@ -76,13 +93,14 @@ instance Partition BigInt where
         round portions =
           NEArray.zipWith (+)
             (map (fst <<< unwrap) <$> portions)
-            ( fromArrayUnsafe $
+            ( unsafeFromJust "instance Partition BigInt" <<< NEArray.fromArray $
                 replicate shortfall one
                   <> replicate (length portions - shortfall) zero
             )
 
         shortfall :: Int
-        shortfall = toIntUnsafe $ target - sum (map fst portionsUnrounded)
+        shortfall = unsafeFromJust "instance Partition BigInt" <<< BigInt.toInt
+          $ target - sum (map fst portionsUnrounded)
 
         portionsUnrounded :: NonEmptyArray (BigInt /\ BigInt)
         portionsUnrounded = weights <#> \w -> (target * w) `quotRem` sumWeights
@@ -105,16 +123,34 @@ instance Equipartition BigInt where
         NEArray.singleton bi
     | otherwise =
         let
-          quot /\ rem = toIntUnsafe <$> (bi `quotRem` BigInt.fromInt numParts)
+          quot /\ rem =
+            unsafeFromJust "instance Equipartition BigInt" <<< BigInt.toInt <$>
+              (bi `quotRem` BigInt.fromInt numParts)
         in
           NEArray.replicate (numParts - rem) quot
             `NEArray.appendArray` replicate rem (quot + one)
 
-toIntUnsafe :: BigInt -> Int
-toIntUnsafe = unsafePartial fromJust <<< BigInt.toInt
+instance Equipartition BigNum where
+  equipartition bn = unsafePartial
+    $ map (unsafeFromJust "instance Equipartition BigNum" <<< BigNum.fromBigInt)
+        <<< equipartition (BigNum.toBigInt bn)
 
-fromArrayUnsafe :: forall (a :: Type). Array a -> NonEmptyArray a
-fromArrayUnsafe = unsafePartial fromJust <<< NEArray.fromArray
+instance Equipartition MultiAsset where
+  equipartition nonAdaAssets numParts =
+    foldl accumulate (NEArray.replicate numParts MultiAsset.empty)
+      (MultiAsset.flatten nonAdaAssets)
+    where
+    append' a b = unsafeFromJust "instance Equipartition MultiAsset" $
+      MultiAsset.add a b
+
+    accumulate
+      :: NonEmptyArray MultiAsset
+      -> (ScriptHash /\ AssetName /\ BigNum)
+      -> NonEmptyArray MultiAsset
+    accumulate xs (cs /\ tn /\ tokenQuantity) =
+      NEArray.zipWith append' xs $
+        map (MultiAsset.singleton cs tn)
+          (equipartition tokenQuantity numParts)
 
 quotRem :: forall (a :: Type). EuclideanRing a => a -> a -> (a /\ a)
 quotRem a b = (a `div` b) /\ (a `mod` b)
@@ -129,3 +165,51 @@ instance Ord a => Ord (QuotRem a) where
     case compare rem0 rem1 of
       EQ -> compare quot0 quot1
       ordering -> ordering
+
+-- | Partitions a `Value` into smaller `Value`s, where the Ada amount and the
+-- | quantity of each token is equipartitioned across the resultant `Value`s,
+-- | with the goal that no token quantity in any of the resultant `Value`s
+-- | exceeds the given upper bound.
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenBundle.hs#L381
+equipartitionValueWithTokenQuantityUpperBound
+  :: BigInt -> Value -> NonEmptyArray Value
+equipartitionValueWithTokenQuantityUpperBound maxTokenQuantity value =
+  let
+    Value coin nonAdaAssets = value
+    ms /\ numParts =
+      equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets
+        maxTokenQuantity
+  in
+    NEArray.zipWith Value (map wrap $ equipartition (unwrap coin) numParts) ms
+
+-- | Partitions a `MultiAsset` into smaller `MultiAsset`s, where the
+-- | quantity of each token is equipartitioned across the resultant
+-- | `MultiAsset`s, with the goal that no token quantity in any of the
+-- | resultant `MultiAsset`s exceeds the given upper bound.
+-- | Taken from cardano-wallet:
+-- | https://github.com/input-output-hk/cardano-wallet/blob/d4b30de073f2b5eddb25bf12c2453abb42e8b352/lib/wallet/src/Cardano/Wallet/Primitive/Types/TokenMap.hs#L780
+equipartitionAssetsWithTokenQuantityUpperBound
+  :: MultiAsset -> BigInt -> NonEmptyArray MultiAsset /\ Int
+equipartitionAssetsWithTokenQuantityUpperBound nonAdaAssets maxTokenQuantity =
+  case
+    maxTokenQuantity <= Prelude.zero || BigNum.toBigInt currentMaxTokenQuantity
+      <= maxTokenQuantity
+    of
+    true ->
+      NEArray.singleton nonAdaAssets /\ one
+    false ->
+      equipartition nonAdaAssets numParts /\ numParts
+  where
+  numParts :: Int
+  numParts = unsafeFromJust "equipartitionAssetsWithTokenQuantityUpperBound"
+    $ BigInt.toInt
+    $ divCeil (BigNum.toBigInt currentMaxTokenQuantity) maxTokenQuantity
+
+  tokenQuantity :: (ScriptHash /\ AssetName /\ BigNum) -> BigNum
+  tokenQuantity (_ /\ _ /\ quantity) = quantity
+
+  currentMaxTokenQuantity :: BigNum
+  currentMaxTokenQuantity =
+    foldl (\quantity tn -> quantity `max` tokenQuantity tn) BigNum.zero
+      (MultiAsset.flatten nonAdaAssets)

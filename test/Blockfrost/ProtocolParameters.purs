@@ -25,11 +25,11 @@ import Test.Spec.Runner (defaultConfig)
 
 blockfrostFixture :: String
 blockfrostFixture =
-  "blockfrost/getProtocolParameters/getProtocolParameters-2d2ce3159a465c84058d7eab67b1b345.json"
+  "blockfrost/getProtocolParameters/getProtocolParameters-6ac22050d53def4302608de2fa695f02.json"
 
 ogmiosFixture :: String
 ogmiosFixture =
-  "ogmios/queryLedgerState-protocolParameters-68ba1141d17af9326cad70407ea3d7fb.json"
+  "ogmios/queryLedgerState-protocolParameters-1d8c6233b8bfb7c028f1dd60eb113d40.json"
 
 loadFixture :: forall (a :: Type). DecodeAeson a => String -> Aff a
 loadFixture fixture =

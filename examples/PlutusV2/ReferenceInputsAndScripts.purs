@@ -2,71 +2,64 @@ module Ctl.Examples.PlutusV2.ReferenceInputsAndScripts
   ( contract
   , example
   , main
-  , mintAlwaysMintsV2ToTheScript
   ) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
-  , StakePubKeyHash
-  , scriptHashAddress
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , OutputWitness(PlutusScriptOutput)
+  , RefInputAction(ReferenceInput)
+  , ScriptWitness(ScriptReference)
+  , TransactionBuilderStep(MintAsset, SpendOutput, Pay)
   )
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , OutputDatum(OutputDatum)
+  , ScriptHash
+  , TransactionOutput(TransactionOutput)
+  , TransactionUnspentOutput
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
+import Contract.Address (mkAddress)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
-import Contract.Monad
-  ( Contract
-  , launchAff_
-  , liftContractM
-  , liftedM
-  , runContract
-  )
-import Contract.PlutusData (unitDatum, unitRedeemer)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(PlutusMintingPolicy)
-  , MintingPolicyHash
-  , PlutusScript
-  , Validator
-  , ValidatorHash
-  , mintingPolicyHash
-  , validatorHash
-  )
+import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
+import Contract.Scripts (PlutusScript)
 import Contract.Transaction
   ( ScriptRef(PlutusScriptRef)
   , TransactionHash
-  , TransactionInput(TransactionInput)
-  , TransactionOutputWithRefScript
+  , TransactionOutput
   , awaitTxConfirmed
-  , mkTxUnspentOut
-  , submitTxFromConstraints
+  , lookupTxHash
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints
-  ( DatumPresence(DatumWitness)
-  , InputWithScriptRef(RefInput)
-  , TxConstraints
-  )
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
 import Contract.Value as Value
-import Contract.Wallet
-  ( getWalletAddresses
-  , ownPaymentPubKeyHashes
-  , ownStakePubKeyHashes
-  )
-import Ctl.Examples.Helpers (mkTokenName) as Helpers
-import Ctl.Examples.PlutusV2.Scripts.AlwaysMints
-  ( alwaysMintsPolicyScriptV2
-  , alwaysMintsPolicyV2
-  )
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
+import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Data.Array (head)
-import Data.Map (toUnfoldable) as Map
-import JS.BigInt (fromInt) as BigInt
+import Data.Array (find) as Array
+import Data.Map (empty, toUnfoldable) as Map
+import Effect.Exception (error)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
@@ -77,13 +70,13 @@ contract = do
   logInfo' "Running Examples.PlutusV2.ReferenceInputsAndScripts"
   validator <- alwaysSucceedsScriptV2
   mintsScript <- alwaysMintsPolicyScriptV2
-  tokenName <- Helpers.mkTokenName "TheToken"
+  tokenName <- Helpers.mkAssetName "TheToken"
   let
-    vhash :: ValidatorHash
-    vhash = validatorHash validator
+    vhash :: ScriptHash
+    vhash = PlutusScript.hash validator
 
     validatorRef :: ScriptRef
-    validatorRef = PlutusScriptRef (unwrap validator)
+    validatorRef = PlutusScriptRef validator
 
     mpRef :: ScriptRef
     mpRef = PlutusScriptRef mintsScript
@@ -92,121 +85,93 @@ contract = do
   txId <- payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully, Try to spend locked values"
-  spendFromAlwaysSucceeds vhash txId (unwrap validator) mintsScript
+  spendFromAlwaysSucceeds vhash txId validator mintsScript
     tokenName
 
 payToAlwaysSucceedsAndCreateScriptRefOutput
-  :: ValidatorHash -> ScriptRef -> ScriptRef -> Contract TransactionHash
+  :: ScriptHash -> ScriptRef -> ScriptRef -> Contract TransactionHash
 payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
-  pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
-  skh <- join <<< head <$> ownStakePubKeyHashes
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   let
     value :: Value
-    value = Value.lovelaceValueOf (BigInt.fromInt 2_000_000)
-
-    createOutputWithScriptRef :: ScriptRef -> TxConstraints
-    createOutputWithScriptRef scriptRef =
-      mustPayToPubKeyStakeAddressWithScriptRef pkh skh scriptRef value
-
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustPayToScript vhash unitDatum DatumWitness value
-        <> createOutputWithScriptRef validatorRef
-        <> createOutputWithScriptRef mpRef
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  submitTxFromConstraints lookups constraints
+    value = Value.lovelaceValueOf (BigNum.fromInt 2_000_000)
+  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: value
+        , datum: Just $ OutputDatum PlutusData.unit
+        , scriptRef: Just validatorRef
+        }
+    , Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: value
+        , datum: Just $ OutputDatum PlutusData.unit
+        , scriptRef: Just mpRef
+        }
+    , Pay $ TransactionOutput
+        { address: scriptAddress
+        , amount: value
+        , datum: Just $ OutputDatum PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
 
 spendFromAlwaysSucceeds
-  :: ValidatorHash
+  :: ScriptHash
   -> TransactionHash
   -> PlutusScript
   -> PlutusScript
   -> TokenName
   -> Contract Unit
 spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
-  let scriptAddress = scriptHashAddress vhash Nothing
-  ownAddress <- liftedM "Failed to get own address" $ head <$>
-    getWalletAddresses
-  (utxos :: Array _) <- Map.toUnfoldable <$> utxosAt ownAddress
+  scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   scriptAddressUtxos <- utxosAt scriptAddress
+  utxo <-
+    liftM
+      ( error
+          ( "The id "
+              <> show txId
+              <> " does not have output locked at: "
+              <> show scriptAddress
+          )
+      )
+      $ Array.find hasNoRefScript
+      $ lookupTxHash txId scriptAddressUtxos
 
-  txInput /\ _ <-
-    liftContractM "Could not find unspent output locked at script address"
-      $ find hasTransactionId (Map.toUnfoldable scriptAddressUtxos :: Array _)
-
-  refValidatorInput /\ refValidatorOutput <-
+  refValidatorInput /\ _ <-
     liftContractM "Could not find unspent output containing ref validator"
-      $ find (hasRefPlutusScript validator) utxos
+      $ Array.find (hasRefPlutusScript validator)
+      $ Map.toUnfoldable scriptAddressUtxos
 
-  refMpInput /\ refMpOutput <-
+  refMpInput /\ _ <-
     liftContractM "Could not find unspent output containing ref minting policy"
-      $ find (hasRefPlutusScript mp) utxos
+      $ Array.find (hasRefPlutusScript mp)
+      $ Map.toUnfoldable scriptAddressUtxos
 
   let
-    mph :: MintingPolicyHash
-    mph = mintingPolicyHash (PlutusMintingPolicy mp)
-
-    constraints :: TxConstraints
-    constraints = mconcat
-      [ Constraints.mustSpendScriptOutputUsingScriptRef txInput unitRedeemer
-          (RefInput $ mkTxUnspentOut refValidatorInput refValidatorOutput)
-
-      , Constraints.mustMintCurrencyUsingScriptRef mph tokenName one
-          (RefInput $ mkTxUnspentOut refMpInput refMpOutput)
-      ]
-
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.unspentOutputs scriptAddressUtxos
-
-  spendTxId <- submitTxFromConstraints lookups constraints
-  awaitTxConfirmed spendTxId
+    mph = PlutusScript.hash mp
+  spendTx <- submitTxFromBuildPlan scriptAddressUtxos mempty
+    [ SpendOutput
+        utxo
+        ( Just
+            $ PlutusScriptOutput
+                (ScriptReference refValidatorInput ReferenceInput)
+                RedeemerDatum.unit
+                Nothing
+        )
+    , MintAsset mph tokenName (Int.fromInt 1)
+        $ PlutusScriptCredential (ScriptReference refMpInput ReferenceInput)
+            RedeemerDatum.unit
+    ]
+  awaitTxConfirmed $ Transaction.hash spendTx
   logInfo' "Successfully spent locked values and minted tokens."
   where
-  hasTransactionId :: TransactionInput /\ _ -> Boolean
-  hasTransactionId (TransactionInput txInput /\ _) =
-    txInput.transactionId == txId
-
   hasRefPlutusScript
-    :: PlutusScript -> _ /\ TransactionOutputWithRefScript -> Boolean
+    :: PlutusScript
+    -> _ /\ TransactionOutput
+    -> Boolean
   hasRefPlutusScript plutusScript (_ /\ txOutput) =
     (unwrap txOutput).scriptRef == Just (PlutusScriptRef plutusScript)
 
-mustPayToPubKeyStakeAddressWithScriptRef
-  :: forall (i :: Type) (o :: Type)
-   . PaymentPubKeyHash
-  -> Maybe StakePubKeyHash
-  -> ScriptRef
-  -> Value
-  -> TxConstraints
-mustPayToPubKeyStakeAddressWithScriptRef pkh Nothing =
-  Constraints.mustPayToPubKeyWithScriptRef pkh
-mustPayToPubKeyStakeAddressWithScriptRef pkh (Just skh) =
-  Constraints.mustPayToPubKeyAddressWithScriptRef pkh skh
-
-mintAlwaysMintsV2ToTheScript
-  :: TokenName -> Validator -> Int -> Contract Unit
-mintAlwaysMintsV2ToTheScript tokenName validator sum = do
-  mp <- alwaysMintsPolicyV2
-  let cs = Value.scriptCurrencySymbol mp
-
-  let
-    vhash = validatorHash validator
-
-    constraints :: Constraints.TxConstraints
-    constraints = mconcat
-      [ Constraints.mustMintValue
-          $ Value.singleton cs tokenName
-          $ BigInt.fromInt sum
-      , Constraints.mustPayToScript vhash unitDatum Constraints.DatumWitness
-          $ Value.singleton cs tokenName
-          $ BigInt.fromInt sum
-      ]
-
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
-
-  txHash <- submitTxFromConstraints lookups constraints
-  void $ awaitTxConfirmed txHash
+  hasNoRefScript :: TransactionUnspentOutput -> Boolean
+  hasNoRefScript utxo = isNothing (unwrap (unwrap utxo).output).scriptRef

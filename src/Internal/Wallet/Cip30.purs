@@ -6,55 +6,40 @@ module Ctl.Internal.Wallet.Cip30
 
 import Prelude
 
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types.Address (Address)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.CborBytes (CborBytes)
+import Cardano.Types.Coin (Coin(Coin))
+import Cardano.Types.PublicKey (PublicKey)
+import Cardano.Types.PublicKey (fromRawBytes) as PublicKey
+import Cardano.Types.RawBytes (RawBytes)
+import Cardano.Types.Transaction (Transaction(Transaction))
+import Cardano.Types.TransactionUnspentOutput (TransactionUnspentOutput)
+import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOuput
+import Cardano.Types.TransactionUnspentOutput as UnspentOutput
+import Cardano.Types.TransactionWitnessSet (TransactionWitnessSet)
+import Cardano.Types.Value (Value)
+import Cardano.Types.Value as Value
 import Cardano.Wallet.Cip30 (Api)
 import Cardano.Wallet.Cip30.TypeSafe (APIError)
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
-import Control.Alt ((<|>))
+import Cardano.Wallet.Cip95.TypeSafe
+  ( getPubDrepKey
+  , getRegisteredPubStakeKeys
+  , getUnregisteredPubStakeKeys
+  ) as Cip95
 import Control.Monad.Error.Class (catchError, liftMaybe, throwError)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( Transaction(Transaction)
-  , TransactionWitnessSet
-  )
-import Ctl.Internal.Cardano.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput
-  )
-import Ctl.Internal.Cardano.Types.Value (Coin(Coin), Value)
-import Ctl.Internal.Deserialization.FromBytes (fromBytes, fromBytesEffect)
-import Ctl.Internal.Deserialization.UnspentOutput (convertValue)
-import Ctl.Internal.Deserialization.UnspentOutput as Deserialization.UnspentOuput
-import Ctl.Internal.Deserialization.WitnessSet as Deserialization.WitnessSet
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Serialization (convertTransaction, toBytes) as Serialization
-import Ctl.Internal.Serialization.Address
-  ( Address
-  , baseAddressBytes
-  , baseAddressFromAddress
-  , enterpriseAddressBytes
-  , enterpriseAddressFromAddress
-  , pointerAddressBytes
-  , pointerAddressFromAddress
-  , rewardAddressBytes
-  , rewardAddressFromAddress
-  )
-import Ctl.Internal.Serialization.ToBytes (toBytes)
-import Ctl.Internal.Types.BigNum as BigNum
-import Ctl.Internal.Types.ByteArray (byteArrayToHex)
-import Ctl.Internal.Types.CborBytes
-  ( CborBytes
-  , cborBytesToHex
-  , hexToCborBytes
-  , rawBytesAsCborBytes
-  )
-import Ctl.Internal.Types.RawBytes (RawBytes, hexToRawBytes, rawBytesToHex)
-import Data.Maybe (Maybe(Nothing), maybe)
-import Data.Newtype (unwrap)
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
+import Data.Maybe (Maybe(Nothing))
+import Data.Newtype (unwrap, wrap)
 import Data.Traversable (for, traverse)
 import Data.Variant (Variant, match)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
-import JS.BigInt (fromInt) as BigInt
 
 type DataSignature =
   { key :: CborBytes
@@ -101,35 +86,33 @@ type Cip30Wallet =
   , getRewardAddresses :: Aff (Array Address)
   , signTx :: Transaction -> Aff Transaction
   , signData :: Address -> RawBytes -> Aff DataSignature
+  , getPubDrepKey :: Aff PublicKey
+  , getRegisteredPubStakeKeys :: Aff (Array PublicKey)
+  , getUnregisteredPubStakeKeys :: Aff (Array PublicKey)
   }
 
-mkCip30WalletAff
-  :: Api
-  -- ^ A function to get wallet connection
-  -> Aff Cip30Wallet
-mkCip30WalletAff connection = do
+mkCip30WalletAff :: Api -> Aff Cip30Wallet
+mkCip30WalletAff conn =
   pure
-    { connection
-    , getNetworkId: Cip30.getNetworkId connection >>= handleApiError
-    , getUtxos: getUtxos connection
-    , getCollateral: getCollateral connection
-    , getBalance: getBalance connection
-    , getUsedAddresses: getUsedAddresses connection
-    , getUnusedAddresses: getUnusedAddresses connection
-    , getChangeAddress: getChangeAddress connection
-    , getRewardAddresses: getRewardAddresses connection
-    , signTx: signTx connection
-    , signData: signData connection
+    { connection: conn
+    , getNetworkId: Cip30.getNetworkId conn >>= handleApiError
+    , getUtxos: getUtxos conn
+    , getCollateral: getCollateral conn
+    , getBalance: getBalance conn
+    , getUsedAddresses: getUsedAddresses conn
+    , getUnusedAddresses: getUnusedAddresses conn
+    , getChangeAddress: getChangeAddress conn
+    , getRewardAddresses: getRewardAddresses conn
+    , signTx: signTx conn
+    , signData: signData conn
+    , getPubDrepKey: getPubDrepKey conn
+    , getRegisteredPubStakeKeys: getRegisteredPubStakeKeys conn
+    , getUnregisteredPubStakeKeys: getUnregisteredPubStakeKeys conn
     }
 
 -------------------------------------------------------------------------------
 -- Helper functions
 -------------------------------------------------------------------------------
-
-txToHex :: Transaction -> Effect String
-txToHex =
-  map (byteArrayToHex <<< unwrap <<< Serialization.toBytes)
-    <<< Serialization.convertTransaction
 
 handleApiError
   :: forall a. Variant (apiError :: APIError, success :: a) -> Aff a
@@ -170,10 +153,10 @@ getUsedAddresses conn = do
     }
 
 hexStringToAddress :: String -> Maybe Address
-hexStringToAddress = fromBytes <<< rawBytesAsCborBytes <=< hexToRawBytes
+hexStringToAddress = decodeCbor <=< map wrap <<< hexToByteArray
 
 defaultCollateralAmount :: Coin
-defaultCollateralAmount = Coin $ BigInt.fromInt 5_000_000
+defaultCollateralAmount = Coin $ BigNum.fromInt 5_000_000
 
 -- | Get collateral using CIP-30 `getCollateral` method.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
@@ -184,9 +167,10 @@ getCollateral conn = do
   liftEffect $ for mbUtxoStrs \utxoStrs -> do
     for utxoStrs \utxoStr -> do
       liftM (error $ "CIP-30 getCollateral returned bad UTxO: " <> utxoStr) $
-        Deserialization.UnspentOuput.convertUnspentOutput
-          =<< fromBytes
-          =<< hexToCborBytes utxoStr
+        TransactionUnspentOuput.fromCsl <$>
+          ( fromBytes
+              =<< hexToByteArray utxoStr
+          )
 
 getUtxos :: Api -> Aff (Maybe (Array TransactionUnspentOutput))
 getUtxos conn = do
@@ -195,29 +179,31 @@ getUtxos conn = do
     { success: \mbUtxoArray -> do
         liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do
           liftMaybe (error $ "CIP-30 getUtxos returned bad UTxO: " <> str) $
-            hexToCborBytes str >>= fromBytes >>=
-              Deserialization.UnspentOuput.convertUnspentOutput
+            (hexToByteArray str >>= fromBytes) <#> UnspentOutput.fromCsl
     , paginateError: show >>> throw >>> liftEffect
     , apiError: show >>> throw >>> liftEffect
     }
 
 signTx :: Api -> Transaction -> Aff Transaction
 signTx conn tx = do
-  txHex <- liftEffect $ txToHex tx
+  let txHex = txToHex tx
   result <- Cip30.signTx conn txHex true
   liftEffect $ result `flip match`
     { success:
         \hexString -> do
-          bytes <- liftM (mkInvalidHexError hexString) $ hexToRawBytes
-            hexString
-          combineWitnessSet tx <$>
-            ( Deserialization.WitnessSet.convertWitnessSet
-                <$> fromBytesEffect (rawBytesAsCborBytes bytes)
-            )
+          bytes <- liftM (mkInvalidHexError hexString) $
+            hexToByteArray hexString
+          ws <- liftM (error "signTx: unable to decode WitnessSet cbor")
+            $ decodeCbor (wrap bytes)
+          pure $ combineWitnessSet tx ws
     , apiError: show >>> throw
     , txSignError: show >>> throw
     }
   where
+
+  txToHex :: Transaction -> String
+  txToHex = encodeCbor >>> unwrap >>> byteArrayToHex
+
   -- We have to combine the newly returned witness set with the existing one
   -- Otherwise, any datums, etc... won't be retained
   combineWitnessSet :: Transaction -> TransactionWitnessSet -> Transaction
@@ -231,53 +217,58 @@ signTx conn tx = do
 -- | `PointerAddress` and `RewardAddress`
 signData :: Api -> Address -> RawBytes -> Aff DataSignature
 signData conn address dat = do
-  byteAddress <-
-    liftMaybe
-      (error "Can't convert Address to base, enterprise, pointer or reward")
-      (fromBase <|> fromEnterprise <|> fromPointer <|> fromReward)
-  result <- Cip30.signData conn (cborBytesToHex byteAddress)
-    (rawBytesToHex dat)
+  -- TODO: forbid byron addresses
+  let byteAddress = encodeCbor address
+  result <- Cip30.signData conn (byteArrayToHex $ unwrap byteAddress)
+    (byteArrayToHex $ unwrap dat)
   liftEffect $ result `flip match`
     { dataSignError: show >>> throw
     , apiError: show >>> throw
     , success: \signedData -> do
-        key <- liftM byteError $ hexToCborBytes signedData.key
-        signature <- liftM byteError $ hexToCborBytes signedData.signature
-        pure { key: key, signature: signature }
+        key <- liftM byteError $ hexToByteArray signedData.key
+        signature <- liftM byteError $ hexToByteArray signedData.signature
+        pure { key: wrap key, signature: wrap signature }
     }
   where
   byteError = error "signData: hexToCborBytes failure"
-
-  fromBase :: Maybe CborBytes
-  fromBase = baseAddressBytes <$> baseAddressFromAddress address
-
-  fromEnterprise :: Maybe CborBytes
-  fromEnterprise = enterpriseAddressBytes <$>
-    enterpriseAddressFromAddress address
-
-  fromPointer :: Maybe CborBytes
-  fromPointer = pointerAddressBytes <$> pointerAddressFromAddress address
-
-  fromReward :: Maybe CborBytes
-  fromReward = rewardAddressBytes <$> rewardAddressFromAddress address
 
 getBalance :: Api -> Aff Value
 getBalance conn = do
   Cip30.getBalance conn >>= handleApiError >>=
     liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
-      (hexToCborBytes >=> fromBytes >=> convertValue)
+      (hexToByteArray >=> fromBytes >>> map Value.fromCsl)
 
-getCip30Collateral
-  :: Api -> Coin -> Aff (Maybe (Array String))
-getCip30Collateral conn requiredValue = do
-  bigNumValue <- liftEffect $ maybe (throw convertError) pure
-    $ BigNum.fromBigInt
-    $ unwrap requiredValue
-  let requiredValueStr = byteArrayToHex $ unwrap $ toBytes bigNumValue
+getCip30Collateral :: Api -> Coin -> Aff (Maybe (Array String))
+getCip30Collateral conn (Coin requiredValue) = do
+  let requiredValueStr = byteArrayToHex $ toBytes $ unwrap requiredValue
   (Cip30.getCollateral conn requiredValueStr >>= handleApiError) `catchError`
     \err -> throwError $ error $
       "Failed to call `getCollateral`: " <> show err
-  where
-  convertError =
-    "Unable to convert CIP-30 getCollateral required value: " <>
-      show requiredValue
+
+getPubDrepKey :: Api -> Aff PublicKey
+getPubDrepKey conn = do
+  drepKeyHex <- handleApiError =<< Cip95.getPubDrepKey conn
+  pubKeyFromHex drepKeyHex $
+    "CIP-95 getPubDRepKey returned invalid DRep key: "
+      <> drepKeyHex
+
+getRegisteredPubStakeKeys :: Api -> Aff (Array PublicKey)
+getRegisteredPubStakeKeys conn = do
+  keys <- handleApiError =<< Cip95.getRegisteredPubStakeKeys conn
+  for keys \pubStakeKeyHex ->
+    pubKeyFromHex pubStakeKeyHex $
+      "CIP-95 getRegisteredPubStakeKeys returned invalid key: "
+        <> pubStakeKeyHex
+
+getUnregisteredPubStakeKeys :: Api -> Aff (Array PublicKey)
+getUnregisteredPubStakeKeys conn = do
+  keys <- handleApiError =<< Cip95.getUnregisteredPubStakeKeys conn
+  for keys \pubStakeKeyHex ->
+    pubKeyFromHex pubStakeKeyHex $
+      "CIP-95 getUnregisteredPubStakeKeys returned invalid key: "
+        <> pubStakeKeyHex
+
+pubKeyFromHex :: String -> String -> Aff PublicKey
+pubKeyFromHex keyHex err =
+  liftM (error err)
+    (PublicKey.fromRawBytes <<< wrap =<< hexToByteArray keyHex)

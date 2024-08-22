@@ -4,11 +4,9 @@
 
 This page summarizes various approaches to testing with CTL.
 
-## Testing with Plutip
+## Testing with Cardano Testnet
 
-Plutip is a tool that allows to manage temporary `cardano-node` clusters. CTL has a test engine that controls these clusters and runs users' `Contract`s in their disposable environment. No setup is needed.
-
-[See here for more info](./plutip-testing.md).
+[See here for more info](./cardano-testnet-testing.md).
 
 ## Testing with a headless browser (E2E testing)
 
@@ -28,11 +26,11 @@ It is possible to test `Contract`s that explicitly use wallet connections in Nod
 
 See `Contract.Test.Cip30Mock` module.
 
-## Plutip and CIP-30 mocking in headless browsers
+## Cardano Testnet and CIP-30 mocking in headless browsers
 
-We also provide abilities to test `Contract`s in a headless browser using query layer of a temporary Plutip cluster as backend and CIP-30 mock instead of a wallet. This method provides stronger guarantees than just CIP-30 mocking in NodeJS, while retaining the ability to be used in Nix builds (by not depending on a real light wallet extension).
+We also provide abilities to test `Contract`s in a headless browser using query layer of a Cardano Testnet cluster as backend and CIP-30 mock instead of a wallet. This method provides stronger guarantees than just CIP-30 mocking in NodeJS, while retaining the ability to be used in Nix builds (by not depending on a real light wallet extension).
 
-[See here for more info](./e2e-testing.md#using-cip-30-mock-with-plutip).
+[See here for more info](./e2e-testing.md#using-cip-30-mock-with-cardano-testnet).
 
 ## Assertion helpers in PureScript
 

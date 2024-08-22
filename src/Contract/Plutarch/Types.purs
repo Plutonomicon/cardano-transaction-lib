@@ -58,4 +58,3 @@ denominator = unwrap >>> R.denominator
 
 recip :: PRational -> Maybe PRational
 recip = unwrap >>> R.recip >>> map wrap
-

@@ -1,4 +1,5 @@
--- | This module demonstrates how `applyArgs` from `Contract.Scripts` can be
+-- | This module demonstrates how `applyArgs` from `Cardano.Plutus.ApplyArgs`
+-- | (from https://github.com/mlabs-haskell/purescript-uplc-apply-args) can be
 -- | used to build scripts with the provided arguments applied. It creates a
 -- | transaction that mints an NFT using the one-shot minting policy.
 module Ctl.Examples.OneShotMinting
@@ -7,13 +8,31 @@ module Ctl.Examples.OneShotMinting
   , main
   , mkContractWithAssertions
   , mkOneShotMintingPolicy
-  , oneShotMintingPolicy
   , oneShotMintingPolicyScript
   ) where
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Plutus.ApplyArgs (applyArgs)
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(SpendOutput, MintAsset)
+  )
+import Cardano.Types (_body, _fee, _input)
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.RedeemerDatum as RedeemerDatum
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (fromUtxoMap)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
@@ -24,46 +43,42 @@ import Contract.Monad
   , runContract
   )
 import Contract.PlutusData (PlutusData, toData)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( ApplyArgsError
-  , MintingPolicy(PlutusMintingPolicy)
-  , PlutusScript
-  , applyArgs
-  )
+import Contract.Scripts (PlutusScript)
 import Contract.Test.Assert
   ( ContractCheck
   , checkLossInWallet
   , checkTokenGainInWallet'
   , runChecks
   )
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , submitTxFromConstraintsReturningFee
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints as Constraints
-import Contract.Value (CurrencySymbol, TokenName)
-import Contract.Value (singleton) as Value
+import Contract.Value (AssetName, ScriptHash)
 import Contract.Wallet (getWalletUtxos)
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Monad.Trans.Class (lift)
-import Ctl.Examples.Helpers (mkCurrencySymbol, mkTokenName) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head, singleton) as Array
-import Data.Map (toUnfoldable) as Map
+import Data.Lens ((^.))
+import Data.Map (empty) as Map
 import Effect.Exception (error, throw)
 import JS.BigInt (BigInt)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
   runContract cfg contract
 
 mkChecks
-  :: (CurrencySymbol /\ TokenName /\ BigInt)
+  :: (ScriptHash /\ AssetName /\ BigInt)
   -> Array (ContractCheck { txFinalFee :: BigInt })
 mkChecks nft =
   [ checkTokenGainInWallet' nft
@@ -76,57 +91,53 @@ mkChecks nft =
 
 contract :: Contract Unit
 contract =
-  mkContractWithAssertions "Examples.OneShotMinting" oneShotMintingPolicy
+  mkContractWithAssertions "Examples.OneShotMinting" oneShotMintingPolicyScript
 
 mkContractWithAssertions
   :: String
-  -> (TransactionInput -> Contract MintingPolicy)
+  -> (TransactionInput -> Contract PlutusScript)
   -> Contract Unit
 mkContractWithAssertions exampleName mkMintingPolicy = do
   logInfo' ("Running " <> exampleName)
-  utxos <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos
+  utxos <- liftedM "Failed to get UTxOs from wallet" $ getWalletUtxos <#> map
+    fromUtxoMap
   oref <-
     liftContractM "Utxo set is empty"
-      (fst <$> Array.head (Map.toUnfoldable utxos :: Array _))
+      (Array.head utxos)
 
-  mp /\ cs <- Helpers.mkCurrencySymbol (mkMintingPolicy oref)
-  tn <- Helpers.mkTokenName "CTLNFT"
+  ps <- mkMintingPolicy (oref ^. _input)
+  let cs = PlutusScript.hash ps
+  tn <- Helpers.mkAssetName "CTLNFT"
 
   let
-    constraints :: Constraints.TxConstraints
-    constraints =
-      Constraints.mustMintValue (Value.singleton cs tn one)
-        <> Constraints.mustSpendPubKeyOutput oref
-
-    lookups :: Lookups.ScriptLookups
-    lookups =
-      Lookups.mintingPolicy mp
-        <> Lookups.unspentOutputs utxos
+    plan =
+      [ MintAsset cs tn (Int.fromInt one)
+          (PlutusScriptCredential (ScriptValue ps) RedeemerDatum.unit)
+      , SpendOutput (oref) Nothing
+      ]
 
   let checks = mkChecks (cs /\ tn /\ one)
   void $ runChecks checks $ lift do
-    { txHash, txFinalFee } <-
-      submitTxFromConstraintsReturningFee lookups constraints
+    tx <- submitTxFromBuildPlan Map.empty mempty plan
+    let
+      txHash = Transaction.hash tx
+      txFinalFee = tx ^. _body <<< _fee
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"
-    pure { txFinalFee }
-
-oneShotMintingPolicy :: TransactionInput -> Contract MintingPolicy
-oneShotMintingPolicy =
-  map PlutusMintingPolicy <<< oneShotMintingPolicyScript
+    pure { txFinalFee: BigNum.toBigInt $ unwrap txFinalFee }
 
 oneShotMintingPolicyScript :: TransactionInput -> Contract PlutusScript
 oneShotMintingPolicyScript txInput = do
   script <- liftMaybe (error "Error decoding oneShotMinting") do
     envelope <- decodeTextEnvelope oneShotMinting
-    plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
   liftContractE $ mkOneShotMintingPolicy script txInput
 
 mkOneShotMintingPolicy
   :: PlutusScript
   -> TransactionInput
-  -> Either ApplyArgsError PlutusScript
+  -> Either String PlutusScript
 mkOneShotMintingPolicy unappliedMintingPolicy oref =
   let
     mintingPolicyArgs :: Array PlutusData

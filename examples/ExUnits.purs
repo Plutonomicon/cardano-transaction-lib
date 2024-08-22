@@ -2,44 +2,56 @@ module Ctl.Examples.ExUnits where
 
 import Contract.Prelude
 
-import Contract.Address (scriptHashAddress)
-import Contract.Config (ContractParams, testnetNamiConfig)
-import Contract.Credential (Credential(PubKeyCredential))
+import Cardano.Transaction.Builder
+  ( OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, SpendOutput)
+  )
+import Cardano.Types
+  ( Credential(ScriptHashCredential)
+  , OutputDatum(OutputDatum)
+  , PaymentCredential(PaymentCredential)
+  , TransactionOutput(TransactionOutput)
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusData as PlutusData
+import Cardano.Types.Transaction as Transaction
+import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
+import Contract.Address (mkAddress)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
+import Contract.Credential (Credential(PubKeyHashCredential))
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData
-  ( Redeemer(Redeemer)
-  , toData
-  , unitDatum
-  )
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( Validator(Validator)
-  , ValidatorHash
-  , validatorHash
-  )
-import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV2FromEnvelope)
+import Contract.PlutusData (RedeemerDatum(RedeemerDatum), toData)
+import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
-  , _input
   , awaitTxConfirmed
   , lookupTxHash
-  , submitTxFromConstraints
+  , submitTxFromBuildPlan
   )
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.Lens (view)
+import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do
@@ -58,29 +70,17 @@ example cfg = launchAff_ do
 
 payToExUnits :: ValidatorHash -> Contract TransactionHash
 payToExUnits vhash = do
-  -- Send to own stake credential. This is used to test mustPayToScriptAddress.
-  mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
-  let
-    constraints :: TxConstraints
-    constraints =
-      case mbStakeKeyHash of
-        Nothing ->
-          Constraints.mustPayToScript vhash unitDatum
-            Constraints.DatumWitness
-            $ Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
-        Just stakeKeyHash ->
-          Constraints.mustPayToScriptAddress vhash
-            (PubKeyCredential $ unwrap stakeKeyHash)
-            unitDatum
-            Constraints.DatumWitness
-            $ Value.lovelaceValueOf
-            $ BigInt.fromInt 2_000_000
-
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
-
-  submitTxFromConstraints lookups constraints
+  address <- mkAddress
+    (PaymentCredential $ ScriptHashCredential vhash)
+    Nothing
+  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ Pay $ TransactionOutput
+        { address: address
+        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+        , datum: Just $ OutputDatum PlutusData.unit
+        , scriptRef: Nothing
+        }
+    ]
 
 -- | ExUnits script loops a given number of iterations provided as redeemer.
 spendFromExUnits
@@ -92,11 +92,11 @@ spendFromExUnits
 spendFromExUnits iters vhash validator txId = do
   -- Use own stake credential if available
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
-  let
-    scriptAddress =
-      scriptHashAddress vhash (PubKeyCredential <<< unwrap <$> mbStakeKeyHash)
+  scriptAddress <-
+    mkAddress (wrap $ ScriptHashCredential vhash)
+      (wrap <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
   utxos <- utxosAt scriptAddress
-  txInput <-
+  utxo <-
     liftM
       ( error
           ( "The id "
@@ -105,24 +105,24 @@ spendFromExUnits iters vhash validator txId = do
               <> show scriptAddress
           )
       )
-      (view _input <$> head (lookupTxHash txId utxos))
-  let
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs utxos
+      (head (lookupTxHash txId utxos))
 
-    constraints :: TxConstraints
-    constraints =
-      Constraints.mustSpendScriptOutput txInput (Redeemer $ toData iters)
-
-  spendTxId <- submitTxFromConstraints lookups constraints
-  awaitTxConfirmed spendTxId
+  spendTx <- submitTxFromBuildPlan (toUtxoMap [ utxo ])
+    mempty
+    [ SpendOutput
+        utxo
+        $ Just
+        $ PlutusScriptOutput (ScriptValue validator)
+            (RedeemerDatum $ toData iters)
+            Nothing
+    ]
+  awaitTxConfirmed $ Transaction.hash spendTx
   logInfo' "Successfully spent locked values."
 
 exUnitsScript :: Contract Validator
 exUnitsScript = do
   liftMaybe (error "Error decoding exUnits") do
     envelope <- decodeTextEnvelope exUnits
-    Validator <$> plutusScriptV2FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
 foreign import exUnits :: String

@@ -15,10 +15,16 @@ import Cardano.Wallet.Cip30
   , getName
   )
 import Cardano.Wallet.Cip30.TypeSafe as Cip30
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractAffM, runContract)
-import Contract.Prim.ByteArray (rawBytesFromAscii)
+import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.Wallet
   ( getChangeAddress
   , getRewardAddresses
@@ -30,7 +36,10 @@ import Data.Array (head)
 import Effect.Exception (error)
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ do
@@ -62,7 +71,7 @@ contract = do
   _ <- performAndLog "getUnusedAddresses" getUnusedAddresses
   dataBytes <- liftContractAffM
     ("can't convert : " <> msg <> " to RawBytes")
-    (pure mDataBytes)
+    (pure $ wrap <$> mDataBytes)
   mRewardAddress <- performAndLog "getRewardAddresses" getRewardAddresses
   rewardAddr <- liftMaybe (error "can't get reward address")
     $ head mRewardAddress
@@ -71,7 +80,7 @@ contract = do
   void $ performAndLog "signData rewardAddress" $ signData rewardAddr dataBytes
   where
   msg = "hello world!"
-  mDataBytes = rawBytesFromAscii msg
+  mDataBytes = byteArrayFromAscii msg
 
   performAndLog
     :: forall (a :: Type)

@@ -7,8 +7,7 @@ import Ctl.Internal.Types.TxConstraints
   , InputConstraint(InputConstraint)
   , InputWithScriptRef(RefInput, SpendInput)
   , OutputConstraint(OutputConstraint)
-  , TxConstraints(TxConstraints)
-  , isSatisfiable
+  , TxConstraints
   , mustBeSignedBy
   , mustDelegateStakeNativeScript
   , mustDelegateStakePlutusScript
@@ -41,15 +40,14 @@ import Ctl.Internal.Types.TxConstraints
   , mustPayToScriptAddressWithScriptRef
   , mustPayToScriptWithScriptRef
   , mustProduceAtLeast
-  , mustProduceAtLeastTotal
   , mustReferenceOutput
+  , mustRegisterDrep
   , mustRegisterPool
   , mustRegisterStakePubKey
   , mustRegisterStakeScript
   , mustRetirePool
   , mustSatisfyAnyOf
   , mustSpendAtLeast
-  , mustSpendAtLeastTotal
   , mustSpendNativeScriptOutput
   , mustSpendPubKeyOutput
   , mustSpendScriptOutput
@@ -58,9 +56,4 @@ import Ctl.Internal.Types.TxConstraints
   , mustWithdrawStakeNativeScript
   , mustWithdrawStakePlutusScript
   , mustWithdrawStakePubKey
-  , pubKeyPayments
-  , requiredDatums
-  , requiredMonetaryPolicies
-  , requiredSignatories
-  , singleton
   ) as TxConstraints

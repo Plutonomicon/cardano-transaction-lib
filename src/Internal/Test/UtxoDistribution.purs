@@ -9,23 +9,36 @@ module Ctl.Internal.Test.UtxoDistribution
   , InitialUTxOs
   , InitialUTxODistribution
   , InitialUTxOsWithStakeKey(InitialUTxOsWithStakeKey)
+  , TestWalletSpec(TestWalletSpec)
   , UtxoAmount
   ) where
 
 import Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
+import Cardano.Types
+  ( BigNum
+  , Credential(PubKeyHashCredential)
+  , PaymentCredential(PaymentCredential)
+  , PaymentPubKeyHash
   , StakePubKeyHash
-  , getNetworkId
-  , payPubKeyHashEnterpriseAddress
+  , TransactionOutput(TransactionOutput)
   )
-import Contract.Monad (Contract, liftContractM, liftedM)
+import Cardano.Types.Address (Address(EnterpriseAddress))
+import Cardano.Types.PrivateKey (PrivateKey)
+import Cardano.Types.UtxoMap (UtxoMap)
+import Cardano.Wallet.Key
+  ( KeyWallet
+  , PrivateDrepKey
+  , PrivatePaymentKey(PrivatePaymentKey)
+  , PrivateStakeKey
+  , privateKeysToKeyWallet
+  )
+import Contract.Address (getNetworkId)
+import Contract.Monad (Contract, liftedM)
 import Contract.Prelude (foldM, foldMap, null)
 import Contract.ScriptLookups as Lookups
 import Contract.Transaction
-  ( TransactionOutputWithRefScript(TransactionOutputWithRefScript)
-  , awaitTxConfirmed
+  ( awaitTxConfirmed
   , balanceTx
   , signTransaction
   , submit
@@ -43,31 +56,24 @@ import Contract.Wallet
 import Control.Alternative (guard)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
-import Ctl.Internal.Plutus.Types.Transaction (UtxoMap)
-import Ctl.Internal.Serialization.Types (PrivateKey)
-import Ctl.Internal.Wallet.Key
-  ( KeyWallet
-  , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey
-  , privateKeysToKeyWallet
-  )
 import Data.Array (head)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Generic.Rep (class Generic)
 import Data.List (List, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(Nothing, Just))
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import JS.BigInt (BigInt)
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces
-type UtxoAmount = BigInt
+type UtxoAmount = BigNum
 
 -- | A list of UTxOs for a single wallet
 type InitialUTxOs = Array UtxoAmount
@@ -76,6 +82,18 @@ type InitialUTxOs = Array UtxoAmount
 -- | generated pre-funded Address.
 data InitialUTxOsWithStakeKey =
   InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
+
+newtype TestWalletSpec = TestWalletSpec
+  { utxos :: Array UtxoAmount
+  , stakeKey :: Maybe PrivateStakeKey
+  , drepKey :: Maybe PrivateDrepKey
+  }
+
+derive instance Generic TestWalletSpec _
+derive instance Newtype TestWalletSpec _
+
+instance Show TestWalletSpec where
+  show = genericShow
 
 -- | A spec for distribution of UTxOs between wallets.
 type InitialUTxODistribution = Array InitialUTxOs
@@ -104,7 +122,7 @@ instance UtxoDistribution InitialUTxOs KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
     \{ head: key, tail } ->
-      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing) /\ tail
+      (privateKeysToKeyWallet (PrivatePaymentKey key) Nothing Nothing) /\ tail
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
@@ -112,7 +130,16 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (InitialUTxOsWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: key, tail } ->
-      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) /\
+      privateKeysToKeyWallet (PrivatePaymentKey key) (Just stake) Nothing /\
+        tail
+  keyWallets _ wallet = [ wallet ]
+
+instance UtxoDistribution TestWalletSpec KeyWallet where
+  encodeDistribution (TestWalletSpec { utxos }) = [ utxos ]
+  decodeWallets distr privateKeys = decodeWalletsDefault distr privateKeys
+  decodeWallets' (TestWalletSpec { stakeKey, drepKey }) privateKeys =
+    Array.uncons privateKeys <#> \{ head: key, tail } ->
+      privateKeysToKeyWallet (PrivatePaymentKey key) stakeKey drepKey /\
         tail
   keyWallets _ wallet = [ wallet ]
 
@@ -123,6 +150,12 @@ instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
   keyWallets = keyWalletsArray
 
 instance UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet) where
+  encodeDistribution = encodeDistributionArray
+  decodeWallets d = decodeWalletsDefault d
+  decodeWallets' = decodeWallets'Array
+  keyWallets = keyWalletsArray
+
+instance UtxoDistribution (Array TestWalletSpec) (Array KeyWallet) where
   encodeDistribution = encodeDistributionArray
   decodeWallets d = decodeWalletsDefault d
   decodeWallets' = decodeWallets'Array
@@ -199,7 +232,7 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
   -- Get all utxos and key hashes at all wallets containing a stake key
   walletsInfo <- foldM addStakeKeyWalletInfo mempty wallets
   unless (null walletsInfo) do
-    let ourWallet = mkKeyWalletFromPrivateKeys ourKey Nothing
+    let ourWallet = mkKeyWalletFromPrivateKeys ourKey Nothing Nothing
     ourAddr <- liftedM "Could not get our address" $
       head <$> withKeyWallet ourWallet getWalletAddresses
     ourUtxos <- utxosAt ourAddr
@@ -209,14 +242,15 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
       lookups :: Lookups.ScriptLookups
       lookups = Lookups.unspentOutputs ourUtxos
         <> foldMap (_.utxos >>> Lookups.unspentOutputs) walletsInfo
+        <> Lookups.ownPaymentPubKeyHash ourPkh
 
       constraints :: Constraints.TxConstraints
       constraints = Constraints.mustBeSignedBy ourPkh
         <> foldMap constraintsForWallet walletsInfo
-    unbalancedTx <- mkUnbalancedTx lookups constraints
+    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
     signedTx <-
       withKeyWallet ourWallet $
-        signTransaction =<< balanceTx unbalancedTx
+        signTransaction =<< balanceTx unbalancedTx usedUtxos mempty
     signedTx' <- foldM
       (\tx { wallet } -> withKeyWallet wallet $ signTransaction tx)
       signedTx
@@ -237,9 +271,8 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
     Constraints.mustBeSignedBy payPkh
       <> Constraints.mustBeSignedBy (wrap $ unwrap stakePkh)
       <> foldMapWithIndex
-        ( \input (TransactionOutputWithRefScript { output }) ->
-            Constraints.mustPayToPubKeyAddress payPkh stakePkh
-              (unwrap output).amount
+        ( \input (TransactionOutput { amount }) ->
+            Constraints.mustPayToPubKeyAddress payPkh stakePkh amount
               <> Constraints.mustSpendPubKeyOutput input
         )
         utxos
@@ -255,9 +288,11 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
         payPkh <- liftedM "Could not get payment pubkeyhash" $
           head <$> ownPaymentPubKeyHashes
         networkId <- getNetworkId
-        addr <- liftContractM "Could not get wallet address" $
-          payPubKeyHashEnterpriseAddress networkId payPkh
-        utxos' <- utxosAt addr
+        utxos' <- utxosAt $ EnterpriseAddress
+          { networkId
+          , paymentCredential: PaymentCredential $ PubKeyHashCredential $ unwrap
+              payPkh
+          }
         pure $ { utxos: utxos', payPkh, stakePkh, wallet } : walletsInfo
 
 withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey

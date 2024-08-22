@@ -9,13 +9,16 @@ module Ctl.Internal.Test.E2E.Route
 
 import Prelude
 
+import Cardano.Types (NetworkId(TestnetId))
+import Cardano.Types.PrivateKey (PrivateKey)
+import Cardano.Types.PrivateKey as PrivateKey
+import Cardano.Types.RawBytes (RawBytes(RawBytes))
 import Contract.Config (ContractParams)
 import Contract.Monad (Contract, runContract)
-import Contract.Test.Cip30Mock (WalletMock, withCip30Mock)
+import Contract.Test.Cip30Mock (withCip30Mock)
 import Contract.Wallet
   ( PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
-  , privateKeyFromBytes
   )
 import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
@@ -23,16 +26,13 @@ import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.QueryM (ClusterSetup)
-import Ctl.Internal.Serialization.Address (NetworkId(MainnetId))
-import Ctl.Internal.Serialization.Types (PrivateKey)
 import Ctl.Internal.Test.E2E.Feedback.Browser (getClusterSetupRepeatedly)
 import Ctl.Internal.Test.E2E.Feedback.Hooks (addE2EFeedbackHooks)
-import Ctl.Internal.Types.ByteArray (hexToByteArray)
-import Ctl.Internal.Types.RawBytes (RawBytes(RawBytes))
-import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToEternl))
+import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToGenericCip30))
 import Data.Array (last)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
+import Data.ByteArray (hexToByteArray)
 import Data.Either (Either(Left), note)
 import Data.Foldable (fold)
 import Data.Map (Map)
@@ -88,7 +88,8 @@ parseRoute queryString =
     _ -> Left "Unable to decode URL"
   where
   mkPrivateKey' :: String -> Maybe PrivateKey
-  mkPrivateKey' str = hexToByteArray str >>= RawBytes >>> privateKeyFromBytes
+  mkPrivateKey' str = hexToByteArray str >>= RawBytes >>>
+    PrivateKey.fromRawBytes
 
   mkPrivateKey :: String -> Maybe PrivateKey
   mkPrivateKey str =
@@ -103,7 +104,7 @@ parseRoute queryString =
     mkPrivateKey str <#> PrivateStakeKey
 
 addLinks
-  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  :: Map E2EConfigName (ContractParams /\ Maybe String)
   -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 addLinks configMaps testMaps = do
@@ -135,7 +136,7 @@ addLinks configMaps testMaps = do
 -- | from the cluster should be used. If there's no local cluster, an error
 -- | will be thrown.
 route
-  :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
+  :: Map E2EConfigName (ContractParams /\ Maybe String)
   -> Map E2ETestName (Contract Unit)
   -> Effect Unit
 route configs tests = do
@@ -161,7 +162,7 @@ route configs tests = do
           Nothing -> do
             clusterSetup@{ keys: { payment, stake } } <-
               getClusterSetupRepeatedly
-            when (config.networkId /= MainnetId) do
+            when (config.networkId /= TestnetId) do
               liftEffect $ throw wrongNetworkIdOnCluster
             pure $ { paymentKey: payment, stakeKey: stake } /\ Just clusterSetup
         let
@@ -175,7 +176,7 @@ route configs tests = do
         do
           runContract configWithHooks
             $ withCip30Mock
-                (privateKeysToKeyWallet paymentKey stakeKey)
+                (privateKeysToKeyWallet paymentKey stakeKey Nothing) -- FIXME
                 mock
                 test
   where
@@ -183,7 +184,7 @@ route configs tests = do
   delayIfEternl :: ContractParams -> Aff Unit
   delayIfEternl config =
     case config.walletSpec of
-      Just ConnectToEternl ->
+      Just (ConnectToGenericCip30 "eternl" _) ->
         delay $ wrap 3000.0
       _ -> pure unit
 
@@ -200,8 +201,9 @@ route configs tests = do
   wrongNetworkIdOnCluster :: String
   wrongNetworkIdOnCluster =
     "No payment keys were specified, which implies they should be retrieved "
-      <> "from a local cluster, however, network ID was set to TestnetId, "
-      <> "which is incompatible with Plutip, that always uses MainnetId."
+      <> "from a local cluster, however, network ID was set to MainnetId, "
+      <>
+        "which is incompatible with cardano-testnet, that always uses TestnetId."
 
   -- Override config values with parameters from cluster setup
   setClusterOptions

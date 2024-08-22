@@ -12,62 +12,70 @@ module Ctl.Examples.MintsMultipleTokens
 
 import Contract.Prelude
 
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Transaction.Builder
+  ( CredentialWitness(PlutusScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(MintAsset)
+  )
+import Cardano.Types.Int as Int
+import Cardano.Types.PlutusScript (PlutusScript)
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.Transaction as Transaction
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
-import Contract.PlutusData (PlutusData(Integer), Redeemer(Redeemer))
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts (MintingPolicy(PlutusMintingPolicy))
-import Contract.TextEnvelope
-  ( decodeTextEnvelope
-  , plutusScriptV1FromEnvelope
-  )
-import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
-import Contract.TxConstraints as Constraints
-import Contract.Value as Value
+import Contract.PlutusData (PlutusData(Integer), RedeemerDatum(RedeemerDatum))
+import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
+import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  ) as Helpers
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
+import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt (fromInt) as BigInt
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.MintsMultipleTokens"
-  tn1 <- Helpers.mkTokenName "Token with a long name"
-  tn2 <- Helpers.mkTokenName "Token"
-  mp1 /\ cs1 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt1
-  mp2 /\ cs2 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt2
-  mp3 /\ cs3 <- Helpers.mkCurrencySymbol mintingPolicyRdmrInt3
+  tn1 <- Helpers.mkAssetName "Token with a long name"
+  tn2 <- Helpers.mkAssetName "Token"
+  mp1 <- mintingPolicyRdmrInt1
+  mp2 <- mintingPolicyRdmrInt2
+  mp3 <- mintingPolicyRdmrInt3
+  let
+    cs1 = PlutusScript.hash mp1
+    cs2 = PlutusScript.hash mp2
+    cs3 = PlutusScript.hash mp3
 
   let
-    constraints :: Constraints.TxConstraints
-    constraints = mconcat
-      [ Constraints.mustMintValueWithRedeemer
-          (Redeemer $ Integer (BigInt.fromInt 1))
-          (Value.singleton cs1 tn1 one <> Value.singleton cs1 tn2 one)
-      , Constraints.mustMintValueWithRedeemer
-          (Redeemer $ Integer (BigInt.fromInt 2))
-          (Value.singleton cs2 tn1 one <> Value.singleton cs2 tn2 one)
-      , Constraints.mustMintValueWithRedeemer
-          (Redeemer $ Integer (BigInt.fromInt 3))
-          (Value.singleton cs3 tn1 one <> Value.singleton cs3 tn2 one)
+    plan =
+      [ MintAsset cs1 tn1 Int.one
+          ( PlutusScriptCredential (ScriptValue mp1) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 1)
+          )
+      , MintAsset cs2 tn2 Int.one
+          ( PlutusScriptCredential (ScriptValue mp2) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 2)
+          )
+      , MintAsset cs3 tn2 Int.one
+          ( PlutusScriptCredential (ScriptValue mp3) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 3)
+          )
       ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups =
-      Lookups.mintingPolicy mp1
-        <> Lookups.mintingPolicy mp2
-        <> Lookups.mintingPolicy mp3
-
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmed txId
+  tx <- submitTxFromBuildPlan Map.empty mempty plan
+  awaitTxConfirmed $ Transaction.hash tx
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit
@@ -78,20 +86,20 @@ foreign import redeemer1Script :: String
 foreign import redeemer2Script :: String
 foreign import redeemer3Script :: String
 
-mintingPolicyRdmrInt1 :: Contract MintingPolicy
+mintingPolicyRdmrInt1 :: Contract PlutusScript
 mintingPolicyRdmrInt1 = do
   liftMaybe (error "Error decoding redeemer1Script") do
     envelope <- decodeTextEnvelope redeemer1Script
-    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
-mintingPolicyRdmrInt2 :: Contract MintingPolicy
+mintingPolicyRdmrInt2 :: Contract PlutusScript
 mintingPolicyRdmrInt2 = do
   liftMaybe (error "Error decoding redeemer2Script") do
     envelope <- decodeTextEnvelope redeemer2Script
-    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope
 
-mintingPolicyRdmrInt3 :: Contract MintingPolicy
+mintingPolicyRdmrInt3 :: Contract PlutusScript
 mintingPolicyRdmrInt3 = do
   liftMaybe (error "Error decoding redeemer3Script") do
     envelope <- decodeTextEnvelope redeemer3Script
-    PlutusMintingPolicy <$> plutusScriptV1FromEnvelope envelope
+    plutusScriptFromEnvelope envelope

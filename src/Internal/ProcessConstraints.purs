@@ -4,30 +4,34 @@ module Ctl.Internal.ProcessConstraints
 
 import Prelude
 
-import Contract.Hashing (plutusScriptStakeValidatorHash)
-import Control.Monad.Error.Class (catchError, throwError)
-import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
-import Control.Monad.Reader.Class (asks)
-import Control.Monad.State.Trans (get, gets, put, runStateT)
-import Control.Monad.Trans.Class (lift)
-import Ctl.Internal.Address (addressPaymentValidatorHash)
-import Ctl.Internal.BalanceTx.RedeemerIndex
-  ( RedeemerPurpose(ForReward, ForCert, ForMint, ForSpend)
-  , UnindexedRedeemer(UnindexedRedeemer)
-  , unindexedRedeemerToRedeemer
+import Cardano.Transaction.Edit
+  ( DetachedRedeemer
+  , RedeemerPurpose(ForSpend, ForMint, ForReward, ForCert)
+  , attachRedeemers
+  , mkRedeemersContext
   )
-import Ctl.Internal.Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef))
-import Ctl.Internal.Cardano.Types.Transaction
+import Cardano.Types
   ( Certificate
       ( StakeDelegation
       , PoolRetirement
       , PoolRegistration
       , StakeDeregistration
       , StakeRegistration
+      , RegDrepCert
       )
+  , DataHash
+  , NetworkId
+  , PlutusData
+  , PlutusScript
+  , ScriptHash
+  , ScriptRef(NativeScriptRef, PlutusScriptRef)
+  , StakeCredential(StakeCredential)
   , Transaction
+  , TransactionInput
   , TransactionOutput(TransactionOutput)
-  , TransactionWitnessSet(TransactionWitnessSet)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  , UtxoMap
+  , Value(Value)
   , _body
   , _certs
   , _inputs
@@ -37,33 +41,36 @@ import Ctl.Internal.Cardano.Types.Transaction
   , _outputs
   , _referenceInputs
   , _requiredSigners
-  , _scriptDataHash
   , _withdrawals
   , _witnessSet
   )
-import Ctl.Internal.Cardano.Types.Value
-  ( Coin(Coin)
-  , getNonAdaAsset
-  , isZero
-  , mkSingletonValue'
-  , mpsSymbol
+import Cardano.Types as Cardano
+import Cardano.Types.Address
+  ( Address(BaseAddress, EnterpriseAddress)
+  , getPaymentCredential
   )
+import Cardano.Types.Coin as Coin
+import Cardano.Types.Credential
+  ( Credential(PubKeyHashCredential, ScriptHashCredential)
+  , asScriptHash
+  )
+import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.DataHash as Datum
+import Cardano.Types.Int as Int
+import Cardano.Types.Mint as Mint
+import Cardano.Types.MultiAsset as MultiAsset
+import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash, OutputDatum))
+import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.Transaction as Transaction
+import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Except.Trans (ExceptT(ExceptT), except, runExceptT)
+import Control.Monad.Reader.Class (asks)
+import Control.Monad.State.Trans (get, gets, put, runStateT)
+import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
-import Ctl.Internal.Hashing (datumHash) as Hashing
-import Ctl.Internal.Helpers (liftEither, liftM)
-import Ctl.Internal.NativeScripts (nativeScriptHash)
-import Ctl.Internal.Plutus.Conversion
-  ( fromPlutusTxOutputWithRefScript
-  , fromPlutusValue
-  )
-import Ctl.Internal.Plutus.Types.Credential
-  ( Credential(ScriptCredential, PubKeyCredential)
-  )
-import Ctl.Internal.Plutus.Types.Transaction (TransactionOutputWithRefScript) as Plutus
-import Ctl.Internal.Plutus.Types.TransactionUnspentOutput
-  ( TransactionUnspentOutput(TransactionUnspentOutput)
-  )
+import Ctl.Internal.Helpers (liftEither, liftM, unsafeFromJust)
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
       ( CannotSatisfyAny
@@ -71,8 +78,6 @@ import Ctl.Internal.ProcessConstraints.Error
       , CannotWithdrawRewardsPlutusScript
       , CannotWithdrawRewardsPubKey
       , DatumWrongHash
-      , CannotMakeValue
-      , MintingPolicyHashNotCurrencySymbol
       , CannotMintZero
       , ExpectedPlutusScriptGotNativeScript
       , CannotFindDatum
@@ -86,7 +91,9 @@ import Ctl.Internal.ProcessConstraints.Error
       , DatumNotFound
       , TxOutRefNotFound
       , CannotSolveTimeConstraints
+      , NumericOverflow
       , OwnPubKeyAndStakeKeyMissing
+      , CannotAttachRedeemer
       )
   )
 import Ctl.Internal.ProcessConstraints.State
@@ -106,33 +113,16 @@ import Ctl.Internal.ProcessConstraints.State
   , requireValue
   , totalMissingValue
   )
-import Ctl.Internal.ProcessConstraints.UnbalancedTx (UnbalancedTx)
 import Ctl.Internal.QueryM.Pools
   ( getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
-import Ctl.Internal.Scripts
-  ( mintingPolicyHash
-  , nativeScriptStakeValidatorHash
-  , validatorHash
-  , validatorHashEnterpriseAddress
-  )
-import Ctl.Internal.Serialization.Address
-  ( NetworkId
-  , StakeCredential
-  , baseAddress
-  , baseAddressToAddress
-  , keyHashCredential
-  , scriptHashCredential
-  )
-import Ctl.Internal.Serialization.Hash (ScriptHash)
 import Ctl.Internal.Transaction
   ( attachDatum
   , attachNativeScript
   , attachPlutusScript
   , setScriptDataHash
   )
-import Ctl.Internal.Types.Datum (DataHash, Datum)
 import Ctl.Internal.Types.Interval
   ( POSIXTimeRange
   , always
@@ -140,26 +130,7 @@ import Ctl.Internal.Types.Interval
   , isEmpty
   , posixTimeRangeToTransactionValidity
   )
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(NoOutputDatum, OutputDatumHash, OutputDatum)
-  )
-import Ctl.Internal.Types.PubKeyHash
-  ( payPubKeyHashBaseAddress
-  , payPubKeyHashEnterpriseAddress
-  , stakePubKeyHashRewardAddress
-  )
-import Ctl.Internal.Types.RewardAddress
-  ( stakePubKeyHashRewardAddress
-  , stakeValidatorHashRewardAddress
-  ) as RewardAddress
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Scripts
-  ( MintingPolicy(NativeMintingPolicy, PlutusMintingPolicy)
-  , MintingPolicyHash
-  , Validator
-  , ValidatorHash
-  )
-import Ctl.Internal.Types.Transaction (TransactionInput)
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
   , InputWithScriptRef(SpendInput, RefInput)
@@ -194,30 +165,34 @@ import Ctl.Internal.Types.TxConstraints
       , MustBeSignedBy
       , MustValidateIn
       , MustIncludeDatum
+      , MustRegisterDrep
       )
-  , TxConstraints(TxConstraints)
+  , TxConstraints
   , utxoWithScriptRef
   )
+import Ctl.Internal.Types.Val as Val
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, hush, isRight, note)
 import Data.Foldable (foldM)
-import Data.Lens (non, (%=), (%~), (.=), (.~), (<>=))
-import Data.Lens.Getter (to, use)
+import Data.Lens ((%=), (.=), (.~), (<>=))
+import Data.Lens.Getter (use)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.List (List(Nil, Cons))
 import Data.Map (Map, empty, fromFoldable, lookup, union)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
-import Data.Newtype (class Newtype, over, unwrap, wrap)
-import Data.Set (insert) as Set
-import Data.Traversable (for, traverse_)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
+import Data.Newtype (unwrap, wrap)
+import Data.Set as Set
+import Data.Traversable (traverse_)
+import Data.Tuple (uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
+import Partial.Unsafe (unsafePartial)
 import Prelude (join) as Bind
 
 -- The constraints don't precisely match those of Plutus:
@@ -234,24 +209,24 @@ import Prelude (join) as Bind
 processLookupsAndConstraints
   :: TxConstraints
   -> ConstraintsM (Either MkUnbalancedTxError Unit)
-processLookupsAndConstraints
-  (TxConstraints { constraints }) = runExceptT do
+processLookupsAndConstraints constraints = runExceptT do
   -- Hash all the MintingPolicys and Scripts beforehand. These maps are lost
   -- after we `runReaderT`, unlike Plutus that has a `Map` instead of `Array`.
   lookups <- use _lookups <#> unwrap
 
   let
-    mps = lookups.mps
-    scripts = lookups.scripts
-    mpsHashes = map mintingPolicyHash mps
-    validatorHashes = map validatorHash scripts
-    mpsMap = fromFoldable $ zip mpsHashes mps
-    osMap = fromFoldable $ zip validatorHashes scripts
+    plutusMintingPolicies =
+      fromFoldable $
+        zip (PlutusScript.hash <$> lookups.plutusMintingPolicies)
+          lookups.plutusMintingPolicies
+    plutusScripts =
+      fromFoldable $
+        zip (PlutusScript.hash <$> lookups.scripts) lookups.scripts
+    ctx = { plutusMintingPolicies, plutusScripts }
 
   timeConstraintsSolved <- except $ resumeTimeConstraints constraints
 
-  ExceptT $ foldConstraints (processConstraint mpsMap osMap)
-    timeConstraintsSolved
+  ExceptT $ foldConstraints (processConstraint ctx) timeConstraintsSolved
   ExceptT addFakeScriptDataHash
   ExceptT addMissingValueSpent
   ExceptT updateUsedUtxos
@@ -284,7 +259,7 @@ runConstraintsM lookups txConstraints = do
   let
     initCps :: ConstraintProcessingState
     initCps =
-      { transaction: mempty
+      { transaction: Transaction.empty
       , usedUtxos: Map.empty
       , valueSpentBalancesInputs:
           ValueSpentBalances { required: mempty, provided: mempty }
@@ -314,11 +289,14 @@ addFakeScriptDataHash = runExceptT do
   dats <- use _datums
   costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
-  reds <- use (_redeemers <<< to (map unindexedRedeemerToRedeemer))
   tx <- use _cpsTransaction
+  let
+    ctx = mkRedeemersContext tx
+  reds <- ExceptT $ use _redeemers <#> attachRedeemers ctx >>> lmap
+    CannotAttachRedeemer
   tx' <- ExceptT $ liftEffect $ setScriptDataHash costModels reds dats tx <#>
     Right
-  _cpsTransaction .= tx'
+  _cpsTransaction .= (tx' # _witnessSet <<< Cardano._redeemers .~ reds)
 
 -- | Add the remaining balance of the total value that the tx must spend.
 -- | See note [Balance of value spent]
@@ -327,7 +305,7 @@ addMissingValueSpent
 addMissingValueSpent = do
   missing <- gets totalMissingValue
   networkId <- getNetworkId
-  if isZero missing then pure $ Right unit
+  if missing == mempty then pure $ Right unit
   else runExceptT do
     -- add 'missing' to the transaction's outputs. This ensures that the
     -- wallet will add a corresponding input when balancing the
@@ -335,19 +313,25 @@ addMissingValueSpent = do
     -- Step 4 of the process described in [Balance of value spent]
     lookups <- use _lookups <#> unwrap
     let
-      pkh' = lookups.ownPaymentPubKeyHash
-      skh' = lookups.ownStakePubKeyHash
+      pkh' = map unwrap lookups.ownPaymentPubKeyHash
+      skh' = map unwrap lookups.ownStakePubKeyHash
     -- Potential fix me: This logic may be suspect:
     txOutAddress <- case pkh', skh' of
-      Nothing, Nothing -> throwError OwnPubKeyAndStakeKeyMissing
-      Just pkh, Just skh -> pure $ payPubKeyHashBaseAddress networkId pkh skh
-      Just pkh, Nothing -> pure $ payPubKeyHashEnterpriseAddress networkId pkh
-      Nothing, Just skh -> pure $ stakePubKeyHashRewardAddress networkId skh
+      Just pkh, Just skh -> pure $ BaseAddress
+        { networkId
+        , paymentCredential: wrap $ PubKeyHashCredential pkh
+        , stakeCredential: wrap $ PubKeyHashCredential skh
+        }
+      Just pkh, Nothing -> pure $ EnterpriseAddress
+        { networkId, paymentCredential: wrap $ PubKeyHashCredential pkh }
+      Nothing, _ -> throwError OwnPubKeyAndStakeKeyMissing
+    missingValue <- maybe (throwError NumericOverflow) pure $ Val.toValue
+      missing
     let
       txOut = TransactionOutput
         { address: txOutAddress
-        , amount: missing
-        , datum: NoOutputDatum
+        , amount: missingValue
+        , datum: Nothing
         , scriptRef: Nothing
         }
     _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
@@ -357,12 +341,10 @@ updateUsedUtxos
 updateUsedUtxos = runExceptT do
   txOutputs <- use _lookups <#> unwrap >>> _.txOutputs
   refScriptsUtxoMap <- use _refScriptsUtxoMap
-  networkId <- lift getNetworkId
   let
     cTxOutputs :: Map TransactionInput TransactionOutput
     cTxOutputs =
       (txOutputs `union` refScriptsUtxoMap)
-        <#> fromPlutusTxOutputWithRefScript networkId
   -- Left bias towards original map, hence `flip`:
   _cpsUsedUtxos %= flip union cTxOutputs
 
@@ -406,54 +388,53 @@ lookupTxOutRef
 lookupTxOutRef oref = case _ of
   Just inputWithRefScript ->
     lookup oref (utxoWithScriptRef inputWithRefScript)
-      # maybe (lookupTxOutRef oref Nothing) (map Right <<< convertTxOutput)
+      # maybe (lookupTxOutRef oref Nothing) (pure <<< Right)
   Nothing ->
     runExceptT do
       utxos <- use _lookups <#> unwrap >>> _.txOutputs
-      txOutput <- liftM (TxOutRefNotFound oref) (lookup oref utxos)
-      lift $ convertTxOutput txOutput
-  where
-  convertTxOutput
-    :: Plutus.TransactionOutputWithRefScript -> ConstraintsM TransactionOutput
-  convertTxOutput txOutput =
-    flip fromPlutusTxOutputWithRefScript txOutput <$> getNetworkId
+      liftM (TxOutRefNotFound oref) (lookup oref utxos)
 
 lookupDatum
   :: DataHash
-  -> ConstraintsM (Either MkUnbalancedTxError Datum)
+  -> ConstraintsM (Either MkUnbalancedTxError PlutusData)
 lookupDatum dh = do
   otherDt <- use _lookups <#> unwrap >>> _.datums
   pure $ note (DatumNotFound dh) $ lookup dh otherDt
 
 lookupMintingPolicy
-  :: MintingPolicyHash
-  -> Map MintingPolicyHash MintingPolicy
-  -> Either MkUnbalancedTxError MintingPolicy
+  :: forall a
+   . ScriptHash
+  -> Map ScriptHash a
+  -> Either MkUnbalancedTxError a
 lookupMintingPolicy mph mpsMap =
   note (MintingPolicyNotFound mph) $ lookup mph mpsMap
 
 lookupValidator
-  :: ValidatorHash
-  -> Map ValidatorHash Validator
-  -> Either MkUnbalancedTxError Validator
+  :: ScriptHash
+  -> Map ScriptHash PlutusScript
+  -> Either MkUnbalancedTxError PlutusScript
 lookupValidator vh osMap =
   note (ValidatorHashNotFound vh) $ lookup vh osMap
 
+-- Ensures uniqueness
+appendInputs
+  :: Array TransactionInput -> Array TransactionInput -> Array TransactionInput
+appendInputs a b = Set.toUnfoldable (Set.fromFoldable a <> Set.fromFoldable b)
+
 processScriptRefUnspentOut
-  :: forall (scriptHash :: Type)
-   . Newtype scriptHash ScriptHash
-  => scriptHash
+  :: ScriptHash
   -> InputWithScriptRef
   -> ConstraintsM (Either MkUnbalancedTxError Unit)
 processScriptRefUnspentOut scriptHash inputWithRefScript = do
   unspentOut <- case inputWithRefScript of
     SpendInput unspentOut -> do
-      _cpsTransaction <<< _body <<< _inputs %= Set.insert
-        (_.input <<< unwrap $ unspentOut)
+      _cpsTransaction <<< _body <<< _inputs %=
+        appendInputs [ _.input <<< unwrap $ unspentOut ]
       pure unspentOut
     RefInput unspentOut -> do
       let refInput = (unwrap unspentOut).input
-      _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
+      _cpsTransaction <<< _body <<< _referenceInputs %=
+        appendInputs [ refInput ]
       pure unspentOut
 
   updateRefScriptsUtxoMap unspentOut
@@ -470,13 +451,14 @@ processScriptRefUnspentOut scriptHash inputWithRefScript = do
   checkScriptRef (TransactionUnspentOutput { output }) =
     let
       refScriptHash :: Maybe ScriptHash
-      refScriptHash = _.referenceScript $ unwrap $ (unwrap output).output
+      refScriptHash = (unwrap output).scriptRef <#> case _ of
+        NativeScriptRef ns -> NativeScript.hash ns
+        PlutusScriptRef ps -> PlutusScript.hash ps
 
       err :: ConstraintsM (Either MkUnbalancedTxError Unit)
-      err = pure $ throwError $ WrongRefScriptHash refScriptHash
-        (unwrap output).output
+      err = pure $ throwError $ WrongRefScriptHash refScriptHash output
     in
-      if Just (unwrap scriptHash) /= refScriptHash then err
+      if Just scriptHash /= refScriptHash then err
       else pure (Right unit)
 
 checkRefNative
@@ -484,7 +466,7 @@ checkRefNative
   -> ConstraintsM (Either MkUnbalancedTxError Boolean)
 checkRefNative scriptRef =
   let
-    out = (unwrap ((unwrap uout).output)).output
+    out = (unwrap uout).output
   in
     pure $ note (WrongRefScriptHash Nothing out) $ isNative
       (unwrap (unwrap uout).output).scriptRef
@@ -504,11 +486,14 @@ checkRefNative scriptRef =
 -- | possible. Fails if a hash is missing from the lookups, or if an output
 -- | of the wrong type is spent.
 processConstraint
-  :: Map MintingPolicyHash MintingPolicy
-  -> Map ValidatorHash Validator
+  :: { plutusMintingPolicies :: Map ScriptHash PlutusScript
+     , plutusScripts :: Map ScriptHash PlutusScript
+     }
   -> TxConstraint
   -> ConstraintsM (Either MkUnbalancedTxError Unit)
-processConstraint mpsMap osMap c = do
+processConstraint
+  ctx@{ plutusMintingPolicies, plutusScripts }
+  c = do
   queryHandle <- lift $ getQueryHandle
   case c of
     MustIncludeDatum dat -> pure <$> addDatum dat
@@ -531,42 +516,41 @@ processConstraint mpsMap osMap c = do
       -- the corresponding `paymentPubKey` lookup. In the next major version,
       -- we might wish to revise this
       -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
-      _cpsTransaction <<< _body <<< _requiredSigners <>= Just
+      _cpsTransaction <<< _body <<< _requiredSigners <>=
         [ wrap $ unwrap $ unwrap pkh ]
-    MustSpendAtLeast plutusValue -> do
-      let value = fromPlutusValue plutusValue
+    MustSpendAtLeast value -> do
       runExceptT $ _valueSpentBalancesInputs <>= requireValue value
-    MustProduceAtLeast plutusValue -> do
-      let value = fromPlutusValue plutusValue
+    MustProduceAtLeast value -> do
       runExceptT $ _valueSpentBalancesOutputs <>= requireValue value
     MustSpendPubKeyOutput txo -> runExceptT do
       TransactionOutput { amount } <- ExceptT $ lookupTxOutRef txo Nothing
       -- POTENTIAL FIX ME: Plutus has Tx.TxIn and Tx.PubKeyTxIn -- TxIn
       -- keeps track TransactionInput and TxInType (the input type, whether
       -- consuming script, public key or simple script)
-      _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
+      _cpsTransaction <<< _body <<< _inputs %= appendInputs [ txo ]
       _valueSpentBalancesInputs <>= provideValue amount
     MustSpendScriptOutput txo red scriptRefUnspentOut -> runExceptT do
       txOut <- ExceptT $ lookupTxOutRef txo scriptRefUnspentOut
       case txOut of
-        TransactionOutput { datum: NoOutputDatum } ->
+        TransactionOutput { datum: Nothing } ->
           throwError $ TxOutRefWrongType txo
         TransactionOutput { address, amount, datum: datum' } ->
           do
             vHash <- liftM
               (CannotGetValidatorHashFromAddress address)
-              (addressPaymentValidatorHash address)
+              (getPaymentCredential address >>= unwrap >>> asScriptHash)
             case scriptRefUnspentOut of
               Nothing -> do
                 plutusScript <-
-                  except $ unwrap <$> lookupValidator vHash osMap
-                lift $ attachToCps attachPlutusScript plutusScript
+                  except $ lookupValidator vHash plutusScripts
+                lift $ attachToCps (map pure <<< attachPlutusScript)
+                  plutusScript
               Just scriptRefUnspentOut' ->
                 ExceptT $ processScriptRefUnspentOut vHash scriptRefUnspentOut'
             -- Note: Plutus uses `TxIn` to attach a redeemer and datum.
             -- Use the datum hash inside the lookup
             case datum' of
-              OutputDatumHash dHash -> do
+              Just (OutputDatumHash dHash) -> do
                 dat <- ExceptT do
                   mDatumLookup <- lookupDatum dHash
                   if isRight mDatumLookup then
@@ -577,222 +561,215 @@ processConstraint mpsMap osMap c = do
                       >>> note
                         (CannotQueryDatum dHash)
                 lift $ addDatum dat
-              OutputDatum _ -> pure unit
-              NoOutputDatum -> throwError CannotFindDatum
-            _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
+              Just (OutputDatum _) -> pure unit
+              Nothing -> throwError CannotFindDatum
+            _cpsTransaction <<< _body <<< _inputs %= appendInputs [ txo ]
             let
-              uiRedeemer = UnindexedRedeemer
+              dRedeemer :: DetachedRedeemer
+              dRedeemer =
                 { purpose: ForSpend txo
-                , datum: unwrap red
+                , datum: red
                 }
-            _redeemers <>= [ uiRedeemer ]
+            _redeemers <>= [ dRedeemer ]
             _valueSpentBalancesInputs <>= provideValue amount
     MustSpendNativeScriptOutput txo ns -> runExceptT do
-      _cpsTransaction <<< _body <<< _inputs %= Set.insert txo
+      _cpsTransaction <<< _body <<< _inputs %= appendInputs [ txo ]
       lift $ attachToCps (map pure <<< attachNativeScript) ns
     MustReferenceOutput refInput -> runExceptT do
-      _cpsTransaction <<< _body <<< _referenceInputs %= Set.insert refInput
-    MustMintValue mpsHash red tn i scriptRefUnspentOut -> runExceptT do
+      _cpsTransaction <<< _body <<< _referenceInputs <>= [ refInput ]
+    MustMintValue scriptHash red tn i scriptRefUnspentOut -> runExceptT do
       case scriptRefUnspentOut of
         Nothing -> do
-          mp <- except $ lookupMintingPolicy mpsHash mpsMap
-          ( case mp of
-              PlutusMintingPolicy p ->
-                ( lift $ attachToCps
-                    attachPlutusScript
-                    p
-                )
-              NativeMintingPolicy _ -> throwError $
-                ExpectedPlutusScriptGotNativeScript mpsHash
-          )
+          mp <- except $ lookupMintingPolicy scriptHash plutusMintingPolicies
+          lift $ attachToCps (map pure <<< attachPlutusScript) mp
         Just scriptRefUnspentOut' -> do
           isNative <- ExceptT $ checkRefNative scriptRefUnspentOut'
-          when isNative $ throwError $ ExpectedPlutusScriptGotNativeScript
-            mpsHash
-          (ExceptT $ processScriptRefUnspentOut mpsHash scriptRefUnspentOut')
+          when isNative
+            $ throwError
+            $ ExpectedPlutusScriptGotNativeScript scriptHash
+          (ExceptT $ processScriptRefUnspentOut scriptHash scriptRefUnspentOut')
 
-      cs <-
-        liftM (MintingPolicyHashNotCurrencySymbol mpsHash) (mpsSymbol mpsHash)
-      let value = mkSingletonValue' cs tn
+      let
+        mkValue = Value Coin.zero <<< MultiAsset.singleton scriptHash tn
+        mint = Mint.singleton scriptHash tn i
       -- If i is negative we are burning tokens. The tokens burned must
       -- be provided as an input. So we add the value burnt to
       -- 'valueSpentBalancesInputs'. If i is positive then new tokens are
       -- created which must be added to 'valueSpentBalancesOutputs'.
       -- If i is zero we raise error, because of
       -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/1156
-      mintVal <-
-        if i < zero then do
-          v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
-          _valueSpentBalancesInputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
-        else if i == zero then do
-          throwError $ CannotMintZero cs tn
-        else do
-          v <- liftM (CannotMakeValue cs tn i) (value i)
-          _valueSpentBalancesOutputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
+      if Int.toBigInt i < zero then do
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asNegative i
+        _valueSpentBalancesInputs <>= provideValue value
+      else if Int.toBigInt i == zero then do
+        throwError $ CannotMintZero scriptHash tn
+      else do
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asPositive i
+        _valueSpentBalancesOutputs <>= provideValue value
       _redeemers <>=
-        [ UnindexedRedeemer { purpose: ForMint mpsHash, datum: unwrap red } ]
+        [ { purpose: ForMint scriptHash, datum: red } ]
       -- Remove mint redeemers from array before reindexing.
-      _cpsTransaction <<< _body <<< _mint <>= map wrap mintVal
+      unsafePartial $ _cpsTransaction <<< _body <<< _mint <>= Just mint
 
     MustMintValueUsingNativeScript ns tn i -> runExceptT do
-      let mpHash = wrap <<< unwrap <<< nativeScriptHash $ ns
-
+      let
+        cs = NativeScript.hash ns
+        mkValue = Value Coin.zero <<< MultiAsset.singleton cs tn
+        mint = Mint.singleton cs tn i
       lift $ attachToCps (map pure <<< attachNativeScript) ns
-
-      cs <- liftM (MintingPolicyHashNotCurrencySymbol mpHash) (mpsSymbol mpHash)
-      let value = mkSingletonValue' cs tn
       -- If i is negative we are burning tokens. The tokens burned must
       -- be provided as an input. So we add the value burnt to
       -- 'valueSpentBalancesInputs'. If i is positive then new tokens are
       -- created which must be added to 'valueSpentBalancesOutputs'.
-      mintVal <-
-        if i < zero then do
-          v <- liftM (CannotMakeValue cs tn i) (value $ negate i)
-          _valueSpentBalancesInputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
-        else do
-          v <- liftM (CannotMakeValue cs tn i) (value i)
-          _valueSpentBalancesOutputs <>= provideValue v
-          pure $ map getNonAdaAsset $ value i
+      if Int.toBigInt i < zero then do
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asNegative i
+        _valueSpentBalancesInputs <>= provideValue value
+      else if Int.toBigInt i == zero then do
+        throwError $ CannotMintZero cs tn
+      else do
+        let
+          value =
+            mkValue $ unsafeFromJust "processConstraints" $ Int.asPositive i
+        _valueSpentBalancesOutputs <>= provideValue value
 
-      _cpsTransaction <<< _body <<< _mint <>= map wrap mintVal
+      unsafePartial $ _cpsTransaction <<< _body <<< _mint <>= Just mint
 
-    MustPayToPubKeyAddress pkh skh mDatum scriptRef plutusValue -> do
+    MustPayToPubKeyAddress pkh skh mDatum scriptRef amount -> do
       networkId <- getNetworkId
-      let amount = fromPlutusValue plutusValue
       runExceptT do
-        -- If non-inline datum is presented, add it to 'datumWitnesses' and
-        -- Array of datums.
-        datum' <- for mDatum \(dat /\ datp) -> do
-          when (datp == DatumWitness) $ lift $ addDatum dat
-          pure $ outputDatum dat datp
         let
           address = case skh of
-            Just skh' -> payPubKeyHashBaseAddress networkId pkh skh'
-            Nothing -> payPubKeyHashEnterpriseAddress networkId pkh
+            Just skh' -> BaseAddress
+              { networkId
+              , paymentCredential: wrap $ PubKeyHashCredential $ unwrap pkh
+              , stakeCredential: wrap $ PubKeyHashCredential $ unwrap skh'
+              }
+            Nothing -> EnterpriseAddress
+              { networkId
+              , paymentCredential: wrap $ PubKeyHashCredential $ unwrap pkh
+              }
           txOut = TransactionOutput
             { address
             , amount
-            , datum: fromMaybe NoOutputDatum datum'
+            , datum: uncurry outputDatum <$> mDatum
             , scriptRef: scriptRef
             }
         _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToScript vlh mbCredential dat datp scriptRef plutusValue -> do
+    MustPayToScript vlh mbCredential dat datp scriptRef amount -> do
       networkId <- getNetworkId
-      let amount = fromPlutusValue plutusValue
       runExceptT do
         let
-          datum' = outputDatum dat datp
           txOut = TransactionOutput
             { address: case mbCredential of
-                Nothing -> validatorHashEnterpriseAddress networkId vlh
-                Just cred -> baseAddressToAddress $ baseAddress
-                  { network: networkId
-                  , paymentCred: scriptHashCredential (unwrap vlh)
-                  , delegationCred: credentialToStakeCredential cred
+                Nothing -> EnterpriseAddress
+                  { networkId
+                  , paymentCredential: wrap $ ScriptHashCredential vlh
+                  }
+                Just cred -> BaseAddress
+                  { networkId
+                  , paymentCredential: wrap $ ScriptHashCredential vlh
+                  , stakeCredential: wrap cred
                   }
             , amount
-            , datum: datum'
+            , datum: Just $ outputDatum dat datp
             , scriptRef: scriptRef
             }
-        -- Note we don't `addDatum` as this included as part of `mustPayToScript`
-        -- constraint already.
         _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
-    MustPayToNativeScript nsh mbCredential plutusValue -> do
+    MustPayToNativeScript nsh mbCredential amount -> do
       networkId <- getNetworkId
-      let amount = fromPlutusValue plutusValue
       runExceptT do
         let
           txOut = TransactionOutput
             { address: case mbCredential of
-                Nothing -> validatorHashEnterpriseAddress networkId
-                  (wrap $ unwrap nsh)
-                Just cred -> baseAddressToAddress $ baseAddress
-                  { network: networkId
-                  , paymentCred: scriptHashCredential (unwrap nsh)
-                  , delegationCred: credentialToStakeCredential cred
+                Nothing -> EnterpriseAddress
+                  { networkId
+                  , paymentCredential: wrap $ ScriptHashCredential nsh
+                  }
+                Just cred -> BaseAddress
+                  { networkId
+                  , paymentCredential: wrap $ ScriptHashCredential nsh
+                  , stakeCredential: wrap cred
                   }
             , amount
-            , datum: NoOutputDatum
+            , datum: Nothing
             , scriptRef: Nothing
             }
         _cpsTransaction <<< _body <<< _outputs %= Array.(:) txOut
         _valueSpentBalancesOutputs <>= provideValue amount
     MustHashDatum dh dt -> do
-      let dh' = Hashing.datumHash dt
+      let dh' = hashPlutusData dt
       if dh' == dh then pure <$> addDatum dt
       else pure $ throwError $ DatumWrongHash dh dt
     MustRegisterStakePubKey skh -> runExceptT do
-      void $ lift $ addCertificate
+      lift $ addCertificate
         $ StakeRegistration
-        $ keyHashCredential
-        $ unwrap
+        $ StakeCredential
+        $ PubKeyHashCredential
         $ unwrap skh
     MustDeregisterStakePubKey pubKey -> runExceptT do
-      void $ lift $ addCertificate
+      lift $ addCertificate
         $ StakeDeregistration
-        $ keyHashCredential
-        $ unwrap
+        $ StakeCredential
+        $ PubKeyHashCredential
         $ unwrap pubKey
     MustRegisterStakeScript scriptHash -> runExceptT do
-      void $ lift $ addCertificate
+      lift $ addCertificate
         $ StakeRegistration
-        $ scriptHashCredential
-        $ unwrap scriptHash
+        $ StakeCredential
+        $ ScriptHashCredential scriptHash
     MustDeregisterStakePlutusScript plutusScript redeemerData -> runExceptT do
       let
-        cert = StakeDeregistration
-          ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
-              plutusScript
+        cert = StakeDeregistration $ StakeCredential $ ScriptHashCredential
+          ( PlutusScript.hash plutusScript
           )
       _redeemers <>=
-        [ UnindexedRedeemer
-            { purpose: ForCert cert, datum: unwrap redeemerData }
-        ]
-      void $ lift $ addCertificate cert
-      lift $ attachToCps attachPlutusScript (unwrap plutusScript)
+        [ { purpose: ForCert cert, datum: redeemerData } ]
+      lift $ addCertificate cert
+      lift $ attachToCps (map pure <<< attachPlutusScript) plutusScript
     MustDeregisterStakeNativeScript stakeValidator -> do
-      void $ addCertificate $ StakeDeregistration
-        $ scriptHashCredential
-        $ unwrap
-        $ nativeScriptStakeValidatorHash
-            stakeValidator
-      pure <$> attachToCps (map pure <<< attachNativeScript)
-        (unwrap stakeValidator)
+      addCertificate $ StakeDeregistration
+        $ wrap
+        $ ScriptHashCredential
+        $ NativeScript.hash stakeValidator
+      pure <$> attachToCps (map pure <<< attachNativeScript) stakeValidator
     MustRegisterPool poolParams -> runExceptT do
-      void $ lift $ addCertificate $ PoolRegistration poolParams
+      lift $ addCertificate $ PoolRegistration poolParams
     MustRetirePool poolKeyHash epoch -> runExceptT do
-      void $ lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
+      lift $ addCertificate $ PoolRetirement { poolKeyHash, epoch }
     MustDelegateStakePubKey stakePubKeyHash poolKeyHash -> runExceptT do
-      void $ lift $ addCertificate $
-        StakeDelegation (keyHashCredential $ unwrap $ unwrap $ stakePubKeyHash)
+      lift $ addCertificate $
+        StakeDelegation
+          ( StakeCredential $ PubKeyHashCredential $ unwrap $
+              stakePubKeyHash
+          )
           poolKeyHash
-    MustDelegateStakePlutusScript stakeValidator redeemerData poolKeyHash ->
+    MustDelegateStakePlutusScript stakeValidator redeemerData poolKeyHash -> do
       runExceptT do
         let
           cert = StakeDelegation
-            ( scriptHashCredential $ unwrap $ plutusScriptStakeValidatorHash
-                stakeValidator
+            ( StakeCredential $ ScriptHashCredential
+                $ PlutusScript.hash stakeValidator
             )
             poolKeyHash
         lift $ addCertificate cert
         _redeemers <>=
-          [ UnindexedRedeemer
-              { purpose: ForCert cert, datum: unwrap redeemerData }
-          ]
-        lift $ attachToCps attachPlutusScript (unwrap stakeValidator)
+          [ { purpose: ForCert cert, datum: redeemerData } ]
+        lift $ attachToCps (map pure <<< attachPlutusScript) stakeValidator
     MustDelegateStakeNativeScript stakeValidator poolKeyHash -> do
-      void $ addCertificate $ StakeDelegation
-        ( scriptHashCredential $ unwrap $ nativeScriptStakeValidatorHash
+      addCertificate $ StakeDelegation
+        ( StakeCredential $ ScriptHashCredential $ NativeScript.hash
             stakeValidator
         )
         poolKeyHash
-      pure <$> attachToCps (map pure <<< attachNativeScript)
-        (unwrap stakeValidator)
+      pure <$> attachToCps (map pure <<< attachNativeScript) stakeValidator
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
       mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards
@@ -801,42 +778,47 @@ processConstraint mpsMap osMap c = do
         mbRewards
       let
         rewardAddress =
-          RewardAddress.stakePubKeyHashRewardAddress networkId spkh
-      _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
-        Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
+          { networkId
+          , stakeCredential: wrap $ PubKeyHashCredential $ unwrap spkh
+          }
+      _cpsTransaction <<< _body <<< _withdrawals %=
+        Map.insert rewardAddress (fromMaybe Coin.zero rewards)
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
-      let hash = plutusScriptStakeValidatorHash stakeValidator
+      let hash = PlutusScript.hash stakeValidator
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM $
-        getValidatorHashDelegationsAndRewards hash
+      mbRewards <- lift $ lift $ wrapQueryM
+        $ getValidatorHashDelegationsAndRewards
+        $ wrap hash
       let
-        rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
-          hash
+        rewardAddress =
+          { networkId
+          , stakeCredential: StakeCredential $ ScriptHashCredential hash
+          }
       ({ rewards }) <- ExceptT $ pure $ note
         (CannotWithdrawRewardsPlutusScript stakeValidator)
         mbRewards
-      _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
-        Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
+      _cpsTransaction <<< _body <<< _withdrawals %=
+        Map.insert rewardAddress (fromMaybe Coin.zero rewards)
       _redeemers <>=
-        [ UnindexedRedeemer
-            { purpose: ForReward rewardAddress, datum: unwrap redeemerData }
-        ]
-      lift $ attachToCps attachPlutusScript (unwrap stakeValidator)
+        [ { purpose: ForReward rewardAddress, datum: redeemerData } ]
+      lift $ attachToCps (map pure <<< attachPlutusScript) stakeValidator
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
-      let hash = nativeScriptStakeValidatorHash stakeValidator
+      let hash = NativeScript.hash stakeValidator
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM $
-        getValidatorHashDelegationsAndRewards hash
+      mbRewards <- lift $ lift $ wrapQueryM
+        $ getValidatorHashDelegationsAndRewards
+        $ wrap hash
       let
-        rewardAddress = RewardAddress.stakeValidatorHashRewardAddress networkId
-          hash
+        rewardAddress =
+          { networkId
+          , stakeCredential: StakeCredential $ ScriptHashCredential hash
+          }
       ({ rewards }) <- ExceptT $ pure $ note
         (CannotWithdrawRewardsNativeScript stakeValidator)
         mbRewards
-      _cpsTransaction <<< _body <<< _withdrawals <<< non Map.empty %=
-        Map.insert rewardAddress (fromMaybe (Coin zero) rewards)
-      lift $ attachToCps (map pure <<< attachNativeScript)
-        (unwrap stakeValidator)
+      _cpsTransaction <<< _body <<< _withdrawals %=
+        Map.insert rewardAddress (fromMaybe Coin.zero rewards)
+      lift $ attachToCps (map pure <<< attachNativeScript) stakeValidator
     MustSatisfyAnyOf xs -> do
       cps <- get
       let
@@ -856,7 +838,7 @@ processConstraint mpsMap osMap c = do
           foldM
             ( \_ constr -> runExceptT do
                 let continue = put cps *> tryNext zs
-                ( ExceptT $ processConstraint mpsMap osMap constr
+                ( ExceptT $ processConstraint ctx constr
                     `catchError` \_ -> continue
                 )
                   `catchError` \_ -> ExceptT continue
@@ -866,19 +848,18 @@ processConstraint mpsMap osMap c = do
       tryNext (toUnfoldable $ map toUnfoldable xs)
     MustNotBeValid -> runExceptT do
       _cpsTransaction <<< _isValid .= false
+    MustRegisterDrep drepCred anchor -> do
+      { drepDeposit } <- unwrap <$> lift getProtocolParameters
+      addCertificate $ RegDrepCert drepCred drepDeposit anchor
+      pure $ Right unit
   where
   outputDatum
-    :: Datum
+    :: PlutusData
     -> DatumPresence
     -> OutputDatum
   outputDatum dat = case _ of
     DatumInline -> OutputDatum dat
-    DatumWitness -> OutputDatumHash $ Hashing.datumHash dat
-
-credentialToStakeCredential :: Credential -> StakeCredential
-credentialToStakeCredential cred = case cred of
-  PubKeyCredential pubKeyHash -> keyHashCredential (unwrap pubKeyHash)
-  ScriptCredential scriptHash -> scriptHashCredential (unwrap scriptHash)
+    DatumWitness -> OutputDatumHash $ Datum.hashPlutusData dat
 
 -- Attach a Datum, Redeemer, or PlutusScript depending on the handler. They
 -- share error type anyway.
@@ -890,23 +871,21 @@ attachToCps
 attachToCps handler object = do
   tx <- use _cpsTransaction
   newTx <- liftEffect $ handler object tx
-  (.=) _cpsTransaction newTx
+  _cpsTransaction .= newTx
 
 -- Attaches datum to the transaction and to Array of datums in the state.
 addDatum
-  :: Datum
+  :: PlutusData
   -> ConstraintsM Unit
 addDatum dat = do
-  attachToCps attachDatum dat
+  attachToCps (map pure <<< attachDatum) dat
   _datums <>= Array.singleton dat
 
--- | Returns an index pointing to the location of the newly inserted certificate
--- | in the array of transaction certificates.
 addCertificate
   :: Certificate
   -> ConstraintsM Unit
 addCertificate cert = do
-  _cpsTransaction <<< _body <<< _certs <<< non [] %= Array.(:) cert
+  _cpsTransaction <<< _body <<< _certs %= Array.(:) cert
 
 getNetworkId
   :: ConstraintsM NetworkId
@@ -914,25 +893,9 @@ getNetworkId = use (_cpsTransaction <<< _body <<< _networkId)
   >>= maybe (asks _.networkId) pure
 
 mkUnbalancedTxImpl
-  :: forall (validator :: Type) (datum :: Type) (redeemer :: Type)
-   . ScriptLookups
+  :: ScriptLookups
   -> TxConstraints
-  -> Contract (Either MkUnbalancedTxError UnbalancedTx)
+  -> Contract (Either MkUnbalancedTxError (Transaction /\ UtxoMap))
 mkUnbalancedTxImpl scriptLookups txConstraints =
   runConstraintsM scriptLookups txConstraints <#> map
-    \{ transaction, datums, redeemers, usedUtxos } ->
-      wrap
-        { transaction: stripDatumsRedeemers $ stripScriptDataHash transaction
-        , datums
-        , redeemers
-        , usedUtxos
-        }
-  where
-  stripScriptDataHash :: Transaction -> Transaction
-  stripScriptDataHash =
-    _body <<< _scriptDataHash .~ Nothing
-
-  stripDatumsRedeemers :: Transaction -> Transaction
-  stripDatumsRedeemers = _witnessSet %~
-    over TransactionWitnessSet
-      _ { plutusData = Nothing, redeemers = Nothing }
+    \({ transaction, usedUtxos }) -> transaction /\ usedUtxos

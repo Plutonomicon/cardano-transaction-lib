@@ -7,12 +7,11 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Cardano.Types (Slot(Slot))
+import Cardano.Types.BigNum (fromInt) as BigNum
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
-import Ctl.Internal.Serialization.Address (Slot(Slot))
-import Ctl.Internal.Test.TestPlanM (TestPlanM)
-import Ctl.Internal.Types.BigNum (fromInt) as BigNum
 import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( Interval
@@ -41,6 +40,7 @@ import Effect (Effect)
 import Effect.Exception (error)
 import JS.BigInt (fromInt, fromString) as BigInt
 import Mote (group, test)
+import Mote.TestPlanM (TestPlanM)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readTextFile)
 import Node.Path (concat) as Path
@@ -52,7 +52,7 @@ import Test.Spec.Assertions (shouldEqual)
 suite :: TestPlanM (EraSummaries -> SystemStart -> Effect Unit) Unit
 suite = do
   group "Interval" do
-    group "EraSumaries related" do
+    group "EraSummaries related" do
       test "Inverse posixTimeToSlot >>> slotToPosixTime " testPosixTimeToSlot
       test "Inverse slotToPosixTime >>> posixTimeToSlot " testSlotToPosixTime
       test "PosixTimeToSlot errors" testPosixTimeToSlotError
@@ -87,14 +87,14 @@ eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
   { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
     "queryLedgerState-eraSummaries"
-    "d8b19110b9580cddfa3895eea34c2139"
+    "8073a8f378e969384ec52010ec6c290c"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart
 systemStartFixture = do
   { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture
     "queryNetwork-startTime"
-    "02fa6f9e7ed04ebfe3294c7648be54d5"
+    "5185237542c7c8a6810aeb0fe74b3b40"
   pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit

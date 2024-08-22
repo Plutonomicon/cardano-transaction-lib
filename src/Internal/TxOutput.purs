@@ -9,27 +9,25 @@ module Ctl.Internal.TxOutput
 
 import Prelude
 
-import Control.Alt ((<|>))
-import Control.Alternative (guard)
-import Ctl.Internal.Address (addressToOgmiosAddress, ogmiosAddressToAddress)
-import Ctl.Internal.Cardano.Types.Transaction
-  ( TransactionOutput(TransactionOutput)
-  ) as Transaction
-import Ctl.Internal.Deserialization.FromBytes (fromBytes)
-import Ctl.Internal.Deserialization.PlutusData as Deserialization
-import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.Serialization (toBytes)
-import Ctl.Internal.Serialization.PlutusData as Serialization
-import Ctl.Internal.Types.ByteArray (byteArrayToHex, hexToByteArray)
-import Ctl.Internal.Types.CborBytes (hexToCborBytes)
-import Ctl.Internal.Types.Datum (DataHash, Datum(Datum))
-import Ctl.Internal.Types.OutputDatum
-  ( OutputDatum(OutputDatum, OutputDatumHash, NoOutputDatum)
+import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Serialization.Lib (fromBytes, toBytes)
+import Cardano.Types
+  ( DataHash
+  , PlutusData
+  , TransactionInput(TransactionInput)
+  )
+import Cardano.Types.Address as Address
+import Cardano.Types.OutputDatum
+  ( OutputDatum(OutputDatumHash, OutputDatum)
   , outputDatumDataHash
   , outputDatumDatum
   )
-import Ctl.Internal.Types.Transaction (TransactionInput(TransactionInput)) as Transaction
-import Data.Maybe (Maybe(Just), fromMaybe, isNothing)
+import Cardano.Types.TransactionOutput (TransactionOutput(TransactionOutput))
+import Control.Alt ((<|>))
+import Control.Alternative (guard)
+import Ctl.Internal.QueryM.Ogmios as Ogmios
+import Data.ByteArray (byteArrayToHex, hexToByteArray)
+import Data.Maybe (Maybe, isNothing)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse)
 
@@ -41,9 +39,9 @@ import Data.Traversable (traverse)
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios transaction input to (internal) `TransactionInput`
 txOutRefToTransactionInput
-  :: Ogmios.OgmiosTxOutRef -> Maybe Transaction.TransactionInput
+  :: Ogmios.OgmiosTxOutRef -> Maybe TransactionInput
 txOutRefToTransactionInput { txId, index } = do
-  transactionId <- hexToByteArray txId <#> wrap
+  transactionId <- hexToByteArray txId >>= fromBytes >>> map wrap
   pure $ wrap
     { transactionId
     , index
@@ -51,10 +49,10 @@ txOutRefToTransactionInput { txId, index } = do
 
 -- | Converts an (internal) `TransactionInput` to an Ogmios transaction input
 transactionInputToTxOutRef
-  :: Transaction.TransactionInput -> Ogmios.OgmiosTxOutRef
+  :: TransactionInput -> Ogmios.OgmiosTxOutRef
 transactionInputToTxOutRef
-  (Transaction.TransactionInput { transactionId, index }) =
-  { txId: byteArrayToHex (unwrap transactionId)
+  (TransactionInput { transactionId, index }) =
+  { txId: byteArrayToHex (toBytes $ unwrap transactionId)
   , index
   }
 
@@ -63,9 +61,9 @@ transactionInputToTxOutRef
 -- hexToByteArray for now. https://github.com/Plutonomicon/cardano-transaction-lib/issues/78
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
-  :: Ogmios.OgmiosTxOut -> Maybe Transaction.TransactionOutput
+  :: Ogmios.OgmiosTxOut -> Maybe TransactionOutput
 ogmiosTxOutToTransactionOutput { address, value, datum, datumHash, script } = do
-  address' <- ogmiosAddressToAddress address
+  address' <- Address.fromBech32 address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to
   -- convert and capture failure if we can't.
   dh <- traverse ogmiosDatumHashToDatumHash datumHash
@@ -81,13 +79,13 @@ ogmiosTxOutToTransactionOutput { address, value, datum, datumHash, script } = do
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
-  :: Transaction.TransactionOutput -> Ogmios.OgmiosTxOut
+  :: TransactionOutput -> Ogmios.OgmiosTxOut
 transactionOutputToOgmiosTxOut
-  (Transaction.TransactionOutput { address, amount: value, datum, scriptRef }) =
-  { address: addressToOgmiosAddress address
+  (TransactionOutput { address, amount: value, datum, scriptRef }) =
+  { address: Address.toBech32 address
   , value
-  , datumHash: datumHashToOgmiosDatumHash <$> outputDatumDataHash datum
-  , datum: datumToOgmiosDatum <$> outputDatumDatum datum
+  , datumHash: datumHashToOgmiosDatumHash <$> (outputDatumDataHash =<< datum)
+  , datum: datumToOgmiosDatum <$> (outputDatumDatum =<< datum)
   , script: scriptRef
   }
 
@@ -96,25 +94,22 @@ transactionOutputToOgmiosTxOut
 --------------------------------------------------------------------------------
 -- | Converts an Ogmios datum hash `String` to an internal `DataHash`
 ogmiosDatumHashToDatumHash :: String -> Maybe DataHash
-ogmiosDatumHashToDatumHash str = hexToByteArray str <#> wrap
+ogmiosDatumHashToDatumHash str = hexToByteArray str >>= wrap >>> decodeCbor
 
 -- | Converts an Ogmios datum `String` to an internal `Datum`
-ogmiosDatumToDatum :: String -> Maybe Datum
+ogmiosDatumToDatum :: String -> Maybe PlutusData
 ogmiosDatumToDatum =
-  hexToCborBytes
-    >=> fromBytes
-    >=> (Deserialization.convertPlutusData >>> Datum >>> Just)
+  hexToByteArray >=> wrap >>> decodeCbor
 
 -- | Converts an internal `DataHash` to an Ogmios datumhash `String`
 datumHashToOgmiosDatumHash :: DataHash -> String
-datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap
+datumHashToOgmiosDatumHash = byteArrayToHex <<< unwrap <<< encodeCbor
 
 -- | Converts an internal `Datum` to an Ogmios datum `String`
-datumToOgmiosDatum :: Datum -> String
-datumToOgmiosDatum (Datum plutusData) =
-  Serialization.convertPlutusData plutusData #
-    toBytes >>> unwrap >>> byteArrayToHex
+datumToOgmiosDatum :: PlutusData -> String
+datumToOgmiosDatum =
+  encodeCbor >>> unwrap >>> byteArrayToHex
 
-toOutputDatum :: Maybe Datum -> Maybe DataHash -> OutputDatum
+toOutputDatum :: Maybe PlutusData -> Maybe DataHash -> Maybe OutputDatum
 toOutputDatum d dh =
-  OutputDatum <$> d <|> OutputDatumHash <$> dh # fromMaybe NoOutputDatum
+  OutputDatum <$> d <|> OutputDatumHash <$> dh

@@ -4,36 +4,47 @@ module Ctl.Examples.NativeScriptMints (main, example, contract, pkhPolicy) where
 
 import Contract.Prelude
 
-import Contract.Address
-  ( PaymentPubKeyHash
+import Cardano.Transaction.Builder
+  ( CredentialWitness(NativeScriptCredential)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, MintAsset)
   )
-import Contract.Config (ContractParams, testnetNamiConfig)
+import Cardano.Types
+  ( BigNum
+  , Credential(PubKeyHashCredential)
+  , PaymentCredential(PaymentCredential)
+  , StakeCredential(StakeCredential)
+  , TransactionOutput(TransactionOutput)
+  )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Int as Int
+import Cardano.Types.NativeScript as NativeScript
+import Cardano.Types.Transaction as Transaction
+import Contract.Address (PaymentPubKeyHash, mkAddress)
+import Contract.Config
+  ( ContractParams
+  , KnownWallet(Nami)
+  , WalletSpec(ConnectToGenericCip30)
+  , testnetConfig
+  , walletName
+  )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.ScriptLookups as Lookups
-import Contract.Scripts
-  ( MintingPolicy(NativeMintingPolicy)
-  , NativeScript(ScriptPubkey)
-  )
-import Contract.Transaction (awaitTxConfirmed, submitTxFromConstraints)
-import Contract.TxConstraints as Constraints
+import Contract.Scripts (NativeScript(ScriptPubkey))
+import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
-import Contract.Wallet
-  ( ownPaymentPubKeyHashes
-  , ownStakePubKeyHashes
-  )
-import Ctl.Examples.Helpers
-  ( mkCurrencySymbol
-  , mkTokenName
-  , mustPayToPubKeyStakeAddress
-  ) as Helpers
+import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
+import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
-import JS.BigInt (BigInt)
+import Data.Map as Map
 import JS.BigInt as BigInt
 
 main :: Effect Unit
-main = example testnetNamiConfig
+main = example $ testnetConfig
+  { walletSpec =
+      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+  }
 
 contract :: Contract Unit
 contract = do
@@ -41,51 +52,48 @@ contract = do
 
   pkh <- liftedM "Couldn't get own pkh" $ head <$> ownPaymentPubKeyHashes
 
-  mp /\ cs <- Helpers.mkCurrencySymbol <<< pure $ pkhPolicy pkh
-  tn <- Helpers.mkTokenName "NSToken"
+  let mintingPolicy = pkhPolicy pkh
+  let scriptHash = NativeScript.hash mintingPolicy
+  assetName <- Helpers.mkAssetName "NSToken"
 
-  let
-    constraints :: Constraints.TxConstraints
-    constraints =
-      Constraints.mustMintCurrencyUsingNativeScript
-        (nsPolicy pkh)
-        tn $ BigInt.fromInt 100
-
-    lookups :: Lookups.ScriptLookups
-    lookups = Lookups.mintingPolicy mp
-
-  txId <- submitTxFromConstraints lookups constraints
+  txId <- Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
+    [ MintAsset
+        scriptHash
+        assetName
+        (Int.fromInt 100)
+        (NativeScriptCredential (ScriptValue mintingPolicy))
+    ]
 
   awaitTxConfirmed txId
   logInfo' "Minted successfully"
 
-  toSelfContract cs tn $ BigInt.fromInt 50
+  toSelfContract scriptHash assetName $ BigNum.fromInt 50
 
-toSelfContract :: CurrencySymbol -> TokenName -> BigInt -> Contract Unit
+toSelfContract :: CurrencySymbol -> TokenName -> BigNum -> Contract Unit
 toSelfContract cs tn amount = do
   pkh <- liftedM "Failed to get own PKH" $ head <$> ownPaymentPubKeyHashes
   skh <- join <<< head <$> ownStakePubKeyHashes
-
+  address <- mkAddress
+    (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
+    (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    constraints :: Constraints.TxConstraints
-    constraints = Helpers.mustPayToPubKeyStakeAddress pkh skh
-      $ Value.singleton cs tn
-      $ amount
+    plan =
+      [ Pay $ TransactionOutput
+          { address
+          , amount: Value.singleton cs tn amount
+          , datum: Nothing
+          , scriptRef: Nothing
+          }
+      ]
 
-    lookups :: Lookups.ScriptLookups
-    lookups = mempty
+  tx <- submitTxFromBuildPlan Map.empty mempty plan
 
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmed txId
+  awaitTxConfirmed $ Transaction.hash tx
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"
 
 example :: ContractParams -> Effect Unit
 example cfg = launchAff_ $ do
   runContract cfg contract
 
-nsPolicy :: PaymentPubKeyHash -> NativeScript
-nsPolicy = ScriptPubkey <<< unwrap <<< unwrap
-
-pkhPolicy :: PaymentPubKeyHash -> MintingPolicy
-pkhPolicy = NativeMintingPolicy <<< nsPolicy
+pkhPolicy :: PaymentPubKeyHash -> NativeScript
+pkhPolicy = ScriptPubkey <<< unwrap
