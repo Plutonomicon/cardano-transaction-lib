@@ -118,7 +118,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cip30"
-        , version = "v1.0.0"
+        , version = "v1.0.1"
         }
       , cip30-typesafe =
         { dependencies =
