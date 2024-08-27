@@ -216,12 +216,13 @@ getNodePort { nodeDir } =
     =<< Node.FS.readTextFile UTF8 (nodeDir <</>> "/port")
 
 findNodeDirs :: { workdir :: FilePath } -> Effect (Array { | NodeLocation () })
-findNodeDirs { workdir } =
-  Node.FS.readdir workdir <#> \subdirs ->
+findNodeDirs { workdir } = do
+  let poolsKeysDir = workdir <</>> "pools-keys"
+  Node.FS.readdir poolsKeysDir <#> \subdirs ->
     flip Array.mapMaybe subdirs \dirname -> do
-      idx <- Int.fromString =<< String.stripPrefix (Pattern "pools-keys/pool1")
+      idx <- Int.fromString =<< String.stripPrefix (Pattern "pool")
         dirname
-      pure { idx, workdir: workdir <</>> dirname, name: dirname }
+      pure { idx, workdir: poolsKeysDir <</>> dirname, name: dirname }
 
 findTestnetPaths
   :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
