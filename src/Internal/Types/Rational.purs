@@ -6,6 +6,8 @@ module Ctl.Internal.Types.Rational
   , recip
   , numerator
   , denominator
+  , toUnitInterval
+  , fromNumber
   ) where
 
 import Prelude
@@ -21,10 +23,11 @@ import Aeson
   )
 import Cardano.FromData (class FromData)
 import Cardano.ToData (class ToData)
+import Cardano.Types (PlutusData(Constr, Integer), UnitInterval)
 import Cardano.Types.BigNum as BigNum
-import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
 import Data.Either (Either(Left))
 import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Newtype (wrap)
 import Data.Ratio (Ratio)
 import Data.Ratio (denominator, numerator, (%)) as Ratio
 import JS.BigInt (BigInt)
@@ -124,3 +127,19 @@ instance RationalComponent BigInt where
 
 instance RationalComponent Int where
   reduce n d = reduce (BigInt.fromInt n) (BigInt.fromInt d)
+
+toUnitInterval :: Rational -> Maybe UnitInterval
+toUnitInterval (Rational r) = do
+  numerator' <- BigNum.fromBigInt $ Ratio.numerator r
+  denominator' <- BigNum.fromBigInt $ Ratio.denominator r
+  pure $ wrap { numerator: numerator', denominator: denominator' }
+
+foreign import decimalToFraction
+  :: Number -> { numerator :: Int, denominator :: Int }
+
+fromNumber :: Number -> Maybe Rational
+fromNumber n =
+  let
+    { numerator, denominator } = decimalToFraction n
+  in
+    reduce (BigInt.fromInt numerator) (BigInt.fromInt denominator)

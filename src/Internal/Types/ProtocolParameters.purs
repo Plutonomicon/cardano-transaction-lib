@@ -10,13 +10,16 @@ module Ctl.Internal.Types.ProtocolParameters
 
 import Prelude
 
-import Cardano.Types.Coin (Coin)
-import Cardano.Types.CostModel (CostModel)
-import Cardano.Types.Epoch (Epoch)
-import Cardano.Types.ExUnitPrices (ExUnitPrices)
-import Cardano.Types.ExUnits (ExUnits)
+import Cardano.Types
+  ( Coin
+  , CostModel
+  , Epoch
+  , ExUnitPrices
+  , ExUnits
+  , Language
+  , UnitInterval(UnitInterval)
+  )
 import Cardano.Types.Int as Cardano
-import Cardano.Types.Language (Language)
 import Ctl.Internal.Types.Rational (Rational)
 import Data.Array (reverse)
 import Data.Array (sortWith) as Array
@@ -65,6 +68,7 @@ newtype ProtocolParameters = ProtocolParameters
   , maxCollateralInputs :: UInt
   , govActionDeposit :: Coin
   , drepDeposit :: Coin
+  , refScriptCoinsPerByte :: Rational
   }
 
 derive instance Newtype ProtocolParameters _
