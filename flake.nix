@@ -33,7 +33,7 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/4f4e372a1641ac68cd09fb0339e6f55bef1ab85d";
+    cardano-node.url = "github:klntsky/cardano-node/a2b45342ae9fe4d4ea43eb1d7338363117ef25d8";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
