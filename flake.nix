@@ -33,7 +33,13 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/4f4e372a1641ac68cd09fb0339e6f55bef1ab85d";
+    # The changes introduced in the PRs listed below have not yet been included
+    # in any cardano-node release. These updates are necessary to run
+    # cardano-testnet in the Conway era and be able to adjust max Lovelace
+    # supply.
+    # https://github.com/IntersectMBO/cardano-node/pull/5936
+    # https://github.com/IntersectMBO/cardano-node/pull/5960
+    cardano-node.url = "github:input-output-hk/cardano-node/d7abccd4e90c38ff5cd4d6a7839689d888332056";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
