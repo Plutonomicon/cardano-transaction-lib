@@ -17,7 +17,6 @@ import Cardano.Types
   , ExUnitPrices
   , ExUnits
   , Language
-  , UnitInterval(UnitInterval)
   )
 import Cardano.Types.Int as Cardano
 import Ctl.Internal.Types.Rational (Rational)
