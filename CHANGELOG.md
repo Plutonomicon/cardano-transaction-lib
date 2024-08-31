@@ -78,6 +78,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
+## [v9.3.0]
+
+### Fixed
+
+- Updated fee structure that takes [reference script size fee requirements into account](https://github.com/IntersectMBO/cardano-ledger/blob/cardano-ledger-shelley-ma-test-1.2.2.3/docs/adr/2024-08-14_009-refscripts-fee-change.md) ([#1647](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1647))
+
+### Changed
+
+- `cardano-serialization-lib` has been updated to `v12.0.0`
+- `Mint` type now allows for duplicate entries (in line with CSL 12) ([#1647](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1647))
+
 ## [v9.2.0]
 
 ### Added

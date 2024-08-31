@@ -283,10 +283,10 @@ let
 
     "cardano-transaction-builder" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-builder";
-        version = "5b428f619a35dd927456f9042314b586b8b7d117";
+        version = "v2.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder";
-          rev = "5b428f619a35dd927456f9042314b586b8b7d117";
+          rev = "82c5a6554894b3aad2b1568b3bdddb9744d9675f";
           sha256 = "0cmi8lz3klrhygf64j8k18v4n97mq1hvrbbrppskjdlfgdkpjxpi";
         };
         phases = "installPhase";
