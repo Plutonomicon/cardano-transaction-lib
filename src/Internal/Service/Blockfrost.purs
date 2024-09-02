@@ -1522,7 +1522,7 @@ type BlockfrostProtocolParametersRaw =
   , "cost_models" ::
       { "PlutusV1" :: { | CostModelV1 }
       , "PlutusV2" :: { | CostModelV2 }
-      , "PlutusV3" :: CostModelV3
+      , "PlutusV3" :: { | CostModelV3 }
       }
   , "price_mem" :: FiniteBigNumber
   , "price_step" :: FiniteBigNumber
@@ -1590,8 +1590,6 @@ instance DecodeAeson BlockfrostProtocolParameters where
       maybe (Left $ AtKey "coins_per_utxo_size" $ MissingValue)
         pure $ (Coin <<< unwrap <$> raw.coins_per_utxo_size)
 
-    plutusV3CostModel <- note (AtKey "PlutusV3" $ TypeMismatch "CostModel") $
-      convertPlutusV3CostModel raw.cost_models."PlutusV3"
     refScriptCoinsPerByte <-
       note (AtKey "min_fee_ref_script_cost_per_byte" $ TypeMismatch "Integer") $
         Rational.reduce
@@ -1620,7 +1618,7 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , costModels: Map.fromFoldable
           [ PlutusV1 /\ convertPlutusV1CostModel raw.cost_models."PlutusV1"
           , PlutusV2 /\ convertPlutusV2CostModel raw.cost_models."PlutusV2"
-          , PlutusV3 /\ plutusV3CostModel
+          , PlutusV3 /\ convertPlutusV3CostModel raw.cost_models."PlutusV3"
           ]
       , prices
       , maxTxExUnits:
