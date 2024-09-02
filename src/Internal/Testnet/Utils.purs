@@ -1,7 +1,7 @@
 module Ctl.Internal.Testnet.Utils
-  ( find811TestnetWorkir
+  ( EventSource(EventSource)
+  , TestnetCleanupRef
   , findNodeDirs
-  , EventSource(EventSource)
   , onLine
   , makeEventSource
   , findTestnetPaths
@@ -10,11 +10,11 @@ module Ctl.Internal.Testnet.Utils
   , scheduleCleanup
   , addCleanup
   , tmpdir
+  , tmpdirUnique
   , runCleanup
   , tryAndLogErrors
   , suppressAndLogErrors
   , after
-  , is811TestnetDirectoryName
   , onTestnetEvent
   , parseEvent
   , readNodes
@@ -25,7 +25,6 @@ module Ctl.Internal.Testnet.Utils
   , waitForError
   , waitForEvent
   , waitUntil
-  , waitForTestnet872Workdir
   , cleanupOnExit
   , annotateError
   ) where
@@ -48,7 +47,7 @@ import Control.Monad.Error.Class
   )
 import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Rec.Class (Step(Done, Loop), tailRecM)
-import Control.Parallel (parallel, sequential)
+import Control.Parallel (parOneOf, parallel, sequential)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Spawn
@@ -69,10 +68,11 @@ import Ctl.Internal.Testnet.Types
 import Data.Array as Array
 import Data.Int as Int
 import Data.Map as Map
-import Data.Posix.Signal (Signal(SIGINT))
+import Data.Posix.Signal (Signal(SIGINT, SIGTERM))
+import Data.Posix.Signal (toString) as Signal
 import Data.String (Pattern(Pattern))
 import Data.String as String
-import Data.Time.Duration (Milliseconds)
+import Data.Time.Duration (class Duration, fromDuration)
 import Data.UInt (UInt)
 import Data.UInt as UInt
 import Effect.Aff (try)
@@ -85,37 +85,13 @@ import Effect.Ref as Ref
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
 import Node.Encoding as Node.Encoding
+import Node.FS.Sync (exists, mkdir) as FSSync
 import Node.FS.Sync as Node.FS
 import Node.FS.Sync as Node.FS.Sync
 import Node.Path (FilePath)
 import Node.Process as Process
 import Node.ReadLine as RL
 import Node.Stream (Readable)
-
--- | For cardano-node 8.1.1
-is811TestnetDirectoryName :: Int -> FilePath -> Boolean
-is811TestnetDirectoryName n =
-  isJust <<< String.stripPrefix (Pattern $ "testnet-" <> show n <> "-test-")
-
-find811TestnetWorkir
-  :: { tmpdir :: FilePath, dirIdx :: Int } -> Effect (Maybe FilePath)
-find811TestnetWorkir { tmpdir: tmpDir, dirIdx } =
-  map (tmpDir <</>> _)
-    <<< Array.find (is811TestnetDirectoryName dirIdx)
-    <$> Node.FS.readdir tmpDir
-
-waitForTestnet872Workdir
-  :: EventSource String -> { tmpdir :: FilePath } -> Aff { workdir :: FilePath }
-waitForTestnet872Workdir src = map { workdir: _ }
-  <<< waitFor src
-  <<< parseTestnet872Workdir
-
-parseTestnet872Workdir :: { tmpdir :: FilePath } -> String -> Maybe FilePath
-parseTestnet872Workdir { tmpdir: tmpDir } = String.stripPrefix
-  $ Pattern
-  $ "      Workspace: "
-  <> tmpDir
-  <> "/"
 
 parseEvent :: String -> Maybe Event
 parseEvent = case _ of
@@ -301,13 +277,15 @@ makeEventSource subscribeOnEvents filter = annotateError "make event source" do
     , outcome
     }
 
-addCleanup :: Ref (Array (Aff Unit)) -> Aff Unit -> Effect Unit
+type TestnetCleanupRef = Ref (Array (Aff Unit))
+
+addCleanup :: TestnetCleanupRef -> Aff Unit -> Effect Unit
 addCleanup = map void <<< flip
   (Ref.modify <<< Array.cons <<< suppressAndLogErrors "[addCleanup][error]: ")
 
 scheduleCleanup
   :: forall a
-   . Ref (Array (Aff Unit))
+   . TestnetCleanupRef
   -> Aff a
   -> (a -> Aff Unit)
   -> Aff a
@@ -354,6 +332,16 @@ narrowEventSource filter (EventSource source) = annotateError
 -- TODO: remove this function when PS bindings for os.tmpdir are available.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/726
 foreign import tmpdir :: Effect String
+
+tmpdirUnique :: forall m. MonadEffect m => String -> m FilePath
+tmpdirUnique suffix =
+  liftEffect do
+    tmpDir <- tmpdir
+    randomStr <- uniqueId ""
+    let dir = tmpDir <</>> randomStr <> "-" <> suffix
+    dirExists <- FSSync.exists dir
+    unless dirExists $ FSSync.mkdir dir
+    pure dir
 
 foreign import setLineHandler
   :: RL.Interface -> (String -> Effect Unit) -> Effect OnSignalRef
@@ -459,11 +447,11 @@ waitForClose (ManagedProcess _ child _) = do
       cancel
       cont $ Left $ appendErrorMessage "waitForClose has been canceled" err
 
-waitUntil :: forall a. Milliseconds -> Aff (Maybe a) -> Aff a
+waitUntil :: forall a d. Duration d => d -> Aff (Maybe a) -> Aff a
 waitUntil checkingInterval fa = flip tailRecM unit \_ ->
   fa >>= case _ of
     Nothing -> do
-      Aff.delay checkingInterval
+      Aff.delay $ fromDuration checkingInterval
       pure $ Loop unit
     Just x -> pure $ Done x
 
@@ -580,7 +568,8 @@ cleanupOnExit cleanupRef = do
             )
           <|>
             ( handlers.onWaitForSignal
-                <$ parallel (waitForSignal SIGINT)
+                <$> parallel
+                  (parOneOf [ waitForSignal SIGINT, waitForSignal SIGTERM ])
             )
       handler
     cleanup triggeredBy = do
@@ -595,7 +584,7 @@ cleanupOnExit cleanupRef = do
           err
         liftEffect $ Process.exit 7 -- Failing irrecoverably
     , onBeforeExit: cleanup "before exit"
-    , onWaitForSignal: cleanup "SIGINT"
+    , onWaitForSignal: cleanup <<< Signal.toString
     }
   pure { fiber }
 
