@@ -372,7 +372,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "b084f05e1cc8c4e99fce2c42cf988590555c0ca7"
+        , version = "b1a03a934364b1010ab34d9fc0497bee75b99dbe"
         }
       , cardano-message-signing =
         { dependencies =
@@ -453,7 +453,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "v2.0.1"
+        , version = "v2.0.0"
         }
       , mote-testplan =
         { dependencies =
@@ -584,7 +584,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "d10ceaf0cab3dcbed1ca8e43534c2ac7cae0f4e8"
+        , version = "52bc8b397e3e7228f7b4c29dd7c64d6fcd1a5a74"
         }
       }
 

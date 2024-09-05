@@ -453,7 +453,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
-        , version = "v2.0.1"
+        , version = "v2.0.0"
         }
       , mote-testplan =
         { dependencies =
