@@ -8,6 +8,7 @@ module Ctl.Internal.Spawn
   , spawn
   , exec
   , stop
+  , stopProcessWithChildren
   , waitForStop
   , cleanupTmpDir
   , cleanupOnSigint
@@ -176,6 +177,13 @@ stop (ManagedProcess _ child closedAVar) = do
   isAlive <- AVar.isEmpty <$> AVar.status closedAVar
   when isAlive $ liftEffect $ kill SIGINT child
 
+stopProcessWithChildren :: ManagedProcess -> Aff Unit
+stopProcessWithChildren managedProc@(ManagedProcess _ proc _) = do
+  void $ liftEffect $ Node.ChildProcess.execSync
+    ("pkill -TERM -P " <> show (unwrap $ Node.ChildProcess.pid proc))
+    Node.ChildProcess.defaultExecSyncOptions
+  stop managedProc
+
 -- | Waits until the process has cleanly stopped.
 waitForStop :: ManagedProcess -> Aff Unit
 waitForStop (ManagedProcess cmd _ closedAVar) = do
@@ -195,12 +203,12 @@ onSignal :: Signal -> Effect Unit -> Effect OnSignalRef
 onSignal sig = onSignalImpl (Signal.toString sig)
 
 -- | Just as onSignal, but Aff.
-waitForSignal :: Signal -> Aff Unit
+waitForSignal :: Signal -> Aff Signal
 waitForSignal signal = makeAff \cont -> do
   isCanceledRef <- Ref.new false
   onSignalRef <- onSignal signal
     $ Ref.read isCanceledRef
-    >>= flip unless (cont $ Right unit)
+    >>= flip unless (cont $ Right signal)
   pure $ Canceler \err -> liftEffect do
     Ref.write true isCanceledRef
     removeOnSignal onSignalRef

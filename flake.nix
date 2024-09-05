@@ -33,7 +33,13 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/4f4e372a1641ac68cd09fb0339e6f55bef1ab85d";
+    # The changes introduced in the PRs listed below have not yet been included
+    # in any cardano-node release. These updates are necessary to run
+    # cardano-testnet in the Conway era and be able to adjust max Lovelace
+    # supply.
+    # https://github.com/IntersectMBO/cardano-node/pull/5936
+    # https://github.com/IntersectMBO/cardano-node/pull/5960
+    cardano-node.url = "github:input-output-hk/cardano-node/d7abccd4e90c38ff5cd4d6a7839689d888332056";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
@@ -75,12 +81,9 @@
     , ...
     }@inputs:
     let
-      supportedSystems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
+      darwinSystems = [ "x86_64-darwin" "aarch64-darwin" ];
+      supportedSystems = linuxSystems ++ darwinSystems;
 
       ogmiosVersion = "6.5.0";
       kupoVersion = "2.9.0";
@@ -140,7 +143,7 @@
           cp -rT ogmios $out
         '';
 
-      psProjectFor = pkgs:
+      psProjectFor = pkgs: system:
         let
           projectName = "cardano-transaction-lib";
           # `filterSource` will still trigger rebuilds with flakes, even if a
@@ -161,18 +164,19 @@
             packageJson = ./package.json;
             packageLock = ./package-lock.json;
             shell = {
-              withRuntime = true;
+              withRuntime = system == "x86_64-linux";
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
-              packages = with pkgs; [
-                arion
-                fd
-                psmisc
-                nixpkgs-fmt
-                nodePackages.eslint
-                nodePackages.prettier
-                blockfrost-backend-ryo
-              ];
+              packages = with pkgs;
+                (if (builtins.elem system linuxSystems) then [ psmisc ] else [ ]) ++
+                [
+                  arion
+                  fd
+                  nixpkgs-fmt
+                  nodePackages.eslint
+                  nodePackages.prettier
+                  blockfrost-backend-ryo
+                ];
             };
           };
           exportOgmiosFixtures =
@@ -297,18 +301,18 @@
       devShells = perSystem (system: {
         # This is the default `devShell` and can be run without specifying
         # it (i.e. `nix develop`)
-        default = (psProjectFor (nixpkgsFor system)).devShell;
+        default = (psProjectFor (nixpkgsFor system) system).devShell;
       });
 
       packages = perSystem (system:
-        (psProjectFor (nixpkgsFor system)).packages
+        (psProjectFor (nixpkgsFor system) system).packages
       );
 
       apps = perSystem (system:
         let
           pkgs = nixpkgsFor system;
         in
-        (psProjectFor pkgs).apps // {
+        (psProjectFor pkgs system).apps // {
           ctl-runtime = pkgs.launchCtlRuntime { };
           ctl-runtime-blockfrost = pkgs.launchCtlRuntime { blockfrost.enable = true; };
           default = self.apps.${system}.ctl-runtime;
@@ -326,7 +330,7 @@
       checks = perSystem (system:
         let
           pkgs = nixpkgsFor system;
-          psProject = psProjectFor pkgs;
+          psProject = psProjectFor pkgs system;
         in
         psProject.checks
         // {
