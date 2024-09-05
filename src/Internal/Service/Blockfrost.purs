@@ -87,6 +87,7 @@ import Cardano.Serialization.Lib (toBytes)
 import Cardano.Types
   ( AssetClass(AssetClass)
   , AuxiliaryData
+  , CostModel
   , DataHash
   , GeneralTransactionMetadata(GeneralTransactionMetadata)
   , Language(PlutusV3, PlutusV2, PlutusV1)
@@ -118,6 +119,7 @@ import Cardano.Types.Epoch (Epoch(Epoch))
 import Cardano.Types.ExUnitPrices (ExUnitPrices(ExUnitPrices))
 import Cardano.Types.ExUnits (ExUnits(ExUnits))
 import Cardano.Types.GeneralTransactionMetadata as GeneralTransactionMetadata
+import Cardano.Types.Int (Int) as Cardano
 import Cardano.Types.NativeScript
   ( NativeScript
       ( ScriptAll
@@ -193,13 +195,7 @@ import Ctl.Internal.Types.EraSummaries
   , EraSummaryParameters
   )
 import Ctl.Internal.Types.ProtocolParameters
-  ( CostModelV1
-  , CostModelV2
-  , CostModelV3
-  , ProtocolParameters(ProtocolParameters)
-  , convertPlutusV1CostModel
-  , convertPlutusV2CostModel
-  , convertPlutusV3CostModel
+  ( ProtocolParameters(ProtocolParameters)
   )
 import Ctl.Internal.Types.Rational (Rational, reduce)
 import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
@@ -238,6 +234,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error)
 import Foreign.Object (Object)
+import Foreign.Object (values) as Object
 import Foreign.Object as ForeignObject
 import JS.BigInt (fromString, toNumber) as BigInt
 import Prim.TypeError (class Warn, Text)
@@ -1519,9 +1516,9 @@ type BlockfrostProtocolParametersRaw =
   , "protocol_minor_ver" :: UInt
   , "min_pool_cost" :: Stringed BigNum
   , "cost_models" ::
-      { "PlutusV1" :: { | CostModelV1 }
-      , "PlutusV2" :: { | CostModelV2 }
-      , "PlutusV3" :: CostModelV3
+      { "PlutusV1" :: Object Cardano.Int
+      , "PlutusV2" :: Object Cardano.Int
+      , "PlutusV3" :: Object Cardano.Int
       }
   , "price_mem" :: FiniteBigNumber
   , "price_step" :: FiniteBigNumber
@@ -1588,9 +1585,6 @@ instance DecodeAeson BlockfrostProtocolParameters where
       maybe (Left $ AtKey "coins_per_utxo_size" $ MissingValue)
         pure $ (Coin <<< unwrap <$> raw.coins_per_utxo_size)
 
-    plutusV3CostModel <- note (AtKey "PlutusV3" $ TypeMismatch "CostModel") $
-      convertPlutusV3CostModel raw.cost_models."PlutusV3"
-
     pure $ BlockfrostProtocolParameters $ ProtocolParameters
       { protocolVersion: raw.protocol_major_ver /\ raw.protocol_minor_ver
       -- The following two parameters were removed from Babbage
@@ -1610,9 +1604,9 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , treasuryCut
       , coinsPerUtxoByte: coinsPerUtxoByte
       , costModels: Map.fromFoldable
-          [ PlutusV1 /\ convertPlutusV1CostModel raw.cost_models."PlutusV1"
-          , PlutusV2 /\ convertPlutusV2CostModel raw.cost_models."PlutusV2"
-          , PlutusV3 /\ plutusV3CostModel
+          [ PlutusV1 /\ convertPlutusCostModel raw.cost_models."PlutusV1"
+          , PlutusV2 /\ convertPlutusCostModel raw.cost_models."PlutusV2"
+          , PlutusV3 /\ convertPlutusCostModel raw.cost_models."PlutusV3"
           ]
       , prices
       , maxTxExUnits:
@@ -1631,6 +1625,9 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , govActionDeposit: Coin $ unwrap raw.gov_action_deposit
       , drepDeposit: Coin $ unwrap raw.drep_deposit
       }
+    where
+    convertPlutusCostModel :: Object Cardano.Int -> CostModel
+    convertPlutusCostModel = wrap <<< Object.values
 
 --------------------------------------------------------------------------------
 -- BlockfrostRewards

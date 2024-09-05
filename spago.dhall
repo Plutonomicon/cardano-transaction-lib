@@ -44,7 +44,6 @@ You can edit this file as you like.
   , "foreign-object"
   , "formatters"
   , "functions"
-  , "heterogeneous"
   , "http-methods"
   , "identity"
   , "integers"
