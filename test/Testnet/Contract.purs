@@ -50,10 +50,7 @@ import Contract.BalanceTxConstraints
   , mustUseCollateralUtxos
   )
 import Contract.Chain (currentTime, waitUntilSlot)
-import Contract.Config
-  ( KnownWallet(Nami, Gero, Flint, Lode, NuFi)
-  , walletName
-  )
+import Contract.Config (KnownWallet(Nami, Gero, Flint, Lode, NuFi), walletName)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Log (logInfo')
@@ -62,7 +59,6 @@ import Contract.Monad (Contract, liftContractE, liftContractM, liftedM)
 import Contract.Numeric.BigNum as BigNum
 import Contract.PlutusData
   ( PlutusData(Bytes, Integer, List)
-  , RedeemerDatum(RedeemerDatum)
   , getDatumByHash
   , getDatumsByHashes
   , getDatumsByHashesWithErrors
@@ -149,11 +145,7 @@ import Ctl.Examples.Helpers (mkAssetName, mustPayToPubKeyStakeAddress)
 import Ctl.Examples.IncludeDatum as IncludeDatum
 import Ctl.Examples.Lose7Ada as AlwaysFails
 import Ctl.Examples.ManyAssets as ManyAssets
-import Ctl.Examples.MintsMultipleTokens
-  ( mintingPolicyRdmrInt1
-  , mintingPolicyRdmrInt2
-  , mintingPolicyRdmrInt3
-  )
+import Ctl.Examples.MintsMultipleTokens (contract) as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints (contract) as NativeScriptMints
 import Ctl.Examples.OneShotMinting (contract) as OneShotMinting
 import Ctl.Examples.PaysWithDatum (contract) as PaysWithDatum
@@ -1098,47 +1090,8 @@ suite = do
           [ BigNum.fromInt 5_000_000
           , BigNum.fromInt 50_000_000
           ]
-      withWallets distribution \alice -> do
-        withKeyWallet alice do
-          tn1 <- mkAssetName "Token with a long name"
-          tn2 <- mkAssetName "Token"
-          mp1 <- mintingPolicyRdmrInt1
-          mp2 <- mintingPolicyRdmrInt2
-          mp3 <- mintingPolicyRdmrInt3
-          let
-            cs1 = PlutusScript.hash mp1
-            cs2 = PlutusScript.hash mp2
-            cs3 = PlutusScript.hash mp3
-
-          let
-            constraints :: Constraints.TxConstraints
-            constraints = mconcat $ unsafePartial
-              [ Constraints.mustMintValueWithRedeemer
-                  (RedeemerDatum $ Integer (BigInt.fromInt 1))
-                  ( Mint.singleton cs1 tn1 Int.one <> Mint.singleton cs1 tn2
-                      Int.one
-                  )
-              , Constraints.mustMintValueWithRedeemer
-                  (RedeemerDatum $ Integer (BigInt.fromInt 2))
-                  ( Mint.singleton cs2 tn1 Int.one <> Mint.singleton cs2 tn2
-                      Int.one
-                  )
-              , Constraints.mustMintValueWithRedeemer
-                  (RedeemerDatum $ Integer (BigInt.fromInt 3))
-                  ( Mint.singleton cs3 tn1 Int.one <> Mint.singleton cs3 tn2
-                      Int.one
-                  )
-              ]
-
-            lookups :: Lookups.ScriptLookups
-            lookups =
-              Lookups.plutusMintingPolicy mp1
-                <> Lookups.plutusMintingPolicy mp2
-                <> Lookups.plutusMintingPolicy mp3
-
-          ubTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
-          bsTx <- signTransaction =<< balanceTx ubTx usedUtxos mempty
-          submitAndLog bsTx
+      withWallets distribution \alice ->
+        withKeyWallet alice MintsMultipleTokens.contract
 
     test "Multi-signature transaction" do
       let
