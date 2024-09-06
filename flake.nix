@@ -168,7 +168,7 @@
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
               packages = with pkgs;
-                (if (builtins.elem system linuxSystems) then [ psmisc ] else [ ]) ++
+                (if (builtins.elem system linuxSystems) then [ psmisc procps ] else [ ]) ++
                 [
                   arion
                   fd
