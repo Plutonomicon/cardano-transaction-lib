@@ -1,9 +1,14 @@
 -- | `min_fee` calculation using CSL.
-module Ctl.Internal.Serialization.MinFee (calculateMinFeeCsl) where
+module Ctl.Internal.MinFee (calculateMinFeeCsl) where
 
 import Prelude
 
-import Cardano.Serialization.Lib (linearFee_new, minFee, minScriptFee)
+import Cardano.Serialization.Lib
+  ( linearFee_new
+  , minFee
+  , minRefScriptFee
+  , minScriptFee
+  )
 import Cardano.Types
   ( Coin
   , Ed25519KeyHash
@@ -19,6 +24,7 @@ import Cardano.Types.ExUnitPrices as ExUnitPrices
 import Cardano.Types.NativeScript (NativeScript(ScriptAll))
 import Cardano.Types.PublicKey as PublicKey
 import Cardano.Types.Transaction as Transaction
+import Cardano.Types.UnitInterval as UnitInterval
 import Contract.Prim.ByteArray (hexToRawBytes)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Helpers (unsafeFromJust)
@@ -26,16 +32,19 @@ import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Ctl.Internal.Types.ProtocolParameters
   ( ProtocolParameters(ProtocolParameters)
   )
+import Ctl.Internal.Types.Rational as Rational
 import Data.Array (range, replicate) as Array
 import Data.Foldable (fold)
 import Data.Int (hexadecimal) as Radix
-import Data.Int (toStringAs) as Int
+import Data.Int (toNumber, toStringAs) as Int
 import Data.Lens ((.~))
 import Data.Maybe (fromJust)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set (fromFoldable, isEmpty, size) as Set
 import Data.String (length) as String
+import Data.UInt (UInt)
+import Data.UInt as UInt
 import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Partial.Unsafe (unsafePartial)
@@ -47,22 +56,34 @@ calculateMinFeeCsl
   => ProtocolParameters
   -> Set Ed25519KeyHash
   -> Transaction
+  -> UInt
   -> m Coin
-calculateMinFeeCsl (ProtocolParameters pparams) selfSigners txNoSigs = do
-  let tx = addFakeSignatures selfSigners txNoSigs
-  let cslTx = Transaction.toCsl tx
+calculateMinFeeCsl
+  (ProtocolParameters pparams)
+  selfSigners
+  txNoSigs
+  refScriptsSize = do
   let
+    tx = addFakeSignatures selfSigners txNoSigs
+    cslTx = Transaction.toCsl tx
     cslLinearFee = linearFee_new
       (unwrap $ BigNum.fromUInt pparams.txFeePerByte)
       (unwrap $ unwrap pparams.txFeeFixed)
-
-  let fee = minFee cslTx cslLinearFee
-  let exUnitPrices = pparams.prices
-  let exUnitPricesCsl = ExUnitPrices.toCsl exUnitPrices
-  let scriptFee = minScriptFee cslTx exUnitPricesCsl
+    fee = minFee cslTx cslLinearFee
+    exUnitPrices = pparams.prices
+    exUnitPricesCsl = ExUnitPrices.toCsl exUnitPrices
+    scriptFee = minScriptFee cslTx exUnitPricesCsl
+    refScriptFee =
+      minRefScriptFee
+        (Int.toNumber $ UInt.toInt refScriptsSize)
+        ( UnitInterval.toCsl
+            $ unsafeFromJust "calculateMinFeeCsl: refScriptCoinsPerByte"
+            $ Rational.toUnitInterval pparams.refScriptCoinsPerByte
+        )
   -- Ignore the overflow here: fees are much lower
-  pure $ wrap $ unsafeFromJust "calculateMinFeeCsl" $ BigNum.add (wrap fee)
-    (wrap scriptFee)
+  pure $ wrap $ unsafeFromJust "calculateMinFeeCsl" $
+    BigNum.add (wrap fee)
+      (wrap scriptFee) >>= BigNum.add (wrap refScriptFee)
 
 -- | Adds fake signatures for each expected signature of a transaction.
 addFakeSignatures :: Set Ed25519KeyHash -> Transaction -> Transaction
