@@ -86,6 +86,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Fixed
 
 - Updated fee structure that takes [reference script size fee requirements into account](https://github.com/IntersectMBO/cardano-ledger/blob/cardano-ledger-shelley-ma-test-1.2.2.3/docs/adr/2024-08-14_009-refscripts-fee-change.md) ([#1647](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1647))
+- Fixed Blockfrost PlutusV3 cost model decoding (preprod and preview return cost models in different formats) ([#1647](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1647))
 
 ### Changed
 
