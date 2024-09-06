@@ -5,6 +5,7 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 
 import Prelude
 
+import Cardano.AsCbor (encodeCbor)
 import Cardano.Types
   ( Coin
   , CostModel
@@ -19,7 +20,9 @@ import Cardano.Types
   , TransactionWitnessSet
   , UtxoMap
   , _body
+  , _inputs
   , _isValid
+  , _referenceInputs
   , _witnessSet
   )
 import Cardano.Types.BigNum as BigNum
@@ -30,7 +33,11 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (except)
 import Ctl.Internal.BalanceTx.Constraints (_additionalUtxos, _collateralUtxos) as Constraints
 import Ctl.Internal.BalanceTx.Error
-  ( BalanceTxError(UtxoLookupFailedFor, ExUnitsEvaluationFailed)
+  ( BalanceTxError
+      ( UtxoLookupFailedFor
+      , ExUnitsEvaluationFailed
+      , CouldNotComputeRefScriptsFee
+      )
   )
 import Ctl.Internal.BalanceTx.Types
   ( BalanceTxM
@@ -40,7 +47,7 @@ import Ctl.Internal.BalanceTx.Types
   )
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
 import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Helpers (unsafeFromJust)
+import Ctl.Internal.Helpers (liftEither, unsafeFromJust)
 import Ctl.Internal.QueryM.Ogmios
   ( AdditionalUtxoSet
   , TxEvaluationFailure(AdditionalUtxoOverlap)
@@ -54,18 +61,26 @@ import Ctl.Internal.TxOutput
   )
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, notElem) as Array
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, lmap)
+import Data.ByteArray as ByteArray
 import Data.Either (Either(Left, Right), note)
 import Data.Foldable (foldMap)
 import Data.Lens ((.~))
 import Data.Lens.Getter ((^.))
 import Data.Map (Map)
-import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable, union) as Map
-import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
+import Data.Map
+  ( empty
+  , filterKeys
+  , fromFoldable
+  , lookup
+  , toUnfoldable
+  , union
+  ) as Map
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Traversable (for)
+import Data.Traversable (for, sum)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
@@ -127,9 +142,26 @@ evalExUnitsAndMinFee transaction allUtxos = do
   additionalUtxos <- asksConstraints Constraints._additionalUtxos
   collateralUtxos <- fromMaybe Map.empty
     <$> asksConstraints Constraints._collateralUtxos
+  refScriptsTotalSize <- liftEither $ lmap CouldNotComputeRefScriptsFee $
+    calculateRefScriptsTotalSize finalizedTx allUtxos
   minFee <- liftContract $ Contract.MinFee.calculateMinFee finalizedTx
     (Map.union additionalUtxos collateralUtxos)
+    (UInt.fromInt refScriptsTotalSize)
   pure $ txWithExUnits /\ minFee
+
+calculateRefScriptsTotalSize
+  :: Transaction -> UtxoMap -> Either TransactionInput Int
+calculateRefScriptsTotalSize tx utxoMap = do
+  let
+    refInputs = tx ^. _body <<< _referenceInputs
+    inputs = tx ^. _body <<< _inputs
+    allInputs = refInputs <> inputs
+  outputs <- for allInputs \input ->
+    note input $ Map.lookup input utxoMap
+  let
+    refScriptSizes = outputs <#> \(TransactionOutput { scriptRef }) ->
+      maybe zero (ByteArray.byteLength <<< unwrap <<< encodeCbor) scriptRef
+  pure $ sum refScriptSizes
 
 -- | Attaches datums and redeemers, sets the script integrity hash,
 -- | for use after reindexing.
