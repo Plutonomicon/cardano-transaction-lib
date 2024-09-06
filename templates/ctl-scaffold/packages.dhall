@@ -372,7 +372,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "b1a03a934364b1010ab34d9fc0497bee75b99dbe"
+        , version = "v3.0.0"
         }
       , cardano-message-signing =
         { dependencies =
