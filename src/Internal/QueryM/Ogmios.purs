@@ -1038,6 +1038,11 @@ type ProtocolParametersRaw =
   , "maxCollateralInputs" :: UInt
   , "governanceActionDeposit" :: Maybe OgmiosAdaLovelace
   , "delegateRepresentativeDeposit" :: Maybe OgmiosAdaLovelace
+  , "minFeeReferenceScripts" ::
+      { range :: UInt
+      , base :: Number
+      , multiplier :: Number
+      }
   }
 
 newtype OgmiosProtocolParameters = OgmiosProtocolParameters ProtocolParameters
@@ -1053,6 +1058,9 @@ instance DecodeAeson OgmiosProtocolParameters where
   decodeAeson aeson = do
     ps :: ProtocolParametersRaw <- decodeAeson aeson
     prices <- decodePrices ps
+    minFeeReferenceScriptsBase <-
+      note (TypeMismatch "minFeeReferenceScripts.multiplier: expected a number")
+        $ Rational.fromNumber ps.minFeeReferenceScripts.base
     pure $ OgmiosProtocolParameters $ ProtocolParameters
       { protocolVersion: ps.version.major /\ ps.version.minor
       -- The following two parameters were removed from Babbage
@@ -1094,6 +1102,7 @@ instance DecodeAeson OgmiosProtocolParameters where
       , drepDeposit:
           maybe mempty (wrap <<< _.ada.lovelace)
             ps.delegateRepresentativeDeposit
+      , refScriptCoinsPerByte: minFeeReferenceScriptsBase
       }
     where
     decodeExUnits

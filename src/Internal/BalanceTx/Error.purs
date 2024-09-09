@@ -17,6 +17,7 @@ module Ctl.Internal.BalanceTx.Error
       , UtxoLookupFailedFor
       , UtxoMinAdaValueCalculationFailed
       , NumericOverflowError
+      , CouldNotComputeRefScriptsFee
       )
   , Expected(Expected)
   , printTxEvaluationFailure
@@ -92,6 +93,7 @@ data BalanceTxError
   | UtxoLookupFailedFor TransactionInput UtxoMap
   | UtxoMinAdaValueCalculationFailed
   | NumericOverflowError (Maybe Val)
+  | CouldNotComputeRefScriptsFee TransactionInput
 
 derive instance Generic BalanceTxError _
 
@@ -147,6 +149,9 @@ explainBalanceTxError = case _ of
   NumericOverflowError mbVal ->
     "Could not compute output value due to numeric overflow. Decrease the quantity of assets. "
       <> fold (prettyVal "Value:" <$> mbVal)
+  CouldNotComputeRefScriptsFee input ->
+    "Could not compute reference script size fees introduced in Conway. Ensure that all reference scripts are present in a UtxoMap provided to the balancer. "
+      <> pprintTagSet "Missing input: " (pprintTransactionInput input)
   where
   prettyVal :: String -> Val -> String
   prettyVal str = pprintVal >>> pprintTagSet str

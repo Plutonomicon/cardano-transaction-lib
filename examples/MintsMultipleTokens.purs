@@ -64,6 +64,10 @@ contract = do
           ( PlutusScriptCredential (ScriptValue mp1) $ RedeemerDatum $ Integer
               (BigInt.fromInt 1)
           )
+      , MintAsset cs1 tn2 Int.one
+          ( PlutusScriptCredential (ScriptValue mp1) $ RedeemerDatum $ Integer
+              (BigInt.fromInt 1)
+          )
       , MintAsset cs2 tn2 Int.one
           ( PlutusScriptCredential (ScriptValue mp2) $ RedeemerDatum $ Integer
               (BigInt.fromInt 2)

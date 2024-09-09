@@ -16,7 +16,6 @@ module Test.Ctl.Fixtures
   , ed25519KeyHashFixture1
   , fullyAppliedScriptFixture
   , int1
-  , mint0
   , mint1
   , mkSampleTx
   , mkTxInput
@@ -346,16 +345,9 @@ txFixture1 =
 
 mint1 :: Mint
 mint1 = Mint $ Map.fromFoldable
-  [ currencySymbol1 /\ Map.fromFoldable
-      [ tokenName2 /\ Int.newPositive BigNum.one
-      ]
-  ]
-
-mint0 :: Mint
-mint0 = Mint $ Map.fromFoldable
-  [ currencySymbol1 /\ Map.fromFoldable
-      [ tokenName2 /\ Int.newPositive BigNum.zero
-      ]
+  [ currencySymbol1 /\
+      Map.fromFoldable
+        [ tokenName2 /\ Int.newPositive BigNum.one ]
   ]
 
 int1 :: Int.Int
