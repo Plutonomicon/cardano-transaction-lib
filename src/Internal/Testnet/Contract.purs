@@ -11,6 +11,7 @@ import Contract.Prelude
 import Cardano.Serialization.Lib (privateKey_generateEd25519) as Csl
 import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
+import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigInt (BigInt)
 import Cardano.Types.BigInt (fromInt) as BigInt
 import Cardano.Types.BigNum (fromBigInt, toBigInt) as BigNum
@@ -24,7 +25,6 @@ import Contract.Log (logInfo')
 import Contract.Monad
   ( Contract
   , ContractEnv
-  , liftContractE
   , liftContractM
   , liftedM
   , runContractInEnv
@@ -40,6 +40,7 @@ import Contract.Wallet
   , mkKeyWalletFromPrivateKeys
   , withKeyWallet
   )
+import Control.Monad.Error.Class (throwError)
 import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
@@ -55,8 +56,12 @@ import Ctl.Internal.Test.UtxoDistribution
   , encodeDistribution
   , keyWallets
   )
-import Ctl.Internal.Testnet.DistributeFundsV2 (DistrFundsParams)
-import Ctl.Internal.Testnet.DistributeFundsV2 (Tx(Tx), makeDistributionPlan) as DistrFunds
+import Ctl.Internal.Testnet.DistributeFunds
+  ( DistrFundsParams
+  , explainDistrFundsError
+  , makeDistributionPlan
+  )
+import Ctl.Internal.Testnet.DistributeFunds (Tx(Tx)) as DistrFunds
 import Ctl.Internal.Testnet.Server
   ( StartedTestnetCluster
   , makeClusterContractEnv
@@ -70,13 +75,14 @@ import Ctl.Internal.Testnet.Utils
   , whenError
   )
 import Data.Array (concat, fromFoldable, zip) as Array
+import Data.Bifunctor (lmap)
 import Data.Map (values) as Map
 import Effect.Aff (bracket) as Aff
 import Effect.Aff (try)
 import Effect.Exception (error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read, write) as Ref
-import Internal.CardanoCli.QueryHandler (withCardanoCliCompletion)
+import Internal.CardanoCli.QueryHandle (withCardanoCliCompletion)
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
@@ -304,6 +310,22 @@ execDistrFundsPlan withCardanoCliUtxos rounds = do
     )
     roundsFixed
 
+newtype KeyWalletShow = KeyWalletShow
+  { kw :: KeyWallet
+  , address :: Address
+  }
+
+derive instance Newtype KeyWalletShow _
+
+instance Show KeyWalletShow where
+  show kw = "(KeyWallet " <> Address.toBech32 (unwrap kw).address <> ")"
+
+toKeyWalletShow :: KeyWallet -> Contract KeyWalletShow
+toKeyWalletShow kw = do
+  network <- getNetworkId
+  address <- liftAff $ (unwrap kw).address network
+  pure $ wrap { kw, address }
+
 makeDistrFundsPlan
   :: forall (distr :: Type) (wallets :: Type)
    . UtxoDistribution distr wallets
@@ -320,16 +342,21 @@ makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
     liftContractM
       "Impossible happened: could not decode wallets. Please report as bug"
       $ decodeWallets distr privateKeys
-  let
-    kws = keyWallets (Proxy :: _ distr) wallets
-    targets = Array.concat $ sequence <$> Array.zip kws distrArray
+  kws <- traverse toKeyWalletShow $ keyWallets (Proxy :: _ distr) wallets
+  let targets = Array.concat $ sequence <$> Array.zip kws distrArray
   sources <- Array.concat <$>
-    parTraverse (\kw -> map (Tuple kw) <$> getGenesisUtxos kw)
-      genesisWallets
+    ( parTraverse (\kw -> map (Tuple kw) <$> getGenesisUtxos (unwrap kw).kw)
+        =<< traverse toKeyWalletShow genesisWallets
+    )
+  -- traceM $ "genesis sources: " <> show sources
   distrPlan <-
-    liftContractE $
-      DistrFunds.makeDistributionPlan distrFundsParams sources targets
-  pure $ wallets /\ distrPlan
+    makeDistributionPlan distrFundsParams sources targets #
+      either
+        ( throwError <<< error <<< append "DistrFunds: " <<<
+            explainDistrFundsError
+        )
+        pure
+  pure $ wallets /\ (map (lmap (_.kw <<< unwrap)) <$> distrPlan)
   where
   getGenesisUtxos :: KeyWallet -> Contract (Array BigInt)
   getGenesisUtxos genesisWallet =
@@ -348,7 +375,7 @@ makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
           <<< Map.values
 
 -- FIXME: adjust values
-distrFundsParams :: DistrFundsParams KeyWallet BigInt
+distrFundsParams :: forall wallet. DistrFundsParams wallet BigInt
 distrFundsParams =
   { maxRounds: 3
   , maxUtxosPerTx: 100
