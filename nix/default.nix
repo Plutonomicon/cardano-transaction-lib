@@ -356,6 +356,7 @@ let
           cardano-node
           cardano-cli
           psmisc
+          procps
         ]
         ++ (args.buildInputs or [ ]);
       }

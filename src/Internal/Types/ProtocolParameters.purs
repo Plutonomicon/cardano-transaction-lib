@@ -60,6 +60,7 @@ newtype ProtocolParameters = ProtocolParameters
   , maxCollateralInputs :: UInt
   , govActionDeposit :: Coin
   , drepDeposit :: Coin
+  , refScriptCoinsPerByte :: Rational
   }
 
 derive instance Newtype ProtocolParameters _

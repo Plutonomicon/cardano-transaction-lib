@@ -15,9 +15,10 @@ import Cardano.Types
 import Cardano.Types.AssetName (fromAssetName)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
-import Cardano.Types.Mint (Mint(Mint))
+import Cardano.Types.Mint (Mint)
+import Cardano.Types.Mint as Mint
 import Cardano.Types.MultiAsset as MultiAsset
-import Data.Array (cons)
+import Data.Array (cons, foldr)
 import Data.Bifunctor (bimap)
 import Data.ByteArray (byteArrayToHex)
 import Data.Foldable (all)
@@ -31,7 +32,7 @@ import Data.Map as Map
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Show.Generic (genericShow)
-import Data.These (These(This, That, Both))
+import Data.These (These(This, That, Both), these)
 import Data.Traversable (traverse)
 import Data.Tuple.Nested (type (/\), (/\))
 import JS.BigInt as BigInt
@@ -171,7 +172,29 @@ fromMultiAsset :: MultiAsset -> Val
 fromMultiAsset (MultiAsset ma) = Val zero $ map (map BigNum.toBigInt) ma
 
 fromMint :: Mint -> Val
-fromMint (Mint ma) = Val zero $ map (map Int.toBigInt) $ ma
+fromMint mint =
+  Val zero $ foldr insert Map.empty $ Mint.flatten mint
+  where
+  insert
+    :: (ScriptHash /\ AssetName /\ Int.Int)
+    -> Map ScriptHash (Map AssetName BigInt)
+    -> Map ScriptHash (Map AssetName BigInt)
+  insert (scriptHash /\ assetName /\ amount) ma =
+    map joinAssets $
+      MultiAsset.union
+        ma
+        ( Map.singleton scriptHash $ Map.singleton assetName $ Int.toBigInt
+            amount
+        )
+
+  joinAssets
+    :: These (Map AssetName BigInt) (Map AssetName BigInt)
+    -> Map AssetName BigInt
+  joinAssets = these identity identity
+    (\x y -> map unBoth $ MultiAsset.union x y)
+  unBoth (Both a b) = add a b
+  unBoth (This a) = a
+  unBoth (That b) = b
 
 minus :: Val -> Val -> Val
 minus (Val a ma) (Val b mb) = Val (a - b) (unionWithNonAda (-) ma mb)

@@ -77,7 +77,7 @@ import Ctl.Internal.Test.E2E.Wallets
   )
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Testnet.Contract (withTestnetContractEnv)
-import Ctl.Internal.Testnet.Types (Era(Babbage), TestnetConfig)
+import Ctl.Internal.Testnet.Types (Era(Conway), TestnetConfig)
 import Data.Array (catMaybes, mapMaybe, nub)
 import Data.Array as Array
 import Data.ByteArray (hexToByteArray)
@@ -215,7 +215,7 @@ buildLocalTestnetConfig options =
   , hooks: emptyHooks
   , clusterConfig:
       { testnetMagic: 2
-      , era: Babbage
+      , era: Conway
       , slotLength: Seconds 0.05
       , epochSize: Nothing
       }

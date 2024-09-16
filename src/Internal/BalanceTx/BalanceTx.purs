@@ -22,6 +22,7 @@ import Cardano.Types
   , Transaction
   , TransactionBody
   , TransactionOutput
+  , TransactionUnspentOutput
   , UtxoMap
   , Value(Value)
   , _amount
@@ -38,12 +39,15 @@ import Cardano.Types
   , _witnessSet
   )
 import Cardano.Types.Address (Address)
+import Cardano.Types.Address (getPaymentCredential) as Address
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
+import Cardano.Types.Credential (asPubKeyHash) as Credential
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum))
-import Cardano.Types.TransactionBody (_votingProposals)
+import Cardano.Types.TransactionBody (_collateral, _votingProposals)
 import Cardano.Types.TransactionInput (TransactionInput)
-import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutputs
+import Cardano.Types.TransactionUnspentOutput (_output)
+import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutput
 import Cardano.Types.TransactionWitnessSet (_redeemers)
 import Cardano.Types.UtxoMap (pprintUtxoMap)
 import Cardano.Types.Value (getMultiAsset, mkValue, pprintValue)
@@ -65,7 +69,10 @@ import Ctl.Internal.BalanceTx.Collateral
   ( addTxCollateral
   , addTxCollateralReturn
   )
-import Ctl.Internal.BalanceTx.Collateral.Select (selectCollateral)
+import Ctl.Internal.BalanceTx.Collateral.Select
+  ( minRequiredCollateral
+  , selectCollateral
+  ) as Collateral
 import Ctl.Internal.BalanceTx.Constraints
   ( BalanceTxConstraintsBuilder
   , _collateralUtxos
@@ -137,7 +144,7 @@ import Data.Array.NonEmpty
 import Data.Array.NonEmpty as NEA
 import Data.Bitraversable (ltraverse)
 import Data.Either (Either, hush, note)
-import Data.Foldable (any, fold, foldMap, foldr, length, null, or, sum)
+import Data.Foldable (any, foldMap, foldr, length, null, or, sum)
 import Data.Lens (view)
 import Data.Lens.Getter ((^.))
 import Data.Lens.Setter ((%~), (.~), (?~))
@@ -210,11 +217,6 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder =
             <#> traverse (note CouldNotGetUtxos)
               >>> map (foldr Map.union Map.empty) -- merge all utxos into one map
 
-    unbalancedCollTx <- transactionWithNetworkId >>=
-      if Array.null (transaction ^. _witnessSet <<< _redeemers)
-      -- Don't set collateral if tx doesn't contain phase-2 scripts:
-      then pure
-      else setTransactionCollateral changeAddress
     let
       allUtxos :: UtxoMap
       allUtxos =
@@ -223,6 +225,12 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder =
         utxos `Map.union` extraUtxos
 
     availableUtxos <- liftContract $ filterLockedUtxos allUtxos
+
+    unbalancedCollTx <- transactionWithNetworkId >>=
+      if Array.null (transaction ^. _witnessSet <<< _redeemers)
+      -- Don't set collateral if tx doesn't contain phase-2 scripts:
+      then pure
+      else setTransactionCollateral changeAddress availableUtxos
 
     Logger.info (pprintUtxoMap allUtxos) "balanceTxWithConstraints: all UTxOs"
     Logger.info (pprintUtxoMap availableUtxos)
@@ -254,8 +262,9 @@ balanceTxWithConstraints transaction extraUtxos constraintsBuilder =
       (transaction ^. _body <<< _networkId)
     pure (transaction # _body <<< _networkId ?~ networkId)
 
-setTransactionCollateral :: Address -> Transaction -> BalanceTxM Transaction
-setTransactionCollateral changeAddr transaction = do
+setTransactionCollateral
+  :: Address -> UtxoMap -> Transaction -> BalanceTxM Transaction
+setTransactionCollateral changeAddr availableUtxos transaction = do
   nonSpendableSet <- asksConstraints Constraints._nonSpendableInputs
   nonSpendableInputsPredicates <- asksConstraints
     Constraints._nonSpendableInputsPredicates
@@ -280,22 +289,48 @@ setTransactionCollateral changeAddr transaction = do
       when (not $ Array.null filteredUtxos) do
         logWarn' $ pprintTagSet
           "Some of the collateral UTxOs returned by the wallet were marked as non-spendable and ignored"
-          (pprintUtxoMap (TransactionUnspentOutputs.toUtxoMap filteredUtxos))
-      pure spendableUtxos
+          (pprintUtxoMap (TransactionUnspentOutput.toUtxoMap filteredUtxos))
+      let
+        collVal =
+          foldMap (Val.fromValue <<< view (_output <<< _amount))
+            spendableUtxos
+        minRequiredCollateral =
+          BigNum.toBigInt $
+            unwrap Collateral.minRequiredCollateral
+      if (Val.getCoin collVal < minRequiredCollateral) then do
+        logWarn' $ pprintTagSet
+          "Filtered collateral UTxOs do not cover the minimum required \
+          \collateral, reselecting collateral using CTL algorithm."
+          (pprintUtxoMap (TransactionUnspentOutput.toUtxoMap spendableUtxos))
+        let
+          isPkhUtxo txOut = isJust do
+            cred <- Address.getPaymentCredential $ (unwrap txOut).address
+            Credential.asPubKeyHash $ unwrap cred
+        availableUtxos' <- liftContract $
+          Map.filter isPkhUtxo <<< Map.filterWithKey isSpendable <$>
+            filterLockedUtxos availableUtxos
+        selectCollateral availableUtxos'
+      else pure spendableUtxos
     -- otherwise, get all the utxos, filter out unspendable, and select
     -- collateral using internal algo, that is also used in KeyWallet
-    Just utxoMap -> do
-      ProtocolParameters params <- liftContract getProtocolParameters
-      let
-        maxCollateralInputs = UInt.toInt $ params.maxCollateralInputs
-        utxoMap' = Map.filterWithKey isSpendable utxoMap
-        mbCollateral =
-          Array.fromFoldable <$>
-            selectCollateral params.coinsPerUtxoByte maxCollateralInputs
-              utxoMap'
-      liftEither $ note (InsufficientCollateralUtxos utxoMap') mbCollateral
+    Just utxoMap -> selectCollateral utxoMap
   addTxCollateralReturn collateral (addTxCollateral collateral transaction)
     changeAddr
+
+-- | Select collateral from the provided utxos using internal CTL
+-- | collateral selection algorithm.
+selectCollateral :: UtxoMap -> BalanceTxM (Array TransactionUnspentOutput)
+selectCollateral utxos = do
+  pparams <- unwrap <$> liftContract getProtocolParameters
+  let
+    maxCollateralInputs = UInt.toInt $ pparams.maxCollateralInputs
+    mbCollateral =
+      Array.fromFoldable <$> Collateral.selectCollateral
+        pparams.coinsPerUtxoByte
+        maxCollateralInputs
+        utxos
+  liftEither $ note (InsufficientCollateralUtxos utxos)
+    mbCollateral
 
 --------------------------------------------------------------------------------
 -- Balancing Algorithm
@@ -356,11 +391,11 @@ runBalancer p = do
     isCip30 <- liftContract $ isCip30Wallet
     -- Get collateral inputs to mark them as unspendable.
     -- Some CIP-30 wallets don't allow to sign Txs that spend it.
-    nonSpendableCollateralInputs <-
-      if isCip30 then
-        liftContract $ Wallet.getWalletCollateral <#>
-          fold >>> map (unwrap >>> _.input) >>> Set.fromFoldable
-      else mempty
+    let
+      nonSpendableCollateralInputs =
+        if isCip30 then
+          Set.fromFoldable $ p.transaction ^. _body <<< _collateral
+        else mempty
     constraints <- unwrap <$> asks _.constraints
     let
       nonSpendableInputs =

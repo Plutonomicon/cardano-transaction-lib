@@ -203,6 +203,7 @@ import Ctl.Internal.Types.ProtocolParameters
   , convertUnnamedPlutusCostModel
   )
 import Ctl.Internal.Types.Rational (Rational, reduce)
+import Ctl.Internal.Types.Rational as Rational
 import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart))
 import Data.Array (catMaybes)
@@ -1536,6 +1537,7 @@ type BlockfrostProtocolParametersRaw =
   , "coins_per_utxo_size" :: Maybe (Stringed BigNum)
   , "gov_action_deposit" :: Stringed BigNum
   , "drep_deposit" :: Stringed BigNum
+  , "min_fee_ref_script_cost_per_byte" :: UInt
   }
 
 toFraction' :: BigNumber -> String /\ String
@@ -1589,6 +1591,13 @@ instance DecodeAeson BlockfrostProtocolParameters where
       maybe (Left $ AtKey "coins_per_utxo_size" $ MissingValue)
         pure $ (Coin <<< unwrap <$> raw.coins_per_utxo_size)
 
+    refScriptCoinsPerByte <-
+      note (AtKey "min_fee_ref_script_cost_per_byte" $ TypeMismatch "Integer") $
+        Rational.reduce
+          ( BigNum.toBigInt $ BigNum.fromUInt
+              raw.min_fee_ref_script_cost_per_byte
+          )
+          one
     let plutusV3CostModelRaw = raw.cost_models."PlutusV3"
     plutusV3CostModel <-
       note (AtKey "cost_models" $ AtKey "PlutusV3" $ TypeMismatch "CostModel")
@@ -1634,6 +1643,7 @@ instance DecodeAeson BlockfrostProtocolParameters where
       , maxCollateralInputs: raw.max_collateral_inputs
       , govActionDeposit: Coin $ unwrap raw.gov_action_deposit
       , drepDeposit: Coin $ unwrap raw.drep_deposit
+      , refScriptCoinsPerByte
       }
 
 --------------------------------------------------------------------------------

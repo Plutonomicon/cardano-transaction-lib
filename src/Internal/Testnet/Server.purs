@@ -306,8 +306,6 @@ spawnCardanoTestnet workdir params = do
         params.epochSize
     , [ flag "slot-length", show (unwrap params.slotLength) ]
     , [ flag "testnet-magic", show params.testnetMagic ]
-    -- FIXME: max-lovelace-supply option has no effect, should be fixed upstream
-    -- https://github.com/IntersectMBO/cardano-node/issues/5953
     , [ flag "max-lovelace-supply", BigNum.toString BigNum.maxValue ]
     ]
 
