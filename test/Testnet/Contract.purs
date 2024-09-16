@@ -166,7 +166,7 @@ import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
@@ -223,7 +223,7 @@ suite = do
         withWallets distribution \alice -> do
           withKeyWallet alice ManyAssets.contract
     test
-      "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs "
+      "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs"
       do
         let
           someUtxos =
@@ -252,6 +252,57 @@ suite = do
                   (mustNotSpendUtxosWithOutRefs $ Map.keys utxos)
               )
             res `shouldSatisfy` isLeft
+
+    test
+      "#1581 - Fallback to CTL collateral selection when all collateral inputs are non-spendable"
+      do
+        let
+          distribution =
+            [ BigNum.fromInt 10_000_000
+            , BigNum.fromInt 10_000_000
+            ]
+        withWallets distribution \alice ->
+          withKeyWallet alice do
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
+              Nothing
+            utxos <- utxosAt scriptAddress
+            scriptUtxo <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                $ head (lookupTxHash txId utxos)
+
+            unbalancedTx <- buildTx
+              [ SpendOutput scriptUtxo $ Just $ PlutusScriptOutput
+                  (ScriptValue validator)
+                  RedeemerDatum.unit
+                  (Just $ DatumValue PlutusData.unit)
+              ]
+
+            collUtxos <- getWalletCollateral
+            let
+              balancerConstraints =
+                maybe
+                  mempty
+                  (mustNotSpendUtxosWithOutRefs <<< Map.keys <<< toUtxoMap)
+                  collUtxos
+
+            balancedTx <- balanceTx unbalancedTx (toUtxoMap [ scriptUtxo ])
+              balancerConstraints
+            balancedSignedTx <- signTransaction balancedTx
+            submitAndLog balancedSignedTx
 
     test "#1480 - test that does nothing but fails" do
       let

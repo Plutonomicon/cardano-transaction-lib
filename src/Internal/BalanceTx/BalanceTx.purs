@@ -39,8 +39,10 @@ import Cardano.Types
   , _witnessSet
   )
 import Cardano.Types.Address (Address)
+import Cardano.Types.Address (getPaymentCredential) as Address
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
+import Cardano.Types.Credential (asPubKeyHash) as Credential
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum))
 import Cardano.Types.TransactionBody (_collateral, _votingProposals)
 import Cardano.Types.TransactionInput (TransactionInput)
@@ -152,6 +154,7 @@ import Data.Map (Map)
 import Data.Map
   ( empty
   , filter
+  , filterKeys
   , insert
   , isEmpty
   , lookup
@@ -292,7 +295,14 @@ setTransactionCollateral changeAddr availableUtxos transaction = do
           "Filtered collateral UTxOs do not cover the minimum required \
           \collateral, reselecting collateral using CTL algorithm."
           (pprintUtxoMap (TransactionUnspentOutput.toUtxoMap spendableUtxos))
-        selectCollateral availableUtxos
+        let
+          isPkhUtxo txOut = isJust do
+            cred <- Address.getPaymentCredential $ (unwrap txOut).address
+            Credential.asPubKeyHash $ unwrap cred
+        availableUtxos' <- liftContract $
+          Map.filter isPkhUtxo <<< Map.filterKeys isSpendable <$>
+            filterLockedUtxos availableUtxos
+        selectCollateral availableUtxos'
       else pure spendableUtxos
     -- otherwise, get all the utxos, filter out unspendable, and select
     -- collateral using internal algo, that is also used in KeyWallet
