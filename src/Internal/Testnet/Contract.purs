@@ -77,8 +77,8 @@ import Ctl.Internal.Testnet.Utils
 import Data.Array (concat, fromFoldable, zip) as Array
 import Data.Bifunctor (lmap)
 import Data.Map (values) as Map
+import Effect.Aff (apathize, try)
 import Effect.Aff (bracket) as Aff
-import Effect.Aff (try)
 import Effect.Exception (error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read, write) as Ref
@@ -246,6 +246,11 @@ startTestnetContractEnv cfg distr cleanupRef = do
   cluster <- startTestnetCluster cfg cleanupRef logger
   { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef logging
   wallets <- mkWallets env cluster
+  apathize $ liftEffect $
+    for_ env.hooks.onClusterStartup \onClusterStartup ->
+      onClusterStartup
+        { nodeSocketPath: (unwrap cluster).paths.nodeSocketPath
+        }
   pure
     { cluster
     , env
