@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - [Fixed](#fixed-2)
 - [[v9.1.0]](#v910)
   - [Added](#added-1)
-  - [Changed](#changed-2)
+  - [Changed](#changed-2
   - [Removed](#removed-1)
   - [Fixed](#fixed-3)
 - [[v9.0.0]](#v900)
@@ -163,6 +163,7 @@ This version provides basic Conway support and replaces Plutip with `cardano-tes
 
 ### Changed
 
+- **IMPORTANT** `Contract.TxConstraints.mustPayTo*` functions no longer automatically include datums in the witness set - use `Contract.TxConstraints.mustIncludeDatum`. This change may require updating existing code to ensure datums are included properly ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624)).
 - `Contract.Test.Plutip` is replaced with `Contract.Test.Testnet` that uses `cardano-testnet` instead of Plutip. As a result, we reduced the dependency footprint (`cardano-testnet` is distributed with `cardano-node`, so there are no internal Haskell components anymore in CTL) ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624))
 
 ### Removed
