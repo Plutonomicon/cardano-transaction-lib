@@ -90,43 +90,32 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
 attachDatum :: PlutusData -> Transaction -> Transaction
 attachDatum d = attachDatums [ d ]
 
-attachDatums
-  :: Array PlutusData -> Transaction -> Transaction
+attachDatums :: Array PlutusData -> Transaction -> Transaction
 attachDatums [] tx = tx
 attachDatums datums tx@(Transaction { witnessSet: TransactionWitnessSet ws }) =
-  do
-    updateTxWithWitnesses tx $ TransactionWitnessSet $ ws
-      { plutusData = nub $ ws.plutusData <> datums }
+  updateTxWithWitnesses tx $ TransactionWitnessSet $ ws
+    { plutusData = nub $ ws.plutusData <> datums
+    }
 
 -- | Attach a `PlutusScript` to a transaction by modifying its existing witness
 -- | set
-attachPlutusScript
-  :: PlutusScript -> Transaction -> Transaction
+attachPlutusScript :: PlutusScript -> Transaction -> Transaction
 attachPlutusScript ps = attachPlutusScripts [ ps ]
 
-attachPlutusScripts
-  :: Array PlutusScript
-  -> Transaction
-  -> Transaction
+attachPlutusScripts :: Array PlutusScript -> Transaction -> Transaction
 attachPlutusScripts ps tx@(Transaction { witnessSet: TransactionWitnessSet ws }) =
-  do
-    updateTxWithWitnesses tx
-      $ TransactionWitnessSet
-      $ ws { plutusScripts = nub $ ws.plutusScripts <> ps }
+  updateTxWithWitnesses tx $ TransactionWitnessSet $ ws
+    { plutusScripts = nub $ ws.plutusScripts <> ps
+    }
 
 -- | Attach a `NativeScript` to a transaction by modifying its existing witness
 -- | set
-attachNativeScript
-  :: NativeScript -> Transaction -> Transaction
+attachNativeScript :: NativeScript -> Transaction -> Transaction
 attachNativeScript ns tx@(Transaction { witnessSet: TransactionWitnessSet ws }) =
-  do
-    updateTxWithWitnesses tx
-      $ TransactionWitnessSet
-      $ ws { nativeScripts = nub $ ws.nativeScripts <> [ ns ] }
+  updateTxWithWitnesses tx $ TransactionWitnessSet $ ws
+    { nativeScripts = nub $ ws.nativeScripts <> [ ns ]
+    }
 
-updateTxWithWitnesses
-  :: Transaction
-  -> TransactionWitnessSet
-  -> Transaction
-updateTxWithWitnesses tx@(Transaction t) ws =
-  over Transaction _ { witnessSet = t.witnessSet <> ws } tx
+updateTxWithWitnesses :: Transaction -> TransactionWitnessSet -> Transaction
+updateTxWithWitnesses tx ws =
+  over Transaction _ { witnessSet = ws } tx
