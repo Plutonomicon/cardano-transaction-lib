@@ -68,14 +68,7 @@ import Data.Foldable (foldMap)
 import Data.Lens ((.~))
 import Data.Lens.Getter ((^.))
 import Data.Map (Map)
-import Data.Map
-  ( empty
-  , filterKeys
-  , fromFoldable
-  , lookup
-  , toUnfoldable
-  , union
-  ) as Map
+import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -84,6 +77,7 @@ import Data.Traversable (for, sum)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
+import Effect.Aff (attempt)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 
@@ -104,19 +98,25 @@ evalTxExecutionUnits tx = do
   worker :: Ogmios.AdditionalUtxoSet -> BalanceTxM Ogmios.TxEvaluationResult
   worker additionalUtxos = do
     queryHandle <- liftContract getQueryHandle
-    evalResult <-
-      unwrap <$> liftContract
-        (liftAff $ queryHandle.evaluateTx tx additionalUtxos)
-    case evalResult of
-      Right a -> pure a
-      Left (Ogmios.AdditionalUtxoOverlap overlappingUtxos) ->
-        -- Remove overlapping additional utxos and retry evaluation:
-        worker $ wrap $ Map.filterKeys (flip Array.notElem overlappingUtxos)
-          (unwrap additionalUtxos)
-      Left evalFailure | tx ^. _isValid ->
-        throwError $ ExUnitsEvaluationFailed tx evalFailure
+    evalResult' <-
+      map unwrap <$> liftContract
+        (liftAff $ attempt $ queryHandle.evaluateTx tx additionalUtxos)
+    case evalResult' of
+      Left err | tx ^. _isValid ->
+        liftAff $ throwError err
       Left _ ->
         pure $ wrap Map.empty
+      Right evalResult ->
+        case evalResult of
+          Right a -> pure a
+          Left (Ogmios.AdditionalUtxoOverlap overlappingUtxos) ->
+            -- Remove overlapping additional utxos and retry evaluation:
+            worker $ wrap $ Map.filterKeys (flip Array.notElem overlappingUtxos)
+              (unwrap additionalUtxos)
+          Left evalFailure | tx ^. _isValid -> do
+            throwError $ ExUnitsEvaluationFailed tx evalFailure
+          Left _ -> do
+            pure $ wrap Map.empty
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.

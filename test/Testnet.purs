@@ -26,6 +26,7 @@ import Mote.Monad (mapTest)
 import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
+import Test.Ctl.Testnet.ClusterParameters (runTest) as ClusterParameters
 import Test.Ctl.Testnet.Contract as Contract
 import Test.Ctl.Testnet.Contract.Assert as Assert
 import Test.Ctl.Testnet.Contract.Mnemonics as Mnemonics
@@ -63,7 +64,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
           UtxoDistribution.suite
           testTestnetContracts config OgmiosMempool.suite
           runTestnetTestPlan config SameWallets.suite
--- FIXME: ClusterParameters.runTest
+          ClusterParameters.runTest
 
 {-
 configWithMaxExUnits :: PlutipConfig
