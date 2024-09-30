@@ -6,11 +6,11 @@ module Ctl.Internal.Contract.Hooks
 
 import Prelude
 
-import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.Transaction (Transaction)
 import Data.Maybe (Maybe(Nothing))
 import Effect (Effect)
 import Effect.Exception (Error)
+import Node.Path (FilePath)
 
 type Hooks =
   { beforeSign :: Maybe (Effect Unit)
@@ -22,10 +22,7 @@ type Hooks =
   }
 
 type ClusterParameters =
-  { privateKeys :: Array PrivateKey
-  , nodeSocketPath :: String
-  , nodeConfigPath :: String
-  , privateKeysDirectory :: String
+  { nodeSocketPath :: FilePath
   }
 
 emptyHooks :: Hooks
