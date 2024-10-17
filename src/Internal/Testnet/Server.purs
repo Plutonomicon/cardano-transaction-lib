@@ -5,11 +5,12 @@ module Ctl.Internal.Testnet.Server
   , startOgmios
   , startTestnetCluster
   , makeClusterContractEnv
+  , mkLogging
   ) where
 
 import Contract.Prelude hiding (log)
 
-import Cardano.Types (NetworkId(MainnetId))
+import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.BigNum (maxValue, toString) as BigNum
 import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (ContractEnv)
@@ -55,7 +56,6 @@ import Ctl.Internal.Testnet.Utils
   , suppressAndLogErrors
   , tmpdirUnique
   , tryAndLogErrors
-  , waitFor
   , waitForClose
   , waitForError
   , waitForEvent
@@ -66,15 +66,16 @@ import Data.Array (head) as Array
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Set as Set
-import Data.String (stripPrefix, trim) as String
+import Data.String (split, stripPrefix, trim) as String
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt (toString) as UInt
+import Effect.AVar (tryPut) as AVarSync
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
-import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.AVar (empty, take) as AVar
 import Effect.Aff.Retry
   ( RetryPolicy
   , constantDelay
@@ -82,17 +83,19 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (class MonadEffect)
+import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref (modify_, new) as Ref
 import Foreign.Object as Object
-import Node.ChildProcess (defaultSpawnOptions)
+import Node.ChildProcess (defaultSpawnOptions, stdout)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readdir) as FSSync
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 import Node.Process as Node.Process
+import Node.Stream (onDataString)
 
 type Channels a =
   { stderr :: EventSource a
@@ -208,11 +211,12 @@ startKupo cfg params cleanupRef = do
 startTestnetCluster
   :: TestnetConfig
   -> Ref (Array (Aff Unit))
+  -> Logger
   -> Aff StartedTestnetCluster
-startTestnetCluster cfg cleanupRef = do
+startTestnetCluster cfg cleanupRef logger = do
   { testnet, channels, workdirAbsolute } <-
     annotateError "Could not start cardano-testnet" $
-      startCardanoTestnet cfg.clusterConfig cleanupRef
+      startCardanoTestnet cfg.clusterConfig cleanupRef logger
 
   { paths } <- waitUntil (Milliseconds 4000.0)
     $ map hush
@@ -312,6 +316,7 @@ spawnCardanoTestnet workdir params = do
 startCardanoTestnet
   :: TestnetClusterConfig
   -> TestnetCleanupRef
+  -> Logger
   -> Aff
        { testnet :: ManagedProcess
        , channels ::
@@ -320,51 +325,50 @@ startCardanoTestnet
            }
        , workdirAbsolute :: FilePath
        }
-startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
-  workdir <- tmpdirUnique "cardano-testnet"
-  testnet <- scheduleCleanup
-    cleanupRef
-    (spawnCardanoTestnet workdir params)
-    stopProcessWithChildren
-  channels <- liftEffect $ getChannels testnet
-  workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
-  scheduleWorkspaceCleanup workspace
-  redirectStreams channels workspace
-  workspaceFromLogs <- waitForCardanoTestnetWorkspace channels.stdout
-  when (workspace /= workspaceFromLogs) do
-    runCleanup cleanupRef
-    throwError $ error "cardano-testnet workspace mismatch"
-  attachStdoutMonitors testnet
-  log "startCardanoTestnet:done"
-  pure { testnet, workdirAbsolute: workspace, channels }
+startCardanoTestnet params cleanupRef logger =
+  annotateError "startCardanoTestnet" do
+    workdir <- tmpdirUnique "cardano-testnet"
+    testnet@(ManagedProcess _ testnetProcess _) <- scheduleCleanup
+      cleanupRef
+      (spawnCardanoTestnet workdir params)
+      stopProcessWithChildren
+
+    workspaceFromLogsAvar <- AVar.empty
+    liftEffect $ onDataString (stdout testnetProcess) UTF8 \str -> do
+      let lines = String.split (Pattern "\n") str
+      traverse_
+        ( \line -> do
+            logger Trace $ "[cardano-testnet:stdout] " <> line
+            let
+              mWorkspace = String.stripPrefix (Pattern "Workspace: ") $
+                String.trim line
+            maybe (pure unit)
+              (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
+              mWorkspace
+        )
+        lines
+
+    workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
+    -- Schedule a cleanup immediately after the workspace
+    -- directory is created.
+    scheduleWorkspaceCleanup workspace
+    -- Wait for cardano-testnet to output the workspace, indicating
+    -- that initialization is complete.
+    workspaceFromLogs <- AVar.take workspaceFromLogsAvar
+
+    when (workspace /= workspaceFromLogs) do
+      runCleanup cleanupRef
+      -- this error should never happen
+      throwError $ error "cardano-testnet workspace mismatch"
+
+    channels <- liftEffect $ getChannels testnet
+    attachStdoutMonitors testnet
+    pure { testnet, workdirAbsolute: workspace, channels }
   where
   findWorkspaceDir :: forall m. MonadEffect m => FilePath -> m (Maybe FilePath)
   findWorkspaceDir workdir =
     liftEffect $ map (concatPaths workdir) <<< Array.head <$>
       FSSync.readdir workdir
-
-  redirectStreams :: StdStreams -> FilePath -> Aff Unit
-  redirectStreams channels workspace =
-    void $ redirectChannels channels
-      { stdoutTo:
-          { log: Just $ workspace <</>> "cardano-testnet.stdout.log"
-          , console: Nothing
-          }
-      , stderrTo:
-          { log: Just $ workspace <</>> "cardano-testnet.stderr.log"
-          , console: Nothing
-          }
-      }
-
-  waitForCardanoTestnetWorkspace
-    :: forall m
-     . MonadAff m
-    => EventSource String
-    -> m FilePath
-  waitForCardanoTestnetWorkspace =
-    liftAff
-      <<< flip waitFor
-        (String.stripPrefix (Pattern "Workspace: ") <<< String.trim)
 
   attachStdoutMonitors :: ManagedProcess -> Aff Unit
   attachStdoutMonitors testnet =
@@ -388,7 +392,7 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
             _ -> true
       when shouldCleanup do
         addCleanup cleanupRef $ liftEffect do
-          log $ "Cleaning up cardano-testnet workspace: " <> workspace
+          logger Trace $ "Cleaning up cardano-testnet workspace: " <> workspace
           _rmdirSync workspace
 
 type StdStreams =
@@ -537,7 +541,7 @@ makeNaiveClusterContractEnv cfg logger customLogger = do
   pure
     { backend
     , handle: mkQueryHandle cfg backend
-    , networkId: MainnetId
+    , networkId: TestnetId
     , logLevel: cfg.logLevel
     , customLogger: customLogger
     , suppressLogs: cfg.suppressLogs
@@ -555,25 +559,25 @@ makeNaiveClusterContractEnv cfg logger customLogger = do
 makeClusterContractEnv
   :: forall r
    . Ref (Array (Aff Unit))
-  -> Record (ClusterConfig r)
+  -> { updatedConfig :: Record (ClusterConfig r)
+     , logger :: Logger
+     , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+     , printLogs :: Aff Unit
+     , clearLogs :: Aff Unit
+     }
   -> Aff
        { env :: ContractEnv
        , clearLogs :: Aff Unit
        , printLogs :: Aff Unit
        }
-makeClusterContractEnv cleanupRef cfg = do
-  { updatedConfig
-  , logger
-  , customLogger
-  , printLogs
-  , clearLogs
-  } <- liftEffect $ mkLogging cfg
+makeClusterContractEnv
+  cleanupRef
+  { updatedConfig, logger, customLogger, printLogs, clearLogs } =
   cleanupBracket
     cleanupRef
     (makeNaiveClusterContractEnv updatedConfig logger customLogger)
     stopContractEnv
-    $ pure
-    <<< { env: _, printLogs, clearLogs }
+    (pure <<< { env: _, printLogs, clearLogs })
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
@@ -588,8 +592,3 @@ stopChildProcessWithPort port childProcess = do
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
-
--- replace with Effect.Console.log to debug. Not providing an option at runtime,
--- because it's just for the CTL developers.
-log :: forall m. Monad m => String -> m Unit
-log _ = pure unit
