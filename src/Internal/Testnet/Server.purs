@@ -55,7 +55,6 @@ import Ctl.Internal.Testnet.Utils
   , suppressAndLogErrors
   , tmpdirUnique
   , tryAndLogErrors
-  , waitFor
   , waitForClose
   , waitForError
   , waitForEvent
@@ -66,15 +65,16 @@ import Data.Array (head) as Array
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Set as Set
-import Data.String (stripPrefix, trim) as String
+import Data.String (split, stripPrefix, trim) as String
 import Data.String.CodeUnits (indexOf) as String
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt (toString) as UInt
+import Effect.AVar (tryPut) as AVarSync
 import Effect.Aff (Aff)
 import Effect.Aff as Aff
-import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.AVar (empty, take) as AVar
 import Effect.Aff.Retry
   ( RetryPolicy
   , constantDelay
@@ -82,17 +82,19 @@ import Effect.Aff.Retry
   , recovering
   )
 import Effect.Class (class MonadEffect)
+import Effect.Console (log)
 import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref (modify_, new) as Ref
 import Foreign.Object as Object
-import Node.ChildProcess (defaultSpawnOptions)
+import Node.ChildProcess (defaultSpawnOptions, stdout)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readdir) as FSSync
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 import Node.Process as Node.Process
+import Node.Stream (onDataString)
 
 type Channels a =
   { stderr :: EventSource a
@@ -322,49 +324,47 @@ startCardanoTestnet
        }
 startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
   workdir <- tmpdirUnique "cardano-testnet"
-  testnet <- scheduleCleanup
+  testnet@(ManagedProcess _ testnetProcess _) <- scheduleCleanup
     cleanupRef
     (spawnCardanoTestnet workdir params)
     stopProcessWithChildren
-  channels <- liftEffect $ getChannels testnet
+
+  workspaceFromLogsAvar <- AVar.empty
+  liftEffect $ onDataString (stdout testnetProcess) UTF8 \str -> do
+    let lines = String.split (Pattern "\n") str
+    traverse_
+      ( \line -> do
+          log $ "[cardano-testnet:stdout] " <> line
+          let
+            mWorkspace = String.stripPrefix (Pattern "Workspace: ") $
+              String.trim line
+          maybe (pure unit)
+            (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
+            mWorkspace
+      )
+      lines
+
   workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
+  -- Schedule a cleanup immediately after the workspace
+  -- directory is created.
   scheduleWorkspaceCleanup workspace
-  redirectStreams channels workspace
-  workspaceFromLogs <- waitForCardanoTestnetWorkspace channels.stdout
+  -- Wait for cardano-testnet to output the workspace, indicating
+  -- that initialization is complete.
+  workspaceFromLogs <- AVar.take workspaceFromLogsAvar
+
   when (workspace /= workspaceFromLogs) do
     runCleanup cleanupRef
+    -- this error should never happen
     throwError $ error "cardano-testnet workspace mismatch"
+
+  channels <- liftEffect $ getChannels testnet
   attachStdoutMonitors testnet
-  log "startCardanoTestnet:done"
   pure { testnet, workdirAbsolute: workspace, channels }
   where
   findWorkspaceDir :: forall m. MonadEffect m => FilePath -> m (Maybe FilePath)
   findWorkspaceDir workdir =
     liftEffect $ map (concatPaths workdir) <<< Array.head <$>
       FSSync.readdir workdir
-
-  redirectStreams :: StdStreams -> FilePath -> Aff Unit
-  redirectStreams channels workspace =
-    void $ redirectChannels channels
-      { stdoutTo:
-          { log: Just $ workspace <</>> "cardano-testnet.stdout.log"
-          , console: Nothing
-          }
-      , stderrTo:
-          { log: Just $ workspace <</>> "cardano-testnet.stderr.log"
-          , console: Nothing
-          }
-      }
-
-  waitForCardanoTestnetWorkspace
-    :: forall m
-     . MonadAff m
-    => EventSource String
-    -> m FilePath
-  waitForCardanoTestnetWorkspace =
-    liftAff
-      <<< flip waitFor
-        (String.stripPrefix (Pattern "Workspace: ") <<< String.trim)
 
   attachStdoutMonitors :: ManagedProcess -> Aff Unit
   attachStdoutMonitors testnet =
@@ -588,8 +588,3 @@ stopChildProcessWithPort port childProcess = do
 defaultRetryPolicy :: RetryPolicy
 defaultRetryPolicy = limitRetriesByCumulativeDelay (Milliseconds 3000.00) $
   constantDelay (Milliseconds 100.0)
-
--- replace with Effect.Console.log to debug. Not providing an option at runtime,
--- because it's just for the CTL developers.
-log :: forall m. Monad m => String -> m Unit
-log _ = pure unit
