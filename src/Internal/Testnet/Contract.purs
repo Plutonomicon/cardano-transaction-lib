@@ -9,7 +9,6 @@ module Ctl.Internal.Testnet.Contract
 import Contract.Prelude
 
 import Cardano.Serialization.Lib (privateKey_generateEd25519) as Csl
-import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigInt (BigInt)
@@ -65,6 +64,7 @@ import Ctl.Internal.Testnet.DistributeFunds (Tx(Tx)) as DistrFunds
 import Ctl.Internal.Testnet.Server
   ( StartedTestnetCluster
   , makeClusterContractEnv
+  , mkLogging
   , startTestnetCluster
   )
 import Ctl.Internal.Testnet.Types (TestnetConfig)
@@ -242,13 +242,13 @@ startTestnetContractEnv
        }
 startTestnetContractEnv cfg distr cleanupRef = do
   _ <- cleanupOnExit cleanupRef
-  cluster <- startTestnetCluster cfg cleanupRef
-  { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef cfg
-  let env' = env { networkId = TestnetId }
-  wallets <- mkWallets env' cluster
+  logging@{ logger } <- liftEffect $ mkLogging cfg
+  cluster <- startTestnetCluster cfg cleanupRef logger
+  { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef logging
+  wallets <- mkWallets env cluster
   pure
     { cluster
-    , env: env'
+    , env
     , wallets
     , printLogs
     , clearLogs

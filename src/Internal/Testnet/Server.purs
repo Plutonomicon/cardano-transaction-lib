@@ -5,11 +5,12 @@ module Ctl.Internal.Testnet.Server
   , startOgmios
   , startTestnetCluster
   , makeClusterContractEnv
+  , mkLogging
   ) where
 
 import Contract.Prelude hiding (log)
 
-import Cardano.Types (NetworkId(MainnetId))
+import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.BigNum (maxValue, toString) as BigNum
 import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
 import Contract.Monad (ContractEnv)
@@ -210,11 +211,12 @@ startKupo cfg params cleanupRef = do
 startTestnetCluster
   :: TestnetConfig
   -> Ref (Array (Aff Unit))
+  -> Logger
   -> Aff StartedTestnetCluster
-startTestnetCluster cfg cleanupRef = do
+startTestnetCluster cfg cleanupRef logger = do
   { testnet, channels, workdirAbsolute } <-
     annotateError "Could not start cardano-testnet" $
-      startCardanoTestnet cfg.clusterConfig cleanupRef
+      startCardanoTestnet cfg.clusterConfig cleanupRef logger
 
   { paths } <- waitUntil (Milliseconds 4000.0)
     $ map hush
@@ -314,6 +316,7 @@ spawnCardanoTestnet workdir params = do
 startCardanoTestnet
   :: TestnetClusterConfig
   -> TestnetCleanupRef
+  -> Logger
   -> Aff
        { testnet :: ManagedProcess
        , channels ::
@@ -322,44 +325,45 @@ startCardanoTestnet
            }
        , workdirAbsolute :: FilePath
        }
-startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
-  workdir <- tmpdirUnique "cardano-testnet"
-  testnet@(ManagedProcess _ testnetProcess _) <- scheduleCleanup
-    cleanupRef
-    (spawnCardanoTestnet workdir params)
-    stopProcessWithChildren
+startCardanoTestnet params cleanupRef logger =
+  annotateError "startCardanoTestnet" do
+    workdir <- tmpdirUnique "cardano-testnet"
+    testnet@(ManagedProcess _ testnetProcess _) <- scheduleCleanup
+      cleanupRef
+      (spawnCardanoTestnet workdir params)
+      stopProcessWithChildren
 
-  workspaceFromLogsAvar <- AVar.empty
-  liftEffect $ onDataString (stdout testnetProcess) UTF8 \str -> do
-    let lines = String.split (Pattern "\n") str
-    traverse_
-      ( \line -> do
-          log $ "[cardano-testnet:stdout] " <> line
-          let
-            mWorkspace = String.stripPrefix (Pattern "Workspace: ") $
-              String.trim line
-          maybe (pure unit)
-            (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
-            mWorkspace
-      )
-      lines
+    workspaceFromLogsAvar <- AVar.empty
+    liftEffect $ onDataString (stdout testnetProcess) UTF8 \str -> do
+      let lines = String.split (Pattern "\n") str
+      traverse_
+        ( \line -> do
+            logger Trace $ "[cardano-testnet:stdout] " <> line
+            let
+              mWorkspace = String.stripPrefix (Pattern "Workspace: ") $
+                String.trim line
+            maybe (pure unit)
+              (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
+              mWorkspace
+        )
+        lines
 
-  workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
-  -- Schedule a cleanup immediately after the workspace
-  -- directory is created.
-  scheduleWorkspaceCleanup workspace
-  -- Wait for cardano-testnet to output the workspace, indicating
-  -- that initialization is complete.
-  workspaceFromLogs <- AVar.take workspaceFromLogsAvar
+    workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
+    -- Schedule a cleanup immediately after the workspace
+    -- directory is created.
+    scheduleWorkspaceCleanup workspace
+    -- Wait for cardano-testnet to output the workspace, indicating
+    -- that initialization is complete.
+    workspaceFromLogs <- AVar.take workspaceFromLogsAvar
 
-  when (workspace /= workspaceFromLogs) do
-    runCleanup cleanupRef
-    -- this error should never happen
-    throwError $ error "cardano-testnet workspace mismatch"
+    when (workspace /= workspaceFromLogs) do
+      runCleanup cleanupRef
+      -- this error should never happen
+      throwError $ error "cardano-testnet workspace mismatch"
 
-  channels <- liftEffect $ getChannels testnet
-  attachStdoutMonitors testnet
-  pure { testnet, workdirAbsolute: workspace, channels }
+    channels <- liftEffect $ getChannels testnet
+    attachStdoutMonitors testnet
+    pure { testnet, workdirAbsolute: workspace, channels }
   where
   findWorkspaceDir :: forall m. MonadEffect m => FilePath -> m (Maybe FilePath)
   findWorkspaceDir workdir =
@@ -388,7 +392,7 @@ startCardanoTestnet params cleanupRef = annotateError "startCardanoTestnet" do
             _ -> true
       when shouldCleanup do
         addCleanup cleanupRef $ liftEffect do
-          log $ "Cleaning up cardano-testnet workspace: " <> workspace
+          logger Trace $ "Cleaning up cardano-testnet workspace: " <> workspace
           _rmdirSync workspace
 
 type StdStreams =
@@ -537,7 +541,7 @@ makeNaiveClusterContractEnv cfg logger customLogger = do
   pure
     { backend
     , handle: mkQueryHandle cfg backend
-    , networkId: MainnetId
+    , networkId: TestnetId
     , logLevel: cfg.logLevel
     , customLogger: customLogger
     , suppressLogs: cfg.suppressLogs
@@ -555,25 +559,25 @@ makeNaiveClusterContractEnv cfg logger customLogger = do
 makeClusterContractEnv
   :: forall r
    . Ref (Array (Aff Unit))
-  -> Record (ClusterConfig r)
+  -> { updatedConfig :: Record (ClusterConfig r)
+     , logger :: Logger
+     , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+     , printLogs :: Aff Unit
+     , clearLogs :: Aff Unit
+     }
   -> Aff
        { env :: ContractEnv
        , clearLogs :: Aff Unit
        , printLogs :: Aff Unit
        }
-makeClusterContractEnv cleanupRef cfg = do
-  { updatedConfig
-  , logger
-  , customLogger
-  , printLogs
-  , clearLogs
-  } <- liftEffect $ mkLogging cfg
+makeClusterContractEnv
+  cleanupRef
+  { updatedConfig, logger, customLogger, printLogs, clearLogs } =
   cleanupBracket
     cleanupRef
     (makeNaiveClusterContractEnv updatedConfig logger customLogger)
     stopContractEnv
-    $ pure
-    <<< { env: _, printLogs, clearLogs }
+    (pure <<< { env: _, printLogs, clearLogs })
 
 -- | Kill a process and wait for it to stop listening on a specific port.
 stopChildProcessWithPort :: UInt -> ManagedProcess -> Aff Unit
