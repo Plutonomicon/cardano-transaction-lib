@@ -3,6 +3,12 @@ module Test.Ctl.Blockfrost (main, testPlan) where
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
+import Cardano.Blockfrost.Service
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
+import Cardano.Blockfrost.Service as Blockfrost
 import Cardano.Serialization.Lib (fromBytes)
 import Cardano.Types (ScriptHash)
 import Cardano.Types.BigNum as BigNum
@@ -22,13 +28,7 @@ import Contract.Transaction
   , TransactionHash(TransactionHash)
   )
 import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.Contract.ProviderBackend (BlockfrostBackend)
 import Ctl.Internal.Helpers (liftedM)
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
-  , runBlockfrostServiceM
-  )
-import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Data.Array ((!!))
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), fromRight, isRight)

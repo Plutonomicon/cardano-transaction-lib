@@ -94,6 +94,7 @@ import Cardano.Types.EraSummaries
   )
 import Cardano.Types.PlutusData (PlutusData(Constr))
 import Cardano.Types.Slot (Slot(Slot))
+import Cardano.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Ctl.Internal.Helpers
@@ -105,7 +106,6 @@ import Ctl.Internal.Helpers
   , unsafeFromJust
   )
 import Ctl.Internal.QueryM.Ogmios (aesonObject)
-import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
 import Data.Array.NonEmpty (singleton) as NEArray

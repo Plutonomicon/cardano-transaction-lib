@@ -2,9 +2,9 @@ module Contract.ProtocolParameters
   ( getProtocolParameters
   ) where
 
+import Cardano.Types.ProtocolParameters (ProtocolParameters)
 import Contract.Monad (Contract)
 import Ctl.Internal.Contract (getProtocolParameters) as Contract
-import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
 
 -- | Returns the `ProtocolParameters` from the `Contract` environment.
 -- | Note that this is not necessarily the current value from the ledger.

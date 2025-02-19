@@ -13,6 +13,7 @@ import Cardano.Types (PoolParams, PoolPubKeyHash, StakePubKeyHash)
 import Cardano.Types.DelegationsAndRewards (DelegationsAndRewards)
 import Cardano.Types.Ed25519KeyHash (toBech32Unsafe) as Ed25519KeyHash
 import Cardano.Types.ScriptHash as ScriptHash
+import Cardano.Types.StakeValidatorHash (StakeValidatorHash)
 import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
 import Ctl.Internal.QueryM.Ogmios
@@ -20,7 +21,6 @@ import Ctl.Internal.QueryM.Ogmios
   , PoolParameters
   )
 import Ctl.Internal.QueryM.Ogmios as Ogmios
-import Ctl.Internal.Types.StakeValidatorHash (StakeValidatorHash)
 import Data.ByteArray (byteArrayToHex)
 import Data.Map (Map)
 import Data.Map as Map

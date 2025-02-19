@@ -7,13 +7,19 @@ module Ctl.Internal.Contract.Provider
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
+import Cardano.Blockfrost.Service
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
+import Cardano.Blockfrost.Service as Blockfrost
 import Cardano.Provider.Error (ClientError(ClientOtherError))
 import Cardano.Provider.Type (Provider)
 import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Log (logDebug')
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
-import Ctl.Internal.Contract.ProviderBackend (BlockfrostBackend, CtlBackend)
+import Ctl.Internal.Contract.ProviderBackend (CtlBackend)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM (evaluateTxOgmios, getChainTip, submitTxOgmios) as QueryM
@@ -34,11 +40,6 @@ import Ctl.Internal.QueryM.Pools
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   ) as QueryM
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
-  , runBlockfrostServiceM
-  )
-import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Data.Either (Either(Left, Right))
 import Data.Maybe (fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
@@ -109,7 +110,7 @@ providerForBlockfrostBackend logParams backend =
         Left err -> throwError $ error $ show err
   , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
   , evaluateTx: \tx additionalUtxos ->
-      runBlockfrostServiceM' $ Blockfrost.evaluateTx tx (wrap additionalUtxos)
+      runBlockfrostServiceM' $ Blockfrost.evaluateTx tx additionalUtxos
   , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
   , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
   , getPubKeyHashDelegationsAndRewards: \networkId stakePubKeyHash ->

@@ -33,6 +33,8 @@ import Cardano.Types.EraSummaries
   , SlotLength(SlotLength)
   ) as ExportEraSummaries
 import Cardano.Types.EraSummaries (EraSummaries, EraSummary)
+import Cardano.Types.SystemStart (SystemStart)
+import Cardano.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Contract.Chain (getTip) as Chain
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
@@ -97,8 +99,6 @@ import Ctl.Internal.Types.Interval
   , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
-import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Data.Array as Array
 import Data.Foldable (find)
 import Data.Maybe (Maybe(Just, Nothing))

@@ -22,17 +22,17 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Ed25519Signature as Ed25519Signature
 import Cardano.Types.ExUnitPrices as ExUnitPrices
 import Cardano.Types.NativeScript (NativeScript(ScriptAll))
+import Cardano.Types.ProtocolParameters
+  ( ProtocolParameters(ProtocolParameters)
+  )
 import Cardano.Types.PublicKey as PublicKey
+import Cardano.Types.Rational as Rational
 import Cardano.Types.Transaction as Transaction
 import Cardano.Types.UnitInterval as UnitInterval
 import Contract.Prim.ByteArray (hexToRawBytes)
 import Control.Monad.Error.Class (class MonadThrow)
 import Ctl.Internal.Helpers (unsafeFromJust)
 import Ctl.Internal.NativeScripts (getMaximumSigners)
-import Ctl.Internal.Types.ProtocolParameters
-  ( ProtocolParameters(ProtocolParameters)
-  )
-import Ctl.Internal.Types.Rational as Rational
 import Data.Array (range, replicate) as Array
 import Data.Foldable (fold)
 import Data.Int (hexadecimal) as Radix

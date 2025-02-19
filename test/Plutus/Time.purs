@@ -16,9 +16,11 @@ import Cardano.Types.EraSummaries
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
   )
+import Ctl.Internal.Helpers (unsafeFromJust)
 import Ctl.Internal.QueryM.Ogmios
   ( OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosSystemStart
+  , sysStartFromOgmiosTimestamp
   )
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
@@ -40,7 +42,7 @@ import Ctl.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
-import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
+import Data.Either (hush)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)
@@ -83,7 +85,8 @@ currentEpochFixture = Epoch $ UInt.fromInt 58326646
 
 systemStartFixture :: OgmiosSystemStart
 systemStartFixture =
-  wrap $ sysStartFromOgmiosTimestampUnsafe "2019-07-24T20:20:16Z"
+  wrap $ unsafeFromJust "sysStartFromOgmiosTimestampUnsafe" $ hush $
+    sysStartFromOgmiosTimestamp "2019-07-24T20:20:16Z"
 
 mkRelativeTime :: Int -> RelativeTime
 mkRelativeTime = RelativeTime <<< BigInt.toNumber <<< BigInt.fromInt

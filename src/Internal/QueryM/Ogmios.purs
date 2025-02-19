@@ -45,6 +45,7 @@ module Ctl.Internal.QueryM.Ogmios
   , submitSuccessPartialResp
   , parseIpv6String
   , rationalToSubcoin
+  , sysStartFromOgmiosTimestamp
   ) where
 
 import Prelude
@@ -127,6 +128,9 @@ import Cardano.Types.NativeScript
 import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
 import Cardano.Types.PoolMetadata (PoolMetadata(PoolMetadata))
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
+import Cardano.Types.ProtocolParameters (ProtocolParameters(ProtocolParameters))
+import Cardano.Types.Rational (Rational, (%))
+import Cardano.Types.Rational as Rational
 import Cardano.Types.RedeemerTag
   ( RedeemerTag(Spend, Mint, Cert, Reward, Vote, Propose)
   ) as RedeemerTag
@@ -137,13 +141,14 @@ import Cardano.Types.RewardAddress (RewardAddress)
 import Cardano.Types.RewardAddress as RewardAddress
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Cardano.Types.Slot (Slot(Slot))
+import Cardano.Types.SystemStart (SystemStart)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Cardano.Types.URL (URL(URL))
 import Cardano.Types.UnitInterval (UnitInterval(UnitInterval))
 import Cardano.Types.Value (Value, getMultiAsset, valueToCoin)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.Helpers (encodeMap, showWithParens)
+import Ctl.Internal.Helpers (encodeMap, showWithParens, unsafeFromJust)
 import Ctl.Internal.QueryM.JsonRpc2
   ( class DecodeOgmios
   , JsonRpc2Call
@@ -153,23 +158,15 @@ import Ctl.Internal.QueryM.JsonRpc2
   , decodeResult
   , mkCallType
   )
-import Ctl.Internal.Types.ProtocolParameters
-  ( ProtocolParameters(ProtocolParameters)
-  )
-import Ctl.Internal.Types.Rational (Rational, (%))
-import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.SystemStart
-  ( SystemStart
-  , sysStartFromOgmiosTimestamp
-  , sysStartToOgmiosTimestamp
-  )
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Array (catMaybes)
 import Data.Array (fromFoldable, length, replicate) as Array
 import Data.Bifunctor (lmap)
 import Data.ByteArray (byteArrayFromIntArray, byteArrayToHex, hexToByteArray)
-import Data.Either (Either(Left, Right), either, note)
+import Data.DateTime (DateTime)
+import Data.Either (Either(Left, Right), either, hush, note)
 import Data.Foldable (fold, foldl)
+import Data.Formatter.DateTime (Formatter, format, parseFormatString, unformat)
 import Data.Generic.Rep (class Generic)
 import Data.Int (fromString) as Int
 import Data.List (List)
@@ -180,7 +177,7 @@ import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Show.Generic (genericShow)
 import Data.String (Pattern(Pattern), Replacement(Replacement))
-import Data.String (replaceAll) as String
+import Data.String (length, replaceAll, take) as String
 import Data.String.Common (split) as String
 import Data.String.Utils as StringUtils
 import Data.Traversable (for, traverse)
@@ -192,6 +189,38 @@ import Foreign.Object as Object
 import JS.BigInt as BigInt
 import Untagged.TypeCheck (class HasRuntimeType)
 import Untagged.Union (type (|+|), toEither1)
+
+-- | Attempts to parse `SystemStart` from Ogmios timestamp string.
+sysStartFromOgmiosTimestamp :: String -> Either String SystemStart
+sysStartFromOgmiosTimestamp timestamp = wrap <$> (unformatMsec <|> unformatSec)
+  where
+  unformatMsec :: Either String DateTime
+  unformatMsec = unformat
+    (mkDateTimeFormatterUnsafe ogmiosDateTimeFormatStringMsec)
+    (String.take (String.length ogmiosDateTimeFormatStringMsec) timestamp)
+
+  unformatSec :: Either String DateTime
+  unformatSec = unformat
+    (mkDateTimeFormatterUnsafe ogmiosDateTimeFormatStringSec)
+    (String.take (String.length ogmiosDateTimeFormatStringSec) timestamp)
+
+sysStartToOgmiosTimestamp :: SystemStart -> String
+sysStartToOgmiosTimestamp =
+  format (mkDateTimeFormatterUnsafe ogmiosDateTimeFormatStringMsecUTC)
+    <<< unwrap
+
+mkDateTimeFormatterUnsafe :: String -> Formatter
+mkDateTimeFormatterUnsafe =
+  unsafeFromJust "mkDateTimeFormatterUnsafe" <<< hush <<< parseFormatString
+
+ogmiosDateTimeFormatStringSec :: String
+ogmiosDateTimeFormatStringSec = "YYYY-MM-DDTHH:mm:ss"
+
+ogmiosDateTimeFormatStringMsec :: String
+ogmiosDateTimeFormatStringMsec = ogmiosDateTimeFormatStringSec <> ".SSS"
+
+ogmiosDateTimeFormatStringMsecUTC :: String
+ogmiosDateTimeFormatStringMsecUTC = ogmiosDateTimeFormatStringMsec <> "Z"
 
 --------------------------------------------------------------------------------
 -- Local State Query Protocol

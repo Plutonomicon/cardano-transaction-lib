@@ -41,6 +41,9 @@ import Cardano.Types.Address (Address)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Coin as Coin
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatum))
+import Cardano.Types.ProtocolParameters
+  ( ProtocolParameters(ProtocolParameters)
+  )
 import Cardano.Types.TransactionBody (_votingProposals)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.TransactionUnspentOutput as TransactionUnspentOutputs
@@ -116,9 +119,6 @@ import Ctl.Internal.Partition
   ( equipartition
   , equipartitionValueWithTokenQuantityUpperBound
   , partition
-  )
-import Ctl.Internal.Types.ProtocolParameters
-  ( ProtocolParameters(ProtocolParameters)
   )
 import Ctl.Internal.Types.Val (Val(Val), pprintVal)
 import Ctl.Internal.Types.Val as Val

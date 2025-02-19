@@ -35,7 +35,6 @@ module Ctl.Internal.Helpers
   , showFromCbor
   , compareViaCslBytes
   , decodeMap
-  , decodeTaggedNewtype
   , unsafeFromJust
   ) where
 
@@ -304,17 +303,6 @@ decodeMap aeson = do
         pure $ k /\ v
   decodeAsArray = do
     Map.fromFoldable <$> (decodeAeson aeson :: Either _ (Array (k /\ v)))
-
-decodeTaggedNewtype
-  :: ∀ (a :: Type) (b :: Type)
-   . DecodeAeson a
-  => String
-  -> (a -> b)
-  -> Aeson
-  -> Either JsonDecodeError b
-decodeTaggedNewtype constrName constr = caseAesonObject
-  (Left $ TypeMismatch "Expected object")
-  (flip getField constrName >=> decodeAeson >>> map constr)
 
 -- | Args: tag value encoder
 -- | Encodes `value` using `encoder` as `{ "tag": *encoded tag*, "contents": *encoded value* }`
