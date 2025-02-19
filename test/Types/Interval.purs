@@ -13,7 +13,7 @@ import Cardano.Types.EraSummaries (EraSummaries)
 import Cardano.Types.SystemStart (SystemStart)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
+import Ctl.Internal.QueryM.Ogmios.Types (OgmiosEraSummaries, OgmiosSystemStart)
 import Ctl.Internal.Types.Interval
   ( Interval
   , POSIXTime(POSIXTime)

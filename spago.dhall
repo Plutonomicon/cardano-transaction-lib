@@ -50,7 +50,6 @@
   , "lists"
   , "literals"
   , "maybe"
-  , "media-types"
   , "monad-logger"
   , "mote"
   , "mote-testplan"

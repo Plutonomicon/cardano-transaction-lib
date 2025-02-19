@@ -2,14 +2,16 @@
 -- | These functions only work with Ogmios backend (not Blockfrost!).
 -- | https://ogmios.dev/mini-protocols/local-tx-monitor/
 module Contract.Backend.Ogmios.Mempool
-  ( module Ogmios
-  , acquireMempoolSnapshot
-  , fetchMempoolTxs
+  ( acquireMempoolSnapshot
   , mempoolSnapshotHasTx
   , mempoolSnapshotNextTx
+  , fetchMempoolTxs
   , mempoolSnapshotSizeAndCapacity
   , releaseMempool
   , withMempoolSnapshot
+  , MempoolEnv
+  , MempoolMT(MempoolMT)
+  , MempoolM
   ) where
 
 import Contract.Prelude
@@ -17,71 +19,85 @@ import Contract.Prelude
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Types.Transaction (Transaction)
 import Cardano.Types.TransactionHash (TransactionHash)
-import Contract.Monad (Contract)
-import Control.Monad.Error.Class (liftMaybe, try)
-import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.QueryM
-  ( acquireMempoolSnapshot
-  , mempoolSnapshotHasTx
-  , mempoolSnapshotNextTx
-  , mempoolSnapshotSizeAndCapacity
-  , releaseMempool
-  ) as QueryM
-import Ctl.Internal.QueryM.Ogmios
-  ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , liftMaybe
+  , try
+  )
+import Control.Monad.Reader.Class (class MonadAsk)
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
+import Ctl.Internal.Logging (Logger, mkLogger)
+import Ctl.Internal.QueryM.Ogmios.Mempool
+  ( ListenerSet
+  , OgmiosListeners
+  , OgmiosWebSocket
+  , acquireMempoolSnapshotCall
+  , listeners
+  , mempoolSnapshotHasTxCall
+  , mempoolSnapshotNextTxCall
+  , mempoolSnapshotSizeAndCapacityCall
+  , mkRequestAff
+  , releaseMempoolCall
+  , underlyingWebSocket
+  )
+import Ctl.Internal.QueryM.Ogmios.Mempool
+  ( MempoolSizeAndCapacity
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
   ) as Ogmios
+import Ctl.Internal.QueryM.Ogmios.Mempool.JsWebSocket (JsWebSocket)
+import Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2 as JsonRpc2
 import Data.Array as Array
 import Data.ByteArray (hexToByteArray)
 import Data.List (List(Cons))
-import Data.Maybe (Maybe(Just, Nothing))
-import Effect.Exception (error)
+import Data.Log.Level (LogLevel)
+import Data.Log.Message (Message)
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap)
+import Effect.Aff (Aff)
+import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Class (class MonadEffect)
+import Effect.Exception (Error, error)
 
--- | Establish a connection with the Local TX Monitor.
--- | Instantly accquires the current mempool snapshot, and will wait for the next
--- | mempool snapshot if used again before using `releaseMempool`.
-acquireMempoolSnapshot :: Contract Ogmios.MempoolSnapshotAcquired
-acquireMempoolSnapshot = wrapQueryM QueryM.acquireMempoolSnapshot
+----------------
+-- Mempool monad
+----------------
 
--- | Check to see if a TxHash is present in the current mempool snapshot.
-mempoolSnapshotHasTx
-  :: Ogmios.MempoolSnapshotAcquired -> TransactionHash -> Contract Boolean
-mempoolSnapshotHasTx ms = wrapQueryM <<< QueryM.mempoolSnapshotHasTx ms
+type MempoolEnv =
+  { ogmiosWs :: OgmiosWebSocket
+  , logLevel :: LogLevel
+  , customLogger :: Maybe (LogLevel -> Message -> Aff Unit)
+  , suppressLogs :: Boolean
+  }
 
--- | Get the first received TX in the current mempool snapshot. This function can
--- | be recursively called to traverse the finger-tree of the mempool data set.
--- | This will return `Nothing` once it has reached the end of the current mempool.
-mempoolSnapshotNextTx
-  :: Ogmios.MempoolSnapshotAcquired
-  -> Contract (Maybe Transaction)
-mempoolSnapshotNextTx mempoolAcquired = do
-  mbTx <- wrapQueryM $ QueryM.mempoolSnapshotNextTx mempoolAcquired
-  for mbTx \(Ogmios.MempoolTransaction { raw }) -> do
-    byteArray <- liftMaybe (error "Failed to decode transaction")
-      $ hexToByteArray raw
-    liftMaybe (error "Failed to decode tx")
-      $ decodeCbor
-      $ wrap byteArray
+type MempoolM = MempoolMT Aff
 
--- | The acquired snapshot’s size (in bytes), number of transactions, and
--- | capacity (in bytes).
-mempoolSnapshotSizeAndCapacity
-  :: Ogmios.MempoolSnapshotAcquired -> Contract Ogmios.MempoolSizeAndCapacity
-mempoolSnapshotSizeAndCapacity = wrapQueryM <<<
-  QueryM.mempoolSnapshotSizeAndCapacity
+newtype MempoolMT (m :: Type -> Type) (a :: Type) =
+  MempoolMT (ReaderT MempoolEnv m a)
 
--- | Release the connection to the Local TX Monitor.
-releaseMempool
-  :: Ogmios.MempoolSnapshotAcquired -> Contract Unit
-releaseMempool = wrapQueryM <<< QueryM.releaseMempool
+derive instance Newtype (MempoolMT m a) _
+derive newtype instance Functor m => Functor (MempoolMT m)
+derive newtype instance Apply m => Apply (MempoolMT m)
+derive newtype instance Applicative m => Applicative (MempoolMT m)
+derive newtype instance Bind m => Bind (MempoolMT m)
+derive newtype instance Monad (MempoolMT Aff)
+derive newtype instance MonadEffect (MempoolMT Aff)
+derive newtype instance MonadAff (MempoolMT Aff)
+derive newtype instance MonadThrow Error (MempoolMT Aff)
+derive newtype instance MonadError Error (MempoolMT Aff)
+derive newtype instance MonadAsk MempoolEnv (MempoolMT Aff)
+
+--------------------
+-- Mempool functions
+--------------------
 
 -- | A bracket-style function for working with mempool snapshots - ensures
 -- | release in the presence of exceptions
 withMempoolSnapshot
   :: forall a
-   . (Ogmios.MempoolSnapshotAcquired -> Contract a)
-  -> Contract a
+   . (Ogmios.MempoolSnapshotAcquired -> MempoolM a)
+  -> MempoolM a
 withMempoolSnapshot f = do
   s <- acquireMempoolSnapshot
   res <- try $ f s
@@ -92,7 +108,7 @@ withMempoolSnapshot f = do
 -- | respond with a new TX.
 fetchMempoolTxs
   :: Ogmios.MempoolSnapshotAcquired
-  -> Contract (Array Transaction)
+  -> MempoolM (Array Transaction)
 fetchMempoolTxs ms = Array.fromFoldable <$> go
   where
   go = do
@@ -100,3 +116,85 @@ fetchMempoolTxs ms = Array.fromFoldable <$> go
     case nextTX of
       Just tx -> Cons tx <$> go
       Nothing -> pure mempty
+
+acquireMempoolSnapshot
+  :: MempoolM Ogmios.MempoolSnapshotAcquired
+acquireMempoolSnapshot =
+  mkOgmiosRequest
+    acquireMempoolSnapshotCall
+    _.acquireMempool
+    unit
+
+mempoolSnapshotHasTx
+  :: Ogmios.MempoolSnapshotAcquired
+  -> TransactionHash
+  -> MempoolM Boolean
+mempoolSnapshotHasTx ms txh =
+  unwrap <$> mkOgmiosRequest
+    (mempoolSnapshotHasTxCall ms)
+    _.mempoolHasTx
+    txh
+
+mempoolSnapshotSizeAndCapacity
+  :: Ogmios.MempoolSnapshotAcquired
+  -> MempoolM Ogmios.MempoolSizeAndCapacity
+mempoolSnapshotSizeAndCapacity ms =
+  mkOgmiosRequest
+    (mempoolSnapshotSizeAndCapacityCall ms)
+    _.mempoolSizeAndCapacity
+    unit
+
+releaseMempool
+  :: Ogmios.MempoolSnapshotAcquired
+  -> MempoolM Unit
+releaseMempool ms =
+  unit <$ mkOgmiosRequest
+    (releaseMempoolCall ms)
+    _.releaseMempool
+    unit
+
+mempoolSnapshotNextTx
+  :: Ogmios.MempoolSnapshotAcquired
+  -> MempoolM (Maybe Transaction)
+mempoolSnapshotNextTx ms = do
+  mbTx <- unwrap <$> mkOgmiosRequest
+    (mempoolSnapshotNextTxCall ms)
+    _.mempoolNextTx
+    unit
+  for mbTx \(Ogmios.MempoolTransaction { raw }) -> do
+    byteArray <- liftMaybe (error "Failed to decode transaction")
+      $ hexToByteArray raw
+    liftMaybe (error "Failed to decode tx")
+      $ decodeCbor
+      $ wrap byteArray
+
+-- | Builds an Ogmios request action using `MempoolM`
+mkOgmiosRequest
+  :: forall (request :: Type) (response :: Type)
+   . JsonRpc2.JsonRpc2Call request response
+  -> (OgmiosListeners -> ListenerSet request response)
+  -> request
+  -> MempoolM response
+mkOgmiosRequest jsonRpc2Call getLs inp = do
+  listeners' <- asks $ listeners <<< _.ogmiosWs
+  websocket <- asks $ underlyingWebSocket <<< _.ogmiosWs
+  mkRequest listeners' websocket jsonRpc2Call getLs inp
+
+mkRequest
+  :: forall (request :: Type) (response :: Type) (listeners :: Type)
+   . listeners
+  -> JsWebSocket
+  -> JsonRpc2.JsonRpc2Call request response
+  -> (listeners -> ListenerSet request response)
+  -> request
+  -> MempoolM response
+mkRequest listeners' ws jsonRpc2Call getLs inp = do
+  logger <- getLogger
+  liftAff $ mkRequestAff listeners' ws logger jsonRpc2Call getLs inp
+  where
+  getLogger :: MempoolM Logger
+  getLogger = do
+    logLevel <- asks $ _.logLevel
+    mbCustomLogger <- asks $ _.customLogger
+    pure $ mkLogger logLevel mbCustomLogger
+

@@ -104,6 +104,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Switched to the aggregate `@mlabs-haskell/ctl-npm-meta` package for NPM dependencies (see the [section on updating JS dependencies in the docs](./doc/ctl-as-dependency.md)) ([#1666](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1666))
 - Ignore **any** tx evaluation errors if tx marked invalid. Previously, certain internal evaluation errors were not properly handled, leading to unexpected behavior for a subset of explicitly marked "invalid" transactions. ([#1668](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1668))
 - `Provider` (previously called `QueryHandle`) is extracted to its own package [purescript-cardano-provider](https://github.com/mlabs-haskell/purescript-cardano-provider) using module names in the format `Cardano.Provider.*` ([#1671](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1671))
+- Switched from WebSocket to HTTP when interfacing with Ogmios. Note: Mempool functionality still uses WebSocket, as it requires a persistent connection to track state. ([#1575](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1575))
 
 ### Fixed
 

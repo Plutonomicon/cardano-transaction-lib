@@ -145,7 +145,7 @@ let additions =
           , "uint"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider"
-        , version = "b9bac36efc5ef1a491bee4324a6c2065f642b1ee"
+        , version = "8e024739c7fc96a6e27147bd481b3ed14d1da6c8"
         }
       }
 

@@ -61,23 +61,19 @@ import Ctl.Internal.Contract.ProviderBackend
   , getCtlBackend
   )
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
-import Ctl.Internal.JsWebSocket (_wsClose, _wsFinalize)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
-import Ctl.Internal.QueryM
-  ( QueryEnv
-  , QueryM
-  , WebSocket
-  , getProtocolParametersAff
-  , getSystemStartAff
-  , mkOgmiosWebSocketAff
-  , underlyingWebSocket
-  )
+import Ctl.Internal.QueryM (QueryEnv, QueryM)
 import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
+import Ctl.Internal.QueryM.Ogmios (getProtocolParameters, getSystemStartTime)
+import Ctl.Internal.QueryM.Ogmios.Types
+  ( OgmiosDecodeError
+  , pprintOgmiosDecodeError
+  )
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(Left, Right), isRight)
+import Data.Either (Either(Right, Left))
 import Data.Log.Level (LogLevel)
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
@@ -85,8 +81,7 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Time.Duration (Milliseconds, Seconds)
-import Data.Traversable (for_, traverse, traverse_)
-import Effect (Effect)
+import Data.Traversable (for_, traverse)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -262,7 +257,7 @@ mkContractEnv params = do
     }
 
 buildBackend :: Logger -> ProviderBackendParams -> Aff ProviderBackend
-buildBackend logger = case _ of
+buildBackend _ = case _ of
   CtlBackendParams ctlParams blockfrostParams ->
     flip CtlBackend blockfrostParams <$> buildCtlBackend ctlParams
   BlockfrostBackendParams blockfrostParams ctlParams ->
@@ -270,13 +265,8 @@ buildBackend logger = case _ of
   where
   buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
   buildCtlBackend { ogmiosConfig, kupoConfig } = do
-    let isTxConfirmed = map isRight <<< isTxConfirmedAff kupoConfig
-    ogmiosWs <- mkOgmiosWebSocketAff isTxConfirmed logger ogmiosConfig
     pure
-      { ogmios:
-          { config: ogmiosConfig
-          , ws: ogmiosWs
-          }
+      { ogmiosConfig
       , kupoConfig
       }
 
@@ -290,10 +280,32 @@ getLedgerConstants
   -> ProviderBackend
   -> Aff LedgerConstants
 getLedgerConstants params = case _ of
-  CtlBackend { ogmios: { ws } } _ ->
-    { pparams: _, systemStart: _ }
-      <$> (unwrap <$> getProtocolParametersAff ws logger)
-      <*> getSystemStartAff ws logger
+  CtlBackend ctlBackend _ -> do
+    let
+      logParams =
+        { logLevel: params.logLevel
+        , customLogger: params.customLogger
+        , suppressLogs: true
+        }
+    pparams <- unwrap <$>
+      ( runQueryM logParams ctlBackend getProtocolParameters >>=
+          throwOnLeft
+      )
+    systemStart <- unwrap <$>
+      ( runQueryM logParams ctlBackend getSystemStartTime >>=
+          throwOnLeft
+      )
+    pure { pparams, systemStart }
+
+    where
+    throwOnLeft
+      :: forall a
+       . Either OgmiosDecodeError a
+      -> Aff a
+    throwOnLeft = case _ of
+      Left err -> throwError $ error $ pprintOgmiosDecodeError err
+      Right x -> pure x
+
   BlockfrostBackend backend _ ->
     runBlockfrostServiceM blockfrostLogger backend $
       { pparams: _, systemStart: _ }
@@ -305,9 +317,6 @@ getLedgerConstants params = case _ of
      . BlockfrostServiceM (Either ClientError a)
     -> BlockfrostServiceM a
   withErrorOnLeft = (=<<) (lmap (show >>> error) >>> liftEither)
-
-  logger :: Logger
-  logger = mkLogger params.logLevel params.customLogger
 
   -- TODO: Should we respect `suppressLogs` here?
   blockfrostLogger :: Message -> Aff Unit
@@ -342,15 +351,7 @@ walletNetworkCheck envNetworkId =
 -- | Finalizes a `Contract` environment.
 -- | Closes the connections in `ContractEnv`, effectively making it unusable.
 stopContractEnv :: ContractEnv -> Aff Unit
-stopContractEnv { backend } =
-  liftEffect $ traverse_ stopCtlRuntime (getCtlBackend backend)
-  where
-  stopCtlRuntime :: CtlBackend -> Effect Unit
-  stopCtlRuntime { ogmios } =
-    stopWebSocket ogmios.ws
-
-  stopWebSocket :: forall (a :: Type). WebSocket a -> Effect Unit
-  stopWebSocket = ((*>) <$> _wsFinalize <*> _wsClose) <<< underlyingWebSocket
+stopContractEnv _ = pure unit
 
 -- | Constructs and finalizes a contract environment that is usable inside a
 -- | bracket callback.
@@ -458,13 +459,11 @@ mkQueryEnv
   :: forall (rest :: Row Type). LogParams rest -> CtlBackend -> QueryEnv
 mkQueryEnv params ctlBackend =
   { config:
-      { kupoConfig: ctlBackend.kupoConfig
+      { ogmiosConfig: ctlBackend.ogmiosConfig
+      , kupoConfig: ctlBackend.kupoConfig
       , logLevel: params.logLevel
       , customLogger: params.customLogger
       , suppressLogs: params.suppressLogs
-      }
-  , runtime:
-      { ogmiosWs: ctlBackend.ogmios.ws
       }
   }
 
@@ -480,3 +479,4 @@ filterLockedUtxos utxos =
 
 withTxRefsCache :: forall (a :: Type). ReaderT UsedTxOuts Aff a -> Contract a
 withTxRefsCache = Contract <<< withReaderT _.usedTxOuts
+

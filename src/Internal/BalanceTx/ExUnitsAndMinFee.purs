@@ -52,7 +52,7 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
 import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftEither, unsafeFromJust)
-import Ctl.Internal.QueryM.Ogmios (AdditionalUtxoSet) as Ogmios
+import Ctl.Internal.QueryM.Ogmios.Types (AdditionalUtxoSet) as Ogmios
 import Ctl.Internal.Transaction (setScriptDataHash)
 import Ctl.Internal.TxOutput
   ( transactionInputToTxOutRef

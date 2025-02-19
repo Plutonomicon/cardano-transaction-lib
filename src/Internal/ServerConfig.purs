@@ -16,7 +16,6 @@ module Ctl.Internal.ServerConfig
 import Prelude
 
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.JsWebSocket (Url)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -85,6 +84,8 @@ blockfrostSelfHostedServerConfig =
   , secure: false
   , path: Just ""
   }
+
+type Url = String
 
 mkHttpUrl :: ServerConfig -> Url
 mkHttpUrl = mkServerUrl "http"

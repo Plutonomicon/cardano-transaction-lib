@@ -42,7 +42,7 @@ import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios.Types
   ( CurrentEpoch(CurrentEpoch)
   , OgmiosEraSummaries(OgmiosEraSummaries)
   ) as ExportOgmios

@@ -262,7 +262,7 @@ testPlan opts@{ tests } rt@{ wallets } =
             kwMStakeKey <- liftAff $ getPrivateStakeKey wallet
             (clusterSetup :: ClusterSetup) <- case env.backend of
               CtlBackend backend _ -> pure
-                { ogmiosConfig: backend.ogmios.config
+                { ogmiosConfig: backend.ogmiosConfig
                 , kupoConfig: backend.kupoConfig
                 , keys:
                     { payment: kwPaymentKey

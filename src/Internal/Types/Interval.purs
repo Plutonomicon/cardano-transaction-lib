@@ -69,6 +69,7 @@ import Aeson
   , Aeson
   , JsonDecodeError(AtKey, Named, TypeMismatch, UnexpectedValue)
   , aesonNull
+  , caseAesonObject
   , decodeAeson
   , encodeAeson
   , finiteNumber
@@ -105,7 +106,6 @@ import Ctl.Internal.Helpers
   , showWithParens
   , unsafeFromJust
   )
-import Ctl.Internal.QueryM.Ogmios (aesonObject)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
 import Data.Array.NonEmpty (singleton) as NEArray
@@ -643,7 +643,7 @@ instance EncodeAeson SlotToPosixTimeError where
       aesonNull
 
 instance DecodeAeson SlotToPosixTimeError where
-  decodeAeson = aesonObject $ \o -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) $ \o -> do
     errorType <- getField o "errorType"
     unless (errorType == slotToPosixTimeErrorStr)
       $ throwError
@@ -890,7 +890,7 @@ instance EncodeAeson PosixTimeToSlotError where
       [ encodeAeson slot, encodeAeson modTime ]
 
 instance DecodeAeson PosixTimeToSlotError where
-  decodeAeson = aesonObject $ \o -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) $ \o -> do
     errorType <- getField o "errorType"
     unless (errorType == posixTimeToSlotErrorStr)
       $ throwError
@@ -1186,7 +1186,7 @@ instance EncodeAeson ToOnChainPosixTimeRangeError where
       [ err ]
 
 instance DecodeAeson ToOnChainPosixTimeRangeError where
-  decodeAeson = aesonObject $ \o -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) $ \o -> do
     errorType <- getField o "errorType"
     unless (errorType == toOnChainPosixTimeRangeErrorStr)
       $ throwError
