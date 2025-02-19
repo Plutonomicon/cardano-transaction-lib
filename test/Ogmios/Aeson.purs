@@ -7,7 +7,7 @@ import Prelude
 
 import Aeson
   ( Aeson
-  , JsonDecodeError(..)
+  , JsonDecodeError(TypeMismatch)
   , caseAesonObject
   , encodeAeson
   , printJsonDecodeError
