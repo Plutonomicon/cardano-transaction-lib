@@ -62,7 +62,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
             Gov.suite
           UtxoDistribution.suite
           testTestnetContracts config OgmiosMempool.suite
--- FIXME: ClusterParameters.runTest
+          -- FIXME: ClusterParameters.runTest
           runTestnetTestPlan config SameWallets.suite
 
 {-

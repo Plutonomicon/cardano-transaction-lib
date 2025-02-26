@@ -18,12 +18,6 @@ import Cardano.Provider.Error
   ( ClientError(ClientHttpError, ClientHttpResponseError, ClientDecodeJsonError)
   , ServiceError(ServiceOtherError)
   )
-import Cardano.Types (PlutusScript)
-import Cardano.Types.CborBytes (CborBytes)
-import Cardano.Types.Chain as Chain
-import Cardano.Types.PlutusScript as PlutusScript
-import Cardano.Types.SystemStart (SystemStart)
-import Cardano.Types.TransactionHash (TransactionHash)
 import Cardano.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
@@ -35,27 +29,10 @@ import Control.Monad.Rec.Class (class MonadRec)
 import Control.Parallel (class Parallel, parallel, sequential)
 import Control.Plus (class Plus)
 import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.Logging (Logger, mkLogger)
 import Ctl.Internal.QueryM.HttpUtils (handleAffjaxResponseGeneric)
-import Ctl.Internal.QueryM.UniqueId (ListenerId)
-import Ctl.Internal.ServerConfig
-  ( Host
-  , ServerConfig
-  , defaultOgmiosWsConfig
-  , mkHttpUrl
-  , mkServerUrl
-  , mkWsUrl
-  ) as ExportServerConfig
 import Ctl.Internal.ServerConfig (ServerConfig)
-import Ctl.Internal.ServerConfig (ServerConfig, mkWsUrl)
-import Data.Bifunctor (lmap)
-import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either)
-import Data.Either (Either(Left, Right), either, isRight)
-import Data.Foldable (foldl)
-import Data.HTTP.Method (Method(POST))
 import Data.Log.Level (LogLevel)
-import Data.Log.Level (LogLevel(Error, Debug))
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Newtype (class Newtype, unwrap, wrap)

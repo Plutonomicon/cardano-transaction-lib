@@ -63,7 +63,6 @@ import Ctl.Internal.Contract.ProviderBackend
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.QueryM (QueryEnv, QueryM)
-import Ctl.Internal.QueryM.Kupo (isTxConfirmedAff)
 import Ctl.Internal.QueryM.Ogmios (getProtocolParameters, getSystemStartTime)
 import Ctl.Internal.QueryM.Ogmios.Types
   ( OgmiosDecodeError

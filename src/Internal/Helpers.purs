@@ -45,11 +45,9 @@ import Aeson
   , class DecodeTupleAux
   , class EncodeAeson
   , Aeson
-  , JsonDecodeError(TypeMismatch)
-  , caseAesonObject
+  , JsonDecodeError
   , decodeAeson
   , encodeAeson
-  , getField
   , toString
   )
 import Cardano.Serialization.Lib (class IsBytes, toBytes)
@@ -65,7 +63,7 @@ import Data.Array (union)
 import Data.Bifunctor (bimap)
 import Data.Bitraversable (ltraverse)
 import Data.ByteArray (byteArrayToHex)
-import Data.Either (Either(Left, Right), either)
+import Data.Either (Either(Right), either)
 import Data.Function (on)
 import Data.JSDate (now)
 import Data.List.Lazy as LL
