@@ -5,20 +5,18 @@ module Test.Ctl.Testnet.Contract.OgmiosMempool
 import Prelude
 
 import Cardano.Ogmios.Mempool
-  ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
-  , OgmiosWebSocket
-  , mkOgmiosWebSocketAff
-  )
-import Cardano.Types.BigNum as BigNum
-import Cardano.Types.PlutusScript (hash) as PlutusScript
-import Contract.Backend.Ogmios.Mempool
   ( MempoolM
+  , MempoolSizeAndCapacity(MempoolSizeAndCapacity)
+  , OgmiosWebSocket
   , acquireMempoolSnapshot
   , fetchMempoolTxs
   , mempoolSnapshotHasTx
   , mempoolSnapshotSizeAndCapacity
+  , mkOgmiosWebSocketAff
   , withMempoolSnapshot
   )
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.PlutusScript (hash) as PlutusScript
 import Contract.Monad (Contract)
 import Contract.Test (ContractTest, InitialUTxOs, withKeyWallet, withWallets)
 import Contract.Test.Mote (TestPlanM)
