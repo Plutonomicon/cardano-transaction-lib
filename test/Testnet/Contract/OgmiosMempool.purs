@@ -4,7 +4,7 @@ module Test.Ctl.Testnet.Contract.OgmiosMempool
 
 import Prelude
 
-import Cardano.Kupmios.Ogmios.Mempool
+import Cardano.Ogmios.Mempool
   ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , OgmiosWebSocket
   , mkOgmiosWebSocketAff

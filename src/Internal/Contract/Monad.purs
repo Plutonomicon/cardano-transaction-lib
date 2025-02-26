@@ -27,7 +27,6 @@ import Cardano.Blockfrost.Service
   , runBlockfrostServiceM
   )
 import Cardano.Blockfrost.Service as Blockfrost
-import Cardano.Kupmios.Kupo (isTxConfirmedAff)
 import Cardano.Kupmios.Ogmios (getProtocolParameters, getSystemStartTime)
 import Cardano.Kupmios.Ogmios.Types
   ( OgmiosDecodeError

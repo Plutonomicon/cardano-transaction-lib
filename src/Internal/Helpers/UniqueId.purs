@@ -1,4 +1,4 @@
-module Cardano.Kupmios.QueryM.UniqueId (ListenerId, uniqueId) where
+module Ctl.Internal.Helpers.UniqueId (ListenerId, uniqueId) where
 
 import Effect (Effect)
 

@@ -13,7 +13,6 @@ import Aeson
   , printJsonDecodeError
   )
 import Aeson as Aeson
-import Cardano.Kupmios.Ogmios.Mempool (HasTxR, MempoolSizeAndCapacity) as Mempool
 import Cardano.Kupmios.Ogmios.Types
   ( class DecodeOgmios
   , OgmiosDecodeError(ErrorResponse)
@@ -22,6 +21,7 @@ import Cardano.Kupmios.Ogmios.Types
   , decodeOgmios
   )
 import Cardano.Kupmios.Ogmios.Types as O
+import Cardano.Ogmios.Mempool (HasTxR, MempoolSizeAndCapacity) as Mempool
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)

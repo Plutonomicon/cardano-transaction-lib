@@ -281,6 +281,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "cardano-ogmios-mempool-provider" = pkgs.stdenv.mkDerivation {
+        name = "cardano-ogmios-mempool-provider";
+        version = "63e183eac2a7a0751ddb49a6378996767a89099d";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/purescript-cardano-ogmios-mempool-provider";
+          rev = "63e183eac2a7a0751ddb49a6378996767a89099d";
+          sha256 = "1yiqr08fsg2dgj7mmapa05hn7w6nmi5mr3wz2f3w3rpl0y9f8gfm";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "cardano-plutus-data-schema" = pkgs.stdenv.mkDerivation {
         name = "cardano-plutus-data-schema";
         version = "v1.0.0";
