@@ -11,6 +11,7 @@ import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
 import Cardano.Kupmios.QueryM (ClusterSetup)
+import Cardano.Provider.Affjax (request) as Affjax
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Wallet.Key
@@ -21,7 +22,6 @@ import Cardano.Wallet.Key
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
 import Ctl.Internal.Contract.ProviderBackend (ProviderBackend(CtlBackend))
 import Ctl.Internal.Helpers (liftedM, unsafeFromJust, (<</>>))
