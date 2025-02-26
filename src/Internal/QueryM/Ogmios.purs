@@ -20,7 +20,6 @@ import Affjax.RequestBody as Affjax.RequestBody
 import Affjax.RequestHeader as Affjax.RequestHeader
 import Affjax.ResponseFormat (string) as Affjax.ResponseFormat
 import Affjax.StatusCode (StatusCode(StatusCode))
-import Cardano.Provider.TxEvaluation (OgmiosTxOut, OgmiosTxOutRef)
 import Cardano.Provider.TxEvaluation as Provider
 import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.Chain as Chain
@@ -33,6 +32,7 @@ import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM.HttpUtils (handleAffjaxResponseGeneric)
 import Ctl.Internal.QueryM.Ogmios.Types
   ( class DecodeOgmios
+  , AdditionalUtxoSet
   , ChainTipQR(CtChainPoint, CtChainOrigin)
   , CurrentEpoch
   , DelegationsAndRewardsR
@@ -53,7 +53,6 @@ import Data.ByteArray (byteArrayToHex)
 import Data.Either (Either(Left), either)
 import Data.HTTP.Method (Method(POST))
 import Data.Lens (_Right, to, (^?))
-import Data.Map (Map)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (unwrap, wrap)
 import Data.Time.Duration (Milliseconds(Milliseconds))
@@ -118,14 +117,14 @@ delegationsAndRewards rewardAccounts = ogmiosQueryParams
 
 evaluateTxOgmios
   :: CborBytes
-  -> Map OgmiosTxOutRef OgmiosTxOut
+  -> AdditionalUtxoSet
   -> QueryM Provider.TxEvaluationR
 evaluateTxOgmios cbor additionalUtxos = unwrap <$> ogmiosErrorHandlerWithArg
   evaluateTx
   (cbor /\ additionalUtxos)
   where
   evaluateTx
-    :: CborBytes /\ Map OgmiosTxOutRef OgmiosTxOut
+    :: CborBytes /\ AdditionalUtxoSet
     -> QueryM (Either OgmiosDecodeError OgmiosTxEvaluationR)
   evaluateTx (cbor_ /\ utxoqr) = ogmiosQueryParams "evaluateTransaction"
     { transaction: { cbor: byteArrayToHex $ unwrap cbor_ }

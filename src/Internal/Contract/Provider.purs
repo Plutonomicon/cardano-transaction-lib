@@ -80,7 +80,7 @@ providerForCtlBackend runQueryM params backend =
   , evaluateTx: \tx additionalUtxos ->
       runQueryM' do
         let txBytes = encodeCbor tx
-        Ogmios.evaluateTxOgmios txBytes additionalUtxos
+        Ogmios.evaluateTxOgmios txBytes (wrap additionalUtxos)
   , getEraSummaries: Right <$> runQueryM' Ogmios.getEraSummaries
   , getPoolIds: Right <$> runQueryM' Ogmios.getPoolIds
   , getPubKeyHashDelegationsAndRewards: \_ pubKeyHash ->
