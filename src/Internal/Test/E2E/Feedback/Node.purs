@@ -11,8 +11,8 @@ module Ctl.Internal.Test.E2E.Feedback.Node
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, parseJsonStringToAeson, stringifyAeson)
+import Cardano.Kupmios.QueryM (ClusterSetup)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent(Failure, Success))
 import Data.Array as Array
 import Data.Either (Either(Left), hush, note)

@@ -9,11 +9,11 @@ import Aeson (class DecodeAeson, decodeJsonString)
 import Cardano.Blockfrost.BlockfrostProtocolParameters
   ( BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   )
-import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.QueryM.Ogmios.Types
+import Cardano.Kupmios.Ogmios.Types
   ( OgmiosProtocolParameters(OgmiosProtocolParameters)
   )
+import Contract.Test.Mote (TestPlanM, interpretWithConfig)
+import Control.Monad.Error.Class (liftEither)
 import Data.Bifunctor (lmap)
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)

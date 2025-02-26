@@ -1,4 +1,4 @@
-module Ctl.Internal.QueryM.Ogmios.Mempool.Dispatcher
+module Cardano.Kupmios.Ogmios.Mempool.Dispatcher
   ( DispatchError(JsonError, FaultError, ListenerCancelled)
   , Dispatcher
   , RequestBody
@@ -12,7 +12,7 @@ module Ctl.Internal.QueryM.Ogmios.Mempool.Dispatcher
 import Prelude
 
 import Aeson (Aeson, JsonDecodeError, stringifyAeson)
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2 (parseJsonRpc2ResponseId)
+import Cardano.Kupmios.Ogmios.Mempool.JsonRpc2 (parseJsonRpc2ResponseId)
 import Data.Either (Either(Left, Right))
 import Data.Map (Map)
 import Data.Map (empty, lookup) as Map

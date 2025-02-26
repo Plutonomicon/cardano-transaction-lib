@@ -1,6 +1,6 @@
 -- | Provides basics types and operations for working with JSON RPC protocol
 -- | used by Ogmios
-module Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2
+module Cardano.Kupmios.Ogmios.Mempool.JsonRpc2
   ( JsonRpc2Call
   , JsonRpc2Request
   , buildRequest

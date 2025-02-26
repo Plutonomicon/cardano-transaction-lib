@@ -29,6 +29,7 @@ module Ctl.Internal.Testnet.Utils
 
 import Contract.Prelude hiding (log)
 
+import Cardano.Kupmios.QueryM.UniqueId (uniqueId)
 import Contract.Config as Contract.Config
 import Contract.TextEnvelope
   ( TextEnvelope(TextEnvelope)
@@ -47,7 +48,6 @@ import Control.Monad.Rec.Class (Step(Done, Loop), tailRecM)
 import Control.Parallel (parOneOf, parallel, sequential)
 import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger)
-import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Spawn
   ( ManagedProcess(ManagedProcess)
   , OnSignalRef

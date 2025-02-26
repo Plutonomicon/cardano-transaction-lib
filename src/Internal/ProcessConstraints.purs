@@ -4,6 +4,10 @@ module Ctl.Internal.ProcessConstraints
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios.Pools
+  ( getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  )
 import Cardano.Transaction.Edit
   ( DetachedRedeemer
   , RedeemerPurpose(ForSpend, ForMint, ForReward, ForCert)
@@ -112,10 +116,6 @@ import Ctl.Internal.ProcessConstraints.State
   , provideValue
   , requireValue
   , totalMissingValue
-  )
-import Ctl.Internal.QueryM.Pools
-  ( getPubKeyHashDelegationsAndRewards
-  , getValidatorHashDelegationsAndRewards
   )
 import Ctl.Internal.Transaction
   ( attachDatum

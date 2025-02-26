@@ -13,18 +13,18 @@ import Aeson
   , printJsonDecodeError
   )
 import Aeson as Aeson
-import Control.Monad.Error.Class (liftEither)
-import Control.Monad.Trans.Class (lift)
-import Control.Parallel (parTraverse)
-import Ctl.Internal.QueryM.Ogmios.Mempool (HasTxR, MempoolSizeAndCapacity) as Mempool
-import Ctl.Internal.QueryM.Ogmios.Types
+import Cardano.Kupmios.Ogmios.Mempool (HasTxR, MempoolSizeAndCapacity) as Mempool
+import Cardano.Kupmios.Ogmios.Types
   ( class DecodeOgmios
   , OgmiosDecodeError(ErrorResponse)
   , OgmiosTxEvaluationR
   , SubmitTxR
   , decodeOgmios
   )
-import Ctl.Internal.QueryM.Ogmios.Types as O
+import Cardano.Kupmios.Ogmios.Types as O
+import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Trans.Class (lift)
+import Control.Parallel (parTraverse)
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)

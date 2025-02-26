@@ -6,14 +6,14 @@ module Contract.Backend.Ogmios
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios (submitTxOgmios) as Ogmios
+import Cardano.Kupmios.Ogmios.Pools (getPoolParameters) as QueryM
+import Cardano.Kupmios.Ogmios.Types (SubmitTxR)
 import Cardano.Types (PoolParams, PoolPubKeyHash)
 import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.QueryM.Ogmios (submitTxOgmios) as Ogmios
-import Ctl.Internal.QueryM.Ogmios.Types (SubmitTxR)
-import Ctl.Internal.QueryM.Pools (getPoolParameters) as QueryM
 
 -- | **This function can only run with Ogmios backend**
 -- |

@@ -13,17 +13,7 @@ import Cardano.Blockfrost.Service
   ( BlockfrostServiceM
   , runBlockfrostServiceM
   )
-import Cardano.Provider.Error (ClientError(ClientOtherError))
-import Cardano.Provider.Type (Provider)
-import Cardano.Types.Transaction (hash) as Transaction
-import Contract.Log (logDebug')
-import Ctl.Internal.Contract.LogParams (LogParams)
-import Ctl.Internal.Contract.ProviderBackend (CtlBackend)
-import Ctl.Internal.Helpers (logWithLevel)
-import Ctl.Internal.QueryM (QueryM)
-import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as Ogmios
-import Ctl.Internal.QueryM.EraSummaries (getEraSummaries) as Ogmios
-import Ctl.Internal.QueryM.Kupo
+import Cardano.Kupmios.Kupo
   ( getDatumByHash
   , getOutputAddressesByTxHash
   , getScriptByHash
@@ -32,17 +22,27 @@ import Ctl.Internal.QueryM.Kupo
   , isTxConfirmed
   , utxosAt
   ) as Kupo
-import Ctl.Internal.QueryM.Ogmios
+import Cardano.Kupmios.Ogmios
   ( evaluateTxOgmios
   , getChainTip
   , submitTxOgmios
   ) as Ogmios
-import Ctl.Internal.QueryM.Ogmios.Types (SubmitTxR(SubmitFail, SubmitTxSuccess))
-import Ctl.Internal.QueryM.Pools
+import Cardano.Kupmios.Ogmios.CurrentEpoch (getCurrentEpoch) as Ogmios
+import Cardano.Kupmios.Ogmios.EraSummaries (getEraSummaries) as Ogmios
+import Cardano.Kupmios.Ogmios.Pools
   ( getPoolIds
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   ) as Ogmios
+import Cardano.Kupmios.Ogmios.Types (SubmitTxR(SubmitFail, SubmitTxSuccess))
+import Cardano.Kupmios.QueryM (QueryM)
+import Cardano.Provider.Error (ClientError(ClientOtherError))
+import Cardano.Provider.Type (Provider)
+import Cardano.Types.Transaction (hash) as Transaction
+import Contract.Log (logDebug')
+import Ctl.Internal.Contract.LogParams (LogParams)
+import Ctl.Internal.Contract.ProviderBackend (CtlBackend)
+import Ctl.Internal.Helpers (logWithLevel)
 import Data.Either (Either(Left, Right))
 import Data.Maybe (fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)

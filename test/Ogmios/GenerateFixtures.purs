@@ -5,20 +5,18 @@ module Test.Ctl.Ogmios.GenerateFixtures
 import Prelude
 
 import Aeson (class EncodeAeson, Aeson, encodeAeson, stringifyAeson)
-import Control.Parallel (parTraverse)
-import Ctl.Internal.Helpers (logString)
-import Ctl.Internal.QueryM.Ogmios.Mempool
+import Cardano.Kupmios.Ogmios.Mempool
   ( ListenerSet
   , WebSocket(WebSocket)
   , defaultMessageListener
   , mkOgmiosCallType
   , mkRequestAff
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool.Dispatcher
+import Cardano.Kupmios.Ogmios.Mempool.Dispatcher
   ( WebsocketDispatch
   , mkWebsocketDispatch
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsWebSocket
+import Cardano.Kupmios.Ogmios.Mempool.JsWebSocket
   ( _mkWebSocket
   , _onWsConnect
   , _onWsError
@@ -26,8 +24,10 @@ import Ctl.Internal.QueryM.Ogmios.Mempool.JsWebSocket
   , _wsClose
   , _wsSend
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2 (JsonRpc2Call)
-import Ctl.Internal.QueryM.Ogmios.Types (class DecodeOgmios)
+import Cardano.Kupmios.Ogmios.Mempool.JsonRpc2 (JsonRpc2Call)
+import Cardano.Kupmios.Ogmios.Types (class DecodeOgmios)
+import Control.Parallel (parTraverse)
+import Ctl.Internal.Helpers (logString)
 import Ctl.Internal.ServerConfig (ServerConfig, defaultOgmiosWsConfig, mkWsUrl)
 import Data.Either (Either(Left))
 import Data.Log.Level (LogLevel(Trace, Debug))

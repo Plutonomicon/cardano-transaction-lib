@@ -4,6 +4,11 @@ module Test.Ctl.Testnet.Contract.OgmiosMempool
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios.Mempool
+  ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
+  , OgmiosWebSocket
+  , mkOgmiosWebSocketAff
+  )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusScript (hash) as PlutusScript
 import Contract.Backend.Ogmios.Mempool
@@ -23,11 +28,6 @@ import Control.Monad.Reader.Trans (ask, runReaderT)
 import Ctl.Examples.PlutusV2.InlineDatum as InlineDatum
 import Ctl.Internal.Contract.ProviderBackend (ProviderBackend(CtlBackend))
 import Ctl.Internal.Logging (mkLogger)
-import Ctl.Internal.QueryM.Ogmios.Mempool
-  ( MempoolSizeAndCapacity(MempoolSizeAndCapacity)
-  , OgmiosWebSocket
-  , mkOgmiosWebSocketAff
-  )
 import Ctl.Internal.ServerConfig (mkWsUrl)
 import Data.Array (length)
 import Data.Newtype (unwrap)

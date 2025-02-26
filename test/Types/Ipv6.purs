@@ -5,7 +5,7 @@ module Test.Ctl.Types.Ipv6
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
-import Ctl.Internal.QueryM.Ogmios.Types (parseIpv6String)
+import Cardano.Kupmios.Ogmios.Types (parseIpv6String)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (wrap)

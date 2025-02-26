@@ -1,4 +1,4 @@
-module Ctl.Internal.QueryM.Ogmios.Mempool
+module Cardano.Kupmios.Ogmios.Mempool
   ( ReleasedMempool(ReleasedMempool)
   , MempoolSizeAndCapacity(MempoolSizeAndCapacity)
   , MempoolSnapshotAcquired
@@ -40,12 +40,7 @@ import Aeson
   , stringifyAeson
   , (.:)
   )
-import Cardano.Provider.TxEvaluation (OgmiosTxId)
-import Cardano.Types.Slot (Slot)
-import Cardano.Types.TransactionHash (TransactionHash)
-import Control.Alt ((<|>))
-import Control.Monad.Error.Class (liftEither, throwError)
-import Ctl.Internal.QueryM.Ogmios.Mempool.Dispatcher
+import Cardano.Kupmios.Ogmios.Mempool.Dispatcher
   ( DispatchError(JsonError)
   , Dispatcher
   , RequestBody
@@ -53,7 +48,7 @@ import Ctl.Internal.QueryM.Ogmios.Mempool.Dispatcher
   , mkWebsocketDispatch
   , newDispatcher
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsWebSocket
+import Cardano.Kupmios.Ogmios.Mempool.JsWebSocket
   ( JsWebSocket
   , Url
   , _mkWebSocket
@@ -65,19 +60,24 @@ import Ctl.Internal.QueryM.Ogmios.Mempool.JsWebSocket
   , _wsFinalize
   , _wsSend
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2
+import Cardano.Kupmios.Ogmios.Mempool.JsonRpc2
   ( JsonRpc2Call
   , JsonRpc2Request
   , mkCallType
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2 as JsonRpc2
-import Ctl.Internal.QueryM.Ogmios.Types
+import Cardano.Kupmios.Ogmios.Mempool.JsonRpc2 as JsonRpc2
+import Cardano.Kupmios.Ogmios.Types
   ( class DecodeOgmios
   , OgmiosDecodeError
   , decodeOgmios
   , decodeResult
   , ogmiosDecodeErrorToError
   )
+import Cardano.Provider.TxEvaluation (OgmiosTxId)
+import Cardano.Types.Slot (Slot)
+import Cardano.Types.TransactionHash (TransactionHash)
+import Control.Alt ((<|>))
+import Control.Monad.Error.Class (liftEither, throwError)
 import Data.Argonaut.Encode.Encoders as Argonaut
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, isRight)

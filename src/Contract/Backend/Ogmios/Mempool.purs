@@ -17,18 +17,7 @@ module Contract.Backend.Ogmios.Mempool
 import Contract.Prelude
 
 import Cardano.AsCbor (decodeCbor)
-import Cardano.Types.Transaction (Transaction)
-import Cardano.Types.TransactionHash (TransactionHash)
-import Control.Monad.Error.Class
-  ( class MonadError
-  , class MonadThrow
-  , liftMaybe
-  , try
-  )
-import Control.Monad.Reader.Class (class MonadAsk)
-import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
-import Ctl.Internal.Logging (Logger, mkLogger)
-import Ctl.Internal.QueryM.Ogmios.Mempool
+import Cardano.Kupmios.Ogmios.Mempool
   ( ListenerSet
   , OgmiosListeners
   , OgmiosWebSocket
@@ -41,13 +30,24 @@ import Ctl.Internal.QueryM.Ogmios.Mempool
   , releaseMempoolCall
   , underlyingWebSocket
   )
-import Ctl.Internal.QueryM.Ogmios.Mempool
+import Cardano.Kupmios.Ogmios.Mempool
   ( MempoolSizeAndCapacity
   , MempoolSnapshotAcquired
   , MempoolTransaction(MempoolTransaction)
   ) as Ogmios
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsWebSocket (JsWebSocket)
-import Ctl.Internal.QueryM.Ogmios.Mempool.JsonRpc2 as JsonRpc2
+import Cardano.Kupmios.Ogmios.Mempool.JsWebSocket (JsWebSocket)
+import Cardano.Kupmios.Ogmios.Mempool.JsonRpc2 as JsonRpc2
+import Cardano.Types.Transaction (Transaction)
+import Cardano.Types.TransactionHash (TransactionHash)
+import Control.Monad.Error.Class
+  ( class MonadError
+  , class MonadThrow
+  , liftMaybe
+  , try
+  )
+import Control.Monad.Reader.Class (class MonadAsk)
+import Control.Monad.Reader.Trans (ReaderT(ReaderT), asks)
+import Ctl.Internal.Logging (Logger, mkLogger)
 import Data.Array as Array
 import Data.ByteArray (hexToByteArray)
 import Data.List (List(Cons))

@@ -2,13 +2,13 @@ module Test.Ctl.QueryM.AffInterface (suite) where
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios (getChainTip, submitTxOgmios)
+import Cardano.Kupmios.Ogmios.CurrentEpoch (getCurrentEpoch)
+import Cardano.Kupmios.Ogmios.EraSummaries (getEraSummaries)
+import Cardano.Kupmios.QueryM (QueryM)
 import Cardano.Serialization.Lib (fromBytes)
 import Contract.Transaction (TransactionHash(TransactionHash))
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM (QueryM)
-import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch)
-import Ctl.Internal.QueryM.EraSummaries (getEraSummaries)
-import Ctl.Internal.QueryM.Ogmios (getChainTip, submitTxOgmios)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Left, Right))
 import Data.Maybe (fromJust, isJust)

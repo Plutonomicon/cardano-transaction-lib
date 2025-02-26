@@ -27,6 +27,13 @@ import Cardano.Blockfrost.Service
   , runBlockfrostServiceM
   )
 import Cardano.Blockfrost.Service as Blockfrost
+import Cardano.Kupmios.Kupo (isTxConfirmedAff)
+import Cardano.Kupmios.Ogmios (getProtocolParameters, getSystemStartTime)
+import Cardano.Kupmios.Ogmios.Types
+  ( OgmiosDecodeError
+  , pprintOgmiosDecodeError
+  )
+import Cardano.Kupmios.QueryM (QueryEnv, QueryM)
 import Cardano.Provider.Error (ClientError)
 import Cardano.Provider.Type (Provider)
 import Cardano.Types (NetworkId(TestnetId, MainnetId), TransactionHash, UtxoMap)
@@ -62,12 +69,6 @@ import Ctl.Internal.Contract.ProviderBackend
   )
 import Ctl.Internal.Helpers (filterMapWithKeyM, liftM, logWithLevel)
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
-import Ctl.Internal.QueryM (QueryEnv, QueryM)
-import Ctl.Internal.QueryM.Ogmios (getProtocolParameters, getSystemStartTime)
-import Ctl.Internal.QueryM.Ogmios.Types
-  ( OgmiosDecodeError
-  , pprintOgmiosDecodeError
-  )
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)
