@@ -10,6 +10,7 @@ import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
 import Cardano.Types (Slot(Slot))
 import Cardano.Types.BigNum (fromInt) as BigNum
 import Cardano.Types.EraSummaries (EraSummaries)
+import Cardano.Types.SystemStart (SystemStart)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
 import Ctl.Internal.QueryM.Ogmios.Types (OgmiosEraSummaries, OgmiosSystemStart)
@@ -30,7 +31,6 @@ import Ctl.Internal.Types.Interval
   , slotToPosixTime
   , to
   )
-import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)

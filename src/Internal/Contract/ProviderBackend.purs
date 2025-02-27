@@ -1,6 +1,5 @@
 module Ctl.Internal.Contract.ProviderBackend
-  ( BlockfrostBackend
-  , BlockfrostBackendParams
+  ( BlockfrostBackendParams
   , CtlBackend
   , CtlBackendParams
   , ProviderBackend(BlockfrostBackend, CtlBackend)
@@ -15,6 +14,7 @@ module Ctl.Internal.Contract.ProviderBackend
 
 import Prelude
 
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Time.Duration (Seconds(Seconds))
@@ -30,12 +30,6 @@ data ProviderBackend
 type CtlBackend =
   { ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
-  }
-
-type BlockfrostBackend =
-  { blockfrostConfig :: ServerConfig
-  , blockfrostApiKey :: Maybe String
-  , confirmTxDelay :: Maybe Seconds
   }
 
 getCtlBackend :: ProviderBackend -> Maybe CtlBackend

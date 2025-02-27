@@ -43,6 +43,8 @@ import Aeson
   , class EncodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch, MissingValue, AtKey)
+  , caseAesonArray
+  , caseAesonObject
   , caseAesonString
   , decodeAeson
   , encodeAeson
@@ -114,6 +116,9 @@ import Cardano.Types.NativeScript
 import Cardano.Types.PlutusScript (PlutusScript(PlutusScript))
 import Cardano.Types.PoolMetadata (PoolMetadata(PoolMetadata))
 import Cardano.Types.PoolPubKeyHash (PoolPubKeyHash)
+import Cardano.Types.ProtocolParameters (ProtocolParameters(ProtocolParameters))
+import Cardano.Types.Rational (Rational, (%))
+import Cardano.Types.Rational as Rational
 import Cardano.Types.RedeemerTag
   ( RedeemerTag(Spend, Mint, Cert, Reward, Vote, Propose)
   ) as RedeemerTag
@@ -124,6 +129,7 @@ import Cardano.Types.RewardAddress (RewardAddress)
 import Cardano.Types.RewardAddress as RewardAddress
 import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Cardano.Types.Slot (Slot(Slot))
+import Cardano.Types.SystemStart (SystemStart)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Cardano.Types.URL (URL(URL))
 import Cardano.Types.UnitInterval (UnitInterval(UnitInterval))
@@ -131,15 +137,8 @@ import Cardano.Types.Value (Value, getMultiAsset, valueToCoin)
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
 import Ctl.Internal.Helpers (encodeMap, showWithParens)
-import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString)
-import Ctl.Internal.Types.ProtocolParameters
-  ( ProtocolParameters(ProtocolParameters)
-  )
-import Ctl.Internal.Types.Rational (Rational, (%))
-import Ctl.Internal.Types.Rational as Rational
-import Ctl.Internal.Types.SystemStart
-  ( SystemStart
-  , sysStartFromOgmiosTimestamp
+import Ctl.Internal.QueryM.Ogmios.Helpers
+  ( sysStartFromOgmiosTimestamp
   , sysStartToOgmiosTimestamp
   )
 import Data.Array (catMaybes)
@@ -209,10 +208,11 @@ instance DecodeOgmios SubmitTxR where
           "Expected error code in a range [3000, 3999]"
 
     decodeTxHash :: Aeson -> Either JsonDecodeError TransactionHash
-    decodeTxHash = aesonObject \o -> do
-      txHashHex <- getField o "transaction" >>= flip getField "id"
-      note (TypeMismatch "Expected hexstring of TransactionHash") $
-        hexToByteArray txHashHex >>= fromBytes >>> map wrap
+    decodeTxHash = caseAesonObject (Left (TypeMismatch "Object"))
+      \o -> do
+        txHashHex <- getField o "transaction" >>= flip getField "id"
+        note (TypeMismatch "Expected hexstring of TransactionHash") $
+          hexToByteArray txHashHex >>= fromBytes >>> map wrap
 
 ---------------- SYSTEM START QUERY RESPONSE & PARSING
 newtype OgmiosSystemStart = OgmiosSystemStart SystemStart
@@ -265,17 +265,19 @@ instance Show OgmiosEraSummaries where
 instance DecodeAeson OgmiosEraSummaries where
   -- There is some differences between ogmios 6.0 spec and actual results
   -- in "start" "end" fields and "slotLength".
-  decodeAeson = aesonArray (map (wrap <<< wrap) <<< traverse decodeEraSummary)
+  decodeAeson = caseAesonArray (Left (TypeMismatch "Array"))
+    (map (wrap <<< wrap) <<< traverse decodeEraSummary)
     where
     decodeEraSummaryTime :: Aeson -> Either JsonDecodeError EraSummaryTime
-    decodeEraSummaryTime = aesonObject \obj -> do
-      time <- flip getField "seconds" =<< getField obj "time"
-      slot <- getField obj "slot"
-      epoch <- getField obj "epoch"
-      pure $ wrap { time, slot, epoch }
+    decodeEraSummaryTime = caseAesonObject (Left (TypeMismatch "Object"))
+      \obj -> do
+        time <- flip getField "seconds" =<< getField obj "time"
+        slot <- getField obj "slot"
+        epoch <- getField obj "epoch"
+        pure $ wrap { time, slot, epoch }
 
     decodeEraSummary :: Aeson -> Either JsonDecodeError EraSummary
-    decodeEraSummary = aesonObject \o -> do
+    decodeEraSummary = caseAesonObject (Left (TypeMismatch "Object")) \o -> do
       start <- decodeEraSummaryTime =<< getField o "start"
       -- The field "end" is required by Ogmios API, but it can optionally return
       -- Null, so we want to fail if the field is absent but make Null value
@@ -401,10 +403,13 @@ instance DecodeOgmios PoolParametersR where
 decodePoolParameters :: Object Aeson -> Either JsonDecodeError PoolParameters
 decodePoolParameters objParams = do
   vrfKeyhash <- decodeVRFKeyHash =<< objParams .: "vrfVerificationKeyHash"
-  pledge <- objParams .: "pledge" >>= aesonObject \obj ->
-    obj .: "ada" >>= flip getField "lovelace"
-  cost <- objParams .: "cost" >>= aesonObject \obj ->
-    obj .: "ada" >>= flip getField "lovelace"
+  pledge <- objParams .: "pledge" >>= caseAesonObject
+    (Left (TypeMismatch "Object"))
+    \obj ->
+      obj .: "ada" >>= flip getField "lovelace"
+  cost <- objParams .: "cost" >>= caseAesonObject (Left (TypeMismatch "Object"))
+    \obj ->
+      obj .: "ada" >>= flip getField "lovelace"
   margin <- decodeUnitInterval =<< objParams .: "margin"
   rewardAccount <- objParams .: "rewardAccount" >>=
     RewardAddress.fromBech32 >>> note (TypeMismatch "RewardAddress")
@@ -424,10 +429,11 @@ decodePoolParameters objParams = do
     }
 
 decodeVRFKeyHash :: Aeson -> Either JsonDecodeError VRFKeyHash
-decodeVRFKeyHash = aesonString $ \vrfKeyhashHex -> do
-  vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
-    vrfKeyhashHex
-  note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes vrfKeyhashBytes
+decodeVRFKeyHash = caseAesonString (Left (TypeMismatch "String")) $
+  \vrfKeyhashHex -> do
+    vrfKeyhashBytes <- note (TypeMismatch "VRFKeyHash") $ hexToByteArray
+      vrfKeyhashHex
+    note (TypeMismatch "VRFKeyHash") $ VRFKeyHash <$> fromBytes vrfKeyhashBytes
 
 decodeUnitInterval :: Aeson -> Either JsonDecodeError UnitInterval
 decodeUnitInterval aeson = do
@@ -544,7 +550,7 @@ instance Show OgmiosTxEvaluationResult where
   show = genericShow
 
 instance DecodeAeson OgmiosTxEvaluationResult where
-  decodeAeson = aesonArray $ \array -> do
+  decodeAeson = caseAesonArray (Left (TypeMismatch "Array")) $ \array -> do
     OgmiosTxEvaluationResult <<< TxEvaluationResult <<< Map.fromFoldable <$>
       traverse decodeRdmrPtrExUnitsItem array
 
@@ -656,7 +662,7 @@ instance DecodeAeson OgmiosTxEvaluationFailure where
       (unwrap error).data
     case code of
       -- ScriptExecutionFailure
-      3010 -> flip aesonArray errorData $
+      3010 -> flip (caseAesonArray (Left (TypeMismatch "Array"))) errorData $
         ( \array ->
             ( ScriptFailures <<< map Array.fromFoldable <<< collectIntoMap <$>
                 traverse parseElem array
@@ -996,11 +1002,12 @@ pprintOgmiosError :: OgmiosError -> String
 pprintOgmiosError (OgmiosError err) = stringifyAeson $ encodeAeson err
 
 instance DecodeAeson OgmiosError where
-  decodeAeson = aesonObject \o -> do
-    code <- getField o "code"
-    message <- getField o "message"
-    dat <- getFieldOptional o "data"
-    pure $ OgmiosError { code, message, data: dat }
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object"))
+    \o -> do
+      code <- getField o "code"
+      message <- getField o "message"
+      dat <- getFieldOptional o "data"
+      pure $ OgmiosError { code, message, data: dat }
 
 data OgmiosDecodeError
   -- Server responded with error.
@@ -1088,16 +1095,17 @@ type JsonRpc2Response =
 
 decodeAesonJsonRpc2Response
   :: Aeson -> Either JsonDecodeError JsonRpc2Response
-decodeAesonJsonRpc2Response = aesonObject $ \o -> do
-  jsonrpc <- getField o "jsonrpc"
-  method <- getFieldOptional o "method"
-  result <- getFieldOptional o "result"
-  error <- getFieldOptional o "error"
-  id <- getFieldOptional' o "id"
-  pure
-    { jsonrpc
-    , method
-    , result
-    , error
-    , id
-    }
+decodeAesonJsonRpc2Response = caseAesonObject (Left (TypeMismatch "Object")) $
+  \o -> do
+    jsonrpc <- getField o "jsonrpc"
+    method <- getFieldOptional o "method"
+    result <- getFieldOptional o "result"
+    error <- getFieldOptional o "error"
+    id <- getFieldOptional' o "id"
+    pure
+      { jsonrpc
+      , method
+      , result
+      , error
+      , id
+      }

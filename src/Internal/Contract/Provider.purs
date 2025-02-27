@@ -7,13 +7,18 @@ module Ctl.Internal.Contract.Provider
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
+import Cardano.Blockfrost.Provider (providerForBlockfrostBackend) as Blockfrost
+import Cardano.Blockfrost.Service
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
 import Cardano.Provider.Error (ClientError(ClientOtherError))
 import Cardano.Provider.Type (Provider)
 import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Log (logDebug')
-import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Contract.LogParams (LogParams)
-import Ctl.Internal.Contract.ProviderBackend (BlockfrostBackend, CtlBackend)
+import Ctl.Internal.Contract.ProviderBackend (CtlBackend)
 import Ctl.Internal.Helpers (logWithLevel)
 import Ctl.Internal.QueryM (QueryM)
 import Ctl.Internal.QueryM.CurrentEpoch (getCurrentEpoch) as Ogmios
@@ -38,16 +43,10 @@ import Ctl.Internal.QueryM.Pools
   , getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   ) as Ogmios
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
-  , runBlockfrostServiceM
-  )
-import Ctl.Internal.Service.Blockfrost as Blockfrost
 import Data.Either (Either(Left, Right))
 import Data.Maybe (fromMaybe, isJust)
 import Data.Newtype (unwrap, wrap)
 import Effect.Aff (Aff)
-import Effect.Exception (error)
 
 providerForCtlBackend
   :: forall rest
@@ -99,35 +98,7 @@ providerForCtlBackend runQueryM params backend =
 providerForBlockfrostBackend
   :: forall rest. LogParams rest -> BlockfrostBackend -> Provider
 providerForBlockfrostBackend logParams backend =
-  { getDatumByHash: runBlockfrostServiceM' <<< Blockfrost.getDatumByHash
-  , getScriptByHash: runBlockfrostServiceM' <<< Blockfrost.getScriptByHash
-  , getUtxoByOref: runBlockfrostServiceM' <<< Blockfrost.getUtxoByOref
-  , getOutputAddressesByTxHash: runBlockfrostServiceM' <<<
-      Blockfrost.getOutputAddressesByTxHash
-  , doesTxExist: runBlockfrostServiceM' <<< Blockfrost.doesTxExist
-  , getTxAuxiliaryData: runBlockfrostServiceM' <<< Blockfrost.getTxAuxiliaryData
-  , utxosAt: runBlockfrostServiceM' <<< Blockfrost.utxosAt
-  , getChainTip: runBlockfrostServiceM' Blockfrost.getChainTip
-  , getCurrentEpoch:
-      runBlockfrostServiceM' Blockfrost.getCurrentEpoch >>= case _ of
-        Right epoch -> pure epoch
-        Left err -> throwError $ error $ show err
-  , submitTx: runBlockfrostServiceM' <<< Blockfrost.submitTx
-  , evaluateTx: \tx additionalUtxos ->
-      runBlockfrostServiceM' $ Blockfrost.evaluateTx tx (wrap additionalUtxos)
-  , getEraSummaries: runBlockfrostServiceM' Blockfrost.getEraSummaries
-  , getPoolIds: runBlockfrostServiceM' Blockfrost.getPoolIds
-  , getPubKeyHashDelegationsAndRewards: \networkId stakePubKeyHash ->
-      runBlockfrostServiceM'
-        ( Blockfrost.getPubKeyHashDelegationsAndRewards networkId
-            stakePubKeyHash
-        )
-  , getValidatorHashDelegationsAndRewards: \networkId stakeValidatorHash ->
-      runBlockfrostServiceM'
-        ( Blockfrost.getValidatorHashDelegationsAndRewards networkId
-            (wrap stakeValidatorHash)
-        )
-  }
+  Blockfrost.providerForBlockfrostBackend runBlockfrostServiceM'
   where
   runBlockfrostServiceM' :: forall (a :: Type). BlockfrostServiceM a -> Aff a
   runBlockfrostServiceM' = runBlockfrostServiceM

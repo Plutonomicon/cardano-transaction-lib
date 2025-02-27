@@ -5,7 +5,13 @@ module Test.Ctl.Ogmios.Aeson
 
 import Prelude
 
-import Aeson (Aeson, JsonDecodeError, encodeAeson, printJsonDecodeError)
+import Aeson
+  ( Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , encodeAeson
+  , printJsonDecodeError
+  )
 import Aeson as Aeson
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
@@ -19,7 +25,6 @@ import Ctl.Internal.QueryM.Ogmios.Types
   , decodeOgmios
   )
 import Ctl.Internal.QueryM.Ogmios.Types as O
-import Ctl.Internal.Service.Helpers (aesonObject)
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)
@@ -72,11 +77,12 @@ tested =
 
 -- Fixtures from ogmios repo have id set to "null", but we require it as string.
 addIdFieldHack :: Aeson -> Either JsonDecodeError Aeson
-addIdFieldHack = aesonObject $
-  ( pure <<< encodeAeson <<< Object.update
-      (const $ pure $ encodeAeson "My favourite id")
-      "id"
-  )
+addIdFieldHack = caseAesonObject (Left (TypeMismatch "Object"))
+  $
+    ( pure <<< encodeAeson <<< Object.update
+        (const $ pure $ encodeAeson "My favourite id")
+        "id"
+    )
 
 -- Fail if we can't decode positive result
 check

@@ -61,6 +61,10 @@ import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Exception (Error, error)
 
+--------------------------------------------------------------------------------
+-- Local State Query Protocol
+-- https://ogmios.dev/mini-protocols/local-state-query/
+--------------------------------------------------------------------------------
 eraSummaries :: QueryM (Either OgmiosDecodeError OgmiosEraSummaries)
 eraSummaries = ogmiosQueryNoParams "queryLedgerState/eraSummaries"
 
@@ -112,7 +116,9 @@ delegationsAndRewards rewardAccounts = ogmiosQueryParams
   }
 
 evaluateTxOgmios
-  :: CborBytes -> AdditionalUtxoSet -> QueryM Provider.TxEvaluationR
+  :: CborBytes
+  -> AdditionalUtxoSet
+  -> QueryM Provider.TxEvaluationR
 evaluateTxOgmios cbor additionalUtxos = unwrap <$> ogmiosErrorHandlerWithArg
   evaluateTx
   (cbor /\ additionalUtxos)

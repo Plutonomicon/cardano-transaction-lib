@@ -11,6 +11,7 @@ import Cardano.Types (BigNum, Slot(Slot))
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Chain as Chain
 import Cardano.Types.EraSummaries (EraSummaries(EraSummaries))
+import Cardano.Types.SystemStart (SystemStart)
 import Contract.Log (logTrace')
 import Control.Monad.Error.Class (liftEither, liftMaybe)
 import Control.Monad.Reader (asks)
@@ -24,7 +25,6 @@ import Ctl.Internal.Types.Interval
   , getSlotLength
   , slotToPosixTime
   )
-import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Array (length, mapMaybe)
 import Data.Bifunctor (lmap)
 import Data.DateTime.Instant (unInstant)

@@ -22,9 +22,16 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
+import Cardano.Blockfrost.Service
+  ( BlockfrostServiceM
+  , runBlockfrostServiceM
+  )
+import Cardano.Blockfrost.Service as Blockfrost
 import Cardano.Provider.Error (ClientError)
 import Cardano.Provider.Type (Provider)
 import Cardano.Types (NetworkId(TestnetId, MainnetId), TransactionHash, UtxoMap)
+import Cardano.Types.ProtocolParameters (ProtocolParameters)
+import Cardano.Types.SystemStart (SystemStart)
 import Contract.Prelude (liftEither)
 import Control.Alt (class Alt)
 import Control.Alternative (class Alternative)
@@ -61,13 +68,6 @@ import Ctl.Internal.QueryM.Ogmios.Types
   ( OgmiosDecodeError
   , pprintOgmiosDecodeError
   )
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostServiceM
-  , runBlockfrostServiceM
-  )
-import Ctl.Internal.Service.Blockfrost as Blockfrost
-import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
-import Ctl.Internal.Types.SystemStart (SystemStart)
 import Ctl.Internal.Types.UsedTxOuts (UsedTxOuts, isTxOutRefUsed, newUsedTxOuts)
 import Ctl.Internal.Wallet (Wallet(GenericCip30))
 import Ctl.Internal.Wallet.Spec (WalletSpec, mkWalletBySpec)

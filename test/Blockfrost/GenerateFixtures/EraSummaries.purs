@@ -2,12 +2,12 @@ module Test.Ctl.Blockfrost.GenerateFixtures.EraSummaries (main) where
 
 import Prelude
 
-import Ctl.Internal.Service.Blockfrost
+import Cardano.Blockfrost.Service
   ( BlockfrostEndpoint(EraSummaries)
   , BlockfrostRawResponse
   , runBlockfrostServiceTestM
   )
-import Ctl.Internal.Service.Blockfrost (getEraSummaries) as Blockfrost
+import Cardano.Blockfrost.Service (getEraSummaries) as Blockfrost
 import Data.Either (either)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect (Effect)

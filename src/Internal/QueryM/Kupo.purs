@@ -15,6 +15,9 @@ import Aeson
   ( class DecodeAeson
   , Aeson
   , JsonDecodeError(TypeMismatch)
+  , caseAesonArray
+  , caseAesonObject
+  , caseAesonString
   , decodeAeson
   , getField
   , getFieldOptional
@@ -70,7 +73,6 @@ import Control.Parallel (parTraverse)
 import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.QueryM (QueryM, handleAffjaxResponse)
 import Ctl.Internal.ServerConfig (ServerConfig, mkHttpUrl)
-import Ctl.Internal.Service.Helpers (aesonArray, aesonObject, aesonString)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
@@ -208,7 +210,7 @@ instance Show KupoDatumType where
   show = genericShow
 
 instance DecodeAeson KupoDatumType where
-  decodeAeson = aesonString $ case _ of
+  decodeAeson = caseAesonString (Left (TypeMismatch "String")) $ case _ of
     "hash" -> pure DatumHash
     "inline" -> pure InlineDatum
     invalid ->
@@ -229,7 +231,7 @@ instance Show KupoTransactionOutput where
   show = genericShow
 
 instance DecodeAeson KupoTransactionOutput where
-  decodeAeson = aesonObject \obj -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) \obj -> do
     address <- decodeAddress obj
     amount <- decodeValue obj
     datumHash <- decodeDatumHash obj
@@ -255,16 +257,17 @@ instance DecodeAeson KupoTransactionOutput where
       :: Object Aeson
       -> Either JsonDecodeError Value
     decodeValue =
-      flip getField "value" >=> aesonObject \obj -> do
-        coins <- getField obj "coins"
-        assets <-
-          getFieldOptional obj "assets"
-            <#> fromMaybe mempty <<< map (Object.toUnfoldable :: _ -> Array _)
-        multiAsset <-
-          note (TypeMismatch "MultiAsset") <<< MultiAsset.sum =<< traverse
-            decodeMultiAsset
-            assets
-        pure $ Value.mkValue coins multiAsset
+      flip getField "value" >=> caseAesonObject (Left (TypeMismatch "Object"))
+        \obj -> do
+          coins <- getField obj "coins"
+          assets <-
+            getFieldOptional obj "assets"
+              <#> fromMaybe mempty <<< map (Object.toUnfoldable :: _ -> Array _)
+          multiAsset <-
+            note (TypeMismatch "MultiAsset") <<< MultiAsset.sum =<< traverse
+              decodeMultiAsset
+              assets
+          pure $ Value.mkValue coins multiAsset
       where
       decodeMultiAsset
         :: (String /\ BigNum) -> Either JsonDecodeError MultiAsset
@@ -305,7 +308,8 @@ instance Show KupoUtxoMap where
 
 instance DecodeAeson KupoUtxoMap where
   decodeAeson =
-    aesonArray (map (wrap <<< Map.fromFoldable) <<< traverse decodeUtxoEntry)
+    caseAesonArray (Left (TypeMismatch "Array"))
+      (map (wrap <<< Map.fromFoldable) <<< traverse decodeUtxoEntry)
     where
     decodeUtxoEntry
       :: Aeson
@@ -314,7 +318,7 @@ instance DecodeAeson KupoUtxoMap where
       Tuple <$> decodeTxOref utxoAeson <*> decodeAeson utxoAeson
 
     decodeTxOref :: Aeson -> Either JsonDecodeError TransactionInput
-    decodeTxOref = aesonObject \obj -> do
+    decodeTxOref = caseAesonObject (Left (TypeMismatch "Object")) \obj -> do
       transactionId <- decodeTxHash obj
       index <- getField obj "output_index"
       pure $ TransactionInput { transactionId, index }
@@ -377,7 +381,9 @@ instance DecodeAeson KupoDatum where
   decodeAeson aeson
     | isNull aeson = pure $ KupoDatum Nothing
     | otherwise =
-        aesonObject (flip getFieldOptional "datum") aeson
+        caseAesonObject (Left (TypeMismatch "Object"))
+          (flip getFieldOptional "datum")
+          aeson
           >>= pure <<< KupoDatum <<< bindFlipped decodeCbor
 
 --------------------------------------------------------------------------------
@@ -396,7 +402,7 @@ instance Show KupoScriptLanguage where
   show = genericShow
 
 instance DecodeAeson KupoScriptLanguage where
-  decodeAeson = aesonString $ case _ of
+  decodeAeson = caseAesonString (Left (TypeMismatch "String")) $ case _ of
     "native" -> pure NativeScript
     "plutus:v1" -> pure PlutusV1Script
     "plutus:v2" -> pure PlutusV2Script
@@ -416,7 +422,7 @@ instance DecodeAeson KupoScriptRef where
   decodeAeson aeson
     | isNull aeson = pure $ KupoScriptRef Nothing
     | otherwise =
-        aeson # aesonObject \obj -> do
+        aeson # caseAesonObject (Left (TypeMismatch "Object")) \obj -> do
           language <- getField obj "language"
           scriptBytes <- getField obj "script"
           KupoScriptRef <<< Just <$>
