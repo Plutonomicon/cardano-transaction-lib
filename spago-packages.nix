@@ -211,11 +211,11 @@ let
 
     "cardano-blockfrost-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-blockfrost-provider";
-        version = "8e024739c7fc96a6e27147bd481b3ed14d1da6c8";
+        version = "v1.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider";
-          rev = "8e024739c7fc96a6e27147bd481b3ed14d1da6c8";
-          sha256 = "1c2asw3x84q0nwnpp0b4j3r54zb268nmxizjlqs8si5jkhcq5l7y";
+          rev = "e952465bc1d60b065cefe31ae256fb053972abc0";
+          sha256 = "1i1mnxbrj71xf64b0hfyzwn7gayrmzlv2hpw2zkdcm4l6d11i1m5";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -283,11 +283,11 @@ let
 
     "cardano-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-provider";
-        version = "5c45f7def0a29b6653945e107be1b7c738d571d8";
+        version = "v1.1.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-provider";
-          rev = "5c45f7def0a29b6653945e107be1b7c738d571d8";
-          sha256 = "088b6x95b0g5py82179yq7i3mjhnx75ydkfca94d011bj9bj30d6";
+          rev = "1a59dd5ff3ea854945eb964029ab71c6e210a6d2";
+          sha256 = "19fyg1vky0h8jk0fva9ya9izj7ip33r1hk566dvzsggnixh78ybc";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -319,11 +319,11 @@ let
 
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
-        version = "461c1972a122d2ca54320bd3c63a62e94a0085b5";
+        version = "v4.2.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-types.git";
-          rev = "461c1972a122d2ca54320bd3c63a62e94a0085b5";
-          sha256 = "0x0a36zw31kxa0mcq7i1xs7s1gc9d0wvmaxdzgqvg2xpcs9iv8bw";
+          rev = "f3ee428680c1dd58834e3c68c4a15de6d6620bfb";
+          sha256 = "12cnwv29jlgwxgh3h9v3pl8xqmfmvvzd09z05aw2jn3ynymnlpr3";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
