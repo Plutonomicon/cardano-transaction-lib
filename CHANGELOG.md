@@ -105,7 +105,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Ignore **any** tx evaluation errors if tx marked invalid. Previously, certain internal evaluation errors were not properly handled, leading to unexpected behavior for a subset of explicitly marked "invalid" transactions. ([#1668](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1668))
 - `Provider` (previously called `QueryHandle`) is extracted to its own package [purescript-cardano-provider](https://github.com/mlabs-haskell/purescript-cardano-provider) using module names in the format `Cardano.Provider.*` ([#1671](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1671))
 - Switched from WebSocket to HTTP when interfacing with Ogmios. Note: Mempool functionality still uses WebSocket, as it requires a persistent connection to track state. ([#1575](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1575))
-- Blockfrost provider has been extracted to a separate package using module names in the format `Cardano.Blockfrost.*` ([#1661](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1661))
+- Blockfrost Provider has been extracted to a separate package [purescript-cardano-blockfrost-provider](https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider) using module names in the format `Cardano.Blockfrost.*` ([#1661](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1661))
 
 ### Fixed
 
