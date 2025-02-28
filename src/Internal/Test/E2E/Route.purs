@@ -10,7 +10,7 @@ module Ctl.Internal.Test.E2E.Route
 
 import Prelude
 
-import Cardano.Kupmios.QueryM (ClusterSetup)
+import Cardano.Kupmios.KupmiosM (ClusterSetup)
 import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey

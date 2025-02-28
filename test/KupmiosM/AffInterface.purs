@@ -1,11 +1,11 @@
-module Test.Ctl.QueryM.AffInterface (suite) where
+module Test.Ctl.KupmiosM.AffInterface (suite) where
 
 import Prelude
 
+import Cardano.Kupmios.KupmiosM (KupmiosM)
 import Cardano.Kupmios.Ogmios (getChainTip, submitTxOgmios)
 import Cardano.Kupmios.Ogmios.CurrentEpoch (getCurrentEpoch)
 import Cardano.Kupmios.Ogmios.EraSummaries (getEraSummaries)
-import Cardano.Kupmios.QueryM (QueryM)
 import Cardano.Serialization.Lib (fromBytes)
 import Contract.Transaction (TransactionHash(TransactionHash))
 import Control.Monad.Except (throwError)
@@ -27,11 +27,11 @@ import Test.Spec.Assertions (shouldSatisfy)
 -- not that the data represents expected values, as that would depend on chain
 -- state, and ogmios itself.
 --
--- note: the only way to run QueryM is via Contract, which implicitly requires
+-- note: the only way to run KupmiosM is via Contract, which implicitly requires
 -- some Ogmios endpoints to be called, and are therefore not included here.
-suite :: TestPlanM (QueryM Unit) Unit
+suite :: TestPlanM (KupmiosM Unit) Unit
 suite = do
-  group "QueryM" do
+  group "KupmiosM" do
     group "Aff Interface" do
       test "Get ChainTip" testGetChainTip
       test "Get CurrentEpoch" testGetCurrentEpoch
@@ -47,15 +47,15 @@ suite = do
               -- Error: (TypeMismatch "Expected error code in a range [3000, 3999]")
               `shouldSatisfy` isJust
 
-testGetChainTip :: QueryM Unit
+testGetChainTip :: KupmiosM Unit
 testGetChainTip = do
   void getChainTip
 
-testGetEraSummaries :: QueryM Unit
+testGetEraSummaries :: KupmiosM Unit
 testGetEraSummaries = do
   void getEraSummaries
 
-testSubmitTxFailure :: QueryM Unit
+testSubmitTxFailure :: KupmiosM Unit
 testSubmitTxFailure = do
   let
     someBytes = hexToByteArrayUnsafe
@@ -63,6 +63,6 @@ testSubmitTxFailure = do
     txHash = TransactionHash $ unsafePartial $ fromJust $ fromBytes someBytes
   void $ submitTxOgmios txHash (wrap someBytes)
 
-testGetCurrentEpoch :: QueryM Unit
+testGetCurrentEpoch :: KupmiosM Unit
 testGetCurrentEpoch = do
   void getCurrentEpoch

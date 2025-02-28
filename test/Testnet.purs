@@ -11,7 +11,7 @@ import Contract.Test.Testnet
   , testTestnetContracts
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
-import Ctl.Internal.Contract.Monad (wrapQueryM)
+import Ctl.Internal.Contract.Monad (wrapKupmiosM)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
 import Effect (Effect)
@@ -25,7 +25,7 @@ import Mote (group)
 import Mote.Monad (mapTest)
 import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
-import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
+import Test.Ctl.KupmiosM.AffInterface as KupmiosM.AffInterface
 import Test.Ctl.Testnet.Contract as Contract
 import Test.Ctl.Testnet.Contract.Assert as Assert
 import Test.Ctl.Testnet.Contract.Mnemonics as Mnemonics
@@ -55,8 +55,8 @@ main = interruptOnSignal SIGINT =<< launchAff do
           Logging.suite
           -- FIXME: testStartPlutipCluster
           testTestnetContracts config $ do
-            flip mapTest QueryM.AffInterface.suite
-              (noWallet <<< wrapQueryM)
+            flip mapTest KupmiosM.AffInterface.suite
+              (noWallet <<< wrapKupmiosM)
             ChangeGeneration.suite
             Contract.suite
             Gov.suite

@@ -600,7 +600,7 @@ maxSlot = wrap BigNum.maxValue
 -- Conversion functions
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
--- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
+-- Slot (absolute from System Start - see KupmiosM.SystemStart.getSystemStart)
 -- to POSIXTime (milliseconds)
 --------------------------------------------------------------------------------
 data SlotToPosixTimeError
@@ -746,7 +746,7 @@ instance Show RelSlot where
   show (RelSlot rs) = showWithParens "RelSlot" rs
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
--- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
+-- | `Ogmios.KupmiosM.RelativeTime` which is usually relative to system start.
 -- | Treat as Milliseconds
 newtype RelTime = RelTime BigInt
 
@@ -837,7 +837,7 @@ slotLengthFactor = 1000.0
 
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
--- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
+-- Slot (absolute from System Start - see KupmiosM.SystemStart.getSystemStart)
 --------------------------------------------------------------------------------
 data PosixTimeToSlotError
   = CannotFindTimeInEraSummaries AbsTime

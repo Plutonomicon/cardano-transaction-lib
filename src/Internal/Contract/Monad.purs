@@ -9,8 +9,8 @@ module Ctl.Internal.Contract.Monad
   , mkContractEnv
   , runContract
   , runContractInEnv
-  , runQueryM
-  , wrapQueryM
+  , runKupmiosM
+  , wrapKupmiosM
   , stopContractEnv
   , withContractEnv
   , buildBackend
@@ -27,12 +27,12 @@ import Cardano.Blockfrost.Service
   , runBlockfrostServiceM
   )
 import Cardano.Blockfrost.Service as Blockfrost
+import Cardano.Kupmios.KupmiosM (KupmiosEnv, KupmiosM)
 import Cardano.Kupmios.Ogmios (getProtocolParameters, getSystemStartTime)
 import Cardano.Kupmios.Ogmios.Types
   ( OgmiosDecodeError
   , pprintOgmiosDecodeError
   )
-import Cardano.Kupmios.QueryM (QueryEnv, QueryM)
 import Cardano.Provider.Error (ClientError)
 import Cardano.Provider.Type (Provider)
 import Cardano.Types (NetworkId(TestnetId, MainnetId), TransactionHash, UtxoMap)
@@ -202,12 +202,12 @@ mkProvider
 mkProvider params providerBackend =
   case providerBackend of
     CtlBackend ctlBackend _ ->
-      providerForCtlBackend runQueryM params ctlBackend
+      providerForCtlBackend runKupmiosM params ctlBackend
     BlockfrostBackend blockfrostBackend Nothing -> do
       providerForBlockfrostBackend params blockfrostBackend
     BlockfrostBackend blockfrostBackend (Just ctlBackend) -> do
       providerForSelfHostedBlockfrostBackend params blockfrostBackend
-        runQueryM
+        runKupmiosM
         ctlBackend
 
 -- | Initializes a `Contract` environment. Does not ensure finalization.
@@ -287,11 +287,11 @@ getLedgerConstants params = case _ of
         , suppressLogs: true
         }
     pparams <- unwrap <$>
-      ( runQueryM logParams ctlBackend getProtocolParameters >>=
+      ( runKupmiosM logParams ctlBackend getProtocolParameters >>=
           throwOnLeft
       )
     systemStart <- unwrap <$>
-      ( runQueryM logParams ctlBackend getSystemStartTime >>=
+      ( runKupmiosM logParams ctlBackend getSystemStartTime >>=
           throwOnLeft
       )
     pure { pparams, systemStart }
@@ -433,30 +433,30 @@ type ContractParams =
   }
 
 --------------------------------------------------------------------------------
--- QueryM
+-- KupmiosM
 --------------------------------------------------------------------------------
 
-wrapQueryM :: forall (a :: Type). QueryM a -> Contract a
-wrapQueryM qm = do
+wrapKupmiosM :: forall (a :: Type). KupmiosM a -> Contract a
+wrapKupmiosM qm = do
   backend <- asks _.backend
   ctlBackend <-
     getCtlBackend backend
       # liftM (error "Operation only supported on CTL backend")
   contractEnv <- ask
-  liftAff $ runQueryM contractEnv ctlBackend qm
+  liftAff $ runKupmiosM contractEnv ctlBackend qm
 
-runQueryM
+runKupmiosM
   :: forall (a :: Type) (rest :: Row Type)
    . LogParams rest
   -> CtlBackend
-  -> QueryM a
+  -> KupmiosM a
   -> Aff a
-runQueryM params ctlBackend =
-  flip runReaderT (mkQueryEnv params ctlBackend) <<< unwrap
+runKupmiosM params ctlBackend =
+  flip runReaderT (mkKupmiosEnv params ctlBackend) <<< unwrap
 
-mkQueryEnv
-  :: forall (rest :: Row Type). LogParams rest -> CtlBackend -> QueryEnv
-mkQueryEnv params ctlBackend =
+mkKupmiosEnv
+  :: forall (rest :: Row Type). LogParams rest -> CtlBackend -> KupmiosEnv
+mkKupmiosEnv params ctlBackend =
   { config:
       { ogmiosConfig: ctlBackend.ogmiosConfig
       , kupoConfig: ctlBackend.kupoConfig

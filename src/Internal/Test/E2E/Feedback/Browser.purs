@@ -11,7 +11,7 @@ module Ctl.Internal.Test.E2E.Feedback.Browser
 import Prelude
 
 import Aeson (decodeAeson, encodeAeson, jsonToAeson, stringifyAeson)
-import Cardano.Kupmios.QueryM (ClusterSetup)
+import Cardano.Kupmios.KupmiosM (ClusterSetup)
 import Ctl.Internal.FfiHelpers (MaybeFfiHelper, maybeFfiHelper)
 import Ctl.Internal.Helpers (liftedM)
 import Ctl.Internal.Test.E2E.Feedback (BrowserEvent)

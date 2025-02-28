@@ -73,7 +73,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract, getProvider, wrapQueryM)
+import Ctl.Internal.Contract.Monad (Contract, getProvider, wrapKupmiosM)
 import Ctl.Internal.Helpers (liftEither, liftM, unsafeFromJust)
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
@@ -248,7 +248,7 @@ processLookupsAndConstraints constraints = runExceptT do
 -- compute the missing value on both sides, and add an input with the
 -- join of the positive parts of the missing values.
 
--- Helper to run the stack and get back to `QueryM`. See comments in
+-- Helper to run the stack and get back to `KupmiosM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
 runConstraintsM
   :: ScriptLookups
@@ -772,8 +772,9 @@ processConstraint
       pure <$> attachToCps (map pure <<< attachNativeScript) stakeValidator
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards
-        spkh
+      mbRewards <- lift $ lift $ wrapKupmiosM $
+        getPubKeyHashDelegationsAndRewards
+          spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
       let
@@ -786,7 +787,7 @@ processConstraint
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = PlutusScript.hash stakeValidator
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM
+      mbRewards <- lift $ lift $ wrapKupmiosM
         $ getValidatorHashDelegationsAndRewards
         $ wrap hash
       let
@@ -805,7 +806,7 @@ processConstraint
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = NativeScript.hash stakeValidator
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM
+      mbRewards <- lift $ lift $ wrapKupmiosM
         $ getValidatorHashDelegationsAndRewards
         $ wrap hash
       let
