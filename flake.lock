@@ -2806,15 +2806,16 @@
     },
     "customConfig_5": {
       "locked": {
-        "lastModified": 1,
-        "narHash": "sha256-Zd5w1I1Dwt783Q4WuBuCpedcwG1DrIgQGqabyF87prM=",
         "path": "./custom-config",
         "type": "path"
       },
       "original": {
         "path": "./custom-config",
         "type": "path"
-      }
+      },
+      "parent": [
+        "db-sync"
+      ]
     },
     "data-merge": {
       "inputs": {
