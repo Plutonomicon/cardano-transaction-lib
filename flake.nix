@@ -132,6 +132,10 @@
               );
           };
           ogmiosFixtures = buildOgmiosFixtures pkgs;
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${ogmiosFixtures}"
+            '';
           project = pkgs.purescriptProject {
             inherit src pkgs projectName;
             packageJson = ./package.json;
@@ -152,14 +156,23 @@
                 ];
             };
           };
-          exportOgmiosFixtures =
-            ''
-              export OGMIOS_FIXTURES="${ogmiosFixtures}"
-            '';
+          ctlScaffoldProject = pkgs.purescriptProject rec {
+            inherit pkgs;
+            projectName = "ctl-scaffold";
+            packageJson = ./templates/ctl-scaffold/package.json;
+            packageLock = ./templates/ctl-scaffold/package-lock.json;
+            src = builtins.path {
+              path = ./templates/ctl-scaffold;
+              name = "${projectName}-src";
+              filter = path: ftype: !(pkgs.lib.hasSuffix ".md" path);
+            };
+          };
         in
         rec {
           packages = {
             ctl-purs-project = project.buildPursProject { };
+
+            ctl-scaffold-purs-project = ctlScaffoldProject.buildPursProject { };
 
             ctl-example-bundle-web-esbuild = project.bundlePursProjectEsbuild {
               main = "Ctl.Examples.ByUrl";
