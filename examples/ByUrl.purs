@@ -4,7 +4,7 @@ import Prelude
 
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Gero, Flint, Eternl, Lode, Lace, NuFi)
+  , KnownWallet(Gero, Eternl, Lode, Lace, NuFi)
   , WalletSpec(ConnectToGenericCip30)
   , blockfrostPublicPreprodServerConfig
   , blockfrostPublicPreviewServerConfig
@@ -76,10 +76,6 @@ main = do
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
                   { walletSpec = connectTo Lode }
                 /\ Nothing
-            , "blockfrost-flint-preview"
-                /\ (mkBlockfrostPreviewConfig mbApiKey)
-                  { walletSpec = connectTo Flint }
-                /\ Nothing
             , "blockfrost-nufi-preview"
                 /\ (mkBlockfrostPreviewConfig mbApiKey)
                   { walletSpec = connectTo NuFi }
@@ -99,10 +95,6 @@ main = do
             , "blockfrost-lode-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
                   { walletSpec = connectTo Lode }
-                /\ Nothing
-            , "blockfrost-flint-preprod"
-                /\ (mkBlockfrostPreprodConfig mbApiKey)
-                  { walletSpec = connectTo Flint }
                 /\ Nothing
             , "blockfrost-nufi-preprod"
                 /\ (mkBlockfrostPreprodConfig mbApiKey)
@@ -130,17 +122,14 @@ getBlockfrostApiKey = do
 wallets :: Map E2EConfigName (ContractParams /\ Maybe String)
 wallets = map (map walletName) <$> Map.fromFoldable
   [ "gero" /\ testnetConfig' Gero /\ Nothing
-  , "flint" /\ testnetConfig' Flint /\ Nothing
   , "eternl" /\ testnetConfig' Eternl /\ Nothing
   , "lode" /\ testnetConfig' Lode /\ Nothing
   , "nufi" /\ testnetConfig' NuFi /\ Nothing
   , "lace" /\ testnetConfig' Lace /\ Nothing
   , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
-  , "flint-mock" /\ testnetConfig' Flint /\ Just Flint
   , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
   , "localnet-eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
   , "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
-  , "localnet-flint-mock" /\ testnetConfig' Flint /\ Just Flint
   , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   , "localnet-nufi-mock" /\ testnetConfig' NuFi /\ Just NuFi
   ]

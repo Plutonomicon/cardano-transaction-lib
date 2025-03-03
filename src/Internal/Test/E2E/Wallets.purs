@@ -4,8 +4,6 @@ module Ctl.Internal.Test.E2E.Wallets
   , eternlSign
   , geroConfirmAccess
   , geroSign
-  , flintConfirmAccess
-  , flintSign
   , lodeConfirmAccess
   , lodeSign
   , laceConfirmAccess
@@ -224,7 +222,7 @@ laceConfirmAccess extId re = do
   pattern :: Pattern
   pattern = wrap $ unExtensionId extId <> "/dappConnector.html"
 
--- Not implemented yet
+-- TODO: Not implemented yet
 laceSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
 laceSign extId password re = do
   void $ liftEffect $ throw "Lace support is not implemented"
@@ -243,16 +241,6 @@ laceSign extId password re = do
   -- TODO: continue from here
   where
   pattern = Pattern $ unExtensionId extId <> "/dappConnector.html#/dapp/sign-tx"
-
--- Not implemented yet
-flintConfirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
-flintConfirmAccess _ _ =
-  liftEffect $ throw "Flint support is not implemented"
-
--- Not implemented yet
-flintSign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
-flintSign _ _ _ = do
-  liftEffect $ throw "Flint support is not implemented"
 
 getJQuery :: RunningE2ETest -> Aff String
 getJQuery re =

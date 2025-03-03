@@ -55,7 +55,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsRuntime
   , TmpDir
-  , WalletExt(FlintExt, GeroExt, LodeExt, EternlExt, LaceExt)
+  , WalletExt(GeroExt, LodeExt, EternlExt, LaceExt)
   , getE2EWalletExtension
   , mkE2ETest
   , mkExtensionId
@@ -64,8 +64,6 @@ import Ctl.Internal.Test.E2E.Types
 import Ctl.Internal.Test.E2E.Wallets
   ( eternlConfirmAccess
   , eternlSign
-  , flintConfirmAccess
-  , flintSign
   , geroConfirmAccess
   , geroSign
   , laceConfirmAccess
@@ -286,14 +284,12 @@ testPlan opts@{ tests } rt@{ wallets } =
                 confirmAccess =
                   case wallet of
                     EternlExt -> eternlConfirmAccess
-                    FlintExt -> flintConfirmAccess
                     GeroExt -> geroConfirmAccess
                     LodeExt -> lodeConfirmAccess
                     LaceExt -> laceConfirmAccess
                 sign =
                   case wallet of
                     EternlExt -> eternlSign
-                    FlintExt -> flintSign
                     GeroExt -> geroSign
                     LodeExt -> lodeSign
                     LaceExt -> laceSign
@@ -392,15 +388,13 @@ readExtensions
   :: Map.Map WalletExt ExtensionOptions
   -> Aff (Map.Map WalletExt ExtensionParams)
 readExtensions wallets = do
-  flint <- readExtensionParams "FLINT" wallets
   gero <- readExtensionParams "GERO" wallets
   lode <- readExtensionParams "LODE" wallets
   eternl <- readExtensionParams "ETERNL" wallets
   lace <- readExtensionParams "LACE" wallets
 
   pure $ Map.fromFoldable $ catMaybes
-    [ Tuple FlintExt <$> flint
-    , Tuple GeroExt <$> gero
+    [ Tuple GeroExt <$> gero
     , Tuple LodeExt <$> lode
     , Tuple EternlExt <$> eternl
     , Tuple LaceExt <$> lace
@@ -525,7 +519,7 @@ readTests optUrls = do
   mkError testSpec =
     error $ "Failed to parse test data from: " <> testSpec <>
       "\nTest spec must be of form \"wallet:url\", where allowed wallets are: \
-      \eternl, flint, gero, lode."
+      \eternl, gero, lode."
 
 -- | Run an example in a new browser page.
 -- |
@@ -938,7 +932,6 @@ defaultErrorReader =
 walletName :: WalletExt -> String
 walletName = case _ of
   EternlExt -> "eternl"
-  FlintExt -> "flint"
   GeroExt -> "gero"
   LodeExt -> "lode"
   LaceExt -> "lace"

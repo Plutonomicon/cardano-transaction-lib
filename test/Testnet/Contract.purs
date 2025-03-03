@@ -51,7 +51,7 @@ import Contract.BalanceTxConstraints
   )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Config
-  ( KnownWallet(Eternl, Gero, Flint, Lode, NuFi)
+  ( KnownWallet(Eternl, Gero, Lode, NuFi)
   , walletName
   )
 import Contract.Hashing (datumHash, nativeScriptHash)
@@ -1862,13 +1862,6 @@ suite = do
         withCip30Mock alice gerowallet do
           (liftEffect $ isWalletAvailable gerowallet) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable gerowallet) >>= hush >>>
-          shouldEqual
-            (Just false)
-
-        let flint = walletName Flint
-        withCip30Mock alice flint do
-          (liftEffect $ isWalletAvailable flint) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable flint) >>= hush >>>
           shouldEqual
             (Just false)
 

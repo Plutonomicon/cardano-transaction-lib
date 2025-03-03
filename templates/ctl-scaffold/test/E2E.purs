@@ -5,7 +5,7 @@ import Contract.Prelude
 
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Gero, Flint, Eternl, Lode)
+  , KnownWallet(Gero, Eternl, Lode)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -24,16 +24,13 @@ main = do
 configs :: Map E2EConfigName (ContractParams /\ Maybe String)
 configs = map (map walletName) <$> Map.fromFoldable
   [ "gero" /\ testnetConfig' Gero /\ Nothing
-  , "flint" /\ testnetConfig' Flint /\ Nothing
   , "eternl" /\ testnetConfig' Eternl /\ Nothing
   , "lode" /\ testnetConfig' Lode /\ Nothing
   , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
-  , "flint-mock" /\ testnetConfig' Flint /\ Just Flint
   , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
   , "eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
   , "localnet-eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
   , "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
-  , "localnet-flint-mock" /\ testnetConfig' Flint /\ Just Flint
   , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
   where

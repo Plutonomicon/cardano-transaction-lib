@@ -36,7 +36,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsArchiveUrl
   , TmpDir
-  , WalletExt(LodeExt, FlintExt, GeroExt, EternlExt)
+  , WalletExt(LodeExt, GeroExt, EternlExt)
   , WalletPassword
   , mkE2ETest
   , mkExtensionId
@@ -220,14 +220,11 @@ browserOptionsParser = ado
 
   eternl <- parseWallet "Eternl"
   gero <- parseWallet "Gero"
-  flint <- parseWallet "Flint"
   lode <- parseWallet "Lode"
 
   let
     wallets = Map.fromFoldable $ catMaybes
       [ mkConfig GeroExt gero.extensionId gero.password gero.crxFile gero.crxUrl
-      , mkConfig FlintExt flint.extensionId flint.password flint.crxFile
-          flint.crxUrl
       , mkConfig LodeExt lode.extensionId lode.password lode.crxFile lode.crxUrl
       , mkConfig EternlExt eternl.extensionId eternl.password eternl.crxFile
           eternl.crxUrl

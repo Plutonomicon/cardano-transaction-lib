@@ -60,7 +60,7 @@ import Ctl.Internal.ServerConfig
   )
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
-  , KnownWallet(Gero, Flint, Eternl, Lode, Lace, NuFi)
+  , KnownWallet(Gero, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)

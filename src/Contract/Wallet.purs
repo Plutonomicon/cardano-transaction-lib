@@ -68,7 +68,7 @@ import Ctl.Internal.Wallet.Spec
   , mkKeyWalletFromMnemonic
   )
 import Ctl.Internal.Wallet.Spec
-  ( KnownWallet(Gero, Flint, Eternl, Lode, Lace, NuFi)
+  ( KnownWallet(Gero, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)

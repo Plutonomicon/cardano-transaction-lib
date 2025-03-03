@@ -125,10 +125,6 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | Lode CRX URL                                                           | `--lode-crx-url`            | `LODE_CRX_URL`             |
 | Lode password                                                          | `--lode-password`           | `LODE_PASSWORD`            |
 | Lode Extension ID                                                      | `--lode-extid`              | `LODE_EXTID`               |
-| Flint CRX URL                                                          | `--flint-crx-url`           | `FLINT_CRX_URL`            |
-| Flint CRX file                                                         | `--flint-crx`               | `FLINT_CRX`                |
-| Flint password                                                         | `--flint-password`          | `FLINT_PASSWORD`           |
-| Flint Extension ID                                                     | `--flint-extid`             | `FLINT_EXTID`              |
 | Gero CRX URL                                                           | `--gero-crx-url`            | `GERO_CRX_URL`             |
 | Gero CRX file                                                          | `--gero-crx`                | `GERO_CRX`                 |
 | Gero password                                                          | `--gero-password`           | `GERO_PASSWORD`            |
@@ -225,16 +221,21 @@ main = do
   -- Serves the appropriate `Contract` with e2eTestHooks
   route configs tests
 
-configs :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
-configs = Map.fromFoldable
-  [ "gero" /\ testnetGeroConfig /\ Nothing
-  , "flint" /\ testnetFlintConfig /\ Nothing
-  , "eternl" /\ testnetEternlConfig /\ Nothing
-  , "lode" /\ testnetLodeConfig /\ Nothing
-  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
-  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
-  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
+configs :: Map E2EConfigName (ContractParams /\ Maybe String)
+configs = map (map walletName) <$> Map.fromFoldable
+  [ "gero" /\ testnetConfig' Gero /\ Nothing
+  , "eternl" /\ testnetConfig' Eternl /\ Nothing
+  , "lode" /\ testnetConfig' Lode /\ Nothing
+  , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
+  where
+  testnetConfig' :: KnownWallet -> ContractParams
+  testnetConfig' wallet =
+    testnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
+      }
 
 tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable
@@ -247,7 +248,7 @@ Now, the `Scaffold.contract` can be used as a test:
 
 ```bash
 E2E_TESTS="
-nami:http://localhost:4008/?nami:Contract
+eternl:http://localhost:4008/?eternl:Contract
 "
 ```
 
@@ -280,10 +281,10 @@ As a result, you will get json files that look like this:
 Simply copy the `cborHex` from payment and stake signing keys (the order is important), and add them to the URL, separating by `:`:
 
 ```
-http://localhost:4008/?nami-mock:Contract:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
+http://localhost:4008/?eternl-mock:Contract:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
 ```
 
-The `nami:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
+The `eternl:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
 
 In order to use the keys, their corresponding address must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral), so it's best to make two transactions.
 
@@ -301,17 +302,23 @@ E.g.:
 ```purescript
 wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
 wallets = Map.fromFoldable
-  [ "testnet-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
-  , "testnet-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
-  , "testnet-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
+  [ "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
+  where
+  testnetConfig' :: KnownWallet -> ContractParams
+  testnetConfig' wallet =
+    testnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
+      }
 ```
 
 Then a test entry *without* specifying any private key can be used:
 
 ```bash
 export E2E_TESTS="
-plutip:http://localhost:4008/?plutip-nami-mock:SomeContract
+localnet:http://localhost:4008/?localnet-eternl-mock:SomeContract
 "
 ```
 
