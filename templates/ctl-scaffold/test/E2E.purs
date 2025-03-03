@@ -27,12 +27,12 @@ main = do
 mkConfigs :: Either String (Map E2EConfigName (ContractParams /\ Maybe String))
 mkConfigs =
   e2eConfigs
-    [ "gero"
-    , "eternl"
+    [ "eternl"
+    , "gero"
     , "lode"
+    , "eternl-mock"
     , "gero-mock"
     , "lode-mock"
-    , "eternl-mock"
     , "localnet-eternl-mock"
     , "localnet-gero-mock"
     , "localnet-lode-mock"

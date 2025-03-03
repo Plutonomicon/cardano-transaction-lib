@@ -216,6 +216,45 @@ See [this file](../templates/ctl-scaffold/test/E2E.purs) for a quick example:
 ```purescript
 main :: Effect Unit
 main = do
+  configs <- liftEither $ lmap error mkConfigs
+  -- Adds links to all available tests to the DOM for convenience
+  addLinks configs tests
+  -- Serves the appropriate `Contract` with e2eTestHooks
+  route configs tests
+
+mkConfigs :: Either String (Map E2EConfigName (ContractParams /\ Maybe String))
+mkConfigs =
+  e2eConfigs
+    [ "eternl"
+    , "gero"
+    , "lode"
+    , "eternl-mock"
+    , "gero-mock"
+    , "lode-mock"
+    , "localnet-eternl-mock"
+    , "localnet-gero-mock"
+    , "localnet-lode-mock"
+    ]
+
+tests :: Map E2ETestName (Contract Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
+  ]
+
+tests :: Map E2ETestName (Contract Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
+  ]
+```
+
+It is also possible to specify E2E configurations directly without using
+the `e2eConfigs` helper function:
+
+```purescript
+main :: Effect Unit
+main = do
   -- Adds links to all available tests to the DOM for convenience
   addLinks configs tests
   -- Serves the appropriate `Contract` with e2eTestHooks
@@ -223,11 +262,15 @@ main = do
 
 configs :: Map E2EConfigName (ContractParams /\ Maybe String)
 configs = map (map walletName) <$> Map.fromFoldable
-  [ "gero" /\ testnetConfig' Gero /\ Nothing
-  , "eternl" /\ testnetConfig' Eternl /\ Nothing
+  [ "eternl" /\ testnetConfig' Eternl /\ Nothing
+  , "gero" /\ testnetConfig' Gero /\ Nothing
   , "lode" /\ testnetConfig' Lode /\ Nothing
+  , "eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
   , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
   , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
+  , "localnet-eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
+  , "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
   where
   testnetConfig' :: KnownWallet -> ContractParams
@@ -236,6 +279,12 @@ configs = map (map walletName) <$> Map.fromFoldable
       { walletSpec =
           Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
       }
+
+tests :: Map E2ETestName (Contract Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
+  ]
 
 tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable
@@ -292,17 +341,28 @@ In order to use the keys, their corresponding address must be pre-funded using t
 
 It's possible to run headless browser tests on top of a Cardano Testnet cluster.
 
-To do that, it's enough to define a config name that:
-
-- uses a `ContractParams` value with `networkId` set to `MainnetId`.
-- Specifies a wallet mock (e.g. `MockGero`)
+To do that, it's enough to define a config that specifies a wallet mock.
+For `e2eConfigs`, the name config must include the `-mock` suffix.
 
 E.g.:
 
 ```purescript
-wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
-wallets = Map.fromFoldable
-  [ "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+mkConfigs :: Either String (Map E2EConfigName (ContractParams /\ Maybe String))
+mkConfigs =
+  e2eConfigs
+    [ "localnet-eternl-mock"
+    , "localnet-gero-mock"
+    , "localnet-lode-mock"
+    ]
+```
+
+or, if finer control over the configurations is needed:
+
+```purescript
+configs :: Map E2EConfigName (ContractParams /\ Maybe String)
+configs = map (map walletName) <$> Map.fromFoldable
+  [ "localnet-eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
+  , "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
   , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
   where
@@ -318,7 +378,7 @@ Then a test entry *without* specifying any private key can be used:
 
 ```bash
 export E2E_TESTS="
-localnet:http://localhost:4008/?localnet-eternl-mock:SomeContract
+localnet:http://localhost:4008/?localnet-gero-mock:SomeContract
 "
 ```
 

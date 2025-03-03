@@ -18,7 +18,7 @@ import Contract.Config (ContractParams, testnetConfig)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (withCip30Mock)
 import Contract.Wallet
-  ( KnownWallet(Gero, Eternl, Lode, Lace)
+  ( KnownWallet(Gero, Eternl, Lode)
   , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   , walletName
@@ -60,6 +60,8 @@ type E2ETestName = String
 -- | CIP-30 mock). Used in the URL for routing
 type E2EConfigName = String
 
+-- | A helper function that derives wallets and Contract parameters
+-- | from the provided E2E configuration names.
 e2eConfigs
   :: Array E2EConfigName
   -> Either String (Map E2EConfigName (ContractParams /\ Maybe String))
@@ -91,7 +93,6 @@ e2eConfigs =
       "gero" -> Right $ walletName Gero
       "eternl" -> Right $ walletName Eternl
       "lode" -> Right $ walletName Lode
-      "lace" -> Right $ walletName Lace
       wallet -> Left $ "e2eConfigs: unsupported wallet: " <> wallet
 
   mkContractParams :: String -> ContractParams
