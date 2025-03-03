@@ -252,7 +252,7 @@ eternl:http://localhost:4008/?eternl:Contract
 "
 ```
 
-The `nami:` prefix specifies which browser extension to load for the test, and the query parameter is for the router to be able to find the appropriate config.
+The `eternl:` prefix specifies which browser extension to load for the test, and the query parameter is for the router to be able to find the appropriate config.
 
 Refer to the docs for `Contract.Test.E2E.route` function for an overview of the URL structure.
 
