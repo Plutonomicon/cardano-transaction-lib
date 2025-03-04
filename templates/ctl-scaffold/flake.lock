@@ -2805,17 +2805,17 @@
         "ogmios": "ogmios_2"
       },
       "locked": {
-        "lastModified": 1731948579,
-        "narHash": "sha256-JP+P2IQg6tIIGb9T2+ZUzz4VjT9L067JNaUzfym3exQ=",
+        "lastModified": 1741092067,
+        "narHash": "sha256-fKEcClYyTHpC0ovB8ObiA/M50j2OPkx5S98qo1kD43Y=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "f70a82f551d1aa4065312695784536d9fecbc947",
+        "rev": "a085fe8f25cbca16b4a70ff2cf575459aaa05259",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "f70a82f551d1aa4065312695784536d9fecbc947",
+        "rev": "a085fe8f25cbca16b4a70ff2cf575459aaa05259",
         "type": "github"
       }
     },
@@ -2881,15 +2881,17 @@
     },
     "customConfig_5": {
       "locked": {
-        "lastModified": 1,
-        "narHash": "sha256-Zd5w1I1Dwt783Q4WuBuCpedcwG1DrIgQGqabyF87prM=",
         "path": "./custom-config",
         "type": "path"
       },
       "original": {
         "path": "./custom-config",
         "type": "path"
-      }
+      },
+      "parent": [
+        "ctl",
+        "db-sync"
+      ]
     },
     "data-merge": {
       "inputs": {
