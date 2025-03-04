@@ -13,6 +13,9 @@ import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 
 foreign import defaultCostmdls :: Effect Costmdls
+foreign import plutusAlonzoCostmdls :: Effect Costmdls
+foreign import plutusVasilCostmdls :: Effect Costmdls
+foreign import plutusConwayCostmdls :: Effect Costmdls
 
 costModelsFixture1 :: Map Language CostModel
 costModelsFixture1 = unsafePerformEffect do
