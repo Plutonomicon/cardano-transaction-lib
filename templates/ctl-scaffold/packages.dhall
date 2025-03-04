@@ -191,7 +191,7 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-bytearrays"
         , version = "v1.0.0"
         }
-      , cardano-serialization-lib =
+      , cardano-data-lite =
         { dependencies =
           [ "aeson"
           , "aff"
@@ -212,9 +212,8 @@ let additions =
           , "tuples"
           , "unsafe-coerce"
           ]
-        , repo =
-            "https://github.com/mlabs-haskell/purescript-cardano-serialization-lib"
-        , version = "v3.0.0"
+        , repo = "https://github.com/mlabs-haskell/purescript-cardano-data-lite"
+        , version = "350d36bed5338298cb5317ebe2dad9532811ea0d"
         }
       , cardano-plutus-data-schema =
         { dependencies = [ "prelude" ]
@@ -250,7 +249,7 @@ let additions =
           , "tuples"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-plutus-types"
-        , version = "v1.0.1"
+        , version = "b96f3ddb3acee2dae6c16f3552dd50fd6c97acdc"
         }
       , cip30-mock =
         { dependencies =
@@ -303,7 +302,7 @@ let additions =
         { dependencies =
           [ "aff"
           , "bytearrays"
-          , "cardano-serialization-lib"
+          , "cardano-data-lite"
           , "cardano-types"
           , "effect"
           , "either"
@@ -322,7 +321,7 @@ let additions =
           , "tuples"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-uplc-apply-args"
-        , version = "v1.0.0"
+        , version = "6a1200d7402c9283bafdd2df1828b9b6fd6ecfc0"
         }
       , cardano-types =
         { dependencies =
@@ -333,7 +332,7 @@ let additions =
           , "bifunctors"
           , "bytearrays"
           , "cardano-plutus-data-schema"
-          , "cardano-serialization-lib"
+          , "cardano-data-lite"
           , "control"
           , "datetime"
           , "effect"
@@ -372,7 +371,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types"
-        , version = "v4.0.0"
+        , version = "e7cf8f67130af397775c43789f09f1f9aa093dbd"
         }
       , cardano-message-signing =
         { dependencies =
@@ -389,7 +388,7 @@ let additions =
         }
       , cardano-hd-wallet =
         { dependencies =
-          [ "cardano-serialization-lib"
+          [ "cardano-data-lite"
           , "cardano-types"
           , "console"
           , "effect"
@@ -398,7 +397,7 @@ let additions =
           , "uint"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-hd-wallet"
-        , version = "cc1073ddf8bce72407ef6671e3decb59f422e304"
+        , version = "1e3aacfb1ea083aed9f1af06a85e367326e03528"
         }
       , cardano-transaction-builder =
         { dependencies =
@@ -409,7 +408,7 @@ let additions =
           , "bifunctors"
           , "bytearrays"
           , "cardano-plutus-data-schema"
-          , "cardano-serialization-lib"
+          , "cardano-data-lite"
           , "cardano-types"
           , "console"
           , "control"
@@ -493,7 +492,7 @@ let additions =
           , "cardano-key-wallet"
           , "cardano-message-signing"
           , "cardano-plutus-data-schema"
-          , "cardano-serialization-lib"
+          , "cardano-data-lite"
           , "cardano-transaction-builder"
           , "cardano-types"
           , "checked-exceptions"
@@ -584,7 +583,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "f70a82f551d1aa4065312695784536d9fecbc947"
+        , version = "a085fe8f25cbca16b4a70ff2cf575459aaa05259"
         }
       }
 

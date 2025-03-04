@@ -13,7 +13,7 @@ You can edit this file as you like.
   , "cardano-message-signing"
   , "cip30-mock"
   , "uplc-apply-args"
-  , "cardano-serialization-lib"
+  , "cardano-data-lite"
   , "cardano-transaction-builder"
   , "cardano-transaction-lib"
   , "cardano-types"
