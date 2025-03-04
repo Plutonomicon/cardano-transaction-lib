@@ -90,12 +90,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- `cardano-serialization-lib` has been updated to `v13.2.0` ([#1656](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1656))
+- `cardano-serialization-lib` was replaced by `cardano-data-lite` v1.0
 
 ### Fixed
 
 - Fixed transaction witness set 'attach' functions. Previously, the updated witness set was incorrectly appended to the existing set, causing performance degradation when processing constraints for complex transactions. ([#1653](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1653))
-- Updating to CSL `v13.2.0` should resolve the issue of occasional transaction script integrity hash mismatches on tx submission ([#1656](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1656))
 
 ## [v9.3.1]
 
