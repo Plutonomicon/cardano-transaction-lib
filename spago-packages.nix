@@ -259,11 +259,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "bcaadf9b37c4c9290b77579d212fd37b06730632";
+        version = "cfe55b9f20ff2dcc94ded7841adb0816dd15ec82";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "bcaadf9b37c4c9290b77579d212fd37b06730632";
-          sha256 = "1ala4kg7x4il4qx343chh3apfn9af2bxqyix1kpll3nxzwavdkwp";
+          rev = "cfe55b9f20ff2dcc94ded7841adb0816dd15ec82";
+          sha256 = "0w8kx3yk04yngzsfar347g0l6ndrb7b9wf7yjh16hg5i0pmvq6v6";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -281,13 +281,13 @@ let
         installPhase = "ln -s $src $out";
       };
 
-    "cardano-ogmios-mempool-provider" = pkgs.stdenv.mkDerivation {
-        name = "cardano-ogmios-mempool-provider";
-        version = "788cb701e5aaad1e299a118eb07a4f4fc6d5c734";
+    "cardano-ogmios-mempool" = pkgs.stdenv.mkDerivation {
+        name = "cardano-ogmios-mempool";
+        version = "2cbeec3b6051fbc67fc65cf77a1acd1a2a030e52";
         src = pkgs.fetchgit {
-          url = "https://github.com/mlabs-haskell/purescript-cardano-ogmios-mempool-provider";
-          rev = "788cb701e5aaad1e299a118eb07a4f4fc6d5c734";
-          sha256 = "0n99m84nys6xjw961h805ij8ywpyhay16d5qrdi4k61phdgawlk8";
+          url = "https://github.com/mlabs-haskell/purescript-cardano-ogmios-mempool";
+          rev = "2cbeec3b6051fbc67fc65cf77a1acd1a2a030e52";
+          sha256 = "0y059gfxxnfqixg7agamn14kbg4za2dypiic8pivy3gmqqaqngd7";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

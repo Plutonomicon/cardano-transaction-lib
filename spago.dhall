@@ -22,7 +22,7 @@
   , "cardano-blockfrost-provider"
   , "cardano-kupmios-provider"
   , "cardano-provider"
-  , "cardano-ogmios-mempool-provider"
+  , "cardano-ogmios-mempool"
   , "checked-exceptions"
   , "cip30"
   , "cip30-mock"
