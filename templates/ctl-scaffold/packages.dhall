@@ -1,6 +1,7 @@
 let upstream =
     -- https://github.com/mlabs-haskell/purescript-cardano-package-set
-      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v1.2.0/packages.dhall sha256:1879aeee12ef41d5f39ed8b530efa817c747366553b2fc90981ad4e8c21fc5d8
+      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v1.3.0/packages.dhall
+        sha256:9883ecb236f97ffea17b395a40abeec4e8956488dd0aaf778469dc60a30b300f
 
 let additions =
       { cardano-transaction-lib =
@@ -25,7 +26,9 @@ let additions =
           , "cardano-transaction-builder"
           , "cardano-types"
           , "cardano-blockfrost-provider"
+          , "cardano-kupmios-provider"
           , "cardano-provider"
+          , "cardano-ogmios-mempool"
           , "checked-exceptions"
           , "cip30"
           , "cip30-mock"
@@ -44,7 +47,6 @@ let additions =
           , "foldable-traversable"
           , "foreign"
           , "foreign-object"
-          , "formatters"
           , "functions"
           , "http-methods"
           , "identity"
@@ -104,7 +106,6 @@ let additions =
           , "uint"
           , "unfoldable"
           , "unsafe-coerce"
-          , "untagged-union"
           , "uplc-apply-args"
           , "variant"
           , "web-html"
