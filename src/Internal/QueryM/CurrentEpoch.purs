@@ -5,11 +5,17 @@ module Ctl.Internal.QueryM.CurrentEpoch
 
 import Prelude
 
-import Ctl.Internal.QueryM (QueryM, mkOgmiosRequest)
-import Ctl.Internal.QueryM.Ogmios (CurrentEpoch, queryCurrentEpochCall) as Ogmios
+import Control.Monad.Error.Class (throwError)
+import Ctl.Internal.QueryM (QueryM)
+import Ctl.Internal.QueryM.Ogmios (currentEpoch) as Ogmios
+import Ctl.Internal.QueryM.Ogmios.Types (CurrentEpoch, pprintOgmiosDecodeError)
+import Data.Either (either)
+import Effect.Exception (error)
 
 -- | Get the current Epoch. Details can be found https://ogmios.dev/api/ under
 -- | "currentEpoch" query
-getCurrentEpoch :: QueryM Ogmios.CurrentEpoch
-getCurrentEpoch =
-  mkOgmiosRequest Ogmios.queryCurrentEpochCall _.currentEpoch unit
+getCurrentEpoch :: QueryM CurrentEpoch
+getCurrentEpoch = Ogmios.currentEpoch
+  >>= either
+    (throwError <<< error <<< pprintOgmiosDecodeError)
+    pure

@@ -33,6 +33,8 @@ import Cardano.Types.EraSummaries
   , SlotLength(SlotLength)
   ) as ExportEraSummaries
 import Cardano.Types.EraSummaries (EraSummaries, EraSummary)
+import Cardano.Types.SystemStart (SystemStart)
+import Cardano.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Contract.Chain (getTip) as Chain
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, liftContractM, liftedE)
@@ -40,7 +42,7 @@ import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios.Types
   ( CurrentEpoch(CurrentEpoch)
   , OgmiosEraSummaries(OgmiosEraSummaries)
   ) as ExportOgmios
@@ -97,8 +99,6 @@ import Ctl.Internal.Types.Interval
   , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
-import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Data.Array as Array
 import Data.Foldable (find)
 import Data.Maybe (Maybe(Just, Nothing))

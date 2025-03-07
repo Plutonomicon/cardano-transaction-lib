@@ -2,6 +2,13 @@ module Test.Ctl.Blockfrost.GenerateFixtures.ScriptInfo (main) where
 
 import Contract.Prelude
 
+import Cardano.Blockfrost.Service
+  ( BlockfrostEndpoint(ScriptInfo)
+  , BlockfrostRawResponse
+  , BlockfrostScriptLanguage(NativeScript, PlutusV1Script, PlutusV2Script)
+  , runBlockfrostServiceTestM
+  )
+import Cardano.Blockfrost.Service (getScriptInfo) as Blockfrost
 import Cardano.Types.BigNum as BigNum
 import Contract.Config
   ( ContractParams
@@ -28,13 +35,6 @@ import Contract.Wallet (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Ctl.Examples.AlwaysSucceeds (alwaysSucceedsScript)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostEndpoint(ScriptInfo)
-  , BlockfrostRawResponse
-  , BlockfrostScriptLanguage(NativeScript, PlutusV1Script, PlutusV2Script)
-  , runBlockfrostServiceTestM
-  )
-import Ctl.Internal.Service.Blockfrost (getScriptInfo) as Blockfrost
 import Data.Array (zip) as Array
 import Data.FoldableWithIndex (forWithIndex_)
 import Data.UInt (fromInt) as UInt

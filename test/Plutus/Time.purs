@@ -16,7 +16,8 @@ import Cardano.Types.EraSummaries
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
   )
-import Ctl.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios.Helpers (sysStartFromOgmiosTimestampUnsafe)
+import Ctl.Internal.QueryM.Ogmios.Types
   ( OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosSystemStart
   )
@@ -40,7 +41,6 @@ import Ctl.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
-import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)

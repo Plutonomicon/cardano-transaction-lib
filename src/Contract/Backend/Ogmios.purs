@@ -11,8 +11,8 @@ import Cardano.Types.CborBytes (CborBytes)
 import Cardano.Types.TransactionHash (TransactionHash)
 import Contract.Monad (Contract)
 import Ctl.Internal.Contract.Monad (wrapQueryM)
-import Ctl.Internal.QueryM (submitTxOgmios) as QueryM
-import Ctl.Internal.QueryM.Ogmios (SubmitTxR)
+import Ctl.Internal.QueryM.Ogmios (submitTxOgmios) as Ogmios
+import Ctl.Internal.QueryM.Ogmios.Types (SubmitTxR)
 import Ctl.Internal.QueryM.Pools (getPoolParameters) as QueryM
 
 -- | **This function can only run with Ogmios backend**
@@ -26,4 +26,4 @@ getPoolParameters = wrapQueryM <<< QueryM.getPoolParameters
 
 -- | Error returning variant
 submitTxE :: TransactionHash -> CborBytes -> Contract SubmitTxR
-submitTxE txhash cbor = wrapQueryM $ QueryM.submitTxOgmios txhash cbor
+submitTxE txhash cbor = wrapQueryM $ Ogmios.submitTxOgmios txhash cbor

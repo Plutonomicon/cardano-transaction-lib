@@ -1,6 +1,5 @@
 module Ctl.Internal.Contract.ProviderBackend
-  ( BlockfrostBackend
-  , BlockfrostBackendParams
+  ( BlockfrostBackendParams
   , CtlBackend
   , CtlBackendParams
   , ProviderBackend(BlockfrostBackend, CtlBackend)
@@ -15,7 +14,7 @@ module Ctl.Internal.Contract.ProviderBackend
 
 import Prelude
 
-import Ctl.Internal.QueryM (OgmiosWebSocket)
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Time.Duration (Seconds(Seconds))
@@ -29,17 +28,8 @@ data ProviderBackend
   | BlockfrostBackend BlockfrostBackend (Maybe CtlBackend)
 
 type CtlBackend =
-  { ogmios ::
-      { config :: ServerConfig
-      , ws :: OgmiosWebSocket
-      }
+  { ogmiosConfig :: ServerConfig
   , kupoConfig :: ServerConfig
-  }
-
-type BlockfrostBackend =
-  { blockfrostConfig :: ServerConfig
-  , blockfrostApiKey :: Maybe String
-  , confirmTxDelay :: Maybe Seconds
   }
 
 getCtlBackend :: ProviderBackend -> Maybe CtlBackend

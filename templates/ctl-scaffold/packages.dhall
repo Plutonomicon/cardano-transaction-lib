@@ -1,6 +1,6 @@
 let upstream =
     -- https://github.com/mlabs-haskell/purescript-cardano-package-set
-      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v1.1.0/packages.dhall sha256:6197d808325030415858c597b61c83320344bf899107b83f7dfe366de4650aa6
+      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v1.2.0/packages.dhall sha256:1879aeee12ef41d5f39ed8b530efa817c747366553b2fc90981ad4e8c21fc5d8
 
 let additions =
       { cardano-transaction-lib =
@@ -16,7 +16,6 @@ let additions =
           , "arrays"
           , "avar"
           , "bifunctors"
-          , "bignumber"
           , "bytearrays"
           , "cardano-hd-wallet"
           , "cardano-key-wallet"
@@ -25,6 +24,7 @@ let additions =
           , "cardano-serialization-lib"
           , "cardano-transaction-builder"
           , "cardano-types"
+          , "cardano-blockfrost-provider"
           , "cardano-provider"
           , "checked-exceptions"
           , "cip30"
@@ -46,7 +46,6 @@ let additions =
           , "foreign-object"
           , "formatters"
           , "functions"
-          , "heterogeneous"
           , "http-methods"
           , "identity"
           , "integers"
@@ -56,7 +55,6 @@ let additions =
           , "lists"
           , "literals"
           , "maybe"
-          , "media-types"
           , "monad-logger"
           , "mote"
           , "mote-testplan"
@@ -89,7 +87,6 @@ let additions =
           , "quickcheck"
           , "quickcheck-combinators"
           , "random"
-          , "rationals"
           , "record"
           , "refs"
           , "safe-coerce"
@@ -114,7 +111,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "cf1e0b4785a2858cf1f3e51b02f6de8fd0aab4a2"
+        , version = "f932fd33aa328b28d529ef6b97fa0edf4b91371c"
         }
       }
 

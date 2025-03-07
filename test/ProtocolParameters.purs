@@ -6,13 +6,13 @@ module Test.Ctl.ProtocolParameters
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString)
+import Cardano.Blockfrost.BlockfrostProtocolParameters
+  ( BlockfrostProtocolParameters(BlockfrostProtocolParameters)
+  )
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.QueryM.Ogmios
+import Ctl.Internal.QueryM.Ogmios.Types
   ( OgmiosProtocolParameters(OgmiosProtocolParameters)
-  )
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   )
 import Data.Bifunctor (lmap)
 import Effect (Effect)

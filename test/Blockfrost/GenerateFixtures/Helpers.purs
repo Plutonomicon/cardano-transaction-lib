@@ -9,6 +9,7 @@ module Test.Ctl.Blockfrost.GenerateFixtures.Helpers
 
 import Contract.Prelude
 
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
@@ -20,8 +21,7 @@ import Contract.Config
   , testnetConfig
   )
 import Ctl.Internal.Contract.ProviderBackend
-  ( BlockfrostBackend
-  , defaultConfirmTxDelay
+  ( defaultConfirmTxDelay
   , mkBlockfrostBackendParams
   )
 import Ctl.Internal.ServerConfig (blockfrostPublicSanchonetServerConfig)
