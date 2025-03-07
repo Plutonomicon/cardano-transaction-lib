@@ -1905,17 +1905,17 @@
         "ogmios": "ogmios_2"
       },
       "locked": {
-        "lastModified": 1740649000,
-        "narHash": "sha256-8KRWLIZjKiRJg7wv9vWybUIa5A7RS1tgJEQBqUXCDns=",
+        "lastModified": 1741366419,
+        "narHash": "sha256-xkBdgMSgKyXhE+p6oXUpT6ogk61sAdEJCs5gKaHOGgY=",
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "f932fd33aa328b28d529ef6b97fa0edf4b91371c",
+        "rev": "87f509e8f426f5fc52b4093f7c77bf9e742f4f1b",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
         "repo": "cardano-transaction-lib",
-        "rev": "f932fd33aa328b28d529ef6b97fa0edf4b91371c",
+        "rev": "87f509e8f426f5fc52b4093f7c77bf9e742f4f1b",
         "type": "github"
       }
     },
