@@ -64,8 +64,7 @@ You can also access [PureScript documentation for CTL and its dependencies](http
 - [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/)
 - [Ogmios](https://ogmios.dev) for chain queries
 - [Kupo](https://cardanosolutions.github.io/kupo/) for chain queries
-- [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
-- [Nami docs](https://github.com/Berry-Pool/nami-wallet)
+- [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)
 
 ## Available support channels info

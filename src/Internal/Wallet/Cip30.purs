@@ -66,13 +66,12 @@ type Cip30Wallet =
   , getNetworkId :: Aff Int
   -- Returns a list of all UTXOs controlled by the wallet.
   , getUtxos :: Aff (Maybe (Array TransactionUnspentOutput))
-  -- Get the collateral UTxO associated with the Nami wallet
+  -- Get the collateral UTxO
   , getCollateral ::
       Aff (Maybe (Array TransactionUnspentOutput))
   -- Get combination of all available UTxOs
   , getBalance :: Aff Value
-  -- Get the address associated with the wallet (Nami does not support
-  -- multiple addresses)
+  -- Get addresses associated with the wallet
   , getUsedAddresses :: Aff (Array Address)
   -- Sign a transaction with the given wallet
   -- Returns a list of unused addresses controlled by the wallet.

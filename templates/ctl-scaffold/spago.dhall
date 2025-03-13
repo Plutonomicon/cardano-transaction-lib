@@ -5,20 +5,21 @@ You can edit this file as you like.
 { name = "ctl-package-example"
 , dependencies =
   [ "aff"
+  , "bifunctors"
   , "bytearrays"
-  , "cardano-hd-wallet"
-  , "cardano-plutus-data-schema"
   , "cardano-collateral-select"
+  , "cardano-hd-wallet"
   , "cardano-key-wallet"
   , "cardano-message-signing"
-  , "cip30-mock"
-  , "uplc-apply-args"
+  , "cardano-plutus-data-schema"
   , "cardano-serialization-lib"
   , "cardano-transaction-builder"
   , "cardano-transaction-lib"
   , "cardano-types"
+  , "cip30-mock"
   , "datetime"
   , "effect"
+  , "exceptions"
   , "js-bigints"
   , "maybe"
   , "mote"
@@ -30,6 +31,7 @@ You can edit this file as you like.
   , "prelude"
   , "safely"
   , "spec"
+  , "uplc-apply-args"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "exe/**/*.purs", "test/**/*.purs" ]

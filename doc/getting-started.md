@@ -106,9 +106,17 @@ main = Contract.Monad.launchAff_ do -- we re-export this for you
 Then use the eliminator `Contract.Monad.runContract` with a config specifying network and wallet:
 
 ```purescript
+
+testnetEternlConfig :: Contract.Monad.ContractParams
+testnetEternlConfig =
+  Contract.Config.testnetConfig
+    { walletSpec =
+        Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
+    }
+
 main :: Effect Unit
 main = Contract.Monad.launchAff_ do
-  runContract Contract.Config.testnetNamiConfig do
+    runContract testnetEternlConfig do
     ...
 ```
 
@@ -135,7 +143,7 @@ main = Contract.Monad.launchAff_ do -- we re-export this for you
         , kupoConfig: defaultKupoServerConfig
         }
       , networkId: TestnetId
-      , walletSpec: Just ConnectToNami
+      , walletSpec: Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
       , logLevel: Trace
       , customLogger: Nothing
       , suppressLogs: false
