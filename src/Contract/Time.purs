@@ -15,6 +15,10 @@ module Contract.Time
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios.Types
+  ( CurrentEpoch(CurrentEpoch)
+  , OgmiosEraSummaries(OgmiosEraSummaries)
+  ) as ExportOgmios
 import Cardano.Types (BigNum, Epoch(Epoch), Slot)
 import Cardano.Types (Slot(Slot)) as X
 import Cardano.Types.BigNum as BigNum
@@ -42,10 +46,6 @@ import Control.Monad.Reader.Class (asks)
 import Ctl.Internal.Contract (getChainTip)
 import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.Ogmios.Types
-  ( CurrentEpoch(CurrentEpoch)
-  , OgmiosEraSummaries(OgmiosEraSummaries)
-  ) as ExportOgmios
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure

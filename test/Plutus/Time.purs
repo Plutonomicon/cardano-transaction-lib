@@ -4,6 +4,11 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios.Helpers (sysStartFromOgmiosTimestampUnsafe)
+import Cardano.Kupmios.Ogmios.Types
+  ( OgmiosEraSummaries(OgmiosEraSummaries)
+  , OgmiosSystemStart
+  )
 import Cardano.Types (Epoch(Epoch), Slot(Slot))
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.EraSummaries
@@ -15,11 +20,6 @@ import Cardano.Types.EraSummaries
   , RelativeTime(RelativeTime)
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
-  )
-import Ctl.Internal.QueryM.Ogmios.Helpers (sysStartFromOgmiosTimestampUnsafe)
-import Ctl.Internal.QueryM.Ogmios.Types
-  ( OgmiosEraSummaries(OgmiosEraSummaries)
-  , OgmiosSystemStart
   )
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)

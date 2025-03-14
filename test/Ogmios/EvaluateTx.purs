@@ -2,6 +2,11 @@ module Test.Ctl.Ogmios.EvaluateTx (suite) where
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios.Types
+  ( OgmiosDecodeError(InvalidRpcResponse)
+  , OgmiosTxEvaluationR
+  , decodeOgmios
+  )
 import Cardano.Provider.TxEvaluation
   ( ExecutionUnits
   , RedeemerPointer
@@ -12,11 +17,6 @@ import Cardano.Provider.TxEvaluation
 import Cardano.Types (BigNum)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.RedeemerTag (RedeemerTag(Spend, Cert, Reward))
-import Ctl.Internal.QueryM.Ogmios.Types
-  ( OgmiosDecodeError(InvalidRpcResponse)
-  , OgmiosTxEvaluationR
-  , decodeOgmios
-  )
 import Data.Argonaut.Decode.Error (JsonDecodeError(TypeMismatch))
 import Data.Either (Either(Left, Right))
 import Data.Map as Map

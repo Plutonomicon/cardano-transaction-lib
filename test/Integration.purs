@@ -13,7 +13,7 @@ import Contract.Test (ContractTest, noWallet)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Contract.Time (getEraSummaries, getSystemStart)
-import Ctl.Internal.Contract.Monad (wrapQueryM)
+import Ctl.Internal.Contract.Monad (wrapKupmiosM)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Newtype (wrap)
 import Data.Posix.Signal (Signal(SIGINT))
@@ -28,9 +28,9 @@ import Partial.Unsafe (unsafePartial)
 import Test.Ctl.BalanceTx.Collateral as Collateral
 import Test.Ctl.BalanceTx.Time as BalanceTx.Time
 import Test.Ctl.Fixtures (ed25519KeyHash1)
+import Test.Ctl.KupmiosM.AffInterface as KupmiosM.AffInterface
 import Test.Ctl.Logging as Logging
 import Test.Ctl.PrivateKey as PrivateKey
-import Test.Ctl.QueryM.AffInterface as QueryM.AffInterface
 import Test.Ctl.Types.Interval as Types.Interval
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Runner (defaultConfig)
@@ -46,7 +46,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
 -- Requires external services listed in README.md
 testPlan :: TestPlanM (Aff Unit) Unit
 testPlan = do
-  mapTest runQueryM' QueryM.AffInterface.suite
+  mapTest runKupmiosM' KupmiosM.AffInterface.suite
   -- These tests depend on assumptions about testnet history.
   -- We disabled them during transition from `testnet` to `preprod` networks.
   -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/945
@@ -66,8 +66,8 @@ testPlan = do
   Logging.suite
   BalanceTx.Time.suite
   where
-  runQueryM' =
-    runContract (testnetConfig { suppressLogs = true }) <<< wrapQueryM
+  runKupmiosM' =
+    runContract (testnetConfig { suppressLogs = true }) <<< wrapKupmiosM
 
 stakingSuite :: TestPlanM ContractTest Unit
 stakingSuite = do

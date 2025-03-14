@@ -6,6 +6,7 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
+import Cardano.Kupmios.Ogmios.Types (AdditionalUtxoSet) as Ogmios
 import Cardano.Provider.TxEvaluation
   ( TxEvaluationFailure(AdditionalUtxoOverlap, UnparsedError)
   , TxEvaluationResult(TxEvaluationResult)
@@ -52,7 +53,6 @@ import Ctl.Internal.BalanceTx.Types
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
 import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftEither, unsafeFromJust)
-import Ctl.Internal.QueryM.Ogmios.Types (AdditionalUtxoSet) as Ogmios
 import Ctl.Internal.Transaction (setScriptDataHash)
 import Ctl.Internal.TxOutput
   ( transactionInputToTxOutRef

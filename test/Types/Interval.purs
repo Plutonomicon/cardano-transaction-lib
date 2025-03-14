@@ -7,13 +7,13 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Cardano.Kupmios.Ogmios.Types (OgmiosEraSummaries, OgmiosSystemStart)
 import Cardano.Types (Slot(Slot))
 import Cardano.Types.BigNum (fromInt) as BigNum
 import Cardano.Types.EraSummaries (EraSummaries)
 import Cardano.Types.SystemStart (SystemStart)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM.Ogmios.Types (OgmiosEraSummaries, OgmiosSystemStart)
 import Ctl.Internal.Types.Interval
   ( Interval
   , POSIXTime(POSIXTime)

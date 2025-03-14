@@ -46,8 +46,8 @@ import Control.Monad.Error.Class
 import Control.Monad.Rec.Class (Step(Done, Loop), tailRecM)
 import Control.Parallel (parOneOf, parallel, sequential)
 import Ctl.Internal.Helpers ((<</>>))
+import Ctl.Internal.Helpers.UniqueId (uniqueId)
 import Ctl.Internal.Logging (Logger)
-import Ctl.Internal.QueryM.UniqueId (uniqueId)
 import Ctl.Internal.Spawn
   ( ManagedProcess(ManagedProcess)
   , OnSignalRef

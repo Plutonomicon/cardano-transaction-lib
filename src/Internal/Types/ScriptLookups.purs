@@ -43,7 +43,7 @@ import Data.Show.Generic (genericShow)
 --------------------------------------------------------------------------------
 -- We write `mps` and `scripts` as an `Array` instead of `Map`, meaning
 -- our lookup helpers aren't required to hash (`mintingPolicy`, `validator`)
--- and therefore not lifted to `QueryM`. The downside is the lookups contain
+-- and therefore not lifted to `KupmiosM`. The downside is the lookups contain
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
 -- The lookups uses the Plutus type `TransactionOutput` and does internal
