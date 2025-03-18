@@ -85,9 +85,6 @@
       darwinSystems = [ "x86_64-darwin" "aarch64-darwin" ];
       supportedSystems = linuxSystems ++ darwinSystems;
 
-      ogmiosVersion = "6.5.0";
-      kupoVersion = "2.9.0";
-
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
       mkNixpkgsFor = system: import nixpkgs {
@@ -211,7 +208,7 @@
               name = "ctl-e2e-test";
               runnerMain = "Test.Ctl.E2E";
               testMain = "Ctl.Examples.ByUrl";
-              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
+              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}.kupo ];
             };
             ctl-local-testnet-test = project.runLocalTestnetTest {
               name = "ctl-local-testnet-test";
@@ -284,11 +281,11 @@
                 inherit (prev) system;
               in
               {
-                ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
+                ogmios = cardano-nix.packages.${system}.ogmios;
                 cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
                 cardano-node = cardano-node.packages.${system}.cardano-node;
                 cardano-cli = cardano-node.packages.${system}.cardano-cli;
-                kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
+                kupo = cardano-nix.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
@@ -488,8 +485,8 @@
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
-          ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
-          kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
+          ogmios = inputs.cardano-nix.packages.${system}.ogmios;
+          kupo = inputs.cardano-nix.packages.${system}.kupo;
         };
       };
 
