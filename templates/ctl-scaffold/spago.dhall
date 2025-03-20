@@ -1,19 +1,13 @@
-{-
-Welcome to a Spago project!
-You can edit this file as you like.
--}
 { name = "ctl-package-example"
 , dependencies =
   [ "aff"
   , "bifunctors"
   , "bytearrays"
   , "cardano-collateral-select"
+  , "cardano-data-lite"
   , "cardano-hd-wallet"
   , "cardano-key-wallet"
   , "cardano-message-signing"
-  , "cip30-mock"
-  , "uplc-apply-args"
-  , "cardano-data-lite"
   , "cardano-plutus-data-schema"
   , "cardano-transaction-builder"
   , "cardano-transaction-lib"

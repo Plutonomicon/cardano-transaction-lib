@@ -112,7 +112,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "a085fe8f25cbca16b4a70ff2cf575459aaa05259"
+        , version = "fb3265eab3e210cdf9bf07e2557a389c386f44e4"
         }
       }
 

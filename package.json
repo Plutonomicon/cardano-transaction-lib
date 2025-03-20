@@ -46,8 +46,7 @@
     "node-polyfill-webpack-plugin": "2.0.1",
     "webpack": "5.88.1",
     "webpack-cli": "5.1.4",
-    "webpack-dev-server": "4.15.1",
-    "@mlabs-haskell/cardano-serialization-lib-gc": "13.2.0"
+    "webpack-dev-server": "4.15.1"
   },
   "prettier": {
     "arrowParens": "avoid",
