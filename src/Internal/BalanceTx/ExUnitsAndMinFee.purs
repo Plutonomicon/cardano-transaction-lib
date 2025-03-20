@@ -6,6 +6,11 @@ module Ctl.Internal.BalanceTx.ExUnitsAndMinFee
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
+import Cardano.Kupmios.Ogmios.Types (AdditionalUtxoSet) as Ogmios
+import Cardano.Provider.TxEvaluation
+  ( TxEvaluationFailure(AdditionalUtxoOverlap, UnparsedError)
+  , TxEvaluationResult(TxEvaluationResult)
+  )
 import Cardano.Types
   ( Coin
   , CostModel
@@ -46,14 +51,8 @@ import Ctl.Internal.BalanceTx.Types
   , liftContract
   )
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as Contract.MinFee
-import Ctl.Internal.Contract.Monad (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftEither, unsafeFromJust)
-import Ctl.Internal.QueryM.Ogmios
-  ( AdditionalUtxoSet
-  , TxEvaluationFailure(AdditionalUtxoOverlap)
-  , TxEvaluationResult(TxEvaluationResult)
-  ) as Ogmios
-import Ctl.Internal.QueryM.Ogmios (TxEvaluationFailure(UnparsedError))
 import Ctl.Internal.Transaction (setScriptDataHash)
 import Ctl.Internal.TxOutput
   ( transactionInputToTxOutRef
@@ -68,14 +67,7 @@ import Data.Foldable (foldMap)
 import Data.Lens ((.~))
 import Data.Lens.Getter ((^.))
 import Data.Map (Map)
-import Data.Map
-  ( empty
-  , filterKeys
-  , fromFoldable
-  , lookup
-  , toUnfoldable
-  , union
-  ) as Map
+import Data.Map (empty, filterKeys, fromFoldable, lookup, toUnfoldable, union) as Map
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Set (Set)
@@ -84,12 +76,13 @@ import Data.Traversable (for, sum)
 import Data.Tuple (snd)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt as UInt
+import Effect.Aff (attempt)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 
 evalTxExecutionUnits
   :: Transaction
-  -> BalanceTxM Ogmios.TxEvaluationResult
+  -> BalanceTxM TxEvaluationResult
 evalTxExecutionUnits tx = do
   additionalUtxos <- asksConstraints Constraints._additionalUtxos
   worker $ toOgmiosAdditionalUtxos additionalUtxos
@@ -101,22 +94,28 @@ evalTxExecutionUnits tx = do
           <$> (Map.toUnfoldable :: _ -> Array _) additionalUtxos
       )
 
-  worker :: Ogmios.AdditionalUtxoSet -> BalanceTxM Ogmios.TxEvaluationResult
+  worker :: Ogmios.AdditionalUtxoSet -> BalanceTxM TxEvaluationResult
   worker additionalUtxos = do
-    queryHandle <- liftContract getQueryHandle
-    evalResult <-
-      unwrap <$> liftContract
-        (liftAff $ queryHandle.evaluateTx tx additionalUtxos)
-    case evalResult of
-      Right a -> pure a
-      Left (Ogmios.AdditionalUtxoOverlap overlappingUtxos) ->
-        -- Remove overlapping additional utxos and retry evaluation:
-        worker $ wrap $ Map.filterKeys (flip Array.notElem overlappingUtxos)
-          (unwrap additionalUtxos)
-      Left evalFailure | tx ^. _isValid ->
-        throwError $ ExUnitsEvaluationFailed tx evalFailure
+    provider <- liftContract getProvider
+    evalResult' <-
+      map unwrap <$> liftContract
+        (liftAff $ attempt $ provider.evaluateTx tx (unwrap additionalUtxos))
+    case evalResult' of
+      Left err | tx ^. _isValid ->
+        liftAff $ throwError err
       Left _ ->
         pure $ wrap Map.empty
+      Right evalResult ->
+        case evalResult of
+          Right a -> pure a
+          Left (AdditionalUtxoOverlap overlappingUtxos) ->
+            -- Remove overlapping additional utxos and retry evaluation:
+            worker $ wrap $ Map.filterKeys (flip Array.notElem overlappingUtxos)
+              (unwrap additionalUtxos)
+          Left evalFailure | tx ^. _isValid -> do
+            throwError $ ExUnitsEvaluationFailed tx evalFailure
+          Left _ -> do
+            pure $ wrap Map.empty
 
 -- Calculates the execution units needed for each script in the transaction
 -- and the minimum fee, including the script fees.
@@ -212,7 +211,7 @@ finalizeTransaction tx utxos = do
 
 updateTxExecutionUnits
   :: Transaction
-  -> Ogmios.TxEvaluationResult
+  -> TxEvaluationResult
   -> Maybe Transaction
 updateTxExecutionUnits tx result =
   getRedeemersExUnits result (tx ^. _witnessSet <<< _redeemers) <#>
@@ -220,10 +219,10 @@ updateTxExecutionUnits tx result =
       tx # _witnessSet <<< _redeemers .~ redeemers'
 
 getRedeemersExUnits
-  :: Ogmios.TxEvaluationResult
+  :: TxEvaluationResult
   -> Array Redeemer
   -> Maybe (Array Redeemer)
-getRedeemersExUnits (Ogmios.TxEvaluationResult result) redeemers = do
+getRedeemersExUnits (TxEvaluationResult result) redeemers = do
   for redeemers \indexedRedeemer -> do
     { memory, steps } <- Map.lookup
       { redeemerTag: (unwrap indexedRedeemer).tag

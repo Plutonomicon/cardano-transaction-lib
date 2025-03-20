@@ -4,13 +4,14 @@ module Test.Ctl.Internal.Plutus.Time
 
 import Prelude
 
-import Cardano.Types (Epoch(Epoch), Slot(Slot))
-import Cardano.Types.BigNum as BigNum
-import Ctl.Internal.QueryM.Ogmios
+import Cardano.Kupmios.Ogmios.Helpers (sysStartFromOgmiosTimestampUnsafe)
+import Cardano.Kupmios.Ogmios.Types
   ( OgmiosEraSummaries(OgmiosEraSummaries)
   , OgmiosSystemStart
   )
-import Ctl.Internal.Types.EraSummaries
+import Cardano.Types (Epoch(Epoch), Slot(Slot))
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.EraSummaries
   ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -40,7 +41,6 @@ import Ctl.Internal.Types.Interval
       )
   , ToOnChainPosixTimeRangeError(PosixTimeToSlotError', SlotToPosixTimeError')
   )
-import Ctl.Internal.Types.SystemStart (sysStartFromOgmiosTimestampUnsafe)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (wrap)

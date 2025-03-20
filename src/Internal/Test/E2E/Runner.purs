@@ -10,6 +10,8 @@ import Prelude
 import Affjax (defaultRequest) as Affjax
 import Affjax (printError)
 import Affjax.ResponseFormat as Affjax.ResponseFormat
+import Cardano.Kupmios.KupmiosM (ClusterSetup)
+import Cardano.Provider.Affjax (request) as Affjax
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Wallet.Key
@@ -20,11 +22,9 @@ import Cardano.Wallet.Key
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
-import Ctl.Internal.Affjax (request) as Affjax
 import Ctl.Internal.Contract.Hooks (emptyHooks)
-import Ctl.Internal.Contract.QueryBackend (QueryBackend(CtlBackend))
+import Ctl.Internal.Contract.ProviderBackend (ProviderBackend(CtlBackend))
 import Ctl.Internal.Helpers (liftedM, unsafeFromJust, (<</>>))
-import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Browser (withBrowser)
 import Ctl.Internal.Test.E2E.Feedback
   ( BrowserEvent(ConfirmAccess, Sign, Success, Failure)
@@ -55,7 +55,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsRuntime
   , TmpDir
-  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt, LaceExt)
+  , WalletExt(GeroExt, LodeExt, EternlExt, LaceExt)
   , getE2EWalletExtension
   , mkE2ETest
   , mkExtensionId
@@ -64,16 +64,12 @@ import Ctl.Internal.Test.E2E.Types
 import Ctl.Internal.Test.E2E.Wallets
   ( eternlConfirmAccess
   , eternlSign
-  , flintConfirmAccess
-  , flintSign
   , geroConfirmAccess
   , geroSign
   , laceConfirmAccess
   , laceSign
   , lodeConfirmAccess
   , lodeSign
-  , namiConfirmAccess
-  , namiSign
   )
 import Ctl.Internal.Test.UtxoDistribution (withStakeKey)
 import Ctl.Internal.Testnet.Contract (withTestnetContractEnv)
@@ -262,7 +258,7 @@ testPlan opts@{ tests } rt@{ wallets } =
             kwMStakeKey <- liftAff $ getPrivateStakeKey wallet
             (clusterSetup :: ClusterSetup) <- case env.backend of
               CtlBackend backend _ -> pure
-                { ogmiosConfig: backend.ogmios.config
+                { ogmiosConfig: backend.ogmiosConfig
                 , kupoConfig: backend.kupoConfig
                 , keys:
                     { payment: kwPaymentKey
@@ -288,18 +284,14 @@ testPlan opts@{ tests } rt@{ wallets } =
                 confirmAccess =
                   case wallet of
                     EternlExt -> eternlConfirmAccess
-                    FlintExt -> flintConfirmAccess
                     GeroExt -> geroConfirmAccess
                     LodeExt -> lodeConfirmAccess
-                    NamiExt -> namiConfirmAccess
                     LaceExt -> laceConfirmAccess
                 sign =
                   case wallet of
                     EternlExt -> eternlSign
-                    FlintExt -> flintSign
                     GeroExt -> geroSign
                     LodeExt -> lodeSign
-                    NamiExt -> namiSign
                     LaceExt -> laceSign
                 someWallet =
                   { wallet
@@ -362,7 +354,6 @@ readTestRuntime testOptions = do
         ( delete (Proxy :: Proxy "noHeadless")
             <<< delete (Proxy :: Proxy "tests")
             <<< delete (Proxy :: Proxy "testTimeout")
-            <<< delete (Proxy :: Proxy "plutipPort")
             <<< delete (Proxy :: Proxy "ogmiosPort")
             <<< delete (Proxy :: Proxy "kupoPort")
             <<< delete (Proxy :: Proxy "passBrowserLogs")
@@ -371,15 +362,12 @@ readTestRuntime testOptions = do
 
 readPorts :: TestOptions -> Effect ClusterPortsOptions
 readPorts testOptions = do
-  plutipPort <-
-    readPortNumber "PLUTIP" testOptions.plutipPort
   ogmiosPort <-
     readPortNumber "OGMIOS" testOptions.ogmiosPort
   kupoPort <-
     readPortNumber "KUPO" testOptions.kupoPort
   pure
-    { plutipPort
-    , ogmiosPort
+    { ogmiosPort
     , kupoPort
     }
   where
@@ -400,17 +388,13 @@ readExtensions
   :: Map.Map WalletExt ExtensionOptions
   -> Aff (Map.Map WalletExt ExtensionParams)
 readExtensions wallets = do
-  nami <- readExtensionParams "NAMI" wallets
-  flint <- readExtensionParams "FLINT" wallets
   gero <- readExtensionParams "GERO" wallets
   lode <- readExtensionParams "LODE" wallets
   eternl <- readExtensionParams "ETERNL" wallets
   lace <- readExtensionParams "LACE" wallets
 
   pure $ Map.fromFoldable $ catMaybes
-    [ Tuple NamiExt <$> nami
-    , Tuple FlintExt <$> flint
-    , Tuple GeroExt <$> gero
+    [ Tuple GeroExt <$> gero
     , Tuple LodeExt <$> lode
     , Tuple EternlExt <$> eternl
     , Tuple LaceExt <$> lace
@@ -535,19 +519,19 @@ readTests optUrls = do
   mkError testSpec =
     error $ "Failed to parse test data from: " <> testSpec <>
       "\nTest spec must be of form \"wallet:url\", where allowed wallets are: \
-      \eternl, flint, gero, lode, nami."
+      \eternl, gero, lode."
 
 -- | Run an example in a new browser page.
 -- |
 -- | Example usage:
 -- |
 -- | ```purescript
--- |   withBrowser options NamiExt \browser -> do
+-- |   withBrowser options EternlExt \browser -> do
 -- |     withE2ETest
 -- |        false -- do not skip jQuery
 -- |        (wrap "http://myserver:1234/docontract")
 -- |        browser do
--- |          namiSign $ wrap "mypassword"
+-- |          eternlSign $ wrap "mypassword"
 -- | ```
 withE2ETest
   :: forall (a :: Type)
@@ -718,7 +702,7 @@ readExtensionParams extName wallets = do
     liftMaybe (error $ mkExtIdError str) $ mkExtensionId str
   let
     mbCliOptions :: Maybe ExtensionOptions
-    mbCliOptions = Map.lookup NamiExt wallets
+    mbCliOptions = Map.lookup EternlExt wallets
 
     envOptions :: ExtensionOptions
     envOptions = { crxFile, password, extensionId, crxUrl }
@@ -948,8 +932,6 @@ defaultErrorReader =
 walletName :: WalletExt -> String
 walletName = case _ of
   EternlExt -> "eternl"
-  FlintExt -> "flint"
   GeroExt -> "gero"
   LodeExt -> "lode"
-  NamiExt -> "nami"
   LaceExt -> "lace"

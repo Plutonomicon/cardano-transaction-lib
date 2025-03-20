@@ -1,31 +1,34 @@
 module Ctl.Internal.Test.E2E.Route
   ( E2ETestName
   , E2EConfigName
-  , route
-  , parseRoute
   , Route
   , addLinks
+  , e2eConfigs
+  , parseRoute
+  , route
   ) where
 
 import Prelude
 
+import Cardano.Kupmios.KupmiosM (ClusterSetup)
 import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Types.RawBytes (RawBytes(RawBytes))
-import Contract.Config (ContractParams)
+import Contract.Config (ContractParams, testnetConfig)
 import Contract.Monad (Contract, runContract)
 import Contract.Test.Cip30Mock (withCip30Mock)
 import Contract.Wallet
-  ( PrivatePaymentKey(PrivatePaymentKey)
+  ( KnownWallet(Gero, Eternl, Lode)
+  , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
+  , walletName
   )
 import Contract.Wallet.Key (privateKeysToKeyWallet)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
-import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
+import Ctl.Internal.Contract.ProviderBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers (liftEither)
-import Ctl.Internal.QueryM (ClusterSetup)
 import Ctl.Internal.Test.E2E.Feedback.Browser (getClusterSetupRepeatedly)
 import Ctl.Internal.Test.E2E.Feedback.Hooks (addE2EFeedbackHooks)
 import Ctl.Internal.Wallet.Spec (WalletSpec(ConnectToGenericCip30))
@@ -33,15 +36,17 @@ import Data.Array (last)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.ByteArray (hexToByteArray)
-import Data.Either (Either(Left), note)
+import Data.Either (Either(Left, Right), note)
 import Data.Foldable (fold)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe, maybe)
 import Data.Newtype (wrap)
-import Data.String (stripPrefix)
+import Data.String (stripPrefix, stripSuffix)
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Aff (Aff, delay, launchAff_)
@@ -54,6 +59,48 @@ type E2ETestName = String
 -- | A name of some particular E2E test environment (`ContractParams` and possible
 -- | CIP-30 mock). Used in the URL for routing
 type E2EConfigName = String
+
+-- | A helper function that derives wallets and Contract parameters
+-- | from the provided E2E configuration names.
+e2eConfigs
+  :: Array E2EConfigName
+  -> Either String (Map E2EConfigName (ContractParams /\ Maybe String))
+e2eConfigs =
+  map Map.fromFoldable
+    <<< traverse (\env -> Tuple env <$> resolveConfigName env)
+  where
+  resolveConfigName
+    :: E2EConfigName
+    -> Either String (ContractParams /\ Maybe String)
+  resolveConfigName configName = do
+    let
+      walletSpec =
+        fromMaybe configName $ stripPrefix (Pattern "localnet-")
+          configName
+      wallet' /\ isMock =
+        maybe (walletSpec /\ false) (flip Tuple true) $ stripSuffix
+          (Pattern "-mock")
+          walletSpec
+    wallet <- resolveWallet wallet'
+    pure $
+      Tuple
+        (mkContractParams wallet)
+        (if isMock then Just wallet else Nothing)
+
+  resolveWallet :: String -> Either String String
+  resolveWallet =
+    case _ of
+      "gero" -> Right $ walletName Gero
+      "eternl" -> Right $ walletName Eternl
+      "lode" -> Right $ walletName Lode
+      wallet -> Left $ "e2eConfigs: unsupported wallet: " <> wallet
+
+  mkContractParams :: String -> ContractParams
+  mkContractParams wallet =
+    testnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 wallet { cip95: false }
+      }
 
 -- | Router state - parsed from URL by `parseRoute`
 type Route =
@@ -127,7 +174,6 @@ addLinks configMaps testMaps = do
 -- | ```
 -- | gero:MintsMultiple
 -- | eternl:AlwaysSucceeds:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209
--- | nami-mock:MintsMultiple:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
 -- | ```
 -- |
 -- | In case that for the specified `E2EConfigName` a `WalletMock` is provided
@@ -191,7 +237,7 @@ route configs tests = do
   noConfigParametersError :: E2EConfigName -> String
   noConfigParametersError configName =
     "Unable to look up the config parameters: " <> configName
-      <> "Common reasons are:\n"
+      <> "\nCommon reasons are:\n"
       <> "- The page that is used to serve the test contracts is not up to "
       <> "date\n"
       <> "- The name of the test suite configuration is wrong ("

@@ -3,47 +3,40 @@ module Scaffold.Test.E2E.Serve where
 
 import Contract.Prelude
 
-import Contract.Config
-  ( ContractParams
-  , KnownWallet(Nami, Gero, Flint, Eternl, Lode)
-  , WalletSpec(ConnectToGenericCip30)
-  , testnetConfig
-  , walletName
-  )
+import Contract.Config (ContractParams)
 import Contract.Monad (Contract)
-import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
+import Contract.Test.E2E
+  ( E2EConfigName
+  , E2ETestName
+  , addLinks
+  , e2eConfigs
+  , route
+  )
+import Data.Bifunctor (lmap)
 import Data.Map (Map)
 import Data.Map as Map
+import Effect.Exception (error)
 import Scaffold as Scaffold
 
 main :: Effect Unit
 main = do
+  configs <- liftEither $ lmap error mkConfigs
   addLinks configs tests
   route configs tests
 
-configs :: Map E2EConfigName (ContractParams /\ Maybe String)
-configs = map (map walletName) <$> Map.fromFoldable
-  [ "nami" /\ testnetConfig' Nami /\ Nothing
-  , "gero" /\ testnetConfig' Gero /\ Nothing
-  , "flint" /\ testnetConfig' Flint /\ Nothing
-  , "eternl" /\ testnetConfig' Eternl /\ Nothing
-  , "lode" /\ testnetConfig' Lode /\ Nothing
-  , "nami-mock" /\ testnetConfig' Nami /\ Just Nami
-  , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
-  , "flint-mock" /\ testnetConfig' Flint /\ Just Flint
-  , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
-  , "plutip-nami-mock" /\ testnetConfig' Nami /\ Just Nami
-  , "plutip-gero-mock" /\ testnetConfig' Gero /\ Just Gero
-  , "plutip-flint-mock" /\ testnetConfig' Flint /\ Just Flint
-  , "plutip-lode-mock" /\ testnetConfig' Lode /\ Just Lode
-  ]
-  where
-  testnetConfig' :: KnownWallet -> ContractParams
-  testnetConfig' wallet =
-    testnetConfig
-      { walletSpec =
-          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
-      }
+mkConfigs :: Either String (Map E2EConfigName (ContractParams /\ Maybe String))
+mkConfigs =
+  e2eConfigs
+    [ "eternl"
+    , "gero"
+    , "lode"
+    , "eternl-mock"
+    , "gero-mock"
+    , "lode-mock"
+    , "localnet-eternl-mock"
+    , "localnet-gero-mock"
+    , "localnet-lode-mock"
+    ]
 
 tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable

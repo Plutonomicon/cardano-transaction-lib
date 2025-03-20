@@ -28,7 +28,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf, parTraverse, parallel, sequential)
 import Ctl.Internal.Contract.Monad
   ( ContractSynchronizationParams
-  , getQueryHandle
+  , getProvider
   )
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
@@ -135,7 +135,7 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
       <> " in use in the wallet. Consider increasing "
       <> "`timeParams.syncWallet.timeout` in `ContractParams`. "
       <> "See `doc/query-layers.md` for more info."
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   let
     sync :: Contract Unit
     sync = do
@@ -157,7 +157,7 @@ syncWalletWithTransaction txHash = whenM isCip30Wallet do
   ownAddresses /\ outputAddresses <- sequential do
     Tuple <$> parallel getControlledAddresses <*> parallel do
       liftAff $ liftEither =<< do
-        queryHandle.getOutputAddressesByTxHash txHash <#>
+        provider.getOutputAddressesByTxHash txHash <#>
           bimap (error <<< show) Set.fromFoldable
   if Set.isEmpty (Set.intersection ownAddresses outputAddresses) then do
     logWarn' $ "syncWalletWithTransaction: "
@@ -249,8 +249,8 @@ disabledSynchronizationParams =
 -- | A version without plutus conversion for internal use.
 getUtxo' :: TransactionInput -> Contract (Maybe TransactionOutput)
 getUtxo' oref = do
-  queryHandle <- getQueryHandle
-  liftedE $ liftAff $ queryHandle.getUtxoByOref oref
+  provider <- getProvider
+  liftedE $ liftAff $ provider.getUtxoByOref oref
 
 -- | Get all addresses contolled by a wallet:
 -- | `getUsedAddresses`, `getUnusedAddresses` and `getChangeAddress` combined.

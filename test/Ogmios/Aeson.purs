@@ -5,24 +5,26 @@ module Test.Ctl.Ogmios.Aeson
 
 import Prelude
 
-import Aeson (Aeson, JsonDecodeError, encodeAeson, printJsonDecodeError)
+import Aeson
+  ( Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , encodeAeson
+  , printJsonDecodeError
+  )
 import Aeson as Aeson
-import Contract.Backend.Ogmios.Mempool (MempoolSizeAndCapacity)
+import Cardano.Kupmios.Ogmios.Types
+  ( class DecodeOgmios
+  , OgmiosDecodeError(ErrorResponse)
+  , OgmiosTxEvaluationR
+  , SubmitTxR
+  , decodeOgmios
+  )
+import Cardano.Kupmios.Ogmios.Types as O
+import Cardano.Ogmios.Mempool (HasTxR, MempoolSizeAndCapacity) as Mempool
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.QueryM.JsonRpc2
-  ( class DecodeOgmios
-  , OgmiosDecodeError(ErrorResponse)
-  , decodeOgmios
-  )
-import Ctl.Internal.QueryM.Ogmios
-  ( HasTxR
-  , SubmitTxR
-  , TxEvaluationR
-  , aesonObject
-  )
-import Ctl.Internal.QueryM.Ogmios as O
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)
@@ -64,10 +66,10 @@ tested =
   , ( "queryLedgerState/rewardAccountSummaries" /\ check
         (Proxy :: _ O.DelegationsAndRewardsR)
     )
-  , ("evaluateTransaction" /\ check (Proxy :: _ TxEvaluationR))
+  , ("evaluateTransaction" /\ check (Proxy :: _ OgmiosTxEvaluationR))
   , ("submitTransaction" /\ check (Proxy :: _ SubmitTxR))
-  , ("hasTransaction" /\ check (Proxy :: _ HasTxR))
-  , ("sizeOfMempool" /\ check (Proxy :: _ MempoolSizeAndCapacity))
+  , ("hasTransaction" /\ check (Proxy :: _ Mempool.HasTxR))
+  , ("sizeOfMempool" /\ check (Proxy :: _ Mempool.MempoolSizeAndCapacity))
   -- ignoring because response may lack tx cbor if not run with flag
   -- This endpoint is tested with "fetchMempoolTXs" test (Test.Ctl.Plutip.Contract.OgmiosMempool)
   -- , ("nextTransaction" /\ (Proxy :: _ MaybeMempoolTransaction ))
@@ -75,11 +77,12 @@ tested =
 
 -- Fixtures from ogmios repo have id set to "null", but we require it as string.
 addIdFieldHack :: Aeson -> Either JsonDecodeError Aeson
-addIdFieldHack = aesonObject $
-  ( pure <<< encodeAeson <<< Object.update
-      (const $ pure $ encodeAeson "My favourite id")
-      "id"
-  )
+addIdFieldHack = caseAesonObject (Left (TypeMismatch "Object"))
+  $
+    ( pure <<< encodeAeson <<< Object.update
+        (const $ pure $ encodeAeson "My favourite id")
+        "id"
+    )
 
 -- Fail if we can't decode positive result
 check
