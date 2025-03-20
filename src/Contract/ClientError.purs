@@ -1,6 +1,6 @@
 module Contract.ClientError (module X) where
 
-import Ctl.Internal.Service.Error
+import Cardano.Provider.Error
   ( BlockfrostError(BlockfrostError)
   , ClientError
       ( ClientHttpError

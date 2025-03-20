@@ -36,7 +36,7 @@ import Ctl.Internal.Test.E2E.Types
   , SettingsArchive
   , SettingsArchiveUrl
   , TmpDir
-  , WalletExt(LodeExt, FlintExt, GeroExt, NamiExt, EternlExt)
+  , WalletExt(LodeExt, GeroExt, EternlExt)
   , WalletPassword
   , mkE2ETest
   , mkExtensionId
@@ -94,8 +94,7 @@ type TestOptions = Record
   )
 
 type ClusterPortsOptions_ (r :: Row Type) =
-  ( plutipPort :: Maybe UInt
-  , ogmiosPort :: Maybe UInt
+  ( ogmiosPort :: Maybe UInt
   , kupoPort :: Maybe UInt
   | r
   )
@@ -219,18 +218,13 @@ browserOptionsParser = ado
         , metavar "CHROMIUM CLI ARGUMENT"
         ]
 
-  nami <- parseWallet "Nami"
   eternl <- parseWallet "Eternl"
   gero <- parseWallet "Gero"
-  flint <- parseWallet "Flint"
   lode <- parseWallet "Lode"
 
   let
     wallets = Map.fromFoldable $ catMaybes
-      [ mkConfig NamiExt nami.extensionId nami.password nami.crxFile nami.crxUrl
-      , mkConfig GeroExt gero.extensionId gero.password gero.crxFile gero.crxUrl
-      , mkConfig FlintExt flint.extensionId flint.password flint.crxFile
-          flint.crxUrl
+      [ mkConfig GeroExt gero.extensionId gero.password gero.crxFile gero.crxUrl
       , mkConfig LodeExt lode.extensionId lode.password lode.crxFile lode.crxUrl
       , mkConfig EternlExt eternl.extensionId eternl.password eternl.crxFile
           eternl.crxUrl
@@ -330,24 +324,14 @@ uintParser = eitherReader \str ->
 defaultPorts
   :: { kupo :: Int
      , ogmios :: Int
-     , plutip :: Int
      }
 defaultPorts =
-  { plutip: 8087
-  , ogmios: 1345
+  { ogmios: 1345
   , kupo: 1443
   }
 
 clusterPortsOptionsParser :: Parser ClusterPortsOptions
 clusterPortsOptionsParser = ado
-  plutipPort <- option (Just <$> uintParser) $ fold
-    [ long "plutip-port"
-    , help "Plutip port for use with local cluster"
-    , value Nothing
-    , showDefaultWith $ const $
-        showPort "PLUTIP" defaultPorts.plutip
-    , metavar "PORT"
-    ]
   ogmiosPort <- option (Just <$> uintParser) $ fold
     [ long "ogmios-port"
     , help "Ogmios port for use with local Plutip cluster"
@@ -365,8 +349,7 @@ clusterPortsOptionsParser = ado
     , metavar "PORT"
     ]
   in
-    { plutipPort
-    , ogmiosPort
+    { ogmiosPort
     , kupoPort
     }
   where

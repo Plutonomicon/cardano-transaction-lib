@@ -37,7 +37,7 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (snd)
 import Type.Proxy (Proxy(Proxy))
 
--- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
+-- A `StateT` ontop of `KupmiosM` ~ ReaderT QueryConfig Aff`.
 -- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
 -- transaction etc and additionally holds a `ConstraintsConfig` containing the
 -- scriptlookups and a `defaultSlotConfig`.

@@ -9,14 +9,15 @@ import Prelude
 
 import Cardano.Types (BigNum, Slot(Slot))
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Chain as Chain
+import Cardano.Types.EraSummaries (EraSummaries(EraSummaries))
+import Cardano.Types.SystemStart (SystemStart)
 import Contract.Log (logTrace')
 import Control.Monad.Error.Class (liftEither, liftMaybe)
 import Control.Monad.Reader (asks)
 import Ctl.Internal.Contract (getChainTip)
-import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, getProvider)
 import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.Types.Chain as Chain
-import Ctl.Internal.Types.EraSummaries (EraSummaries(EraSummaries))
 import Ctl.Internal.Types.Interval
   ( POSIXTime(POSIXTime)
   , SlotToPosixTimeError(CannotFindSlotInEraSummaries)
@@ -24,7 +25,6 @@ import Ctl.Internal.Types.Interval
   , getSlotLength
   , slotToPosixTime
   )
-import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Array (length, mapMaybe)
 import Data.Bifunctor (lmap)
 import Data.DateTime.Instant (unInstant)
@@ -44,7 +44,7 @@ import JS.BigInt as BigInt
 -- | The returned slot will be no less than the slot provided as argument.
 waitUntilSlot :: Slot -> Contract Chain.Tip
 waitUntilSlot targetSlot = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   { delay: retryDelay } <- asks $ _.timeParams >>> _.waitUntilSlot
   getChainTip >>= case _ of
     tip@(Chain.Tip (Chain.ChainTip { slot }))
@@ -52,7 +52,7 @@ waitUntilSlot targetSlot = do
       | otherwise -> do
           { systemStart } <- asks _.ledgerConstants
           eraSummaries <- liftAff $
-            queryHandle.getEraSummaries
+            provider.getEraSummaries
               >>= either (liftEffect <<< throw <<< show) pure
           slotLengthMs <- map getSlotLength $ liftEither
             $ lmap (const $ error "Unable to get current Era summary")
@@ -192,9 +192,9 @@ slotToEndPOSIXTime slot = do
   targetSlot <- liftM (error "Unable to advance slot")
     $ wrap <$> BigNum.add (unwrap slot) (BigNum.fromInt 1)
   { systemStart } <- asks _.ledgerConstants
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   eraSummaries <- liftAff $
-    queryHandle.getEraSummaries
+    provider.getEraSummaries
       >>= either (liftEffect <<< throw <<< show) pure
   futureTime <- liftEither $
     slotToPosixTime eraSummaries systemStart targetSlot

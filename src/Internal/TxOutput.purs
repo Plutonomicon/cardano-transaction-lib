@@ -11,6 +11,7 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Data.Lite (fromBytes, toBytes)
+import Cardano.Provider.TxEvaluation (OgmiosTxOut, OgmiosTxOutRef)
 import Cardano.Types
   ( DataHash
   , PlutusData
@@ -25,7 +26,6 @@ import Cardano.Types.OutputDatum
 import Cardano.Types.TransactionOutput (TransactionOutput(TransactionOutput))
 import Control.Alt ((<|>))
 import Control.Alternative (guard)
-import Ctl.Internal.QueryM.Ogmios as Ogmios
 import Data.ByteArray (byteArrayToHex, hexToByteArray)
 import Data.Maybe (Maybe, isNothing)
 import Data.Newtype (unwrap, wrap)
@@ -39,7 +39,7 @@ import Data.Traversable (traverse)
 -- I think txId is a hexadecimal encoding.
 -- | Converts an Ogmios transaction input to (internal) `TransactionInput`
 txOutRefToTransactionInput
-  :: Ogmios.OgmiosTxOutRef -> Maybe TransactionInput
+  :: OgmiosTxOutRef -> Maybe TransactionInput
 txOutRefToTransactionInput { txId, index } = do
   transactionId <- hexToByteArray txId >>= fromBytes >>> map wrap
   pure $ wrap
@@ -49,7 +49,7 @@ txOutRefToTransactionInput { txId, index } = do
 
 -- | Converts an (internal) `TransactionInput` to an Ogmios transaction input
 transactionInputToTxOutRef
-  :: TransactionInput -> Ogmios.OgmiosTxOutRef
+  :: TransactionInput -> OgmiosTxOutRef
 transactionInputToTxOutRef
   (TransactionInput { transactionId, index }) =
   { txId: byteArrayToHex (toBytes $ unwrap transactionId)
@@ -61,7 +61,7 @@ transactionInputToTxOutRef
 -- hexToByteArray for now. https://github.com/Plutonomicon/cardano-transaction-lib/issues/78
 -- | Converts an Ogmios transaction output to (internal) `TransactionOutput`
 ogmiosTxOutToTransactionOutput
-  :: Ogmios.OgmiosTxOut -> Maybe TransactionOutput
+  :: OgmiosTxOut -> Maybe TransactionOutput
 ogmiosTxOutToTransactionOutput { address, value, datum, datumHash, script } = do
   address' <- Address.fromBech32 address
   -- If datum ~ Maybe String is Nothing, do nothing. Otherwise, attempt to
@@ -79,7 +79,7 @@ ogmiosTxOutToTransactionOutput { address, value, datum, datumHash, script } = do
 
 -- | Converts an internal transaction output to the Ogmios transaction output.
 transactionOutputToOgmiosTxOut
-  :: TransactionOutput -> Ogmios.OgmiosTxOut
+  :: TransactionOutput -> OgmiosTxOut
 transactionOutputToOgmiosTxOut
   (TransactionOutput { address, amount: value, datum, scriptRef }) =
   { address: Address.toBech32 address

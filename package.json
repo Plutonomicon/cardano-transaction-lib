@@ -31,23 +31,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@mlabs-haskell/cardano-message-signing": "^1.0.1",
-    "@mlabs-haskell/cardano-data-lite": "0.1.0-prerelease7",
-    "@mlabs-haskell/json-bigint": "2.0.0",
-    "@mlabs-haskell/uplc-apply-args": "1.0.29-alpha",
-    "@noble/secp256k1": "^1.7.0",
-    "base64-js": "^1.5.1",
-    "bignumber.js": "^9.1.1",
-    "bip39": "^3.1.0",
-    "bufferutil": "4.0.5",
-    "isomorphic-ws": "^5.0.0",
-    "puppeteer-core": "^15.3.2",
-    "reconnecting-websocket": "4.4.0",
-    "uniqid": "5.4.0",
-    "utf-8-validate": "^5.0.10",
-    "web-encoding": "^1.1.5",
-    "ws": "^8.16.0",
-    "xhr2": "0.2.1"
+    "@mlabs-haskell/ctl-npm-meta": "2.0.0-beta.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.7.0",

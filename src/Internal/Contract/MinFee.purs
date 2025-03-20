@@ -39,7 +39,7 @@ import Cardano.Types.Credential (asPubKeyHash) as Credential
 import Cardano.Types.TransactionBody (_votingProcedures)
 import Cardano.Types.TransactionInput (TransactionInput)
 import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
+import Ctl.Internal.Contract.Monad (Contract, getProvider)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Ctl.Internal.Helpers (liftM, liftedM)
 import Ctl.Internal.MinFee (calculateMinFeeCsl)
@@ -78,7 +78,7 @@ calculateMinFee tx additionalUtxos refScriptsSize = do
 -- | for signing to make the transaction valid for the network.
 getSelfSigners :: Transaction -> UtxoMap -> Contract (Set Ed25519KeyHash)
 getSelfSigners tx additionalUtxos = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
 
   -- Get all tx inputs and remove the additional ones.
   let
@@ -97,7 +97,7 @@ getSelfSigners tx additionalUtxos = do
       $ (map <<< map) (_.address <<< unwrap)
       $ case Map.lookup txInput additionalUtxos of
           Nothing ->
-            liftAff (queryHandle.getUtxoByOref txInput <#> hush >>> join)
+            liftAff (provider.getUtxoByOref txInput <#> hush >>> join)
           Just utxo -> pure $ Just utxo
 
   let
@@ -109,7 +109,7 @@ getSelfSigners tx additionalUtxos = do
         $ (map <<< map) (_.address <<< unwrap)
         $ case Map.lookup txInput additionalUtxos of
             Nothing ->
-              liftAff (queryHandle.getUtxoByOref txInput <#> hush >>> join)
+              liftAff (provider.getUtxoByOref txInput <#> hush >>> join)
             Just utxo -> pure $ Just utxo
 
   -- Get own addressses

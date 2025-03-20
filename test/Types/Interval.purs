@@ -7,12 +7,13 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Cardano.Kupmios.Ogmios.Types (OgmiosEraSummaries, OgmiosSystemStart)
 import Cardano.Types (Slot(Slot))
 import Cardano.Types.BigNum (fromInt) as BigNum
+import Cardano.Types.EraSummaries (EraSummaries)
+import Cardano.Types.SystemStart (SystemStart)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
-import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( Interval
   , POSIXTime(POSIXTime)
@@ -30,7 +31,6 @@ import Ctl.Internal.Types.Interval
   , slotToPosixTime
   , to
   )
-import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
@@ -87,14 +87,14 @@ eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
   { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
     "queryLedgerState-eraSummaries"
-    "8073a8f378e969384ec52010ec6c290c"
+    "bee9da7cfae1d597a7708d5333b7693a"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart
 systemStartFixture = do
   { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture
     "queryNetwork-startTime"
-    "5185237542c7c8a6810aeb0fe74b3b40"
+    "7a69fc36c65959ecea462df634c0dcf6"
   pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit

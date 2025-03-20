@@ -21,10 +21,10 @@ import Control.Monad.Rec.Class (Step(Loop), tailRecM)
 import Ctl.Internal.Contract.Monad
   ( buildBackend
   , getLedgerConstants
-  , mkQueryHandle
+  , mkProvider
   , stopContractEnv
   )
-import Ctl.Internal.Contract.QueryBackend (mkCtlBackendParams)
+import Ctl.Internal.Contract.ProviderBackend (mkCtlBackendParams)
 import Ctl.Internal.Helpers (concatPaths, (<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.ServerConfig (ServerConfig)
@@ -41,6 +41,7 @@ import Ctl.Internal.Testnet.Types
   ( TestnetClusterConfig
   , TestnetConfig
   , TestnetPaths
+  , TestnetRuntime
   )
 import Ctl.Internal.Testnet.Utils
   ( EventSource
@@ -214,18 +215,9 @@ startTestnetCluster
   -> Logger
   -> Aff StartedTestnetCluster
 startTestnetCluster cfg cleanupRef logger = do
-  { testnet, channels, workdirAbsolute } <-
+  { testnet, channels, workdirAbsolute, runtime: { paths } } <-
     annotateError "Could not start cardano-testnet" $
       startCardanoTestnet cfg.clusterConfig cleanupRef logger
-
-  { paths } <- waitUntil (Milliseconds 4000.0)
-    $ map hush
-    $ tryAndLogErrors "Waiting for ready state"
-    $ liftEffect do
-
-        paths <- liftEither =<< findTestnetPaths { workdir: workdirAbsolute }
-        runtime <- getRuntime paths
-        pure { runtime, paths }
 
   ogmios <- annotateError "Could not start ogmios"
     $ startOgmios' { paths, workdir: workdirAbsolute }
@@ -324,6 +316,7 @@ startCardanoTestnet
            , stdout :: EventSource String
            }
        , workdirAbsolute :: FilePath
+       , runtime :: TestnetRuntime
        }
 startCardanoTestnet params cleanupRef logger =
   annotateError "startCardanoTestnet" do
@@ -363,7 +356,13 @@ startCardanoTestnet params cleanupRef logger =
 
     channels <- liftEffect $ getChannels testnet
     attachStdoutMonitors testnet
-    pure { testnet, workdirAbsolute: workspace, channels }
+    runtime <- getTestnetRuntime workspace
+    pure
+      { testnet
+      , workdirAbsolute: workspace
+      , channels
+      , runtime
+      }
   where
   findWorkspaceDir :: forall m. MonadEffect m => FilePath -> m (Maybe FilePath)
   findWorkspaceDir workdir =
@@ -394,6 +393,14 @@ startCardanoTestnet params cleanupRef logger =
         addCleanup cleanupRef $ liftEffect do
           logger Trace $ "Cleaning up cardano-testnet workspace: " <> workspace
           _rmdirSync workspace
+
+  getTestnetRuntime :: FilePath -> Aff TestnetRuntime
+  getTestnetRuntime workdir =
+    waitUntil (Milliseconds 4000.0) do
+      map hush $ tryAndLogErrors (Just logger) "getTestnetRuntime" $
+        liftEffect do
+          paths <- findTestnetPaths workdir
+          getRuntime paths
 
 type StdStreams =
   { stderr :: EventSource String
@@ -449,14 +456,15 @@ redirectLogging
      }
   -> Aff (Aff.Fiber (Either Error Unit))
 redirectLogging events { handleLine, storeLogs } =
-  Aff.forkAff $ tryAndLogErrors "redirectLogging" $ flip tailRecM unit \_ -> do
-    line <- waitForEvent events
-    liftEffect $ suppressAndLogErrors "redirectLogging: callback error" $ void
-      do
-        handleLine line
-        for storeLogs \{ logFile, toString } ->
-          Node.FS.appendTextFile UTF8 logFile $ toString line <> "\n"
-    pure $ Loop unit
+  Aff.forkAff $ tryAndLogErrors Nothing "redirectLogging" $ flip tailRecM unit
+    \_ -> do
+      line <- waitForEvent events
+      liftEffect $ suppressAndLogErrors "redirectLogging: callback error" $ void
+        do
+          handleLine line
+          for storeLogs \{ logFile, toString } ->
+            Node.FS.appendTextFile UTF8 logFile $ toString line <> "\n"
+      pure $ Loop unit
 
 type ClusterConfig r =
   ( ogmiosConfig :: ServerConfig
@@ -540,7 +548,7 @@ makeNaiveClusterContractEnv cfg logger customLogger = do
   backendKnownTxs <- liftEffect $ Ref.new Set.empty
   pure
     { backend
-    , handle: mkQueryHandle cfg backend
+    , provider: mkProvider cfg backend
     , networkId: TestnetId
     , logLevel: cfg.logLevel
     , customLogger: customLogger

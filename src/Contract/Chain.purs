@@ -5,6 +5,11 @@ module Contract.Chain
   , module Contract.WaitUntilSlot
   ) where
 
+import Cardano.Types.Chain
+  ( BlockHeaderHash(BlockHeaderHash)
+  , ChainTip(ChainTip)
+  , Tip(Tip, TipAtGenesis)
+  ) as Chain
 import Contract.Monad (Contract)
 import Ctl.Internal.Contract (getChainTip) as Contract
 import Ctl.Internal.Contract.WaitUntilSlot
@@ -13,11 +18,6 @@ import Ctl.Internal.Contract.WaitUntilSlot
   , waitNSlots
   , waitUntilSlot
   ) as Contract.WaitUntilSlot
-import Ctl.Internal.Types.Chain
-  ( BlockHeaderHash(BlockHeaderHash)
-  , ChainTip(ChainTip)
-  , Tip(Tip, TipAtGenesis)
-  ) as Chain
 
 getTip :: Contract Chain.Tip
 getTip = Contract.getChainTip

@@ -31,7 +31,7 @@ import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (fromAff)
 import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
-import Ctl.Internal.Contract.Monad (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Wallet (mkWalletAff)
 import Data.Array as Array
@@ -93,7 +93,7 @@ mkCip30Mock
   -> Contract Cip30Mock
 mkCip30Mock pKey mSKey mbDrepKey = do
   env <- ask
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   let
     getCollateralUtxos utxos = do
       let
@@ -111,7 +111,7 @@ mkCip30Mock pKey mSKey mbDrepKey = do
     ownUtxos = do
       ownAddress <- liftAff $ (unwrap keyWallet).address env.networkId
       liftMaybe (error "No UTxOs at address") <<< hush =<< do
-        queryHandle.utxosAt ownAddress
+        provider.utxosAt ownAddress
 
     keyWallet = privateKeysToKeyWallet pKey mSKey mbDrepKey
 

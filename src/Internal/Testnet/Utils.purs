@@ -1,32 +1,30 @@
 module Ctl.Internal.Testnet.Utils
   ( EventSource(EventSource)
   , TestnetCleanupRef
+  , addCleanup
+  , after
+  , annotateError
+  , cleanupOnExit
   , findNodeDirs
-  , onLine
-  , makeEventSource
   , findTestnetPaths
   , getNodePort
   , getRuntime
+  , makeEventSource
+  , onLine
+  , readGenesisKey
+  , readNodes
+  , runCleanup
   , scheduleCleanup
-  , addCleanup
+  , suppressAndLogErrors
   , tmpdir
   , tmpdirUnique
-  , runCleanup
   , tryAndLogErrors
-  , suppressAndLogErrors
-  , after
-  , onTestnetEvent
-  , parseEvent
-  , readNodes
-  , read872GenesisKey
-  , whenError
   , waitFor
   , waitForClose
   , waitForError
   , waitForEvent
   , waitUntil
-  , cleanupOnExit
-  , annotateError
+  , whenError
   ) where
 
 import Contract.Prelude hiding (log)
@@ -45,11 +43,11 @@ import Control.Monad.Error.Class
   , liftMaybe
   , throwError
   )
-import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Rec.Class (Step(Done, Loop), tailRecM)
 import Control.Parallel (parOneOf, parallel, sequential)
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.QueryM.UniqueId (uniqueId)
+import Ctl.Internal.Helpers.UniqueId (uniqueId)
+import Ctl.Internal.Logging (Logger)
 import Ctl.Internal.Spawn
   ( ManagedProcess(ManagedProcess)
   , OnSignalRef
@@ -57,11 +55,9 @@ import Ctl.Internal.Spawn
   , waitForSignal
   )
 import Ctl.Internal.Testnet.Types
-  ( Event(Ready872, Finished, StartupFailed)
-  , GenesisUtxoKeyLocation
+  ( GenesisUtxoKeyLocation
   , Node
   , NodeLocation
-  , StartupFailure(InitializationFailed, SpawnFailed)
   , TestnetPaths
   , TestnetRuntime
   )
@@ -93,18 +89,6 @@ import Node.Process as Process
 import Node.ReadLine as RL
 import Node.Stream (Readable)
 
-parseEvent :: String -> Maybe Event
-parseEvent = case _ of
-  -- we can't know this way when 8.1.1 cardano-testnet is ready
-  "    forAll109 =" -> Just Ready872
-  "Usage: cardano-testnet cardano [--num-pool-nodes COUNT]" ->
-    Just $ StartupFailed SpawnFailed
-  "Failed to start testnet." ->
-    Just $ StartupFailed InitializationFailed
-  "Testnet is running.  Type CTRL-C to exit." ->
-    Just Finished
-  _ -> Nothing
-
 waitFor :: forall a e. EventSource e -> (e -> Maybe a) -> Aff a
 waitFor source f = flip tailRecM unit \_ -> do
   event <- waitForEvent source
@@ -112,34 +96,28 @@ waitFor source f = flip tailRecM unit \_ -> do
     Just a -> Done a
     Nothing -> Loop unit
 
-onTestnetEvent :: EventSource String -> Effect (EventSource Event)
-onTestnetEvent = narrowEventSource parseEvent
+getRuntime :: TestnetPaths -> Effect TestnetRuntime
+getRuntime paths@{ nodeDirs, testnetDirectory } = do
+  nodes <- readNodes nodeDirs testnetDirectory
+  pure { nodes, paths }
 
-getRuntime :: TestnetPaths -> Effect (Record (TestnetRuntime ()))
-getRuntime paths = do
-  nodes <- readNodes paths
-  -- genesis <- readGenesis {workdir: paths.testnetDirectory}
-  pure { nodes {-, genesis-} }
-
-readNodes
-  :: forall r
-   . { nodeDirs :: Array { | NodeLocation () }
-     , testnetDirectory :: FilePath
-     | r
-     }
-  -> Effect (Array { | Node () })
-readNodes { nodeDirs, testnetDirectory } = do
-  for nodeDirs \{ idx, workdir, name } -> do
-    let
-      socketPath = testnetDirectory <</>> "socket" <</>> name
+readNodes :: Array NodeLocation -> FilePath -> Effect (Array Node)
+readNodes nodeDirs testnetDir =
+  for nodeDirs \{ idx, workdir } -> do
+    let socketPath = testnetDir <</>> "socket" <</>> ("node" <> show idx)
     exists <- Node.FS.exists socketPath
-    unless exists
-      $ throwError
-      $ error
-      $ "Couldn't find node socket at "
-      <> socketPath
-    port <- getNodePort { nodeDir: workdir }
-    pure { idx, socket: socketPath, port, workdir, name }
+    unless exists do
+      throwError $ error $ "readNodes: could not find node socket at "
+        <> socketPath
+    port <- getNodePort testnetDir idx
+    pure
+      { socket: socketPath
+      , port
+      , location:
+          { idx
+          , workdir
+          }
+      }
 
 -- | Changes TextEnvelope type to match private payment key one and tries to read that.
 readTextEnvelopeAsPaymentSkey
@@ -156,8 +134,8 @@ readTextEnvelopeAsPaymentSkey path = do
   liftMaybe (error "Cannot decode payment skey from decoded envelope")
     $ privatePaymentKeyFromTextEnvelope envelope'
 
-parse872UtxoKeyFilename :: FilePath -> Either Error (Maybe { idx :: Int })
-parse872UtxoKeyFilename path =
+parseUtxoKeyFilename :: FilePath -> Either Error (Maybe { idx :: Int })
+parseUtxoKeyFilename path =
   traverse
     ( map { idx: _ }
         <<< note (error "Can't parse genesis key index")
@@ -165,63 +143,63 @@ parse872UtxoKeyFilename path =
     )
     (String.stripPrefix (Pattern "utxo") path)
 
-read872GenesisKeyLocations
-  :: { workdir :: FilePath }
-  -> Effect (Array { | GenesisUtxoKeyLocation () })
-read872GenesisKeyLocations { workdir } = do
+readGenesisKeyLocations :: FilePath -> Effect (Array GenesisUtxoKeyLocation)
+readGenesisKeyLocations workdir = do
   let keysDir = workdir <</>> "utxo-keys"
   filenames <- Node.FS.readdir keysDir
   map Array.catMaybes
     $ liftEither
     $ for filenames \filename ->
-        parse872UtxoKeyFilename filename <#> map \{ idx } ->
+        parseUtxoKeyFilename filename <#> map \{ idx } ->
           { idx
           , path: keysDir <</>> filename <</>> "utxo.skey"
           }
 
-read872GenesisKey
-  :: forall r
-   . { | GenesisUtxoKeyLocation r }
-  -> Effect Contract.Config.PrivatePaymentKey
-read872GenesisKey = readTextEnvelopeAsPaymentSkey <<< _.path
+readGenesisKey
+  :: GenesisUtxoKeyLocation -> Effect Contract.Config.PrivatePaymentKey
+readGenesisKey = readTextEnvelopeAsPaymentSkey <<< _.path
 
-getNodePort :: { nodeDir :: FilePath } -> Effect UInt
-getNodePort { nodeDir } =
-  liftMaybe (error $ "Failed to parse port at " <> nodeDir <</>> "/port")
-    <<< UInt.fromString
-    =<< Node.FS.readTextFile UTF8 (nodeDir <</>> "/port")
+getNodePort :: FilePath -> Int -> Effect UInt
+getNodePort testnetDir nodeIdx = do
+  let portPath = testnetDir <</>> ("node-data/node" <> show nodeIdx <> "/port")
+  portStr <- Node.FS.readTextFile UTF8 portPath
+  liftMaybe (error $ "Failed to parse port at " <> portPath) $
+    UInt.fromString portStr
 
-findNodeDirs :: { workdir :: FilePath } -> Effect (Array { | NodeLocation () })
-findNodeDirs { workdir } = do
+findNodeDirs :: FilePath -> Effect (Array NodeLocation)
+findNodeDirs workdir = do
   let poolsKeysDir = workdir <</>> "pools-keys"
   Node.FS.readdir poolsKeysDir <#> \subdirs ->
     flip Array.mapMaybe subdirs \dirname -> do
-      idx <- Int.fromString =<< String.stripPrefix (Pattern "pool")
-        dirname
-      pure { idx, workdir: poolsKeysDir <</>> dirname, name: dirname }
+      idx <- Int.fromString =<< String.stripPrefix (Pattern "pool") dirname
+      pure
+        { idx
+        , workdir: poolsKeysDir <</>> dirname
+        }
 
-findTestnetPaths
-  :: { workdir :: FilePath } -> Effect (Either Error TestnetPaths)
-findTestnetPaths { workdir } = runExceptT do
+findTestnetPaths :: FilePath -> Effect TestnetPaths
+findTestnetPaths workdir = do
   let
     nodeConfigPath = workdir <</>> "configuration.yaml"
-    firstNode = "socket/pool1/sock"
+    firstNode = "socket/node1/sock"
     nodeSocketPath = workdir <</>> firstNode
-  workdirExists <- lift $ Node.FS.exists workdir
-  configPathExists <- lift $ Node.FS.exists nodeConfigPath
-  socketPathExists <- lift $ Node.FS.exists nodeSocketPath
+  workdirExists <- Node.FS.exists workdir
+  configPathExists <- Node.FS.exists nodeConfigPath
+  socketPathExists <- Node.FS.exists nodeSocketPath
   unless workdirExists do
     throwError $ error $
-      "cardano-testnet working directory not found."
+      "findTestnetPaths: cardano-testnet working directory not found."
   unless configPathExists do
     throwError $ error $
-      "'configuration.yaml' not found in cardano-testnet working directory."
+      "findTestnetPaths: 'configuration.yaml' not found in cardano-testnet \
+      \working directory."
   unless socketPathExists do
     throwError $ error
-      $ firstNode
+      $ "findTestnetPaths: "
+      <> firstNode
       <> " not found in cardano-testnet working directory."
-  nodeDirs <- lift $ findNodeDirs { workdir }
-  genesisKeys <- lift $ read872GenesisKeyLocations { workdir }
+  nodeDirs <- findNodeDirs workdir
+  genesisKeys <- readGenesisKeyLocations workdir
   pure
     { testnetDirectory: workdir
     , nodeConfigPath
@@ -302,32 +280,6 @@ whenError whenErrorAction action = do
 -- | Just as a bracket but without the body.
 after :: forall a. Aff a -> (a -> Aff Unit) -> Aff a
 after first second = Aff.bracket first second pure
-
--- | Create an event source based on another event source, but
--- with smaller variety of events.
-narrowEventSource
-  :: forall a b
-   . (a -> Maybe b)
-  -> EventSource a
-  -> Effect (EventSource b)
-narrowEventSource filter (EventSource source) = annotateError
-  "narrowEventSource"
-  do
-    { eventSource: new
-    , outcome: subscriptionResult -- this goes from the source
-    } <- flip makeEventSource filter \{ handle } ->
-      do -- this is how new event source subscribe on the source
-        source.subscribe (handle <<< _.event) >>= case _ of
-          Left err -> pure
-            { outcome: Left err -- this is not for makeEventSource
-            , unsubscribe: pure unit -- how do 'new' unsubscribe from the 'source'
-            }
-          Right { unsubscribe: unsubFromSource } -> pure
-            { outcome: Right unit -- this is not for makeEventSource
-            , unsubscribe: unsubFromSource -- how do 'new' unsubscribe from the 'source'
-            }
-    liftEither subscriptionResult
-    pure new
 
 -- TODO: remove this function when PS bindings for os.tmpdir are available.
 -- https://github.com/Plutonomicon/cardano-transaction-lib/issues/726
@@ -525,15 +477,21 @@ tryAndLogErrors
   :: forall a m
    . MonadEffect m
   => MonadError Error m
-  => String
+  => Maybe Logger
+  -> String
   -> m a
   -> m (Either Error a)
-tryAndLogErrors location = try >=> case _ of
-  Left err -> do
-    log $ "An error occured and suppressed at " <> location <> ": " <> message
-      err
-    pure $ Left err
-  Right a -> pure $ Right a
+tryAndLogErrors logger location =
+  try >=> case _ of
+    Left err -> do
+      maybe log (\l -> liftEffect <<< l Error) logger
+        $ "An error occured and suppressed at "
+        <> location
+        <> ": "
+        <> message err
+      pure $ Left err
+    Right a ->
+      pure $ Right a
 
 runCleanup :: Ref (Array (Aff Unit)) -> Aff Unit
 runCleanup cleanupRef = do

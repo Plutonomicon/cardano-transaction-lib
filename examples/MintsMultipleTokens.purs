@@ -23,7 +23,7 @@ import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.Transaction as Transaction
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -42,7 +42,7 @@ import JS.BigInt (fromInt) as BigInt
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 contract :: Contract Unit

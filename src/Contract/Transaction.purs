@@ -22,6 +22,14 @@ module Contract.Transaction
 
 import Prelude
 
+import Cardano.Provider.Error (ClientError, GetTxMetadataError)
+import Cardano.Provider.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      , GetTxMetadataClientError
+      )
+  ) as X
 import Cardano.Transaction.Builder
   ( TransactionBuilderStep
   , buildTransaction
@@ -96,18 +104,9 @@ import Ctl.Internal.Contract.AwaitTxConfirmed
   , isTxConfirmed
   ) as X
 import Ctl.Internal.Contract.MinFee (calculateMinFee) as X
-import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
-import Ctl.Internal.Contract.QueryHandle.Error
-  ( GetTxMetadataError
-      ( GetTxMetadataTxNotFoundError
-      , GetTxMetadataMetadataEmptyOrMissingError
-      , GetTxMetadataClientError
-      )
-  ) as X
+import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Contract.Sign (signTransaction)
 import Ctl.Internal.Contract.Sign (signTransaction) as X
-import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
@@ -171,8 +170,8 @@ submitE
   :: Transaction
   -> Contract (Either ClientError TransactionHash)
 submitE tx = do
-  queryHandle <- getQueryHandle
-  eiTxHash <- liftAff $ queryHandle.submitTx tx
+  provider <- getProvider
+  eiTxHash <- liftAff $ provider.submitTx tx
   void $ asks (_.hooks >>> _.onSubmit) >>=
     traverse \hook -> liftEffect $ void $ try $ hook tx
   pure eiTxHash
@@ -322,8 +321,8 @@ getTxAuxiliaryData
   :: TransactionHash
   -> Contract (Either GetTxMetadataError AuxiliaryData)
 getTxAuxiliaryData txHash = do
-  queryHandle <- getQueryHandle
-  liftAff $ queryHandle.getTxAuxiliaryData txHash
+  provider <- getProvider
+  liftAff $ provider.getTxAuxiliaryData txHash
 
 -- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the
