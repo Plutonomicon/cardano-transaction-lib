@@ -39,7 +39,7 @@ instance Show NativeScriptHash where
   show (NativeScriptHash sh) = "(NativeScriptHash " <> show sh <> ")"
 
 nativeScriptHash :: NativeScript -> NativeScriptHash
-nativeScriptHash = wrap <<< wrap <<< nativeScript_hash <<< NativeScript.toCsl
+nativeScriptHash = wrap <<< wrap <<< nativeScript_hash <<< NativeScript.toCdl
 
 -- | `SetChoice` is an internal type representing internal state of
 -- | `getMaximumSigners` algorithm.

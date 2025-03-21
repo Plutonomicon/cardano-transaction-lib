@@ -65,18 +65,18 @@ calculateMinFeeCsl
   refScriptsSize = do
   let
     tx = addFakeSignatures selfSigners txNoSigs
-    cslTx = Transaction.toCsl tx
+    cslTx = Transaction.toCdl tx
     cslLinearFee = linearFee_new
       (unwrap $ BigNum.fromUInt pparams.txFeePerByte)
       (unwrap $ unwrap pparams.txFeeFixed)
     fee = minFee cslTx cslLinearFee
     exUnitPrices = pparams.prices
-    exUnitPricesCsl = ExUnitPrices.toCsl exUnitPrices
+    exUnitPricesCsl = ExUnitPrices.toCdl exUnitPrices
     scriptFee = minScriptFee cslTx exUnitPricesCsl
     refScriptFee =
       minRefScriptFee
         (Int.toNumber $ UInt.toInt refScriptsSize)
-        ( UnitInterval.toCsl
+        ( UnitInterval.toCdl
             $ unsafeFromJust "calculateMinFeeCsl: refScriptCoinsPerByte"
             $ Rational.toUnitInterval pparams.refScriptCoinsPerByte
         )

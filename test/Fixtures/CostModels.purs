@@ -19,5 +19,5 @@ foreign import plutusConwayCostmdls :: Effect Costmdls
 
 costModelsFixture1 :: Map Language CostModel
 costModelsFixture1 = unsafePerformEffect do
-  defaultCostmdls <#> unpackMapContainerToMapWith Language.fromCsl
-    CostModel.fromCsl
+  defaultCostmdls <#> unpackMapContainerToMapWith Language.fromCdl
+    CostModel.fromCdl

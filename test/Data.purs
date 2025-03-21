@@ -561,7 +561,7 @@ instance (FromData a) => FromData (Tree a) where
         Node <$> fromData a <*> (Tuple <$> worker ltree <*> worker rtree)
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = (fromData <<< PlutusData.fromCsl) =<< fromBytes
+fromBytesFromData binary = (fromData <<< PlutusData.fromCdl) =<< fromBytes
   (hexToByteArrayUnsafe binary)
 
 testBinaryFixture

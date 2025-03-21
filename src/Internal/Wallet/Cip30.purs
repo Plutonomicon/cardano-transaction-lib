@@ -166,7 +166,7 @@ getCollateral conn = do
   liftEffect $ for mbUtxoStrs \utxoStrs -> do
     for utxoStrs \utxoStr -> do
       liftM (error $ "CIP-30 getCollateral returned bad UTxO: " <> utxoStr) $
-        TransactionUnspentOuput.fromCsl <$>
+        TransactionUnspentOuput.fromCdl <$>
           ( fromBytes
               =<< hexToByteArray utxoStr
           )
@@ -178,7 +178,7 @@ getUtxos conn = do
     { success: \mbUtxoArray -> do
         liftEffect $ for mbUtxoArray $ \utxoArray -> for utxoArray \str -> do
           liftMaybe (error $ "CIP-30 getUtxos returned bad UTxO: " <> str) $
-            (hexToByteArray str >>= fromBytes) <#> UnspentOutput.fromCsl
+            (hexToByteArray str >>= fromBytes) <#> UnspentOutput.fromCdl
     , paginateError: show >>> throw >>> liftEffect
     , apiError: show >>> throw >>> liftEffect
     }
@@ -235,7 +235,7 @@ getBalance :: Api -> Aff Value
 getBalance conn = do
   Cip30.getBalance conn >>= handleApiError >>=
     liftM (error "CIP-30 getUsedAddresses returned non-address") <<<
-      (hexToByteArray >=> fromBytes >>> map Value.fromCsl)
+      (hexToByteArray >=> fromBytes >>> map Value.fromCdl)
 
 getCip30Collateral :: Api -> Coin -> Aff (Maybe (Array String))
 getCip30Collateral conn (Coin requiredValue) = do

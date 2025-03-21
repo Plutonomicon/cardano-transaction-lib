@@ -56,13 +56,13 @@ md5HashHex contents = do
 
 plutusDataHash :: PlutusData -> DataHash
 plutusDataHash =
-  wrap <<< hashPlutusData <<< PlutusData.toCsl
+  wrap <<< hashPlutusData <<< PlutusData.toCdl
 
 plutusScriptHash :: PlutusScript -> ScriptHash
 plutusScriptHash = PlutusScript.hash
 
 nativeScriptHash :: NativeScript -> ScriptHash
-nativeScriptHash = wrap <<< nativeScript_hash <<< NativeScript.toCsl
+nativeScriptHash = wrap <<< nativeScript_hash <<< NativeScript.toCdl
 
 scriptRefHash :: ScriptRef -> ScriptHash
 scriptRefHash (PlutusScriptRef plutusScript) = plutusScriptHash plutusScript

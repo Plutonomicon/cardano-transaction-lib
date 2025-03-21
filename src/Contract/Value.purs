@@ -16,7 +16,7 @@ import Cardano.Types.Value
   , checkPred
   , coinToValue
   , empty
-  , fromCsl
+  , fromCdl
   , geq
   , getAssetQuantity
   , getCoin
@@ -32,7 +32,7 @@ import Cardano.Types.Value
   , pprintValue
   , singleton
   , sum
-  , toCsl
+  , toCdl
   , unionWith
   , valueAssetClasses
   , valueAssets
