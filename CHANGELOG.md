@@ -91,7 +91,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
-- `cardano-serialization-lib` was replaced by `cardano-data-lite` v1.0
+- Replaced cardano-serialization-lib (CSL) with [cardano-data-lite (CDL)](https://github.com/mlabs-haskell/purescript-cardano-data-lite) ([#1678](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1678))
 - Bumped [cardano-node to v10.1.4](https://github.com/IntersectMBO/cardano-node/releases/tag/10.1.4) capable of crossing the second Chang hardfork ([#1657](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1657))
 - Bumped [Ogmios to v6.8.0](https://github.com/CardanoSolutions/ogmios/releases/tag/v6.8.0) ([#1657](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1657))
 - `QueryHandle` has been renamed to `Provider` ([#1665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1665))

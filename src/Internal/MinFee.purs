@@ -1,5 +1,5 @@
--- | `min_fee` calculation using CSL.
-module Ctl.Internal.MinFee (calculateMinFeeCsl) where
+-- | `min_fee` calculation using CDL.
+module Ctl.Internal.MinFee (calculateMinFeeCdl) where
 
 import Prelude
 
@@ -49,7 +49,7 @@ import Effect.Class (class MonadEffect)
 import Effect.Exception (Error)
 import Partial.Unsafe (unsafePartial)
 
-calculateMinFeeCsl
+calculateMinFeeCdl
   :: forall (m :: Type -> Type)
    . MonadEffect m
   => MonadThrow Error m
@@ -58,7 +58,7 @@ calculateMinFeeCsl
   -> Transaction
   -> UInt
   -> m Coin
-calculateMinFeeCsl
+calculateMinFeeCdl
   (ProtocolParameters pparams)
   selfSigners
   txNoSigs

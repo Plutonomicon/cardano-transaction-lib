@@ -42,7 +42,7 @@ import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, getProvider)
 import Ctl.Internal.Contract.Wallet (getWalletAddresses)
 import Ctl.Internal.Helpers (liftM, liftedM)
-import Ctl.Internal.MinFee (calculateMinFeeCsl)
+import Ctl.Internal.MinFee (calculateMinFeeCdl)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Array as Array
 import Data.Either (hush)
@@ -72,7 +72,7 @@ calculateMinFee :: Transaction -> UtxoMap -> UInt -> Contract Coin
 calculateMinFee tx additionalUtxos refScriptsSize = do
   selfSigners <- getSelfSigners tx additionalUtxos
   pparams <- getProtocolParameters
-  calculateMinFeeCsl pparams selfSigners tx refScriptsSize
+  calculateMinFeeCdl pparams selfSigners tx refScriptsSize
 
 -- | This function estimates the set of keys that must be used
 -- | for signing to make the transaction valid for the network.
