@@ -2,6 +2,12 @@ module Test.Ctl.BalanceTx.Collateral (suite) where
 
 import Prelude
 
+import Cardano.Transaction.Balancer.Collateral.Select
+  ( maxCandidateUtxos
+  , minRequiredCollateral
+  , selectCollateral
+  )
+import Cardano.Transaction.Balancer.FakeOutput (fakeOutputWithValue)
 import Cardano.Types
   ( Coin(Coin)
   , TransactionHash
@@ -17,12 +23,6 @@ import Cardano.Types.Value as Value
 import Contract.Config (testnetConfig)
 import Contract.Monad (Contract, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
-import Ctl.Internal.BalanceTx.Collateral.Select
-  ( maxCandidateUtxos
-  , minRequiredCollateral
-  , selectCollateral
-  )
-import Ctl.Internal.BalanceTx.FakeOutput (fakeOutputWithValue)
 import Data.Array (length, range, replicate, zipWith) as Array
 import Data.List (singleton) as List
 import Data.Map (fromFoldable) as Map

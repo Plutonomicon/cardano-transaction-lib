@@ -30,6 +30,27 @@ import Cardano.Provider.Error
       , GetTxMetadataClientError
       )
   ) as X
+import Cardano.Transaction.Balancer.Constraints (BalancerConstraints)
+import Cardano.Transaction.Balancer.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( BalanceInsufficientError
+      , CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
+      , CouldNotGetUtxos
+      , CollateralReturnError
+      , CollateralReturnMinAdaValueCalcError
+      , ExUnitsEvaluationFailed
+      , InsufficientUtxoBalanceToCoverAsset
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  , explainBalanceTxError
+  ) as BalanceTxError
+import Cardano.Transaction.Balancer.MinFee (calculateMinFee) as X
 import Cardano.Transaction.Builder
   ( TransactionBuilderStep
   , buildTransaction
@@ -77,36 +98,16 @@ import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
 import Ctl.Internal.BalanceTx as B
-import Ctl.Internal.BalanceTx.Constraints (BalancerConstraints)
-import Ctl.Internal.BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( BalanceInsufficientError
-      , CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetCollateral
-      , InsufficientCollateralUtxos
-      , CouldNotGetUtxos
-      , CollateralReturnError
-      , CollateralReturnMinAdaValueCalcError
-      , ExUnitsEvaluationFailed
-      , InsufficientUtxoBalanceToCoverAsset
-      , ReindexRedeemersError
-      , UtxoLookupFailedFor
-      , UtxoMinAdaValueCalculationFailed
-      )
-  , Expected(Expected)
-  , explainBalanceTxError
-  ) as BalanceTxError
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , isTxConfirmed
   ) as X
-import Ctl.Internal.Contract.MinFee (calculateMinFee) as X
-import Ctl.Internal.Contract.Monad (getProvider)
+import Ctl.Internal.Contract.Monad (filterLockedUtxos, getProvider)
 import Ctl.Internal.Contract.Sign (signTransaction)
 import Ctl.Internal.Contract.Sign (signTransaction) as X
+import Ctl.Internal.Contract.Wallet (getChangeAddress) as Wallet
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
@@ -264,7 +265,14 @@ balanceTxE
   -> UtxoMap
   -> BalancerConstraints
   -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTxE tx utxos = B.balanceTxWithConstraints tx utxos
+balanceTxE tx utxos constraints = do
+  contractEnv <- ask
+  let
+    getChangeAddressAff = runContractInEnv contractEnv Wallet.getChangeAddress
+    filterLockedUtxosAff = runContractInEnv contractEnv <<< filterLockedUtxos
+
+  B.balanceTxWithConstraints tx getChangeAddressAff filterLockedUtxosAff utxos
+    constraints
 
 -- | Balance a single transaction.
 -- |

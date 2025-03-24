@@ -2,8 +2,8 @@ module Test.Ctl.CoinSelection.RoundRobin where
 
 import Prelude
 
+import Cardano.Transaction.Balancer.CoinSelection (runRoundRobinM)
 import Cardano.Types.AssetName (AssetName)
-import Ctl.Internal.BalanceTx.CoinSelection (runRoundRobinM)
 import Data.Foldable (all, foldl, sum)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)

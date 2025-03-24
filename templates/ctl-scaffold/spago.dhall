@@ -10,6 +10,7 @@
   , "cardano-message-signing"
   , "cardano-plutus-data-schema"
   , "cardano-transaction-builder"
+  , "cardano-transaction-balancer"
   , "cardano-transaction-lib"
   , "cardano-types"
   , "cip30-mock"

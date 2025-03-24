@@ -5,6 +5,7 @@ module Ctl.Internal.Wallet.Cip30Mock
 import Prelude
 
 import Cardano.AsCbor (decodeCbor, encodeCbor)
+import Cardano.Transaction.Balancer.Collateral.Select (minRequiredCollateral)
 import Cardano.Types
   ( Credential(PubKeyHashCredential)
   , StakeCredential(StakeCredential)
@@ -30,7 +31,6 @@ import Control.Monad.Error.Class (liftMaybe, try)
 import Control.Monad.Reader (ask)
 import Control.Monad.Reader.Class (local)
 import Control.Promise (fromAff)
-import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Helpers (liftEither)
 import Ctl.Internal.Wallet (mkWalletAff)
