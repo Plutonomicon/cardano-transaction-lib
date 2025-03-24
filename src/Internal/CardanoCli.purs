@@ -7,7 +7,7 @@ module Ctl.Internal.CardanoCli
 
 import Contract.Prelude
 
-import Cardano.Serialization.Lib as CSL
+import Cardano.Data.Lite as CDL
 import Cardano.Types as Cardano.Types
 import Cardano.Types.Address as Cardano.Types.Address
 import Cardano.Types.AssetName as Cardano.Types.AssetName
@@ -193,14 +193,14 @@ parseAsset = do
 parseTxHash :: Parsing.Parser String Cardano.Types.TransactionHash
 parseTxHash = map wrap
   <<< noteParser "Cannot parse tx hash from byte array"
-  <<< CSL.fromBytes
+  <<< CDL.fromBytes
   =<< parseHex
 
 parseScriptHash :: Parsing.Parser String Cardano.Types.ScriptHash
 parseScriptHash = parseHex >>= \bytes ->
   map wrap
     $ noteParser ("Cannot parse script hash from byte array" <> show bytes)
-    $ CSL.fromBytes bytes
+    $ CDL.fromBytes bytes
 
 parseAssetName :: Parsing.Parser String Cardano.Types.AssetName
 parseAssetName =

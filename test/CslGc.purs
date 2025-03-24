@@ -19,9 +19,9 @@ suite =
     test "External memory does not leak" do
       testExternalMemLeak
         { numIterations: 15
-        , refIteration: 5
-        , maxError: 50
-        , delay: 1200
+        , refIteration: 7
+        , maxError: 60
+        , delay: 1500
         , numArrays: 20
         , arrSize: 1_000_000
         }

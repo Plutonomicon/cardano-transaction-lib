@@ -91,9 +91,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ### Changed
 
+- Replaced cardano-serialization-lib (CSL) with [cardano-data-lite (CDL)](https://github.com/mlabs-haskell/purescript-cardano-data-lite) ([#1678](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1678))
 - Bumped [cardano-node to v10.1.4](https://github.com/IntersectMBO/cardano-node/releases/tag/10.1.4) capable of crossing the second Chang hardfork ([#1657](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1657))
 - Bumped [Ogmios to v6.8.0](https://github.com/CardanoSolutions/ogmios/releases/tag/v6.8.0) ([#1657](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1657))
-- `cardano-serialization-lib` has been updated to `v13.2.0` ([#1656](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1656))
 - `QueryHandle` has been renamed to `Provider` ([#1665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1665))
   - `QueryBackend` renamed to `ProviderBackend`
   - `QueryBackendParams` renamed to `ProviderBackendParams`
@@ -118,7 +118,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Fixed
 
 - Fixed transaction witness set 'attach' functions. Previously, the updated witness set was incorrectly appended to the existing set, causing performance degradation when processing constraints for complex transactions. ([#1653](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1653))
-- Updating to CSL `v13.2.0` should resolve the issue of occasional transaction script integrity hash mismatches on tx submission ([#1656](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1656))
 - Fixed a critical bug where Blockfrost `getUtxo` would also return **spent** outputs ([#1664](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1664))
 
 ## [v9.3.1]

@@ -25,7 +25,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@mlabs-haskell/ctl-npm-meta": "1.0.0"
+    "@mlabs-haskell/ctl-npm-meta": "2.0.0-beta.1"
   },
   "devDependencies": {
     "buffer": "6.0.3",

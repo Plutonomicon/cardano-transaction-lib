@@ -1,6 +1,6 @@
 let upstream =
     -- https://github.com/mlabs-haskell/purescript-cardano-package-set
-      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v1.3.0/packages.dhall
-        sha256:77865b14fd3b73c97b119cee105b30fa859ee2bc480ca8aa290eea7d1ce00538
+      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v2.0.0/packages.dhall
+        sha256:89e383ba2cceff5b668cefae59aae352e60fb28543f9dc3fb198a0231d56d8e0
 
-in  upstream
+in upstream

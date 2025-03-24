@@ -1,7 +1,7 @@
 let upstream =
     -- https://github.com/mlabs-haskell/purescript-cardano-package-set
-      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v1.3.0/packages.dhall
-        sha256:77865b14fd3b73c97b119cee105b30fa859ee2bc480ca8aa290eea7d1ce00538
+      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v2.0.0/packages.dhall
+        sha256:89e383ba2cceff5b668cefae59aae352e60fb28543f9dc3fb198a0231d56d8e0
 
 let additions =
       { cardano-transaction-lib =
@@ -18,17 +18,17 @@ let additions =
           , "avar"
           , "bifunctors"
           , "bytearrays"
+          , "cardano-blockfrost-provider"
+          , "cardano-data-lite"
           , "cardano-hd-wallet"
           , "cardano-key-wallet"
+          , "cardano-kupmios-provider"
           , "cardano-message-signing"
+          , "cardano-ogmios-mempool"
           , "cardano-plutus-data-schema"
-          , "cardano-serialization-lib"
+          , "cardano-provider"
           , "cardano-transaction-builder"
           , "cardano-types"
-          , "cardano-blockfrost-provider"
-          , "cardano-kupmios-provider"
-          , "cardano-provider"
-          , "cardano-ogmios-mempool"
           , "checked-exceptions"
           , "cip30"
           , "cip30-mock"
@@ -112,8 +112,8 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "87f509e8f426f5fc52b4093f7c77bf9e742f4f1b"
+        , version = "3465949323ca17713fe971cac736e6bde2464842"
         }
       }
 
-in  upstream // additions
+in (upstream // additions)

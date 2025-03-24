@@ -80,5 +80,5 @@ Additionally, CTL supports [testing with real wallets](./e2e-testing.md) via hea
 Lucid aims for simplicity, while CTL allows more fine-grained control over transaction building process without losing the benefits of declarativeness.
 
 - CTL uses [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/), while Lucid uses [`Pallas`](https://github.com/txpipe/pallas).
-- In CTL, CSL types and method wrappers are used via [`purescript-cardano-serialization-lib`](https://github.com/mlabs-haskell/purescript-cardano-serialization-lib) and [`purescript-cardano-types`](https://github.com/mlabs-haskell/purescript-cardano-types). However, `TxBuilder` APIs from CSL are not provided by these packages.
+- In CTL, CDL types and method wrappers are used via [`purescript-cardano-data-lite`](https://github.com/mlabs-haskell/purescript-cardano-data-lite) and [`purescript-cardano-types`](https://github.com/mlabs-haskell/purescript-cardano-types).
 - Plutus Data conversion is handled via a [schema-enabled API](https://github.com/spacebudz/lucid/blob/e13206b225edb0e55a7eeb98b1200223e201fbfe/examples/typed_data.ts#L15) in Lucid. CTL allows for automatic `ToData` / `FromData` deriving for some types, via `HasPlutusSchema`.

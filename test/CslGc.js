@@ -1,4 +1,4 @@
-import * as lib from "@mlabs-haskell/cardano-serialization-lib-gc";
+import * as lib from "@mlabs-haskell/cardano-data-lite";
 
 import process from "process";
 

@@ -12,7 +12,7 @@ module Ctl.Internal.BalanceTx.Sync
 
 import Prelude
 
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Data.Lite (toBytes)
 import Cardano.Types
   ( TransactionHash
   , TransactionInput

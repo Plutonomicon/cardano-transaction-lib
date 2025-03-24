@@ -9,7 +9,7 @@ import Cardano.Blockfrost.Service
   , runBlockfrostServiceM
   )
 import Cardano.Blockfrost.Service as Blockfrost
-import Cardano.Serialization.Lib (fromBytes)
+import Cardano.Data.Lite (fromBytes)
 import Cardano.Types (ScriptHash)
 import Cardano.Types.BigNum as BigNum
 import Contract.Config (blockfrostPublicPreviewServerConfig)

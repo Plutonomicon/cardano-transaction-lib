@@ -50,8 +50,8 @@ import Aeson
   , encodeAeson
   , toString
   )
-import Cardano.Serialization.Lib (class IsBytes, toBytes)
-import Cardano.Serialization.Lib.Internal (class IsCsl)
+import Cardano.Data.Lite (class IsBytes, toBytes)
+import Cardano.Data.Lite.Internal (class IsCsl)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class
   ( class MonadError

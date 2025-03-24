@@ -2,7 +2,7 @@
 
 // eslint-disable-next-line no-unused-vars
 import * as lib from "@mlabs-haskell/cardano-message-signing";
-import * as CSL from "@mlabs-haskell/cardano-serialization-lib-gc";
+import * as CDL from "@mlabs-haskell/cardano-data-lite";
 
 function opt_chain(maybe, obj) {
   const isNothing = x => x === null || x === undefined;
@@ -94,7 +94,7 @@ export function getSignedData(coseSign1) {
 }
 export function verifySignature(coseSign1) {
   return publicKey => sigStructBytes => () => {
-    const signature = CSL.Ed25519Signature.from_bytes(coseSign1.signature());
+    const signature = CDL.Ed25519Signature.from_bytes(coseSign1.signature());
     return publicKey.verify(sigStructBytes, signature);
   };
 }

@@ -2,11 +2,11 @@ module Test.Ctl.KupmiosM.AffInterface (suite) where
 
 import Prelude
 
+import Cardano.Data.Lite (fromBytes)
 import Cardano.Kupmios.KupmiosM (KupmiosM)
 import Cardano.Kupmios.Ogmios (getChainTip, submitTxOgmios)
 import Cardano.Kupmios.Ogmios.CurrentEpoch (getCurrentEpoch)
 import Cardano.Kupmios.Ogmios.EraSummaries (getEraSummaries)
-import Cardano.Serialization.Lib (fromBytes)
 import Contract.Transaction (TransactionHash(TransactionHash))
 import Control.Monad.Except (throwError)
 import Data.ByteArray (hexToByteArrayUnsafe)

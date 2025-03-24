@@ -8,7 +8,7 @@ module Ctl.Internal.Testnet.Contract
 
 import Contract.Prelude
 
-import Cardano.Serialization.Lib (privateKey_generateEd25519) as Csl
+import Cardano.Data.Lite (privateKey_generateEd25519) as Csl
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigInt (BigInt)
