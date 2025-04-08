@@ -48,7 +48,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer"
-        , version = "4fe09069ee645eefbdf0a389857b7dade74de3f0"
+        , version = "2762e726922a65c772f6f21d547d6bc8f9859e4e"
         }
       }
 

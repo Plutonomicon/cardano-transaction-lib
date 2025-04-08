@@ -58,7 +58,7 @@ defaultBalancer transaction ctx = do
     transaction
     { balancerConstraints
     , provider: contractEnv.provider
-    , pparams: contractEnv.ledgerConstants.pparams
+    , pparams: unwrap contractEnv.ledgerConstants.pparams
     , network: contractEnv.networkId
     , walletInterface:
         { isCip30Wallet
