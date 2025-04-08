@@ -31,6 +31,7 @@ let additions =
           , "monad-logger"
           , "newtype"
           , "ordered-collections"
+          , "parallel"
           , "partial"
           , "prelude"
           , "profunctor"
@@ -47,7 +48,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer"
-        , version = "742ad56c7f09e821266806aad31050788a397a08"
+        , version = "4fe09069ee645eefbdf0a389857b7dade74de3f0"
         }
       }
 

@@ -1,7 +1,8 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
-  ( balanceTx
+  ( balanceMultipleTxs
+  , balanceTx
   , balanceTxE
   , balanceTxs
   , createAdditionalUtxos
@@ -97,18 +98,20 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx as B
+import Ctl.Internal.BalanceTx (CtlBalancer, CtlBalancerContext, defaultBalancer) as X
+import Ctl.Internal.BalanceTx (defaultBalancer)
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , isTxConfirmed
   ) as X
-import Ctl.Internal.Contract.Monad (filterLockedUtxos, getProvider)
+import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Contract.Sign (signTransaction)
 import Ctl.Internal.Contract.Sign (signTransaction) as X
-import Ctl.Internal.Contract.Wallet (getChangeAddress) as Wallet
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
+import Ctl.Internal.Types.TxBalancer (TxBalancer)
+import Ctl.Internal.Types.TxBalancer (TxBalancer) as X
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
@@ -125,14 +128,14 @@ import Data.Map (empty, insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap)
 import Data.String.Utils (startsWith)
-import Data.Traversable (class Traversable, for_, traverse)
-import Data.Tuple (fst)
-import Data.Tuple.Nested ((/\))
+import Data.Traversable (class Traversable, for_, traverse, traverse_)
+import Data.Tuple (fst, uncurry)
+import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
 import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (try)
+import Effect.Exception (Error, try)
 import Prim.Coerce (class Coercible)
 import Prim.TypeError (class Warn, Text)
 import Safe.Coerce (coerce)
@@ -261,18 +264,19 @@ withBalancedTx tx usedUtxos balancerConstraints =
 
 -- | A variant of `balanceTx` that returns a balancer error value.
 balanceTxE
-  :: Transaction
+  :: Warn
+       ( Text
+           "Deprecated, use a standalone transaction balancer instead (see `defaultBalancer`)"
+       )
+  => Transaction
   -> UtxoMap
   -> BalancerConstraints
   -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTxE tx utxos constraints = do
-  contractEnv <- ask
-  let
-    getChangeAddressAff = runContractInEnv contractEnv Wallet.getChangeAddress
-    filterLockedUtxosAff = runContractInEnv contractEnv <<< filterLockedUtxos
-
-  B.balanceTxWithConstraints tx getChangeAddressAff filterLockedUtxosAff utxos
-    constraints
+balanceTxE tx utxos constraints =
+  defaultBalancer tx
+    { balancerConstraints: constraints
+    , extraUtxos: utxos
+    }
 
 -- | Balance a single transaction.
 -- |
@@ -283,7 +287,8 @@ balanceTxE tx utxos constraints = do
 -- | Use `balanceTxs` to balance multiple transactions and prevent them from
 -- | using the same input UTxOs.
 balanceTx
-  :: Transaction
+  :: Warn (Text "Deprecated, use a standalone transaction balancer instead")
+  => Transaction
   -> UtxoMap
   -> BalancerConstraints
   -> Contract Transaction
@@ -297,7 +302,8 @@ balanceTx utx utxos constraints = do
 -- | locks the used inputs so that they cannot be reused by subsequent
 -- | transactions.
 balanceTxs
-  :: Array
+  :: Warn (Text "Deprecated, use `balanceMultipleTxs` instead")
+  => Array
        { transaction :: Transaction
        , usedUtxos :: UtxoMap
        , balancerConstraints :: BalancerConstraints
@@ -312,14 +318,42 @@ balanceTxs unbalancedTxs =
       withUsedTxOuts <<< unlockTransactionInputs <<< _.transaction
     throwError e
 
+balanceMultipleTxs
+  :: forall (ctx :: Type)
+   . TxBalancer Contract Error ctx
+  -> Array (Transaction /\ ctx)
+  -> Contract (Array Transaction)
+balanceMultipleTxs balancer unbalancedTxs =
+  unlockAllUtxosOnError $ traverse (uncurry (balanceAndLockUtxos balancer))
+    unbalancedTxs
+  where
+  unlockAllUtxosOnError :: forall (a :: Type). Contract a -> Contract a
+  unlockAllUtxosOnError f =
+    catchError f $ \err -> do
+      traverse_ (withUsedTxOuts <<< unlockTransactionInputs <<< fst)
+        unbalancedTxs
+      throwError err
+
 balanceAndLock
-  :: { transaction :: Transaction
+  :: Warn (Text "Deprecated, use `balanceAndLockUtxos` instead")
+  => { transaction :: Transaction
      , usedUtxos :: UtxoMap
      , balancerConstraints :: BalancerConstraints
      }
   -> Contract Transaction
 balanceAndLock { transaction, usedUtxos, balancerConstraints } = do
   balancedTx <- balanceTx transaction usedUtxos balancerConstraints
+  void $ withUsedTxOuts $ lockTransactionInputs balancedTx
+  pure balancedTx
+
+balanceAndLockUtxos
+  :: forall (ctx :: Type)
+   . TxBalancer Contract Error ctx
+  -> Transaction
+  -> ctx
+  -> Contract Transaction
+balanceAndLockUtxos balancer transaction ctx = do
+  balancedTx <- liftEither =<< balancer transaction ctx
   void $ withUsedTxOuts $ lockTransactionInputs balancedTx
   pure balancedTx
 
