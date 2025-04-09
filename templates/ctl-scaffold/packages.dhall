@@ -27,6 +27,7 @@ let additions =
           , "cardano-ogmios-mempool"
           , "cardano-plutus-data-schema"
           , "cardano-provider"
+          , "cardano-transaction-balancer"
           , "cardano-transaction-builder"
           , "cardano-types"
           , "checked-exceptions"
@@ -98,7 +99,6 @@ let additions =
           , "strings"
           , "stringutils"
           , "tailrec"
-          , "these"
           , "toppokki"
           , "transformers"
           , "tuples"
@@ -112,7 +112,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "3465949323ca17713fe971cac736e6bde2464842"
+        , version = "c089764fe069589c66ab23cc288a60c6409cbdaf"
         }
       , cardano-transaction-balancer =
         { dependencies =
@@ -141,6 +141,7 @@ let additions =
           , "monad-logger"
           , "newtype"
           , "ordered-collections"
+          , "parallel"
           , "partial"
           , "prelude"
           , "profunctor"
@@ -157,8 +158,8 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer"
-        , version = "742ad56c7f09e821266806aad31050788a397a08"
+        , version = "2762e726922a65c772f6f21d547d6bc8f9859e4e"
         }
       }
 
-in  upstream // additions
+in (upstream // additions)
