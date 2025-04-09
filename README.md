@@ -88,7 +88,7 @@ CTL is being developed by MLabs. The following companies/funds have contributed 
 - [Equine](https://www.equine.gg/)
 - [Liqwid Labs](https://liqwid.finance/)
 - PlayerMint
-- [Fourier Labs](https://fourierlabs.io/)
+- Fourier Labs
 - Ardana
 
 ## Use in production
