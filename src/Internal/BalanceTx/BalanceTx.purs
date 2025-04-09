@@ -3,6 +3,7 @@ module Ctl.Internal.BalanceTx
   , CtlBalancerContext
   , defaultBalancer
   , defaultBalancerErr
+  , emptyBalancerCtx
   ) where
 
 import Prelude
@@ -33,6 +34,7 @@ import Ctl.Internal.Contract.Wallet
   ) as Wallet
 import Ctl.Internal.Types.TxBalancer (TxBalancer)
 import Data.Bifunctor (lmap)
+import Data.Map (empty) as Map
 import Data.Maybe (isNothing)
 import Data.Newtype (unwrap)
 import Effect.Aff.Class (liftAff)
@@ -41,6 +43,12 @@ import Effect.Exception (Error, error)
 type CtlBalancerContext =
   { balancerConstraints :: BalancerConstraints
   , extraUtxos :: UtxoMap
+  }
+
+emptyBalancerCtx :: CtlBalancerContext
+emptyBalancerCtx =
+  { balancerConstraints: mempty
+  , extraUtxos: Map.empty
   }
 
 type CtlBalancer (err :: Type) = TxBalancer Contract err CtlBalancerContext

@@ -39,6 +39,8 @@ import Contract.Transaction
   , awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , buildTx
+  , defaultBalancer
+  , emptyBalancerCtx
   , signTransaction
   , submit
   , submitTxFromBuildPlan
@@ -98,14 +100,12 @@ contract = do
   unbalancedTx1 <- buildTx plan
 
   txIds <-
-    withBalancedTxs
+    withBalancedTxs defaultBalancer
       [ { transaction: unbalancedTx0
-        , usedUtxos: Map.empty
-        , balancerConstraints: mempty
+        , balancerCtx: emptyBalancerCtx
         }
       , { transaction: unbalancedTx1
-        , usedUtxos: Map.empty
-        , balancerConstraints: mempty
+        , balancerCtx: emptyBalancerCtx
         }
       ] $ \balancedTxs -> do
       locked <- getLockedInputs

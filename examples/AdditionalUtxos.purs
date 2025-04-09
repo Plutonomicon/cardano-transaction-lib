@@ -45,6 +45,7 @@ import Contract.Transaction
   , buildTx
   , createAdditionalUtxos
   , defaultBalancer
+  , emptyBalancerCtx
   , signTransaction
   , submit
   , submitTxFromBlueprint
@@ -54,7 +55,7 @@ import Contract.Utxos (UtxoMap)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Data.Map (difference, empty, filter) as Map
+import Data.Map (difference, filter) as Map
 import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
@@ -75,7 +76,7 @@ contract testAdditionalUtxoOverlap = withoutSync do
   validator <- alwaysSucceedsScriptV2
   let vhash = PlutusScript.hash validator
   { unbalancedTx, datum } <- payToValidator vhash
-  withBalancedTx unbalancedTx Map.empty mempty \balancedTx -> do
+  withBalancedTx defaultBalancer unbalancedTx emptyBalancerCtx \balancedTx -> do
     balancedSignedTx <- signTransaction balancedTx
     txHash <- submit balancedSignedTx
     when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
