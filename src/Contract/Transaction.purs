@@ -1,7 +1,9 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
-  ( balanceMultipleTxs
+  ( TxBlueprint
+  , TxReceipt
+  , balanceMultipleTxs
   , balanceTx
   , balanceTxE
   , balanceTxs
@@ -18,6 +20,7 @@ module Contract.Transaction
   , mkPoolPubKeyHash
   , hashTransaction
   , buildTx
+  , submitTxFromBlueprint
   , submitTxFromBuildPlan
   ) where
 
@@ -98,8 +101,13 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx (CtlBalancer, CtlBalancerContext, defaultBalancer) as X
-import Ctl.Internal.BalanceTx (defaultBalancer)
+import Ctl.Internal.BalanceTx
+  ( CtlBalancer
+  , CtlBalancerContext
+  , defaultBalancer
+  , defaultBalancerErr
+  ) as X
+import Ctl.Internal.BalanceTx (defaultBalancerErr)
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -273,7 +281,7 @@ balanceTxE
   -> BalancerConstraints
   -> Contract (Either BalanceTxError.BalanceTxError Transaction)
 balanceTxE tx utxos constraints =
-  defaultBalancer tx
+  defaultBalancerErr tx
     { balancerConstraints: constraints
     , extraUtxos: utxos
     }
@@ -389,7 +397,11 @@ createAdditionalUtxos tx = do
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
 
 submitTxFromConstraints
-  :: ScriptLookups
+  :: Warn
+       ( Text
+           "Contract.TxConstraints is deprecated. Use `submitTxFromBlueprint` instead"
+       )
+  => ScriptLookups
   -> TxConstraints
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints = do
@@ -399,7 +411,8 @@ submitTxFromConstraints lookups constraints = do
   submit balancedSignedTx
 
 submitTxFromBuildPlan
-  :: UtxoMap
+  :: Warn (Text "Deprecated, use `submitTxFromBlueprint` instead")
+  => UtxoMap
   -> BalancerConstraints
   -> Array TransactionBuilderStep
   -> Contract Transaction
@@ -409,6 +422,40 @@ submitTxFromBuildPlan usedUtxos balancerConstraints plan = do
   balancedSignedTx <- signTransaction balancedTx
   void $ submit balancedSignedTx
   pure balancedSignedTx
+
+-- | Blueprint containing the steps and context required to construct
+-- | and balance a transaction.
+type TxBlueprint (ctx :: Type) =
+  { buildSteps :: Array TransactionBuilderStep
+  , balancer :: TxBalancer Contract Error ctx
+  , balancerCtx :: ctx
+  }
+
+-- | Represents the result of submitting a transaction via
+-- | `submitTxFromBlueprint`, which includes the balanced signed transaction
+-- | along with its hash.
+type TxReceipt =
+  { submittedTx :: Transaction
+  , txHash :: TransactionHash
+  }
+
+-- | Builds, balances, signs, and submits a transaction defined by the given
+-- | `TxBlueprint`. Returns a `TxReceipt` containing the submitted transaction
+-- | and its hash.
+submitTxFromBlueprint
+  :: forall (ctx :: Type)
+   . TxBlueprint ctx
+  -> Contract TxReceipt
+submitTxFromBlueprint blueprint = do
+  unbalancedTx <- buildTx blueprint.buildSteps
+  balancedTx <- liftEither =<< blueprint.balancer unbalancedTx
+    blueprint.balancerCtx
+  balancedSignedTx <- signTransaction balancedTx
+  txHash <- submit balancedSignedTx
+  pure
+    { submittedTx: balancedSignedTx
+    , txHash
+    }
 
 lookupTxHash
   :: TransactionHash -> UtxoMap -> Array TransactionUnspentOutput

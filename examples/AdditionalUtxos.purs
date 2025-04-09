@@ -42,11 +42,12 @@ import Contract.Sync (withoutSync)
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
   , awaitTxConfirmed
-  , balanceTx
   , buildTx
   , createAdditionalUtxos
+  , defaultBalancer
   , signTransaction
   , submit
+  , submitTxFromBlueprint
   , withBalancedTx
   )
 import Contract.Utxos (UtxoMap)
@@ -135,16 +136,20 @@ spendFromValidator validator additionalUtxos _datum = do
       fromUtxoMap (Map.difference additionalUtxos scriptUtxos) <#> \output ->
         SpendOutput output Nothing
 
-    plan = spendScriptOutputs <> spendPubkeyOutputs
+    buildSteps = spendScriptOutputs <> spendPubkeyOutputs
 
     balancerConstraints :: BalancerConstraints
     balancerConstraints =
       mustUseAdditionalUtxos additionalUtxos
 
-  unbalancedTx <- buildTx plan
-  balancedTx <- balanceTx unbalancedTx additionalUtxos balancerConstraints
-  balancedSignedTx <- signTransaction balancedTx
-  txHash <- submit balancedSignedTx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints
+        , extraUtxos: additionalUtxos
+        }
+    }
 
   awaitTxConfirmed txHash
   logInfo' "Successfully spent additional utxos from the validator address."

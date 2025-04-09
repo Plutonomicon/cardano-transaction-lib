@@ -2,6 +2,7 @@ module Ctl.Internal.BalanceTx
   ( CtlBalancer
   , CtlBalancerContext
   , defaultBalancer
+  , defaultBalancerErr
   ) where
 
 import Prelude
@@ -11,7 +12,10 @@ import Cardano.Transaction.Balancer.Constraints
   ( BalancerConstraints
   , buildBalancerConfig
   )
-import Cardano.Transaction.Balancer.Error (BalanceTxError)
+import Cardano.Transaction.Balancer.Error
+  ( BalanceTxError
+  , explainBalanceTxError
+  )
 import Cardano.Types (UtxoMap)
 import Contract.Log (logInfo')
 import Control.Monad.Reader.Class (ask)
@@ -28,21 +32,28 @@ import Ctl.Internal.Contract.Wallet
   , getWalletUtxos
   ) as Wallet
 import Ctl.Internal.Types.TxBalancer (TxBalancer)
+import Data.Bifunctor (lmap)
 import Data.Maybe (isNothing)
 import Data.Newtype (unwrap)
 import Effect.Aff.Class (liftAff)
+import Effect.Exception (Error, error)
 
 type CtlBalancerContext =
   { balancerConstraints :: BalancerConstraints
   , extraUtxos :: UtxoMap
   }
 
-type CtlBalancer = TxBalancer Contract BalanceTxError CtlBalancerContext
+type CtlBalancer (err :: Type) = TxBalancer Contract err CtlBalancerContext
+
+defaultBalancer :: CtlBalancer Error
+defaultBalancer transaction =
+  map (lmap (error <<< explainBalanceTxError))
+    <<< defaultBalancerErr transaction
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
-defaultBalancer :: CtlBalancer
-defaultBalancer transaction ctx = do
+defaultBalancerErr :: CtlBalancer BalanceTxError
+defaultBalancerErr transaction ctx = do
   contractEnv <- ask
   isCip30Wallet <- Sync.isCip30Wallet
   ownAddresses <- Wallet.getWalletAddresses
