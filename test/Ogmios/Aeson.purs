@@ -16,7 +16,6 @@ import Aeson as Aeson
 import Cardano.Kupmios.Ogmios.Types
   ( class DecodeOgmios
   , OgmiosDecodeError(ErrorResponse)
-  , OgmiosTxEvaluationR
   , SubmitTxR
   , decodeOgmios
   )
@@ -66,7 +65,7 @@ tested =
   , ( "queryLedgerState/rewardAccountSummaries" /\ check
         (Proxy :: _ O.DelegationsAndRewardsR)
     )
-  , ("evaluateTransaction" /\ check (Proxy :: _ OgmiosTxEvaluationR))
+  , ("evaluateTransaction" /\ check (Proxy :: _ O.TxEvaluationR))
   , ("submitTransaction" /\ check (Proxy :: _ SubmitTxR))
   , ("hasTransaction" /\ check (Proxy :: _ Mempool.HasTxR))
   , ("sizeOfMempool" /\ check (Proxy :: _ Mempool.MempoolSizeAndCapacity))

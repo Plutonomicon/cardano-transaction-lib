@@ -1,6 +1,7 @@
 -- | Common types for E2E tests.
 module Ctl.Internal.Test.E2E.Types
   ( Browser
+  , ClusterSetup
   , TmpDir
   , SettingsArchive
   , SettingsArchiveUrl
@@ -26,6 +27,8 @@ module Ctl.Internal.Test.E2E.Types
 
 import Prelude
 
+import Cardano.Provider (ServerConfig)
+import Cardano.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Control.Alt ((<|>))
 import Data.Either (hush)
 import Data.Generic.Rep (class Generic)
@@ -171,4 +174,16 @@ type SomeWallet =
   , extensionId :: ExtensionId
   , confirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
   , sign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
+  }
+
+-- | Cluster setup contains everything that is needed to run a `Contract` on
+-- | a local cluster: parameters to connect to the services and private keys
+-- | that are pre-funded with Ada on that cluster
+type ClusterSetup =
+  { ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
+  , keys ::
+      { payment :: PrivatePaymentKey
+      , stake :: Maybe PrivateStakeKey
+      }
   }

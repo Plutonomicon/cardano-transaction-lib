@@ -4,10 +4,9 @@ import Prelude
 
 import Cardano.Kupmios.Ogmios.Types
   ( OgmiosDecodeError(InvalidRpcResponse)
-  , OgmiosTxEvaluationR
   , decodeOgmios
   )
-import Cardano.Provider.TxEvaluation
+import Cardano.Provider
   ( ExecutionUnits
   , RedeemerPointer
   , TxEvaluationFailure(UnparsedError, ScriptFailures)
@@ -21,7 +20,6 @@ import Data.Argonaut.Decode.Error (JsonDecodeError(TypeMismatch))
 import Data.Either (Either(Left, Right))
 import Data.Map as Map
 import Data.Maybe (fromJust)
-import Data.Newtype (unwrap)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -42,7 +40,7 @@ suite = do
     group "Decoding EvaluateTx response" do
       test "Successfully decodes a valid response" do
         txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
-          (map (\(r :: OgmiosTxEvaluationR) -> unwrap r) <<< decodeOgmios) <$>
+          decodeOgmios <$>
             liftEffect
               ogmiosEvaluateTxValidRespFixture
         txEvalR `shouldSatisfy` case _ of
@@ -55,8 +53,7 @@ suite = do
         body <- liftEffect ogmiosEvaluateTxInvalidPointerFormatFixture
         let
           (txEvalR :: Either OgmiosDecodeError TxEvaluationR) =
-            (map (\(r :: OgmiosTxEvaluationR) -> unwrap r) <<< decodeOgmios)
-              body
+            decodeOgmios body
         txEvalR `shouldSatisfy` case _ of
           Left (InvalidRpcResponse (TypeMismatch errMsg)) -> errMsg ==
             "Expected redeemer to be one of: (spend|mint|publish|withdraw|vote|propose)"
@@ -65,7 +62,7 @@ suite = do
       test "Successfully decodes a failed execution response (Incompatible era)"
         do
           txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
-            (map (\(r :: OgmiosTxEvaluationR) -> unwrap r) <<< decodeOgmios) <$>
+            decodeOgmios <$>
               liftEffect
                 ogmiosEvaluateTxFailIncompatibleEraFixture
           txEvalR `shouldSatisfy` case _ of
@@ -74,7 +71,7 @@ suite = do
 
       test "Successfully decodes a failed execution response (Script errors)" do
         txEvalR :: Either OgmiosDecodeError TxEvaluationR <-
-          (map (\(r :: OgmiosTxEvaluationR) -> unwrap r) <<< decodeOgmios) <$>
+          decodeOgmios <$>
             liftEffect
               ogmiosEvaluateTxFailScriptErrorsFixture
         txEvalR `shouldSatisfy` case _ of
