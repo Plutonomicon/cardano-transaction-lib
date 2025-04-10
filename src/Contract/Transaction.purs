@@ -264,8 +264,11 @@ withBalancedTx
   -> ctx
   -> (Transaction -> Contract a)
   -> Contract a
-withBalancedTx balancer transaction ctx =
-  withSingleTransaction (liftEither <=< flip balancer ctx) identity transaction
+withBalancedTx balancer tx balancerCtx =
+  withSingleTransaction
+    (balanceAndLockUtxos balancer <<< { transaction: _, balancerCtx })
+    identity
+    tx
 
 -- | A variant of `balanceTx` that returns a balancer error value.
 balanceTxE
