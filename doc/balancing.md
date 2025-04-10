@@ -16,7 +16,7 @@ Transaction balancing in Cardano is the process of finding a set of inputs and o
 
 ## Balancer constraints
 
-CTL allows tweaking the default balancer behavior by letting the user impose constraints on the UTxO set that is used in the process (`balanceTxWithConstraints`):
+The default transaction balancer used in CTL (`defaultBalancer` / `defaultBalancerErr`) allows users to adjust its behavior by imposing various constraints:
 
 - Using arbitrary address as user's own (for transaction balancing): `mustUseUtxosAtAddresses` / `mustUseUtxosAtAddress`
 - Providing additional UTxOs to use: `mustUseAdditionalUtxos`
@@ -27,7 +27,7 @@ CTL allows tweaking the default balancer behavior by letting the user impose con
 
 ## Concurrent spending
 
-Attempting to spend UTxOs concurrently leads to some of the transactions being rejected. To ensure that no concurrent spending is happening, CTL uses it's own UTxO locking machinery. `balanceTxs` or `balanceTxsWithConstraints` can be used to construct multiple transactions at once, ensuring that the sets of inputs do not intersect.
+Attempting to spend UTxOs concurrently leads to some of the transactions being rejected. To ensure that no concurrent spending is happening, CTL uses it's own UTxO locking machinery. `balanceMultipleTxs` can be used to construct multiple transactions at once, ensuring that the sets of inputs do not intersect.
 
 Obviously, the number of available UTxOs must be greater than the number of transactions. CTL will throw an exception if it's not the case.
 
