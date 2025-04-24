@@ -20,7 +20,6 @@ import Cardano.Types (PlutusScript)
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -31,9 +30,13 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
-import Data.Map as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -47,16 +50,20 @@ contract = do
   mintingPolicy <- alwaysMintsPolicy
   let scriptHash = PlutusScript.hash mintingPolicy
   tokenName <- Helpers.mkAssetName "TheToken"
-  awaitTxConfirmed <<< Transaction.hash =<<
-    submitTxFromBuildPlan Map.empty mempty
-      [ MintAsset
-          scriptHash
-          tokenName
-          (Int.fromInt 100)
-          ( PlutusScriptCredential (ScriptValue mintingPolicy)
-              RedeemerDatum.unit
-          )
-      ]
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ MintAsset
+            scriptHash
+            tokenName
+            (Int.fromInt 100)
+            ( PlutusScriptCredential (ScriptValue mintingPolicy)
+                RedeemerDatum.unit
+            )
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+  awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

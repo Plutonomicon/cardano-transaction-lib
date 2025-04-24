@@ -21,7 +21,6 @@ import Cardano.Types
   )
 import Cardano.Types.PlutusScript (hash) as PlutusScript
 import Cardano.Types.RedeemerDatum (unit) as RedeemerDatum
-import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -32,11 +31,15 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Control.Monad.Error.Class (catchError, throwError)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
 import Ctl.Examples.PlutusV3.Scripts.AlwaysMints (alwaysMintsPolicyScriptV3)
-import Data.Map (empty) as Map
 import Data.String (Pattern(Pattern))
 import Data.String (contains) as String
 import Effect.Exception (message)
@@ -78,19 +81,23 @@ contractStep path = do
 
   let
     submitTx = do
-      tx <- submitTxFromBuildPlan Map.empty mempty
-        [ case path of
-            RegDrep ->
-              IssueCertificate (RegDrepCert drepCred drepDeposit Nothing)
-                (Just drepCredWitness)
-            UpdateDrep anchor ->
-              IssueCertificate (UpdateDrepCert drepCred $ Just anchor)
-                (Just drepCredWitness)
-            UnregDrep ->
-              IssueCertificate (UnregDrepCert drepCred drepDeposit)
-                (Just drepCredWitness)
-        ]
-      awaitTxConfirmed $ Transaction.hash tx
+      { txHash } <- submitTxFromBlueprint
+        { buildSteps:
+            [ case path of
+                RegDrep ->
+                  IssueCertificate (RegDrepCert drepCred drepDeposit Nothing)
+                    (Just drepCredWitness)
+                UpdateDrep anchor ->
+                  IssueCertificate (UpdateDrepCert drepCred $ Just anchor)
+                    (Just drepCredWitness)
+                UnregDrep ->
+                  IssueCertificate (UnregDrepCert drepCred drepDeposit)
+                    (Just drepCredWitness)
+            ]
+        , balancer: defaultBalancer
+        , balancerCtx: emptyBalancerCtx
+        }
+      awaitTxConfirmed txHash
 
   submitTx `catchError` \err ->
     unless

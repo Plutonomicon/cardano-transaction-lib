@@ -16,7 +16,6 @@ import Cardano.Types
   )
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.PlutusData as PlutusData
-import Cardano.Types.Transaction as Transaction
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
@@ -43,7 +42,7 @@ import Contract.Transaction
   , emptyBalancerCtx
   , signTransaction
   , submit
-  , submitTxFromBuildPlan
+  , submitTxFromBlueprint
   , withBalancedTxs
   )
 import Contract.Value (leq)
@@ -56,7 +55,6 @@ import Contract.Wallet
 import Control.Monad.Reader (asks)
 import Data.Array (head)
 import Data.Map (Map, filter)
-import Data.Map as Map
 import Data.Set (Set)
 import Data.UInt (UInt)
 import Effect.Ref as Ref
@@ -155,7 +153,7 @@ createAdditionalUtxos = do
     (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
     (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    plan =
+    buildSteps =
       [ Pay $ TransactionOutput
           { address
           , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
@@ -170,9 +168,12 @@ createAdditionalUtxos = do
           }
       ]
 
-  tx <- submitTxFromBuildPlan Map.empty mempty plan
-
-  awaitTxConfirmedWithTimeout (wrap 100.0) $ Transaction.hash tx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+  awaitTxConfirmedWithTimeout (wrap 100.0) txHash
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

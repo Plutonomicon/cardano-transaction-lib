@@ -35,7 +35,7 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionInput
   , awaitTxConfirmed
-  , balanceTx
+  , defaultBalancer
   , signTransaction
   , submit
   )
@@ -166,8 +166,8 @@ contract (ContractParams p) = do
     lookups :: Lookups.ScriptLookups
     lookups = Lookups.plutusMintingPolicy mp
 
-    balanceTxConstraints :: BalancerConstraints
-    balanceTxConstraints =
+    balancerConstraints :: BalancerConstraints
+    balancerConstraints =
       mustGenChangeOutsWithMaxTokenQuantity
         (BigInt.fromInt 4)
         <> mustUseUtxosAtAddress bobAddress
@@ -176,9 +176,12 @@ contract (ContractParams p) = do
         <> mustUseCollateralUtxos bobsCollateral
 
   void $ runChecks checks $ lift do
-    unbalancedTx /\ usedUtxos <- mkUnbalancedTx lookups constraints
+    unbalancedTx /\ extraUtxos <- mkUnbalancedTx lookups constraints
 
-    balancedTx <- balanceTx unbalancedTx usedUtxos balanceTxConstraints
+    balancedTx <- liftEither =<< defaultBalancer unbalancedTx
+      { balancerConstraints
+      , extraUtxos
+      }
 
     balancedSignedTx <-
       (withKeyWallet p.bobKeyWallet <<< signTransaction)

@@ -15,7 +15,6 @@ import Cardano.Types
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData as PlutusData
-import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config
@@ -34,15 +33,16 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
   , lookupTxHash
-  , submitTxFromBuildPlan
+  , submitTxFromBlueprint
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Contract.Wallet (ownStakePubKeyHashes)
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt (BigInt)
 import JS.BigInt as BigInt
@@ -73,14 +73,18 @@ payToExUnits vhash = do
   address <- mkAddress
     (PaymentCredential $ ScriptHashCredential vhash)
     Nothing
-  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address: address
-        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-        , datum: Just $ OutputDatum PlutusData.unit
-        , scriptRef: Nothing
-        }
-    ]
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address: address
+            , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+            , datum: Just $ OutputDatum PlutusData.unit
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 -- | ExUnits script loops a given number of iterations provided as redeemer.
 spendFromExUnits
@@ -107,16 +111,22 @@ spendFromExUnits iters vhash validator txId = do
       )
       (head (lookupTxHash txId utxos))
 
-  spendTx <- submitTxFromBuildPlan (toUtxoMap [ utxo ])
-    mempty
-    [ SpendOutput
-        utxo
-        $ Just
-        $ PlutusScriptOutput (ScriptValue validator)
-            (RedeemerDatum $ toData iters)
-            Nothing
-    ]
-  awaitTxConfirmed $ Transaction.hash spendTx
+  { txHash: spendTxHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SpendOutput
+            utxo
+            $ Just
+            $ PlutusScriptOutput (ScriptValue validator)
+                (RedeemerDatum $ toData iters)
+                Nothing
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints: mempty
+        , extraUtxos: toUtxoMap [ utxo ]
+        }
+    }
+  awaitTxConfirmed spendTxHash
   logInfo' "Successfully spent locked values."
 
 exUnitsScript :: Contract Validator

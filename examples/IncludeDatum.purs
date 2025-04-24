@@ -27,7 +27,6 @@ import Cardano.Types
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config
@@ -45,14 +44,15 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
   , lookupTxHash
-  , submitTxFromBuildPlan
+  , submitTxFromBlueprint
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
 import Data.Array (head)
-import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt as BigInt
 
@@ -82,14 +82,18 @@ datum = Integer $ BigInt.fromInt 42
 payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
 payToIncludeDatum vhash = do
   address <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
-  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address
-        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-        , datum: Just $ OutputDatumHash $ hashPlutusData datum
-        , scriptRef: Nothing
-        }
-    ]
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address
+            , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+            , datum: Just $ OutputDatumHash $ hashPlutusData datum
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 spendFromIncludeDatum
   :: ValidatorHash
@@ -101,16 +105,24 @@ spendFromIncludeDatum vhash validator txId = do
   utxos <- utxosAt scriptAddress
   utxo <- liftContractM "no locked output at address"
     (head (lookupTxHash txId utxos))
-  spendTx <- submitTxFromBuildPlan (toUtxoMap [ utxo ])
-    mempty
-    [ SpendOutput
-        utxo
-        ( Just $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
-            $ Just
-            $ DatumValue datum
-        )
-    ]
-  awaitTxConfirmed $ Transaction.hash spendTx
+  { txHash: spendTxHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SpendOutput
+            utxo
+            ( Just
+                $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+                $ Just
+                $ DatumValue datum
+            )
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints: mempty
+        , extraUtxos: toUtxoMap [ utxo ]
+        }
+
+    }
+  awaitTxConfirmed spendTxHash
   logInfo' "Successfully spent locked values."
 
 -- | checks if the datum equals 42
