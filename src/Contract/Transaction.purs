@@ -105,10 +105,10 @@ import Ctl.Internal.BalanceTx
   ( CtlBalancer
   , CtlBalancerContext
   , defaultBalancer
-  , defaultBalancerErr
+  , defaultBalancerWithErr
   , emptyBalancerCtx
   ) as X
-import Ctl.Internal.BalanceTx (defaultBalancerErr)
+import Ctl.Internal.BalanceTx (defaultBalancerWithErr)
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
@@ -274,14 +274,14 @@ withBalancedTx balancer tx balancerCtx =
 balanceTxE
   :: Warn
        ( Text
-           "Deprecated, use a standalone transaction balancer instead (see `defaultBalancerErr`)"
+           "Deprecated, use a standalone transaction balancer instead (see `defaultBalancerWithErr`)"
        )
   => Transaction
   -> UtxoMap
   -> BalancerConstraints
   -> Contract (Either BalanceTxError.BalanceTxError Transaction)
 balanceTxE tx utxos constraints =
-  defaultBalancerErr tx
+  defaultBalancerWithErr tx
     { balancerConstraints: constraints
     , extraUtxos: utxos
     }
@@ -326,6 +326,8 @@ balanceTxs unbalancedTxs =
       withUsedTxOuts <<< unlockTransactionInputs <<< _.transaction
     throwError e
 
+-- | Balances each transaction using the specified `TxBalancer` and locks the
+-- | used inputs so that they cannot be reused by subsequent transactions.
 balanceMultipleTxs
   :: forall (ctx :: Type)
    . TxBalancer Contract Error ctx
@@ -345,6 +347,8 @@ balanceMultipleTxs balancer unbalancedTxs =
         unbalancedTxs
       throwError err
 
+-- | Balances the transaction using the specified balancer constraints and locks
+-- | its inputs to prevent their reuse in subsequent transactions.
 balanceAndLock
   :: Warn (Text "Deprecated, use `balanceAndLockUtxos` instead")
   => { transaction :: Transaction
@@ -357,6 +361,8 @@ balanceAndLock { transaction, usedUtxos, balancerConstraints } = do
   void $ withUsedTxOuts $ lockTransactionInputs balancedTx
   pure balancedTx
 
+-- | Balances the transaction using the specified `TxBalancer` and locks its
+-- | inputs to prevent their reuse in subsequent transactions.
 balanceAndLockUtxos
   :: forall (ctx :: Type)
    . TxBalancer Contract Error ctx

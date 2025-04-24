@@ -16,7 +16,7 @@ Transaction balancing in Cardano is the process of finding a set of inputs and o
 
 ## Balancer constraints
 
-The default transaction balancer used in CTL (`defaultBalancer` / `defaultBalancerErr`) allows users to adjust its behavior by imposing various constraints:
+The default transaction balancer used in CTL (`defaultBalancer` / `defaultBalancerWithErr`) allows users to adjust its behavior by imposing various constraints:
 
 - Using arbitrary address as user's own (for transaction balancing): `mustUseUtxosAtAddresses` / `mustUseUtxosAtAddress`
 - Providing additional UTxOs to use: `mustUseAdditionalUtxos`

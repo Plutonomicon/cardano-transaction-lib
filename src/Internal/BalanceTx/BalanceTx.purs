@@ -2,7 +2,7 @@ module Ctl.Internal.BalanceTx
   ( CtlBalancer
   , CtlBalancerContext
   , defaultBalancer
-  , defaultBalancerErr
+  , defaultBalancerWithErr
   , emptyBalancerCtx
   ) where
 
@@ -40,6 +40,15 @@ import Data.Newtype (unwrap)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (Error, error)
 
+-- | Additional context required by the default CTL balancer.
+-- |
+-- | `balancerConstraints`: A set of rules that guide or modify the behavior of
+-- | the balancer.
+-- |
+-- | `extraUtxos`: Extra (non-wallet) utxos to be considered during balancing,
+-- | typically used to resolve pre-specified inputs of the unbalanced
+-- | transaction. See `getInputVal` in `Cardano.Transaction.Balancer` for
+-- | further details.
 type CtlBalancerContext =
   { balancerConstraints :: BalancerConstraints
   , extraUtxos :: UtxoMap
@@ -56,12 +65,12 @@ type CtlBalancer (err :: Type) = TxBalancer Contract err CtlBalancerContext
 defaultBalancer :: CtlBalancer Error
 defaultBalancer transaction =
   map (lmap (error <<< explainBalanceTxError))
-    <<< defaultBalancerErr transaction
+    <<< defaultBalancerWithErr transaction
 
 -- | Balances an unbalanced transaction using the specified balancer
 -- | constraints.
-defaultBalancerErr :: CtlBalancer BalanceTxError
-defaultBalancerErr transaction ctx = do
+defaultBalancerWithErr :: CtlBalancer BalanceTxError
+defaultBalancerWithErr transaction ctx = do
   contractEnv <- ask
   isCip30Wallet <- Sync.isCip30Wallet
   ownAddresses <- Wallet.getWalletAddresses
