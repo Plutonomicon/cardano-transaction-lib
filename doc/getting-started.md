@@ -191,19 +191,21 @@ Unlike PAB, CTL obscures less of the build-balance-sign-submit pipeline for tran
     ...
   ```
 
-- Balance it using `Contract.Transaction.balanceTx`, and then sign it using `signTransaction`:
+- Balance it using `Contract.Transaction.defaultBalancer`, and then sign it using `signTransaction`:
   ```purescript
   contract = do
     ...
     let
-      balanceTxConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
-      balanceTxConstraints =
+      balancerConstraints :: BalanceTxConstraints.BalanceTxConstraintsBuilder
+      balancerConstraints =
         BalanceTxConstraints.mustUseUtxosAtAddress address
           <> BalanceTxConstraints.mustSendChangeToAddress address
           <> BalanceTxConstraints.mustNotSpendUtxoWithOutRef nonSpendableOref
     -- `liftedE` will throw a runtime exception on `Left`s
-    balancedTx <-
-      balanceTx unbalancedTx usedUtxos balanceTxConstraints
+    balancedTx <- liftEither =<< defaultBalancer unbalancedTx
+      { balancerConstraints
+      , extraUtxos
+      }
     balancedSignedTx <- signTransaction balancedTx
     ...
   ```

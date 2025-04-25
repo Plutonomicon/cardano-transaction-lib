@@ -20,7 +20,6 @@ import Cardano.Transaction.Builder
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
-import Cardano.Types.Transaction as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -32,10 +31,14 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.PlutusData (PlutusData(Integer), RedeemerDatum(RedeemerDatum))
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
-import Data.Map as Map
 import Effect.Exception (error)
 import JS.BigInt (fromInt) as BigInt
 
@@ -59,7 +62,7 @@ contract = do
     cs3 = PlutusScript.hash mp3
 
   let
-    plan =
+    buildSteps =
       [ MintAsset cs1 tn1 Int.one
           ( PlutusScriptCredential (ScriptValue mp1) $ RedeemerDatum $ Integer
               (BigInt.fromInt 1)
@@ -78,8 +81,12 @@ contract = do
           )
       ]
 
-  tx <- submitTxFromBuildPlan Map.empty mempty plan
-  awaitTxConfirmed $ Transaction.hash tx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+  awaitTxConfirmed txHash
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

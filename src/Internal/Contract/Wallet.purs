@@ -21,6 +21,7 @@ module Ctl.Internal.Contract.Wallet
 import Prelude
 
 import Cardano.Provider.Error (pprintClientError)
+import Cardano.Transaction.Balancer.Collateral.Select (minRequiredCollateral)
 import Cardano.Types (Ed25519KeyHash, RawBytes)
 import Cardano.Types.Address
   ( Address(RewardAddress)
@@ -46,7 +47,6 @@ import Cardano.Wallet.Key
 import Contract.Log (logWarn')
 import Control.Monad.Reader.Trans (asks)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.BalanceTx.Collateral.Select (minRequiredCollateral)
 import Ctl.Internal.Contract (getProtocolParameters)
 import Ctl.Internal.Contract.Monad (Contract, filterLockedUtxos, getProvider)
 import Ctl.Internal.Helpers (bugTrackerLink, liftM, liftedM)

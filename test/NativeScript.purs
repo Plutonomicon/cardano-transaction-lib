@@ -4,12 +4,12 @@ import Prelude
 
 import Aeson (decodeAeson, encodeAeson)
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Transaction.Balancer.MinFee (getMaximumSigners)
 import Cardano.Types (Ed25519KeyHash)
 import Cardano.Types.Ed25519KeyHash as Ed25519KeyHash
 import Cardano.Types.NativeScript
   ( NativeScript(ScriptPubkey, ScriptAll, ScriptAny, ScriptNOfK)
   )
-import Ctl.Internal.NativeScripts (getMaximumSigners)
 import Data.ByteArray (hexToByteArrayUnsafe)
 import Data.Either (Either(Right))
 import Data.Maybe (fromJust)

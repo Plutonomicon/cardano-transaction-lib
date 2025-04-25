@@ -25,7 +25,6 @@ import Cardano.Types.Int as Int
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
@@ -42,8 +41,10 @@ import Contract.Transaction
   , TransactionHash
   , TransactionOutput
   , awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
   , lookupTxHash
-  , submitTxFromBuildPlan
+  , submitTxFromBlueprint
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (TokenName, Value)
@@ -52,7 +53,7 @@ import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.Scripts.AlwaysMints (alwaysMintsPolicyScriptV2)
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
 import Data.Array (find) as Array
-import Data.Map (empty, toUnfoldable) as Map
+import Data.Map (toUnfoldable) as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -95,26 +96,30 @@ payToAlwaysSucceedsAndCreateScriptRefOutput vhash validatorRef mpRef = do
   let
     value :: Value
     value = Value.lovelaceValueOf (BigNum.fromInt 2_000_000)
-  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address: scriptAddress
-        , amount: value
-        , datum: Just $ OutputDatum PlutusData.unit
-        , scriptRef: Just validatorRef
-        }
-    , Pay $ TransactionOutput
-        { address: scriptAddress
-        , amount: value
-        , datum: Just $ OutputDatum PlutusData.unit
-        , scriptRef: Just mpRef
-        }
-    , Pay $ TransactionOutput
-        { address: scriptAddress
-        , amount: value
-        , datum: Just $ OutputDatum PlutusData.unit
-        , scriptRef: Nothing
-        }
-    ]
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address: scriptAddress
+            , amount: value
+            , datum: Just $ OutputDatum PlutusData.unit
+            , scriptRef: Just validatorRef
+            }
+        , Pay $ TransactionOutput
+            { address: scriptAddress
+            , amount: value
+            , datum: Just $ OutputDatum PlutusData.unit
+            , scriptRef: Just mpRef
+            }
+        , Pay $ TransactionOutput
+            { address: scriptAddress
+            , amount: value
+            , datum: Just $ OutputDatum PlutusData.unit
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 spendFromAlwaysSucceeds
   :: ScriptHash
@@ -148,22 +153,28 @@ spendFromAlwaysSucceeds vhash txId validator mp tokenName = do
       $ Array.find (hasRefPlutusScript mp)
       $ Map.toUnfoldable scriptAddressUtxos
 
-  let
-    mph = PlutusScript.hash mp
-  spendTx <- submitTxFromBuildPlan scriptAddressUtxos mempty
-    [ SpendOutput
-        utxo
-        ( Just
-            $ PlutusScriptOutput
-                (ScriptReference refValidatorInput ReferenceInput)
+  let mph = PlutusScript.hash mp
+  { txHash: spendTxHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SpendOutput
+            utxo
+            ( Just
+                $ PlutusScriptOutput
+                    (ScriptReference refValidatorInput ReferenceInput)
+                    RedeemerDatum.unit
+                    Nothing
+            )
+        , MintAsset mph tokenName (Int.fromInt 1)
+            $ PlutusScriptCredential (ScriptReference refMpInput ReferenceInput)
                 RedeemerDatum.unit
-                Nothing
-        )
-    , MintAsset mph tokenName (Int.fromInt 1)
-        $ PlutusScriptCredential (ScriptReference refMpInput ReferenceInput)
-            RedeemerDatum.unit
-    ]
-  awaitTxConfirmed $ Transaction.hash spendTx
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints: mempty
+        , extraUtxos: scriptAddressUtxos
+        }
+    }
+  awaitTxConfirmed spendTxHash
   logInfo' "Successfully spent locked values and minted tokens."
   where
   hasRefPlutusScript

@@ -50,10 +50,7 @@ import Contract.BalanceTxConstraints
   , mustUseCollateralUtxos
   )
 import Contract.Chain (currentTime, waitUntilSlot)
-import Contract.Config
-  ( KnownWallet(Eternl, Gero, Lode, NuFi)
-  , walletName
-  )
+import Contract.Config (KnownWallet(Eternl, Gero, Lode, NuFi), walletName)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Log (logInfo')
@@ -104,6 +101,8 @@ import Contract.Transaction
   , balanceTxE
   , buildTx
   , createAdditionalUtxos
+  , defaultBalancer
+  , emptyBalancerCtx
   , getTxAuxiliaryData
   , lookupTxHash
   , signTransaction
@@ -1672,7 +1671,8 @@ suite = do
 
             unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 usedUtxos0 mempty \balancedTx0 -> do
+            let ctx = emptyBalancerCtx { extraUtxos = usedUtxos0 }
+            withBalancedTx defaultBalancer unbalancedTx0 ctx \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1787,7 +1787,8 @@ suite = do
 
             unbalancedTx0 /\ usedUtxos <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 usedUtxos mempty \balancedTx0 -> do
+            let ctx = emptyBalancerCtx { extraUtxos = usedUtxos }
+            withBalancedTx defaultBalancer unbalancedTx0 ctx \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -2131,14 +2132,18 @@ signMultipleContract = do
   ubTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
   ubTx2 /\ usedUtxos2 <- mkUnbalancedTx lookups constraints
 
-  withBalancedTxs
+  withBalancedTxs defaultBalancer
     [ { transaction: ubTx1
-      , usedUtxos: usedUtxos1
-      , balancerConstraints: mempty
+      , balancerCtx:
+          { balancerConstraints: mempty
+          , extraUtxos: usedUtxos1
+          }
       }
     , { transaction: ubTx2
-      , usedUtxos: usedUtxos2
-      , balancerConstraints: mempty
+      , balancerCtx:
+          { balancerConstraints: mempty
+          , extraUtxos: usedUtxos2
+          }
       }
     ] $ \txs -> do
     locked <- getLockedInputs

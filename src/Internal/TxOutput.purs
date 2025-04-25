@@ -11,7 +11,7 @@ import Prelude
 
 import Cardano.AsCbor (decodeCbor, encodeCbor)
 import Cardano.Data.Lite (fromBytes, toBytes)
-import Cardano.Provider.TxEvaluation (OgmiosTxOut, OgmiosTxOutRef)
+import Cardano.Provider (OgmiosTxOut, OgmiosTxOutRef)
 import Cardano.Types
   ( DataHash
   , PlutusData

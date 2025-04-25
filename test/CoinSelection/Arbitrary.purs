@@ -2,6 +2,12 @@ module Test.Ctl.CoinSelection.Arbitrary where
 
 import Prelude
 
+import Cardano.Transaction.Balancer.CoinSelection
+  ( SelectionState
+  , fromIndexFiltered
+  )
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex (UtxoIndex)
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Cardano.Types
   ( TransactionHash
   , TransactionInput(TransactionInput)
@@ -9,9 +15,6 @@ import Cardano.Types
   , UtxoMap
   )
 import Control.Apply (lift2)
-import Ctl.Internal.BalanceTx.CoinSelection (SelectionState, fromIndexFiltered)
-import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
-import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map.Gen (genMap) as Map
