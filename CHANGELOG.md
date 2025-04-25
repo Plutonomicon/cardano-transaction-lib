@@ -110,6 +110,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - Kupo + Ogmios Provider has been extracted to a separate package [purescript-cardano-kupmios-provider](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) using module names in the format `Cardano.Kupmios.*` ([#1662](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1662))
 - Ogmios' mempool functionality has been extracted to a separate package [purescript-cardano-ogmios-mempool](https://github.com/mlabs-haskell/purescript-cardano-ogmios-mempool) using the module `Cardano.Ogmios.Mempool`. To use it, the user must create and manage the websocket connection (see [Test.Ctl.Testnet.Contract.OgmiosMempool](https://github.com/Plutonomicon/cardano-transaction-lib/blob/cd80e31d59b233e48ccb2a0b6635d5d8beb5b160/test/Testnet/Contract/OgmiosMempool.purs))
 - Made adjustments to the [E2E testing documentation page](./doc/e2e-testing.md). Updated the [template](./templates/ctl-scaffold) to use the newly introduced `e2eConfigs` helper function that allows to define E2E configurations without unnecessary boilerplate. ([#1674](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1674))
+- The transaction balancing module used in CTL has been extracted to a separate package [purescript-cardano-transaction-balancer](https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer) using module names in the format `Cardano.Transaction.Balancer.*` ([#1680](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1680))
+- Updated the `Contract.Transaction` interface to support pluggable transaction balancers. This enhancement should allow users to integrate custom balancers when the provided default solution does not satisfy specific domain requirements. ([#1680](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1680))
+  - The `balanceTx` and `balanceTxE` functions from `Contract.Transaction` have been deprecated. Users are now encouraged to use standalone transaction balancers directly (e.g. `defaultBalancer` and `defaultBalancerWithErr` respectively).
+  - The `balanceTxs` function has been deprecated in favor of the new balancer-agnostic `balanceMultipleTxs`.
+  - `Contract.Transaction` now exports `defaultBalancer` and `defaultBalancerWithErr` variants, both implementing the new `TxBalancer` interface.
+  - **[BREAKING CHANGE]** `withBalancedTx` and `withBalancedTxs` now accept a `TxBalancer` and its corresponding balancer context as arguments.
+  - The `submitTxFromConstraints` and `submitTxFromBuildPlan` functions have been deprecated in favor of `submitTxFromBlueprint`. The new function accepts a `TxBlueprint` with the steps and context needed to construct and balance a transaction, and returns a `TxReceipt` containing the balanced, signed transaction along with its hash.
+  - *Note that all mentioned deprecated functions are planned for removal in a future release.*
 
 ### Removed
 

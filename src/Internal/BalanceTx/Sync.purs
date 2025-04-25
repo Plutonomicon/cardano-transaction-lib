@@ -26,10 +26,7 @@ import Contract.Monad (Contract, liftedE)
 import Control.Monad.Reader (local)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf, parTraverse, parallel, sequential)
-import Ctl.Internal.Contract.Monad
-  ( ContractSynchronizationParams
-  , getProvider
-  )
+import Ctl.Internal.Contract.Monad (ContractSynchronizationParams, getProvider)
 import Ctl.Internal.Contract.Wallet
   ( getChangeAddress
   , getUnusedAddresses

@@ -13,7 +13,6 @@ import Cardano.Types
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.PlutusData as PlutusData
-import Cardano.Types.Transaction as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -23,11 +22,15 @@ import Contract.Config
   )
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
-import Contract.Transaction (awaitTxConfirmedWithTimeout, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmedWithTimeout
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Contract.Value as Value
 import Contract.Wallet (getWalletAddresses)
 import Data.Array (head)
-import Data.Map as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -39,15 +42,19 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Pkh2Pkh"
   address <- liftedM "Failed to get own address" $ head <$> getWalletAddresses
-  txId <- Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address
-        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
-        , scriptRef: Nothing
-        }
-    ]
-  awaitTxConfirmedWithTimeout (wrap 100.0) txId
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address
+            , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+            , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+  awaitTxConfirmedWithTimeout (wrap 100.0) txHash
   logInfo' $ "Tx submitted successfully!"
 
 example :: ContractParams -> Effect Unit

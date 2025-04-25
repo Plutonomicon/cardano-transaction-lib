@@ -22,7 +22,6 @@ import Cardano.Types
 import Cardano.Types (GovernanceAction(Info)) as GovAction
 import Cardano.Types.PlutusScript (hash) as PlutusScript
 import Cardano.Types.RedeemerDatum (unit) as RedeemerDatum
-import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -33,13 +32,18 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Contract.Wallet (getRewardAddresses)
 import Ctl.Examples.Gov.Internal.Common (asRewardAddress, dummyAnchor)
 import Ctl.Examples.Gov.ManageDrepScript (ContractPath(RegDrep), contractStep) as ManageDrep
 import Ctl.Examples.PlutusV3.Scripts.AlwaysMints (alwaysMintsPolicyScriptV3)
 import Data.Array (head) as Array
-import Data.Map (empty, singleton) as Map
+import Data.Map (singleton) as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -60,14 +64,6 @@ contract = do
   submitVote govActionId
   logInfo' "Successfully voted on the proposal."
 
-{-
-  { transactionId: unsafePartial fromJust $ decodeCbor $ wrap $
-      hexToByteArrayUnsafe
-        "78e7fa2f5ad34506208cbde6ced3c690df4f244000ba33b445da8d3791577ede"
-  , index: zero
-  }
--}
-
 submitProposal :: Contract GovernanceActionId
 submitProposal = do
   govActionDeposit <- _.govActionDeposit <<< unwrap <$> getProtocolParameters
@@ -75,18 +71,21 @@ submitProposal = do
     map (asRewardAddress <=< Array.head)
       getRewardAddresses
 
-  tx <- submitTxFromBuildPlan Map.empty mempty
-    [ SubmitProposal
-        ( VotingProposal
-            { govAction: GovAction.Info
-            , anchor: dummyAnchor
-            , deposit: unwrap govActionDeposit
-            , returnAddr: rewardAddr
-            }
-        )
-        Nothing
-    ]
-  let txHash = Transaction.hash tx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SubmitProposal
+            ( VotingProposal
+                { govAction: GovAction.Info
+                , anchor: dummyAnchor
+                , deposit: unwrap govActionDeposit
+                , returnAddr: rewardAddr
+                }
+            )
+            Nothing
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
   awaitTxConfirmed txHash
   pure $ wrap { transactionId: txHash, index: zero }
 
@@ -98,11 +97,15 @@ submitVote govActionId = do
     drepCredWitness = PlutusScriptCredential (ScriptValue drepScript)
       RedeemerDatum.unit
 
-  tx <- submitTxFromBuildPlan Map.empty mempty
-    [ SubmitVotingProcedure (Drep drepCred)
-        ( Map.singleton govActionId $
-            VotingProcedure { vote: VoteYes, anchor: Nothing }
-        )
-        (Just drepCredWitness)
-    ]
-  awaitTxConfirmed $ Transaction.hash tx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SubmitVotingProcedure (Drep drepCred)
+            ( Map.singleton govActionId $
+                VotingProcedure { vote: VoteYes, anchor: Nothing }
+            )
+            (Just drepCredWitness)
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+  awaitTxConfirmed txHash

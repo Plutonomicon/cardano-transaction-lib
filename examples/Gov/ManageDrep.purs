@@ -15,7 +15,6 @@ import Cardano.Types
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
   )
-import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -26,11 +25,15 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Contract.Wallet (ownDrepPubKeyHash)
 import Control.Monad.Error.Class (catchError, throwError)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
-import Data.Map (empty) as Map
 import Data.String (Pattern(Pattern))
 import Data.String (contains) as String
 import Effect.Exception (message)
@@ -67,19 +70,23 @@ contractStep path = do
 
   let
     submitTx = do
-      tx <- submitTxFromBuildPlan Map.empty mempty
-        [ IssueCertificate
-            ( case path of
-                RegDrep ->
-                  RegDrepCert drepCred drepDeposit Nothing
-                UpdateDrep anchor ->
-                  UpdateDrepCert drepCred $ Just anchor
-                UnregDrep ->
-                  UnregDrepCert drepCred drepDeposit
-            )
-            Nothing
-        ]
-      awaitTxConfirmed $ Transaction.hash tx
+      { txHash } <- submitTxFromBlueprint
+        { buildSteps:
+            [ IssueCertificate
+                ( case path of
+                    RegDrep ->
+                      RegDrepCert drepCred drepDeposit Nothing
+                    UpdateDrep anchor ->
+                      UpdateDrepCert drepCred $ Just anchor
+                    UnregDrep ->
+                      UnregDrepCert drepCred drepDeposit
+                )
+                Nothing
+            ]
+        , balancer: defaultBalancer
+        , balancerCtx: emptyBalancerCtx
+        }
+      awaitTxConfirmed txHash
 
   submitTx `catchError` \err ->
     unless

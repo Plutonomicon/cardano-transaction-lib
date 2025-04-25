@@ -9,6 +9,7 @@ import Contract.ScriptLookups as Lookups
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
+  , defaultBalancer
   , signTransaction
   , submit
   , withBalancedTxs
@@ -46,14 +47,18 @@ main = runKeyWalletContract_ \pkh lovelace unlock -> do
   unbalancedTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
 
   txIds <-
-    withBalancedTxs
+    withBalancedTxs defaultBalancer
       [ { transaction: unbalancedTx0
-        , usedUtxos: usedUtxos0
-        , balancerConstraints: mempty
+        , balancerCtx:
+            { balancerConstraints: mempty
+            , extraUtxos: usedUtxos0
+            }
         }
       , { transaction: unbalancedTx1
-        , usedUtxos: usedUtxos1
-        , balancerConstraints: mempty
+        , balancerCtx:
+            { balancerConstraints: mempty
+            , extraUtxos: usedUtxos1
+            }
         }
       ] $ \balancedTxs -> do
       locked <- getLockedInputs

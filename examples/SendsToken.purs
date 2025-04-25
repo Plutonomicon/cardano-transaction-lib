@@ -24,7 +24,6 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
@@ -38,7 +37,9 @@ import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , submitTxFromBuildPlan
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
   )
 import Contract.Value (Value)
 import Contract.Value as Value
@@ -46,7 +47,6 @@ import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.AlwaysMints (alwaysMintsPolicy)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
-import Data.Map as Map
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -71,15 +71,17 @@ contract = do
 mintToken :: Contract TransactionHash
 mintToken = do
   mp /\ sh /\ an /\ amount /\ _value <- tokenValue
-
-  tx <- submitTxFromBuildPlan Map.empty mempty
-    [ MintAsset
-        sh
-        an
-        amount
-        (PlutusScriptCredential (ScriptValue mp) RedeemerDatum.unit)
-    ]
-  pure $ Transaction.hash tx
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ MintAsset
+            sh
+            an
+            amount
+            (PlutusScriptCredential (ScriptValue mp) RedeemerDatum.unit)
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 sendToken :: Contract TransactionHash
 sendToken = do
@@ -88,15 +90,18 @@ sendToken = do
   _ /\ _ /\ _ /\ _ /\ value <- tokenValue
   address <- mkAddress (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
     (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
-  tx <- submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address
-        , amount: value
-        , datum: Nothing
-        , scriptRef: Nothing
-        }
-    ]
-  pure $ Transaction.hash tx
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address
+            , amount: value
+            , datum: Nothing
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 tokenValue
   :: Contract (PlutusScript /\ ScriptHash /\ AssetName /\ Int.Int /\ Value)

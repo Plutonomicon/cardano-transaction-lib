@@ -20,14 +20,14 @@ module Ctl.Internal.ProcessConstraints.State
 
 import Prelude hiding (join)
 
+import Cardano.Transaction.Balancer.Types.Val (Val, split)
+import Cardano.Transaction.Balancer.Types.Val as Val
 import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (CostModel, Language, PlutusData, Transaction, UtxoMap)
 import Cardano.Types.Value (Value)
 import Control.Monad.State.Trans (StateT)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Val (Val, split)
-import Ctl.Internal.Types.Val as Val
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Lens.Record (prop)

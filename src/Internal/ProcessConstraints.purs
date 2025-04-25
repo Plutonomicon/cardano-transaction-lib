@@ -8,6 +8,7 @@ import Cardano.Kupmios.Ogmios.Pools
   ( getPubKeyHashDelegationsAndRewards
   , getValidatorHashDelegationsAndRewards
   )
+import Cardano.Transaction.Balancer.Types.Val as Val
 import Cardano.Transaction.Edit
   ( DetachedRedeemer
   , RedeemerPurpose(ForSpend, ForMint, ForReward, ForCert)
@@ -170,7 +171,6 @@ import Ctl.Internal.Types.TxConstraints
   , TxConstraints
   , utxoWithScriptRef
   )
-import Ctl.Internal.Types.Val as Val
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)

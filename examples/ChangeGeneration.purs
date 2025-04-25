@@ -21,13 +21,14 @@ import Contract.PlutusData (OutputDatum(OutputDatum), PlutusData(Integer))
 import Contract.Scripts (validatorHash)
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceTx
   , buildTx
+  , defaultBalancer
   , signTransaction
   , submit
   )
 import Contract.Value as Value
 import Contract.Wallet (getWalletAddress)
+import Control.Monad.Error.Class (liftEither)
 import Ctl.Examples.AlwaysSucceeds as AlwaysSucceeds
 import Data.Array (length, replicate)
 import Data.Lens ((^.))
@@ -71,11 +72,13 @@ checkChangeOutputsDistribution outputsToScript outputsToSelf expectedOutputs =
             )
 
     unbalancedTx <- buildTx plan
-    balancedTx <- balanceTx unbalancedTx Map.empty
-      -- just to check that attaching datums works
-      ( mustSendChangeWithDatum $ OutputDatum $ Integer $ BigInt.fromInt
-          1000
-      )
+    balancedTx <- liftEither =<< defaultBalancer unbalancedTx
+      { balancerConstraints:
+          -- just to check that attaching datums works
+          mustSendChangeWithDatum $ OutputDatum $ Integer $
+            BigInt.fromInt 1000
+      , extraUtxos: Map.empty
+      }
     balancedSignedTx <- signTransaction balancedTx
     let outputs = balancedTx ^. _body <<< _outputs
     length outputs `shouldEqual` expectedOutputs
