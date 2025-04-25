@@ -1,6 +1,6 @@
 module Ctl.Internal.Testnet.Server
   ( Channels
-  , StartedTestnetCluster(MkStartedTestnetCluster)
+  , StartedTestnetCluster(StartedTestnetCluster)
   , startKupo
   , startOgmios
   , startTestnetCluster
@@ -103,7 +103,7 @@ type Channels a =
   , stdout :: EventSource a
   }
 
-newtype StartedTestnetCluster = MkStartedTestnetCluster
+newtype StartedTestnetCluster = StartedTestnetCluster
   { ogmios ::
       { process :: ManagedProcess
       , channels :: Channels String
@@ -224,7 +224,7 @@ startTestnetCluster cfg cleanupRef logger = do
   kupo <- annotateError "Could not start kupo"
     $ startKupo' { paths, workdir: workdirAbsolute }
 
-  pure $ MkStartedTestnetCluster
+  pure $ StartedTestnetCluster
     { paths
     , ogmios
     , kupo

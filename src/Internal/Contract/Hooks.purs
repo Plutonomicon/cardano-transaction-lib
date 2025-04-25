@@ -23,6 +23,7 @@ type Hooks =
 
 type ClusterParameters =
   { nodeSocketPath :: FilePath
+  , nodeConfigPath :: FilePath
   }
 
 emptyHooks :: Hooks

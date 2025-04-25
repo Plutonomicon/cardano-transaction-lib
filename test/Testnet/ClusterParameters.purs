@@ -16,13 +16,15 @@ import Effect.Class (liftEffect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
 import Mote (group, test)
-import Test.Spec.Assertions (shouldNotEqual)
+import Node.FS.Sync (exists)
+import Test.Spec.Assertions (shouldNotEqual, shouldReturn)
 
 runTest :: TestPlanM (Aff Unit) Unit
 runTest = do
   clusterParamsRef <-
     liftEffect $ Ref.new
       { nodeSocketPath: mempty
+      , nodeConfigPath: mempty
       }
   testTestnetContracts
     defaultTestnetConfig
@@ -39,5 +41,8 @@ mkSuite ref = do
       withWallets unit \_ -> do
         clusterParams <- liftEffect $ Ref.read ref
         clusterParams.nodeSocketPath `shouldNotEqual` mempty
+        clusterParams.nodeConfigPath `shouldNotEqual` mempty
+        liftEffect (exists clusterParams.nodeSocketPath) `shouldReturn` true
+        liftEffect (exists clusterParams.nodeConfigPath) `shouldReturn` true
         logDebug' $ "ClusterParameters: " <> show clusterParams
         pure unit
