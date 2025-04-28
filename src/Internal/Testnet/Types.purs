@@ -3,8 +3,6 @@ module Ctl.Internal.Testnet.Types
   , Era(Byron, Shelley, Allegra, Mary, Alonzo, Babbage, Conway)
   , LoggingFormat(LogAsJson, LogAsText)
   , TestnetPaths
-  , Event(Ready872, Finished, Failed, StartupFailed)
-  , StartupFailure(SpawnFailed, InitializationFailed)
   , NodeLocation
   , Node
   , GenesisUtxoKeyLocation
@@ -57,26 +55,6 @@ data Era
   | Babbage
   | Conway
 
-data StartupFailure
-  = SpawnFailed
-  | InitializationFailed
-
-derive instance Eq StartupFailure
-derive instance Generic StartupFailure _
-instance Show StartupFailure where
-  show = genericShow
-
-data Event
-  = Ready872 -- when cardano-testnet 8.7.2 is ready to go
-  | Finished
-  | Failed
-  | StartupFailed StartupFailure
-
-derive instance Eq Event
-derive instance Generic Event _
-instance Show Event where
-  show = genericShow
-
 instance Show Era where
   show = case _ of
     Byron -> "byron-era"
@@ -127,56 +105,38 @@ defaultOptionalStartupParams =
   , nodeLoggingFormat: Nothing
   }
 
-type TestnetPaths =
-  { testnetDirectory :: FilePath
-  , genesisKeys :: Array { | GenesisUtxoKeyLocation () }
-  , nodeConfigPath :: FilePath
-  , nodeSocketPath :: FilePath
-  , nodeDirs :: Array { | NodeLocation () }
+type TestnetRuntime =
+  { nodes :: Array Node
+  , paths :: TestnetPaths
   }
 
-type Node r =
-  ( socket :: FilePath
+type TestnetPaths =
+  { testnetDirectory :: FilePath
+  , genesisKeys :: Array GenesisUtxoKeyLocation
+  , nodeConfigPath :: FilePath
+  , nodeSocketPath :: FilePath
+  , nodeDirs :: Array NodeLocation
+  }
+
+type Node =
+  { socket :: FilePath
   , port :: UInt
-  | NodeLocation r
-  )
+  , location :: NodeLocation
+  }
 
-type NodeLocation r =
-  ( idx :: Int
-  , name :: String
+type NodeLocation =
+  { idx :: Int
   , workdir :: FilePath
-  | r
-  )
+  }
 
-type GenesisUtxoKeyLocation r =
-  ( path :: FilePath
+type GenesisUtxoKeyLocation =
+  { path :: FilePath
   , idx :: Int
-  | r
-  )
-
-{-
-type TestnetClusterConfig r =
-  ( hooks :: Config.Hooks
-  | KupmiosConfig (LogParams r)
-  )
--}
+  }
 
 type LogParams r =
   ( logLevel :: LogLevel
   , customLogger :: Maybe (LogLevel -> Config.Message -> Aff Unit)
   , suppressLogs :: Boolean
-  | r
-  )
-
-{-
-type KupmiosConfig r =
-  ( kupoConfig :: Config.ServerConfig
-  , ogmiosConfig :: Config.ServerConfig
-  | r
-  )
--}
-
-type TestnetRuntime r =
-  ( nodes :: Array { | Node () }
   | r
   )

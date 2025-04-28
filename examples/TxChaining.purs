@@ -27,7 +27,7 @@ import Contract.BalanceTxConstraints
   )
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -36,9 +36,10 @@ import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Transaction
   ( awaitTxConfirmed
-  , balanceTx
   , buildTx
   , createAdditionalUtxos
+  , defaultBalancer
+  , emptyBalancerCtx
   , signTransaction
   , submit
   , withBalancedTx
@@ -52,7 +53,7 @@ import Effect.Exception (throw)
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit
@@ -76,24 +77,27 @@ contract = do
 
   unbalancedTx0 <- buildTx plan
 
-  withBalancedTx unbalancedTx0 Map.empty mempty \balancedTx0 -> do
-    logInfo' $ "balanced"
-    balancedSignedTx0 <- signTransaction balancedTx0
+  withBalancedTx defaultBalancer unbalancedTx0 emptyBalancerCtx \balancedTx0 ->
+    do
+      logInfo' $ "balanced"
+      balancedSignedTx0 <- signTransaction balancedTx0
 
-    additionalUtxos <- createAdditionalUtxos balancedSignedTx0
-    logInfo' $ "Additional utxos: " <> show additionalUtxos
-    when (Map.isEmpty additionalUtxos) do
-      liftEffect $ throw "empty utxos"
-    let
-      balanceTxConstraints :: BalancerConstraints
-      balanceTxConstraints =
-        mustUseAdditionalUtxos additionalUtxos
-    unbalancedTx1 <- buildTx plan
-    balancedTx1 <- balanceTx unbalancedTx1 additionalUtxos balanceTxConstraints
-    balancedSignedTx1 <- signTransaction balancedTx1
+      additionalUtxos <- createAdditionalUtxos balancedSignedTx0
+      logInfo' $ "Additional utxos: " <> show additionalUtxos
+      when (Map.isEmpty additionalUtxos) do
+        liftEffect $ throw "empty utxos"
+      let
+        balancerConstraints :: BalancerConstraints
+        balancerConstraints = mustUseAdditionalUtxos additionalUtxos
+      unbalancedTx1 <- buildTx plan
+      balancedTx1 <- liftEither =<< defaultBalancer unbalancedTx1
+        { balancerConstraints
+        , extraUtxos: additionalUtxos
+        }
+      balancedSignedTx1 <- signTransaction balancedTx1
 
-    txId0 <- submit balancedSignedTx0
-    txId1 <- submit balancedSignedTx1
+      txId0 <- submit balancedSignedTx0
+      txId1 <- submit balancedSignedTx1
 
-    awaitTxConfirmed txId0
-    awaitTxConfirmed txId1
+      awaitTxConfirmed txId0
+      awaitTxConfirmed txId1

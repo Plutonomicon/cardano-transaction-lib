@@ -15,11 +15,11 @@ import Cardano.Types
   , ScriptHash
   , StakeCredential(StakeCredential)
   )
+import Cardano.Types.DelegationsAndRewards (DelegationsAndRewards)
+import Cardano.Types.DelegationsAndRewards (DelegationsAndRewards) as X
 import Contract.Monad (Contract)
 import Control.Monad.Reader (asks)
-import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards)
-import Ctl.Internal.Types.DelegationsAndRewards (DelegationsAndRewards) as X
+import Ctl.Internal.Contract.Monad (getProvider)
 import Data.Either (either)
 import Data.Maybe (Maybe)
 import Data.Newtype (wrap)
@@ -29,9 +29,9 @@ import Effect.Exception (throw)
 
 getPoolIds :: Contract (Array PoolPubKeyHash)
 getPoolIds = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   liftAff $
-    queryHandle.getPoolIds
+    provider.getPoolIds
       >>= either (liftEffect <<< throw <<< show) pure
 
 getStakeCredentialDelegationsAndRewards
@@ -47,10 +47,10 @@ getPubKeyHashDelegationsAndRewards
   :: Ed25519KeyHash
   -> Contract (Maybe DelegationsAndRewards)
 getPubKeyHashDelegationsAndRewards stakePubKeyHash = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   networkId <- asks _.networkId
   liftAff do
-    queryHandle.getPubKeyHashDelegationsAndRewards networkId
+    provider.getPubKeyHashDelegationsAndRewards networkId
       (wrap stakePubKeyHash)
       >>= either (liftEffect <<< throw <<< show) pure
 
@@ -58,9 +58,9 @@ getValidatorHashDelegationsAndRewards
   :: ScriptHash
   -> Contract (Maybe DelegationsAndRewards)
 getValidatorHashDelegationsAndRewards stakeValidatorHash = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   networkId <- asks _.networkId
   liftAff do
-    queryHandle.getValidatorHashDelegationsAndRewards networkId
+    provider.getValidatorHashDelegationsAndRewards networkId
       stakeValidatorHash
       >>= either (liftEffect <<< throw <<< show) pure

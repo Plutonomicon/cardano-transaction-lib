@@ -20,14 +20,14 @@ module Ctl.Internal.ProcessConstraints.State
 
 import Prelude hiding (join)
 
+import Cardano.Transaction.Balancer.Types.Val (Val, split)
+import Cardano.Transaction.Balancer.Types.Val as Val
 import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (CostModel, Language, PlutusData, Transaction, UtxoMap)
 import Cardano.Types.Value (Value)
 import Control.Monad.State.Trans (StateT)
 import Ctl.Internal.Contract.Monad (Contract)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
-import Ctl.Internal.Types.Val (Val, split)
-import Ctl.Internal.Types.Val as Val
 import Data.Generic.Rep (class Generic)
 import Data.Lattice (join)
 import Data.Lens.Record (prop)
@@ -37,7 +37,7 @@ import Data.Show.Generic (genericShow)
 import Data.Tuple (snd)
 import Type.Proxy (Proxy(Proxy))
 
--- A `StateT` ontop of `QueryM` ~ ReaderT QueryConfig Aff`.
+-- A `StateT` ontop of `KupmiosM` ~ ReaderT QueryConfig Aff`.
 -- The state is `ConstraintProcessingState`, which keeps track of the unbalanced
 -- transaction etc and additionally holds a `ConstraintsConfig` containing the
 -- scriptlookups and a `defaultSlotConfig`.

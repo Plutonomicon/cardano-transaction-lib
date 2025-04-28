@@ -4,6 +4,11 @@ module Ctl.Internal.ProcessConstraints
 
 import Prelude
 
+import Cardano.Kupmios.Ogmios.Pools
+  ( getPubKeyHashDelegationsAndRewards
+  , getValidatorHashDelegationsAndRewards
+  )
+import Cardano.Transaction.Balancer.Types.Val as Val
 import Cardano.Transaction.Edit
   ( DetachedRedeemer
   , RedeemerPurpose(ForSpend, ForMint, ForReward, ForCert)
@@ -69,7 +74,7 @@ import Control.Monad.Reader.Class (asks)
 import Control.Monad.State.Trans (get, gets, put, runStateT)
 import Control.Monad.Trans.Class (lift)
 import Ctl.Internal.Contract (getProtocolParameters)
-import Ctl.Internal.Contract.Monad (Contract, getQueryHandle, wrapQueryM)
+import Ctl.Internal.Contract.Monad (Contract, getProvider, wrapKupmiosM)
 import Ctl.Internal.Helpers (liftEither, liftM, unsafeFromJust)
 import Ctl.Internal.ProcessConstraints.Error
   ( MkUnbalancedTxError
@@ -111,10 +116,6 @@ import Ctl.Internal.ProcessConstraints.State
   , provideValue
   , requireValue
   , totalMissingValue
-  )
-import Ctl.Internal.QueryM.Pools
-  ( getPubKeyHashDelegationsAndRewards
-  , getValidatorHashDelegationsAndRewards
   )
 import Ctl.Internal.Transaction
   ( attachDatum
@@ -169,7 +170,6 @@ import Ctl.Internal.Types.TxConstraints
   , TxConstraints
   , utxoWithScriptRef
   )
-import Ctl.Internal.Types.Val as Val
 import Data.Array (cons, partition, toUnfoldable, zip)
 import Data.Array (mapMaybe, singleton, (:)) as Array
 import Data.Bifunctor (lmap)
@@ -247,7 +247,7 @@ processLookupsAndConstraints constraints = runExceptT do
 -- compute the missing value on both sides, and add an input with the
 -- join of the positive parts of the missing values.
 
--- Helper to run the stack and get back to `QueryM`. See comments in
+-- Helper to run the stack and get back to `KupmiosM`. See comments in
 -- `processLookupsAndConstraints` regarding constraints.
 runConstraintsM
   :: ScriptLookups
@@ -508,13 +508,13 @@ processConstraint
 processConstraint
   ctx@{ plutusMintingPolicies, plutusScripts }
   c = do
-  queryHandle <- lift $ getQueryHandle
+  provider <- lift $ getProvider
   case c of
     MustIncludeDatum dat -> pure <$> addDatum dat
     MustValidateIn posixTimeRange -> do
       { systemStart } <- asks _.ledgerConstants
       eraSummaries <- liftAff $
-        queryHandle.getEraSummaries
+        provider.getEraSummaries
           >>= either (liftEffect <<< throw <<< show) pure
       runExceptT do
         ({ timeToLive, validityStartInterval }) <- liftEither $
@@ -778,8 +778,9 @@ processConstraint
       pure <$> attachToCps (map pure <<< attachNativeScript) stakeValidator
     MustWithdrawStakePubKey spkh -> runExceptT do
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM $ getPubKeyHashDelegationsAndRewards
-        spkh
+      mbRewards <- lift $ lift $ wrapKupmiosM $
+        getPubKeyHashDelegationsAndRewards
+          spkh
       ({ rewards }) <- ExceptT $ pure $ note (CannotWithdrawRewardsPubKey spkh)
         mbRewards
       let
@@ -792,7 +793,7 @@ processConstraint
     MustWithdrawStakePlutusScript stakeValidator redeemerData -> runExceptT do
       let hash = PlutusScript.hash stakeValidator
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM
+      mbRewards <- lift $ lift $ wrapKupmiosM
         $ getValidatorHashDelegationsAndRewards
         $ wrap hash
       let
@@ -811,7 +812,7 @@ processConstraint
     MustWithdrawStakeNativeScript stakeValidator -> runExceptT do
       let hash = NativeScript.hash stakeValidator
       networkId <- lift getNetworkId
-      mbRewards <- lift $ lift $ wrapQueryM
+      mbRewards <- lift $ lift $ wrapKupmiosM
         $ getValidatorHashDelegationsAndRewards
         $ wrap hash
       let

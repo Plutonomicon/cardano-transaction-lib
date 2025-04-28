@@ -81,7 +81,7 @@ import Cardano.Types.RedeemerDatum (RedeemerDatum(RedeemerDatum)) as X
 import Cardano.Types.RedeemerDatum as Redeemer
 import Contract.Monad (Contract)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.Contract.Monad (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getProvider)
 import Data.Either (Either(Left, Right), hush)
 import Data.Map (Map)
 import Data.Map as Map
@@ -93,8 +93,8 @@ import Prim.TypeError (class Warn, Text)
 -- | Retrieve the full resolved datum associated to a given datum hash.
 getDatumByHash :: DataHash -> Contract (Maybe PlutusData)
 getDatumByHash dataHash = do
-  queryHandle <- getQueryHandle
-  liftAff $ join <<< hush <$> queryHandle.getDatumByHash dataHash
+  provider <- getProvider
+  liftAff $ join <<< hush <$> provider.getDatumByHash dataHash
 
 -- | Retrieve full resolved datums associated with given datum hashes.
 -- | The resulting `Map` will only contain datums that have been successfully
@@ -108,9 +108,9 @@ getDatumsByHashes hashes =
 getDatumsByHashesWithErrors
   :: Array DataHash -> Contract (Map DataHash (Either String PlutusData))
 getDatumsByHashesWithErrors hashes = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   liftAff $ Map.fromFoldable <$> flip parTraverse hashes
-    \dh -> queryHandle.getDatumByHash dh <#> Tuple dh <<< case _ of
+    \dh -> provider.getDatumByHash dh <#> Tuple dh <<< case _ of
       Right (Just datum) -> Right datum
       Right Nothing -> Left "Datum not found"
       Left err -> Left $ show err

@@ -18,5 +18,5 @@ contractParams :: Contract.Config.ContractParams
 contractParams =
   Contract.Config.testnetConfig
     { walletSpec =
-        Just $ Contract.Config.ConnectToGenericCip30 "nami" { cip95: false }
+        Just $ Contract.Config.ConnectToGenericCip30 "eternl" { cip95: false }
     }

@@ -19,11 +19,10 @@ import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -40,7 +39,9 @@ import Contract.PlutusData (PlutusData(Integer))
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef, PlutusScriptRef)
   , awaitTxConfirmed
-  , submitTxFromBuildPlan
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
   )
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf, singleton) as Value
@@ -53,7 +54,7 @@ import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Ctl.Examples.PlutusV2.OneShotMinting (oneShotMintingPolicyScriptV2)
 import Data.Array (head) as Array
 import Data.Log.Tag (tag)
-import Data.Map (empty, toUnfoldable) as Map
+import Data.Map (toUnfoldable) as Map
 import JS.BigInt (fromInt) as BigInt
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Arbitrary (arbitrary)
@@ -62,7 +63,7 @@ import Test.QuickCheck.Gen (randomSampleOne)
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit
@@ -101,7 +102,7 @@ contract = do
 
     tokenValue = Value.singleton cs0 tn0 BigNum.one
 
-    plan =
+    buildSteps =
       [ MintAsset
           cs0
           tn0
@@ -123,8 +124,13 @@ contract = do
           }
       ]
 
-  tx <- submitTxFromBuildPlan Map.empty mempty plan
-  awaitTxConfirmed $ Transaction.hash tx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+
+  awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"
 
   utxos' <- liftedM "Failed to get UTxOs from wallet" getWalletUtxos

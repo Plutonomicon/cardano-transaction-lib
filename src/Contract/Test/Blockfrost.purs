@@ -13,7 +13,7 @@ import Contract.Config
   , CtlBackendParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , PrivateStakeKeySource(PrivateStakeKeyFile)
-  , QueryBackendParams(BlockfrostBackendParams)
+  , ProviderBackendParams(BlockfrostBackendParams)
   , ServerConfig
   , WalletSpec(UseKeys)
   )

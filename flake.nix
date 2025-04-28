@@ -8,44 +8,20 @@
   };
 
   inputs = {
-    nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
+    nixpkgs.follows = "cardano-node/nixpkgs";
     nixpkgs-arion.url = "github:NixOS/nixpkgs";
-    hackage-nix = {
-      url = "github:input-output-hk/hackage.nix";
-      flake = false;
-    };
-    haskell-nix = {
-      url = "github:input-output-hk/haskell.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.hackage.follows = "hackage-nix";
-    };
-    CHaP = {
-      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
-      flake = false;
-    };
-    iohk-nix = {
-      url = "github:input-output-hk/iohk-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    # The changes introduced in the PRs listed below have not yet been included
-    # in any cardano-node release. These updates are necessary to run
-    # cardano-testnet in the Conway era and be able to adjust max Lovelace
-    # supply.
-    # https://github.com/IntersectMBO/cardano-node/pull/5936
-    # https://github.com/IntersectMBO/cardano-node/pull/5960
-    cardano-node.url = "github:input-output-hk/cardano-node/d7abccd4e90c38ff5cd4d6a7839689d888332056";
+    cardano-node.url = "github:input-output-hk/cardano-node/10.1.4";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
-      # Override with "path:/path/to/cardano-configurations";
-      url = "github:input-output-hk/cardano-configurations?rev=7969a73e5c7ee1f3b2a40274b34191fdd8de170b";
+      url = "github:input-output-hk/cardano-configurations?rev=a913d87246dc2484562a00c86e5f9c74a20e82ce";
       flake = false;
     };
 
@@ -57,7 +33,7 @@
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.5.0";
+      url = "github:CardanoSolutions/ogmios/v6.8.0";
       flake = false;
     };
 
@@ -84,9 +60,6 @@
       linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
       darwinSystems = [ "x86_64-darwin" "aarch64-darwin" ];
       supportedSystems = linuxSystems ++ darwinSystems;
-
-      ogmiosVersion = "6.5.0";
-      kupoVersion = "2.9.0";
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -159,6 +132,10 @@
               );
           };
           ogmiosFixtures = buildOgmiosFixtures pkgs;
+          exportOgmiosFixtures =
+            ''
+              export OGMIOS_FIXTURES="${ogmiosFixtures}"
+            '';
           project = pkgs.purescriptProject {
             inherit src pkgs projectName;
             packageJson = ./package.json;
@@ -179,14 +156,23 @@
                 ];
             };
           };
-          exportOgmiosFixtures =
-            ''
-              export OGMIOS_FIXTURES="${ogmiosFixtures}"
-            '';
+          ctlScaffoldProject = pkgs.purescriptProject rec {
+            inherit pkgs;
+            projectName = "ctl-scaffold";
+            packageJson = ./templates/ctl-scaffold/package.json;
+            packageLock = ./templates/ctl-scaffold/package-lock.json;
+            src = builtins.path {
+              path = ./templates/ctl-scaffold;
+              name = "${projectName}-src";
+              filter = path: ftype: !(pkgs.lib.hasSuffix ".md" path);
+            };
+          };
         in
         rec {
           packages = {
             ctl-purs-project = project.buildPursProject { };
+
+            ctl-scaffold-purs-project = ctlScaffoldProject.buildPursProject { };
 
             ctl-example-bundle-web-esbuild = project.bundlePursProjectEsbuild {
               main = "Ctl.Examples.ByUrl";
@@ -211,7 +197,7 @@
               name = "ctl-e2e-test";
               runnerMain = "Test.Ctl.E2E";
               testMain = "Ctl.Examples.ByUrl";
-              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}."kupo-${kupoVersion}" ];
+              buildInputs = [ inputs.cardano-nix.packages.${pkgs.system}.kupo ];
             };
             ctl-local-testnet-test = project.runLocalTestnetTest {
               name = "ctl-local-testnet-test";
@@ -284,11 +270,11 @@
                 inherit (prev) system;
               in
               {
-                ogmios = cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
+                ogmios = cardano-nix.packages.${system}.ogmios;
                 cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
                 cardano-node = cardano-node.packages.${system}.cardano-node;
                 cardano-cli = cardano-node.packages.${system}.cardano-cli;
-                kupo = cardano-nix.packages.${system}."kupo-${kupoVersion}";
+                kupo = cardano-nix.packages.${system}.kupo;
                 cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
@@ -488,14 +474,14 @@
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
-          ogmios = inputs.cardano-nix.packages.${system}."ogmios-${ogmiosVersion}";
-          kupo = inputs.cardano-nix.packages.${system}."kupo-${kupoVersion}";
+          ogmios = inputs.cardano-nix.packages.${system}.ogmios;
+          kupo = inputs.cardano-nix.packages.${system}.kupo;
         };
       };
 
       herculesCI = inputs.hercules-ci-effects.lib.mkHerculesCI { inherit inputs; } {
         hercules-ci.flake-update = {
-          enable = true;
+          enable = false;
           updateBranch = "updated-flake-lock";
           createPullRequest = true;
           autoMergeMethod = null;

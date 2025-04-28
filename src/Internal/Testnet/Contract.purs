@@ -8,7 +8,7 @@ module Ctl.Internal.Testnet.Contract
 
 import Contract.Prelude
 
-import Cardano.Serialization.Lib (privateKey_generateEd25519) as Csl
+import Cardano.Data.Lite (privateKey_generateEd25519) as Csl
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigInt (BigInt)
@@ -70,7 +70,7 @@ import Ctl.Internal.Testnet.Server
 import Ctl.Internal.Testnet.Types (TestnetConfig)
 import Ctl.Internal.Testnet.Utils
   ( cleanupOnExit
-  , read872GenesisKey
+  , readGenesisKey
   , runCleanup
   , whenError
   )
@@ -82,7 +82,7 @@ import Effect.Aff (try)
 import Effect.Exception (error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read, write) as Ref
-import Internal.CardanoCli.QueryHandle (withCardanoCliCompletion)
+import Internal.CardanoCli.Provider (withCardanoCliCompletion)
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
@@ -274,7 +274,7 @@ startTestnetContractEnv cfg distr cleanupRef = do
     readGenesisWallets =
       traverse
         ( \location -> do
-            paymentKey <- read872GenesisKey location
+            paymentKey <- readGenesisKey location
             pure $ mkKeyWalletFromPrivateKeys paymentKey Nothing Nothing
         )
         (unwrap cluster).paths.genesisKeys

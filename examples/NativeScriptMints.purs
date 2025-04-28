@@ -19,11 +19,10 @@ import Cardano.Types
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.NativeScript as NativeScript
-import Cardano.Types.Transaction as Transaction
 import Contract.Address (PaymentPubKeyHash, mkAddress)
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -31,19 +30,23 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.Scripts (NativeScript(ScriptPubkey))
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Contract.Value (CurrencySymbol, TokenName)
 import Contract.Value as Value
 import Contract.Wallet (ownPaymentPubKeyHashes, ownStakePubKeyHashes)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head)
-import Data.Map as Map
 import JS.BigInt as BigInt
 
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 contract :: Contract Unit
@@ -56,13 +59,17 @@ contract = do
   let scriptHash = NativeScript.hash mintingPolicy
   assetName <- Helpers.mkAssetName "NSToken"
 
-  txId <- Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ MintAsset
-        scriptHash
-        assetName
-        (Int.fromInt 100)
-        (NativeScriptCredential (ScriptValue mintingPolicy))
-    ]
+  { txHash: txId } <- submitTxFromBlueprint
+    { buildSteps:
+        [ MintAsset
+            scriptHash
+            assetName
+            (Int.fromInt 100)
+            (NativeScriptCredential (ScriptValue mintingPolicy))
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
   awaitTxConfirmed txId
   logInfo' "Minted successfully"
@@ -77,7 +84,7 @@ toSelfContract cs tn amount = do
     (PaymentCredential $ PubKeyHashCredential $ unwrap pkh)
     (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> skh)
   let
-    plan =
+    buildSteps =
       [ Pay $ TransactionOutput
           { address
           , amount: Value.singleton cs tn amount
@@ -86,9 +93,12 @@ toSelfContract cs tn amount = do
           }
       ]
 
-  tx <- submitTxFromBuildPlan Map.empty mempty plan
-
-  awaitTxConfirmed $ Transaction.hash tx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
+  awaitTxConfirmed txHash
   logInfo' $ "Moved " <> show (BigInt.fromInt 50) <> " to self successfully"
 
 example :: ContractParams -> Effect Unit

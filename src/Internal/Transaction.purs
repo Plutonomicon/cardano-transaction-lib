@@ -8,7 +8,7 @@ module Ctl.Internal.Transaction
 
 import Prelude
 
-import Cardano.Serialization.Lib
+import Cardano.Data.Lite
   ( hashScriptData
   , packListContainer
   , packMapContainer
@@ -63,17 +63,17 @@ setScriptDataHash costModels rs ds tx@(Transaction { body, witnessSet })
   | otherwise = do
       let
         costMdlsCsl =
-          packMapContainer $ map (Language.toCsl *** CostModel.toCsl) $
+          packMapContainer $ map (Language.toCdl *** CostModel.toCdl) $
             Map.toUnfoldable costModels
         redeemersCsl =
-          packListContainer $ Redeemer.toCsl <$> rs
+          packListContainer $ Redeemer.toCdl <$> rs
         datumsCsl =
           if Array.null ds
           -- This is a hack. The datums argument is optional and is
           -- supposed to not be provided if there are no datums.
           -- TODO: fix upstream
           then unsafeCoerce undefined
-          else packListContainer $ PlutusData.toCsl <$> ds
+          else packListContainer $ PlutusData.toCdl <$> ds
         scriptDataHash =
           ScriptDataHash $ hashScriptData redeemersCsl costMdlsCsl datumsCsl
       pure $ over Transaction

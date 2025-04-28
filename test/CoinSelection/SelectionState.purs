@@ -7,10 +7,10 @@ module Test.Ctl.CoinSelection.SelectionState
 
 import Prelude
 
+import Cardano.Transaction.Balancer.CoinSelection (SelectionState)
+import Cardano.Transaction.Balancer.CoinSelection as CoinSelection
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex as UtxoIndex
 import Cardano.Types.Asset (Asset)
-import Ctl.Internal.BalanceTx.CoinSelection (SelectionState)
-import Ctl.Internal.BalanceTx.CoinSelection as CoinSelection
-import Ctl.Internal.CoinSelection.UtxoIndex as UtxoIndex
 import Data.Array.NonEmpty (cons')
 import Data.Maybe (Maybe(Just), isJust)
 import Data.Newtype (unwrap)

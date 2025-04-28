@@ -1,6 +1,7 @@
 -- | Common types for E2E tests.
 module Ctl.Internal.Test.E2E.Types
   ( Browser
+  , ClusterSetup
   , TmpDir
   , SettingsArchive
   , SettingsArchiveUrl
@@ -12,7 +13,7 @@ module Ctl.Internal.Test.E2E.Types
   , unExtensionId
   , WalletPassword
   , ExtensionParams
-  , WalletExt(FlintExt, NamiExt, GeroExt, LodeExt, EternlExt, LaceExt)
+  , WalletExt(GeroExt, LodeExt, EternlExt, LaceExt)
   , Extensions
   , E2ETestRuntime
   , SettingsRuntime
@@ -26,6 +27,8 @@ module Ctl.Internal.Test.E2E.Types
 
 import Prelude
 
+import Cardano.Provider (ServerConfig)
+import Cardano.Wallet.Key (PrivatePaymentKey, PrivateStakeKey)
 import Control.Alt ((<|>))
 import Data.Either (hush)
 import Data.Generic.Rep (class Generic)
@@ -92,8 +95,8 @@ type ExtensionParams =
   , extensionId :: ExtensionId
   }
 
--- | Enumeration of all known extensions.
-data WalletExt = FlintExt | NamiExt | GeroExt | LodeExt | EternlExt | LaceExt
+-- | Supported wallet extensions.
+data WalletExt = GeroExt | LodeExt | EternlExt | LaceExt
 
 derive instance Eq WalletExt
 derive instance Ord WalletExt
@@ -144,12 +147,10 @@ type E2ETest =
 mkE2ETest :: String -> Maybe E2ETest
 mkE2ETest str =
   (tryWalletPrefix "eternl" <#> mkTestEntry (WalletExtension EternlExt))
-    <|> (tryWalletPrefix "flint" <#> mkTestEntry (WalletExtension FlintExt))
     <|> (tryWalletPrefix "gero" <#> mkTestEntry (WalletExtension GeroExt))
     <|> (tryWalletPrefix "lode" <#> mkTestEntry (WalletExtension LodeExt))
-    <|> (tryWalletPrefix "nami" <#> mkTestEntry (WalletExtension NamiExt))
     <|> (tryWalletPrefix "lace" <#> mkTestEntry (WalletExtension LaceExt))
-    <|> (tryWalletPrefix "plutip" <#> mkTestEntry LocalTestnet)
+    <|> (tryWalletPrefix "localnet" <#> mkTestEntry LocalTestnet)
     <|> (pure $ mkTestEntry NoWallet str)
   where
   tryWalletPrefix :: String -> Maybe String
@@ -173,4 +174,16 @@ type SomeWallet =
   , extensionId :: ExtensionId
   , confirmAccess :: ExtensionId -> RunningE2ETest -> Aff Unit
   , sign :: ExtensionId -> WalletPassword -> RunningE2ETest -> Aff Unit
+  }
+
+-- | Cluster setup contains everything that is needed to run a `Contract` on
+-- | a local cluster: parameters to connect to the services and private keys
+-- | that are pre-funded with Ada on that cluster
+type ClusterSetup =
+  { ogmiosConfig :: ServerConfig
+  , kupoConfig :: ServerConfig
+  , keys ::
+      { payment :: PrivatePaymentKey
+      , stake :: Maybe PrivateStakeKey
+      }
   }

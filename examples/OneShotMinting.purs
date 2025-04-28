@@ -24,11 +24,10 @@ import Cardano.Types.BigNum as BigNum
 import Cardano.Types.Int as Int
 import Cardano.Types.PlutusScript as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (fromUtxoMap)
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -54,7 +53,9 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionInput
   , awaitTxConfirmed
-  , submitTxFromBuildPlan
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
   )
 import Contract.Value (AssetName, ScriptHash)
 import Contract.Wallet (getWalletUtxos)
@@ -63,14 +64,13 @@ import Control.Monad.Trans.Class (lift)
 import Ctl.Examples.Helpers (mkAssetName) as Helpers
 import Data.Array (head, singleton) as Array
 import Data.Lens ((^.))
-import Data.Map (empty) as Map
 import Effect.Exception (error, throw)
 import JS.BigInt (BigInt)
 
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit
@@ -110,7 +110,7 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
   tn <- Helpers.mkAssetName "CTLNFT"
 
   let
-    plan =
+    buildSteps =
       [ MintAsset cs tn (Int.fromInt one)
           (PlutusScriptCredential (ScriptValue ps) RedeemerDatum.unit)
       , SpendOutput (oref) Nothing
@@ -118,10 +118,12 @@ mkContractWithAssertions exampleName mkMintingPolicy = do
 
   let checks = mkChecks (cs /\ tn /\ one)
   void $ runChecks checks $ lift do
-    tx <- submitTxFromBuildPlan Map.empty mempty plan
-    let
-      txHash = Transaction.hash tx
-      txFinalFee = tx ^. _body <<< _fee
+    { submittedTx: tx, txHash } <- submitTxFromBlueprint
+      { buildSteps
+      , balancer: defaultBalancer
+      , balancerCtx: emptyBalancerCtx
+      }
+    let txFinalFee = tx ^. _body <<< _fee
     logInfo' $ "Tx ID: " <> show txHash
     awaitTxConfirmed txHash
     logInfo' "Tx submitted successfully!"

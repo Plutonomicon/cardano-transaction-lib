@@ -3,7 +3,7 @@ module Ctl.Internal.ProcessConstraints.Error where
 import Prelude
 
 import Cardano.AsCbor (encodeCbor)
-import Cardano.Serialization.Lib (toBytes)
+import Cardano.Data.Lite (toBytes)
 import Cardano.Transaction.Edit (DetachedRedeemer)
 import Cardano.Types (DataHash, NativeScript)
 import Cardano.Types.Address (Address)

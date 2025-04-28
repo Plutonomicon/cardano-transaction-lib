@@ -2,7 +2,7 @@
 -- | adjust the behaviour of the balancer.
 module Contract.BalanceTxConstraints (module BalanceTxConstraints) where
 
-import Ctl.Internal.BalanceTx.Constraints
+import Cardano.Transaction.Balancer.Constraints
   ( BalanceTxConstraintsBuilder
   , BalancerConfig(BalancerConfig)
   , BalancerConstraints(BalancerConstraints)

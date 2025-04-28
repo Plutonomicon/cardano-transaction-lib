@@ -6,14 +6,14 @@ module Test.Ctl.ProtocolParameters
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString)
-import Contract.Test.Mote (TestPlanM, interpretWithConfig)
-import Control.Monad.Error.Class (liftEither)
-import Ctl.Internal.QueryM.Ogmios
-  ( OgmiosProtocolParameters(OgmiosProtocolParameters)
-  )
-import Ctl.Internal.Service.Blockfrost
+import Cardano.Blockfrost.BlockfrostProtocolParameters
   ( BlockfrostProtocolParameters(BlockfrostProtocolParameters)
   )
+import Cardano.Kupmios.Ogmios.Types
+  ( OgmiosProtocolParameters(OgmiosProtocolParameters)
+  )
+import Contract.Test.Mote (TestPlanM, interpretWithConfig)
+import Control.Monad.Error.Class (liftEither)
 import Data.Bifunctor (lmap)
 import Effect (Effect)
 import Effect.Aff (Aff, error, launchAff_)
@@ -28,19 +28,19 @@ import Test.Spec.Runner (defaultConfig)
 
 blockfrostPreprodFixture :: String
 blockfrostPreprodFixture =
-  "blockfrost/getProtocolParameters-preprod/getProtocolParameters-preprod-7f56c39a71503c097c448dc4b47b0e34.json"
+  "blockfrost/getProtocolParameters-preprod/getProtocolParameters-preprod-18063c9b925b4ac71a45459a61b9121c.json"
 
 blockfrostPreviewFixture :: String
 blockfrostPreviewFixture =
-  "blockfrost/getProtocolParameters-preview/getProtocolParameters-preview-659470119e7874ecf112dd05db4b691d.json"
+  "blockfrost/getProtocolParameters-preview/getProtocolParameters-preview-80b669933a38e1e1bab58b43b4993836.json"
 
 ogmiosPreprodFixture :: String
 ogmiosPreprodFixture =
-  "ogmios/queryLedgerState-protocolParameters-preprod-aaa9a3fbcf526a678489845a2de49600.json"
+  "ogmios/queryLedgerState-protocolParameters-preprod-45142c2c7698b34c97bf8d6fdf344129.json"
 
 ogmiosPreviewFixture :: String
 ogmiosPreviewFixture =
-  "ogmios/queryLedgerState-protocolParameters-preview-256d19f15eb1f722b0b66b25d20961b8.json"
+  "ogmios/queryLedgerState-protocolParameters-preview-48914f60e567c5b17f457ecdc5135223.json"
 
 loadFixture :: forall (a :: Type). DecodeAeson a => String -> Aff a
 loadFixture fixture =

@@ -28,12 +28,11 @@ import Cardano.Types
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -45,12 +44,13 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , balanceTx
   , buildTx
+  , defaultBalancer
+  , emptyBalancerCtx
   , lookupTxHash
   , signTransaction
   , submit
-  , submitTxFromBuildPlan
+  , submitTxFromBlueprint
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf, minus) as Value
@@ -60,7 +60,6 @@ import Data.Array (head)
 import Data.Foldable (fold)
 import Data.Functor ((<$>))
 import Data.Lens ((.~))
-import Data.Map as Map
 import Effect.Exception (error)
 import Partial.Unsafe (unsafePartial)
 import Test.Spec.Assertions (shouldEqual)
@@ -68,7 +67,7 @@ import Test.Spec.Assertions (shouldEqual)
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit
@@ -87,14 +86,18 @@ payToAlwaysFails :: ValidatorHash -> Contract TransactionHash
 payToAlwaysFails vhash = do
   scriptAddress <-
     mkAddress (PaymentCredential $ ScriptHashCredential vhash) Nothing
-  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address: scriptAddress
-        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-        , datum: Just $ OutputDatum PlutusData.unit
-        , scriptRef: Nothing
-        }
-    ]
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address: scriptAddress
+            , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+            , datum: Just $ OutputDatum PlutusData.unit
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 spendFromAlwaysFails
   :: ValidatorHash
@@ -123,7 +126,10 @@ spendFromAlwaysFails vhash validator txId = do
           $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
               Nothing
       ] <#> _isValid .~ false
-  spendTx <- balanceTx unbalancedTx (toUtxoMap [ utxo ]) mempty
+  spendTx <- liftEither =<< defaultBalancer unbalancedTx
+    { balancerConstraints: mempty
+    , extraUtxos: toUtxoMap [ utxo ]
+    }
   signedTx <- signTransaction (spendTx # _isValid .~ true)
   spendTxId <- submit signedTx
   logInfo' $ "Tx ID: " <> show spendTxId
