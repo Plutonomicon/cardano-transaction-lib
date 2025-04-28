@@ -46,7 +46,7 @@ let additions =
           , "unsafe-coerce"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer"
-        , version = "5d1b6307038c4f5b0534d6c50903cba8c03b116e"
+        , version = "941c2234ae3d8355dad3282bb51ea6678a587349"
         }
       }
 
