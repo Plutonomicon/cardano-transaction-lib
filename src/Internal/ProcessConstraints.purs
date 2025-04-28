@@ -131,6 +131,7 @@ import Ctl.Internal.Types.Interval
   , posixTimeRangeToTransactionValidity
   )
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
+import Ctl.Internal.Types.ScriptLookups (datum) as Lookups
 import Ctl.Internal.Types.TxConstraints
   ( DatumPresence(DatumWitness, DatumInline)
   , InputWithScriptRef(SpendInput, RefInput)
@@ -171,7 +172,7 @@ import Ctl.Internal.Types.TxConstraints
   , utxoWithScriptRef
   )
 import Data.Array (cons, partition, toUnfoldable, zip)
-import Data.Array (mapMaybe, singleton, (:)) as Array
+import Data.Array (fromFoldable, mapMaybe, (:)) as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either, note)
 import Data.Foldable (foldM)
@@ -285,7 +286,7 @@ runConstraintsM lookups txConstraints = do
 addFakeScriptDataHash
   :: ConstraintsM (Either MkUnbalancedTxError Unit)
 addFakeScriptDataHash = runExceptT do
-  dats <- use _datums
+  dats <- Array.fromFoldable <$> use _datums
   costModels <- use _costModels
   -- Use both script and minting redeemers in the order they were appended.
   tx <- use _cpsTransaction
@@ -510,7 +511,11 @@ processConstraint
   c = do
   provider <- lift $ getProvider
   case c of
-    MustIncludeDatum dat -> pure <$> addDatum dat
+    MustIncludeDatum dat -> do
+      -- add datum to lookups
+      _lookups <>= Lookups.datum dat
+      -- attach datum to the transaction and add it to the set of datums in the state
+      pure <$> addDatum dat
     MustValidateIn posixTimeRange -> do
       { systemStart } <- asks _.ledgerConstants
       eraSummaries <- liftAff $
@@ -880,13 +885,13 @@ attachToCps handler object = do
   newTx <- liftEffect $ handler object tx
   _cpsTransaction .= newTx
 
--- Attaches datum to the transaction and to Array of datums in the state.
+-- Attaches datum to the transaction and to the set of datums in the state.
 addDatum
   :: PlutusData
   -> ConstraintsM Unit
 addDatum dat = do
   attachToCps (map pure <<< attachDatum) dat
-  _datums <>= Array.singleton dat
+  _datums <>= Set.singleton dat
 
 addCertificate
   :: Certificate

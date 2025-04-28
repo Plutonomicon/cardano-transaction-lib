@@ -13,21 +13,18 @@ module Ctl.Examples.IncludeDatum
 
 import Contract.Prelude
 
-import Cardano.Transaction.Builder
-  ( DatumWitness(DatumValue)
-  , OutputWitness(PlutusScriptOutput)
-  , ScriptWitness(ScriptValue)
-  , TransactionBuilderStep(SpendOutput, Pay)
-  )
+import Cardano.Transaction.Builder (TransactionBuilderStep(Pay))
 import Cardano.Types
   ( Credential(ScriptHashCredential)
   , OutputDatum(OutputDatumHash)
+  , PlutusScript
+  , ScriptHash
   , TransactionOutput(TransactionOutput)
   )
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.DataHash (hashPlutusData)
+import Cardano.Types.PlutusScript (hash) as PlutusScript
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
@@ -39,7 +36,8 @@ import Contract.Config
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftContractM, runContract)
 import Contract.PlutusData (PlutusData(Integer))
-import Contract.Scripts (Validator, ValidatorHash, validatorHash)
+import Contract.ScriptLookups (ScriptLookups)
+import Contract.ScriptLookups (unspentOutputs, validator) as Lookups
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
@@ -48,7 +46,10 @@ import Contract.Transaction
   , emptyBalancerCtx
   , lookupTxHash
   , submitTxFromBlueprint
+  , submitTxFromConstraints
   )
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints (mustIncludeDatum, mustSpendScriptOutput) as Constraints
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Control.Monad.Error.Class (liftMaybe)
@@ -69,7 +70,7 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.IncludeDatum"
   validator <- only42Script
-  let vhash = validatorHash validator
+  let vhash = PlutusScript.hash validator
   logInfo' "Attempt to lock value"
   txId <- payToIncludeDatum vhash
   awaitTxConfirmed txId
@@ -79,7 +80,7 @@ contract = do
 datum :: PlutusData
 datum = Integer $ BigInt.fromInt 42
 
-payToIncludeDatum :: ValidatorHash -> Contract TransactionHash
+payToIncludeDatum :: ScriptHash -> Contract TransactionHash
 payToIncludeDatum vhash = do
   address <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   _.txHash <$> submitTxFromBlueprint
@@ -96,37 +97,31 @@ payToIncludeDatum vhash = do
     }
 
 spendFromIncludeDatum
-  :: ValidatorHash
-  -> Validator
+  :: ScriptHash
+  -> PlutusScript
   -> TransactionHash
   -> Contract Unit
 spendFromIncludeDatum vhash validator txId = do
   scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash) Nothing
   utxos <- utxosAt scriptAddress
-  utxo <- liftContractM "no locked output at address"
-    (head (lookupTxHash txId utxos))
-  { txHash: spendTxHash } <- submitTxFromBlueprint
-    { buildSteps:
-        [ SpendOutput
-            utxo
-            ( Just
-                $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
-                $ Just
-                $ DatumValue datum
-            )
-        ]
-    , balancer: defaultBalancer
-    , balancerCtx:
-        { balancerConstraints: mempty
-        , extraUtxos: toUtxoMap [ utxo ]
-        }
+  txInput <- liftContractM "no locked output at address"
+    (_.input <<< unwrap <$> head (lookupTxHash txId utxos))
+  let
+    constraints :: TxConstraints
+    constraints =
+      Constraints.mustSpendScriptOutput txInput RedeemerDatum.unit
+        <> Constraints.mustIncludeDatum datum
 
-    }
+    lookups :: ScriptLookups
+    lookups = Lookups.validator validator
+      <> Lookups.unspentOutputs utxos
+
+  spendTxHash <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxHash
   logInfo' "Successfully spent locked values."
 
 -- | checks if the datum equals 42
-only42Script :: Contract Validator
+only42Script :: Contract PlutusScript
 only42Script = do
   liftMaybe (error "Error decoding includeDatum") do
     envelope <- decodeTextEnvelope includeDatum
