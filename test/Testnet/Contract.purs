@@ -7,8 +7,22 @@ import Prelude
 import Cardano.AsCbor (decodeCbor)
 import Cardano.Data.Lite (fromBytes)
 import Cardano.Plutus.ApplyArgs (applyArgs)
-import Cardano.Transaction.Builder (DatumWitness(DatumValue), OutputWitness(PlutusScriptOutput), ScriptWitness(ScriptValue), TransactionBuilderStep(Pay, SpendOutput))
-import Cardano.Types (Address(EnterpriseAddress), Credential(PubKeyHashCredential, ScriptHashCredential), GeneralTransactionMetadata, PaymentCredential(PaymentCredential), StakeCredential(StakeCredential), TransactionUnspentOutput(TransactionUnspentOutput), _input, _output)
+import Cardano.Transaction.Builder
+  ( DatumWitness(DatumValue)
+  , OutputWitness(PlutusScriptOutput)
+  , ScriptWitness(ScriptValue)
+  , TransactionBuilderStep(Pay, SpendOutput)
+  )
+import Cardano.Types
+  ( Address(EnterpriseAddress)
+  , Credential(PubKeyHashCredential, ScriptHashCredential)
+  , GeneralTransactionMetadata
+  , PaymentCredential(PaymentCredential)
+  , StakeCredential(StakeCredential)
+  , TransactionUnspentOutput(TransactionUnspentOutput)
+  , _input
+  , _output
+  )
 import Cardano.Types.AssetName as AssetName
 import Cardano.Types.Coin as Coin
 import Cardano.Types.Int as Int
@@ -20,10 +34,22 @@ import Cardano.Types.PublicKey (hash) as PublicKey
 import Cardano.Types.RedeemerDatum as RedeemerDatum
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Cardano.Types.Value (lovelaceValueOf)
-import Contract.Address (PaymentPubKeyHash(PaymentPubKeyHash), StakePubKeyHash, getNetworkId, mkAddress)
+import Contract.Address
+  ( PaymentPubKeyHash(PaymentPubKeyHash)
+  , StakePubKeyHash
+  , getNetworkId
+  , mkAddress
+  )
 import Contract.AuxiliaryData (setGeneralTxMetadata)
-import Contract.BalanceTxConstraints (BalanceTxConstraintsBuilder, mustUseAdditionalUtxos) as BalanceTxConstraints
-import Contract.BalanceTxConstraints (mustNotSpendUtxosWhere, mustNotSpendUtxosWithOutRefs, mustUseCollateralUtxos)
+import Contract.BalanceTxConstraints
+  ( BalanceTxConstraintsBuilder
+  , mustUseAdditionalUtxos
+  ) as BalanceTxConstraints
+import Contract.BalanceTxConstraints
+  ( mustNotSpendUtxosWhere
+  , mustNotSpendUtxosWithOutRefs
+  , mustUseCollateralUtxos
+  )
 import Contract.Chain (currentTime, waitUntilSlot)
 import Contract.Config (KnownWallet(Eternl, Gero, Lode, NuFi), walletName)
 import Contract.Hashing (datumHash, nativeScriptHash)
@@ -32,23 +58,82 @@ import Contract.Log (logInfo')
 import Contract.Metadata as Metadatum
 import Contract.Monad (Contract, liftContractE, liftContractM, liftedM)
 import Contract.Numeric.BigNum as BigNum
-import Contract.PlutusData (PlutusData(Bytes, Integer, List), getDatumByHash, getDatumsByHashes, getDatumsByHashesWithErrors, unitRedeemer)
+import Contract.PlutusData
+  ( PlutusData(Bytes, Integer, List)
+  , getDatumByHash
+  , getDatumsByHashes
+  , getDatumsByHashesWithErrors
+  , unitRedeemer
+  )
 import Contract.Prelude (liftM, mconcat)
-import Contract.Prim.ByteArray (byteArrayFromAscii, hexToByteArray, hexToByteArrayUnsafe, hexToRawBytes)
+import Contract.Prim.ByteArray
+  ( byteArrayFromAscii
+  , hexToByteArray
+  , hexToByteArrayUnsafe
+  , hexToRawBytes
+  )
 import Contract.ScriptLookups as Lookups
-import Contract.Scripts (ValidatorHash, getScriptByHash, getScriptsByHashes, validatorHash)
+import Contract.Scripts
+  ( ValidatorHash
+  , getScriptByHash
+  , getScriptsByHashes
+  , validatorHash
+  )
 import Contract.Test (ContractTest)
 import Contract.Test.Assert (runChecks)
-import Contract.Test.Testnet (InitialUTxOs, InitialUTxOsWithStakeKey, withStakeKey, withWallets)
+import Contract.Test.Testnet
+  ( InitialUTxOs
+  , InitialUTxOsWithStakeKey
+  , withStakeKey
+  , withWallets
+  )
 import Contract.Time (Slot(Slot), getEraSummaries)
-import Contract.Transaction (BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos), DataHash, NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll), OutputDatum(OutputDatum, OutputDatumHash), ScriptRef(PlutusScriptRef, NativeScriptRef), TransactionHash(TransactionHash), TransactionInput(TransactionInput), TransactionOutput(TransactionOutput), awaitTxConfirmed, balanceTx, balanceTxE, buildTx, createAdditionalUtxos, defaultBalancer, emptyBalancerCtx, getTxAuxiliaryData, lookupTxHash, signTransaction, submit, submitTxFromBlueprint, submitTxFromConstraints, withBalancedTx, withBalancedTxs)
+import Contract.Transaction
+  ( BalanceTxError(BalanceInsufficientError, InsufficientCollateralUtxos)
+  , DataHash
+  , NativeScript(ScriptPubkey, ScriptNOfK, ScriptAll)
+  , OutputDatum(OutputDatum, OutputDatumHash)
+  , ScriptRef(PlutusScriptRef, NativeScriptRef)
+  , TransactionHash(TransactionHash)
+  , TransactionInput(TransactionInput)
+  , TransactionOutput(TransactionOutput)
+  , awaitTxConfirmed
+  , balanceTx
+  , balanceTxE
+  , buildTx
+  , createAdditionalUtxos
+  , defaultBalancer
+  , emptyBalancerCtx
+  , getTxAuxiliaryData
+  , lookupTxHash
+  , signTransaction
+  , submit
+  , submitTxFromBlueprint
+  , submitTxFromConstraints
+  , withBalancedTx
+  , withBalancedTxs
+  )
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx, mkUnbalancedTxE)
 import Contract.Utxos (UtxoMap, getUtxo, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
-import Contract.Wallet (getWalletAddresses, getWalletBalance, getWalletCollateral, getWalletUtxos, isWalletAvailable, ownDrepPubKey, ownDrepPubKeyHash, ownPaymentPubKeyHashes, ownRegisteredPubStakeKeys, ownStakePubKeyHashes, ownUnregisteredPubStakeKeys, signData, withKeyWallet)
+import Contract.Wallet
+  ( getWalletAddresses
+  , getWalletBalance
+  , getWalletCollateral
+  , getWalletUtxos
+  , isWalletAvailable
+  , ownDrepPubKey
+  , ownDrepPubKeyHash
+  , ownPaymentPubKeyHashes
+  , ownRegisteredPubStakeKeys
+  , ownStakePubKeyHashes
+  , ownUnregisteredPubStakeKeys
+  , signData
+  , withKeyWallet
+  )
 import Control.Monad.Error.Class (liftEither, try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
@@ -98,11 +183,30 @@ import Mote (group, skip, test)
 import Mote.TestPlanM (TestPlanM)
 import Partial.Unsafe (unsafePartial)
 import Safe.Coerce (coerce)
-import Test.Ctl.Fixtures (fullyAppliedScriptFixture, nativeScriptFixture1, nativeScriptFixture2, nativeScriptFixture3, nativeScriptFixture4, nativeScriptFixture5, nativeScriptFixture6, nativeScriptFixture7, partiallyAppliedScriptFixture, unappliedScriptFixture)
+import Test.Ctl.Fixtures
+  ( fullyAppliedScriptFixture
+  , nativeScriptFixture1
+  , nativeScriptFixture2
+  , nativeScriptFixture3
+  , nativeScriptFixture4
+  , nativeScriptFixture5
+  , nativeScriptFixture6
+  , nativeScriptFixture7
+  , partiallyAppliedScriptFixture
+  , unappliedScriptFixture
+  )
 import Test.Ctl.Testnet.Common (privateDrepKey, privateStakeKey)
 import Test.Ctl.Testnet.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Testnet.UtxoDistribution (checkUtxoDistribution)
-import Test.Spec.Assertions (expectError, fail, shouldEqual, shouldNotEqual, shouldReturn, shouldSatisfy)
+import Test.Spec.Assertions
+  ( expectError
+  , fail
+  , shouldEqual
+  , shouldNotEqual
+  , shouldReturn
+  , shouldSatisfy
+  )
+
 suite :: TestPlanM ContractTest Unit
 suite = do
   group "WaitUntilSlot" do
@@ -207,7 +311,7 @@ suite = do
               }
             balancedSignedTx <- signTransaction balancedTx
             submitAndLog balancedSignedTx
-  
+
     test "#1480 - test that does nothing but fails" do
       let
         someUtxos =
