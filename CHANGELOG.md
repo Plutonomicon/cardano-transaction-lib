@@ -118,6 +118,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - **[BREAKING CHANGE]** `withBalancedTx` and `withBalancedTxs` now accept a `TxBalancer` and its corresponding balancer context as arguments.
   - The `submitTxFromConstraints` and `submitTxFromBuildPlan` functions have been deprecated in favor of `submitTxFromBlueprint`. The new function accepts a `TxBlueprint` with the steps and context needed to construct and balance a transaction, and returns a `TxReceipt` containing the balanced, signed transaction along with its hash.
   - *Note that all mentioned deprecated functions are planned for removal in a future release.*
+- For legacy tx constraints system: Removed the logic for querying datums by hash when not explicitly provided, eliminating the non-obvious dependency on blockchain state ([#1634](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1634))
 
 ### Removed
 
