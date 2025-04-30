@@ -6,8 +6,10 @@ import Cardano.Transaction.Balancer.Constraints
   ( BalanceTxConstraintsBuilder
   , BalancerConfig(BalancerConfig)
   , BalancerConstraints(BalancerConstraints)
+  , UtxoPredicate
   , mustGenChangeOutsWithMaxTokenQuantity
   , mustNotSpendUtxoWithOutRef
+  , mustNotSpendUtxosWhere
   , mustNotSpendUtxosWithOutRefs
   , mustSendChangeToAddress
   , mustSendChangeWithDatum

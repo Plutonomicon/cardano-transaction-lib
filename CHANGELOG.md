@@ -128,6 +128,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 - Fixed transaction witness set 'attach' functions. Previously, the updated witness set was incorrectly appended to the existing set, causing performance degradation when processing constraints for complex transactions. ([#1653](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1653))
 - Fixed a critical bug where Blockfrost `getUtxo` would also return **spent** outputs ([#1664](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1664))
+- Fixed `onClusterStartup` hook so it is now correctly invoked when using cardano-testnet ([#1651](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1651))
+  - Removed the `privateKeys` and `privateKeysDirectory` fields from the `ClusterParameters` record to ensure compatibility with the new cardano-testnet environment
 
 ## [v9.3.1]
 

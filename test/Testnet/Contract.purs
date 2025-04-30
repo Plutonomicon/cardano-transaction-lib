@@ -46,7 +46,8 @@ import Contract.BalanceTxConstraints
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
 import Contract.BalanceTxConstraints
-  ( mustNotSpendUtxosWithOutRefs
+  ( mustNotSpendUtxosWhere
+  , mustNotSpendUtxosWithOutRefs
   , mustUseCollateralUtxos
   )
 import Contract.Chain (currentTime, waitUntilSlot)
@@ -107,6 +108,7 @@ import Contract.Transaction
   , lookupTxHash
   , signTransaction
   , submit
+  , submitTxFromBlueprint
   , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
@@ -114,7 +116,7 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx, mkUnbalancedTxE)
-import Contract.Utxos (UtxoMap, utxosAt)
+import Contract.Utxos (UtxoMap, getUtxo, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
 import Contract.Wallet
@@ -132,7 +134,7 @@ import Contract.Wallet
   , signData
   , withKeyWallet
   )
-import Control.Monad.Error.Class (try)
+import Control.Monad.Error.Class (liftEither, try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AdditionalUtxos (contract) as AdditionalUtxos
@@ -163,12 +165,12 @@ import Ctl.Internal.Test.UtxoDistribution (TestWalletSpec)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet.Cip30Mock (withCip30Mock)
 import Data.Array (head, (!!))
-import Data.Array (singleton) as Array
+import Data.Array (replicate, singleton, take) as Array
 import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
@@ -198,6 +200,7 @@ import Test.Ctl.Testnet.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Testnet.UtxoDistribution (checkUtxoDistribution)
 import Test.Spec.Assertions
   ( expectError
+  , fail
   , shouldEqual
   , shouldNotEqual
   , shouldReturn
@@ -224,6 +227,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice ManyAssets.contract
+
     test
       "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs "
       do
@@ -255,6 +259,59 @@ suite = do
               )
             res `shouldSatisfy` isLeft
 
+    test
+      "#1581 - Fallback to CTL collateral selection when all collateral inputs are non-spendable"
+      do
+        let
+          distribution =
+            [ BigNum.fromInt 10_000_000
+            , BigNum.fromInt 10_000_000
+            ]
+        withWallets distribution \alice ->
+          withKeyWallet alice do
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
+              Nothing
+            utxos <- utxosAt scriptAddress
+            scriptUtxo <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                $ head (lookupTxHash txId utxos)
+
+            unbalancedTx <- buildTx
+              [ SpendOutput scriptUtxo $ Just $ PlutusScriptOutput
+                  (ScriptValue validator)
+                  RedeemerDatum.unit
+                  (Just $ DatumValue PlutusData.unit)
+              ]
+
+            collUtxos <- getWalletCollateral
+            let
+              balancerConstraints =
+                maybe
+                  mempty
+                  (mustNotSpendUtxosWithOutRefs <<< Map.keys <<< toUtxoMap)
+                  collUtxos
+
+            balancedTx <- liftEither =<< defaultBalancer unbalancedTx
+              { balancerConstraints
+              , extraUtxos: toUtxoMap [ scriptUtxo ]
+              }
+            balancedSignedTx <- signTransaction balancedTx
+            submitAndLog balancedSignedTx
+
     test "#1480 - test that does nothing but fails" do
       let
         someUtxos =
@@ -281,6 +338,48 @@ suite = do
       withWallets distribution \_ → pure unit
 
   group "Contract interface" do
+    test "mustNotSpendUtxosWhere balancer constraint" do
+      let
+        distrSize = 10
+        distr = Array.replicate distrSize $ BigNum.fromInt 2_000_000
+      withWallets distr \alice ->
+        withKeyWallet alice do
+          address <- liftedM "Could not get wallet address" $ head <$>
+            getWalletAddresses
+          utxos <- liftedM "Could not get wallet utxos" getWalletUtxos
+          let
+            nonSpendableUtxos = Array.take (distrSize / 2) $ Map.toUnfoldable
+              utxos
+          { txHash } <- submitTxFromBlueprint
+            { buildSteps:
+                Array.singleton $ Pay $ TransactionOutput
+                  { address
+                  , amount: Value.lovelaceValueOf $ BigNum.fromInt 5_000_000
+                  , datum: Nothing
+                  , scriptRef: Nothing
+                  }
+            , balancer: defaultBalancer
+            , balancerCtx:
+                { balancerConstraints:
+                    mustNotSpendUtxosWhere
+                      ( \oref _ -> Map.member oref $ Map.fromFoldable
+                          nonSpendableUtxos
+                      )
+                , extraUtxos: Map.empty
+                }
+            }
+          awaitTxConfirmed txHash
+          traverse_
+            ( \(oref /\ _) ->
+                getUtxo oref >>= case _ of
+                  Just _ -> pure unit
+                  Nothing ->
+                    fail $
+                      "mustNotSpendUtxosWhere: an unspendable utxo has been spent: "
+                        <> show oref
+            )
+            nonSpendableUtxos
+
     test
       "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
       do
