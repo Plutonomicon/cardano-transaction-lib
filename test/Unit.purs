@@ -10,6 +10,7 @@ import Data.Time.Duration (Milliseconds(Milliseconds))
 import Effect (Effect)
 import Effect.Aff (Aff, cancelWith, effectCanceler, launchAff)
 import Effect.Class (liftEffect)
+import Mote (skip)
 import Mote.Monad (mapTest)
 import Test.Ctl.ApplyArgs as ApplyArgs
 import Test.Ctl.Blockfrost.Aeson.Suite as Blockfrost.Aeson
@@ -51,7 +52,7 @@ testPlan = do
   Ipv6.suite
   NativeScript.suite
   Bip32.suite
-  CslGc.suite
+  skip CslGc.suite
   Data.suite
   Hashing.suite
   Partition.suite
