@@ -1533,8 +1533,7 @@ suite = do
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
     group "CIP-40 Collateral Output" do
-      skip $ test
-        "Always failing script triggers Collateral Return (ADA-only) UNSKIP AFTER CONWAY"
+      test "Always failing script triggers Collateral Return (ADA-only)"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs
@@ -1565,8 +1564,7 @@ suite = do
                     collateralLoss
                 )
 
-      skip $ test
-        "AlwaysFails script triggers Native Asset Collateral Return (tokens) UNSKIP AFTER CONWAY"
+      test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs
