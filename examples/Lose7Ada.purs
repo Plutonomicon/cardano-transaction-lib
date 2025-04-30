@@ -130,7 +130,7 @@ spendFromAlwaysFails vhash validator txId = do
     { balancerConstraints: mempty
     , extraUtxos: toUtxoMap [ utxo ]
     }
-  signedTx <- signTransaction (spendTx # _isValid .~ true)
+  signedTx <- signTransaction spendTx
   spendTxId <- submit signedTx
   logInfo' $ "Tx ID: " <> show spendTxId
   awaitTxConfirmed spendTxId
@@ -149,8 +149,8 @@ alwaysFails :: String
 alwaysFails =
   """
 {
-    "type": "PlutusScriptV1",
-    "description": "",
-    "cborHex": "581e581c01000033223232222350040071235002353003001498498480048005"
+    "type": "PlutusScriptV2",
+    "description": "AlwaysFails validator",
+    "cborHex": "4746010000222601"
 }
 """

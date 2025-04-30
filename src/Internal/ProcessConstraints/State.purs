@@ -33,6 +33,7 @@ import Data.Lattice (join)
 import Data.Lens.Record (prop)
 import Data.Lens.Types (Lens')
 import Data.Map (Map)
+import Data.Set (Set)
 import Data.Show.Generic (genericShow)
 import Data.Tuple (snd)
 import Type.Proxy (Proxy(Proxy))
@@ -56,7 +57,7 @@ type ConstraintProcessingState =
   -- ^ Balance of the values given and required for the transaction's inputs
   , valueSpentBalancesOutputs :: ValueSpentBalances
   -- ^ Balance of the values produced and required for the transaction's outputs
-  , datums :: Array PlutusData
+  , datums :: Set PlutusData
   -- ^ Ordered accumulation of datums we can use to `setScriptDataHash`
   , redeemers :: Array DetachedRedeemer
   -- ^ Unindexed redeemers that will be attached to the Tx later, on balancing
@@ -86,7 +87,7 @@ _valueSpentBalancesOutputs
 _valueSpentBalancesOutputs = prop (Proxy :: Proxy "valueSpentBalancesOutputs")
 
 _datums
-  :: Lens' ConstraintProcessingState (Array PlutusData)
+  :: Lens' ConstraintProcessingState (Set PlutusData)
 _datums = prop (Proxy :: Proxy "datums")
 
 _costModels

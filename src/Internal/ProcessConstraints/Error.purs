@@ -38,7 +38,6 @@ import Data.UInt as UInt
 
 data MkUnbalancedTxError
   = CannotFindDatum
-  | CannotQueryDatum DataHash
   | CannotConvertPOSIXTimeRange POSIXTimeRange PosixTimeToSlotError
   | CannotSolveTimeConstraints POSIXTimeRange POSIXTimeRange
   | CannotGetMintingPolicyScriptIndex -- Should be impossible
@@ -72,10 +71,6 @@ instance Show MkUnbalancedTxError where
 explainMkUnbalancedTxError :: MkUnbalancedTxError -> String
 explainMkUnbalancedTxError = case _ of
   CannotFindDatum -> "Cannot find datum"
-  CannotQueryDatum dh ->
-    "Querying for datum by datum hash ("
-      <> byteArrayToHex (unwrap $ encodeCbor dh)
-      <> ") failed: no datum found"
   CannotConvertPOSIXTimeRange tr ttsErr ->
     "Cannot convert POSIX time range to slot time range.\nRange: "
       <> show tr
