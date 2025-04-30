@@ -26,6 +26,7 @@ import Mote.Monad (mapTest)
 import Mote.TestPlanM as Utils
 import Test.Ctl.BalanceTx.ChangeGeneration as ChangeGeneration
 import Test.Ctl.KupmiosM.AffInterface as KupmiosM.AffInterface
+import Test.Ctl.Testnet.ClusterParameters (runTest) as ClusterParameters
 import Test.Ctl.Testnet.Contract as Contract
 import Test.Ctl.Testnet.Contract.Assert as Assert
 import Test.Ctl.Testnet.Contract.Mnemonics as Mnemonics
@@ -64,6 +65,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
           testTestnetContracts config OgmiosMempool.suite
           -- FIXME: ClusterParameters.runTest
           runTestnetTestPlan config SameWallets.suite
+          ClusterParameters.runTest
 
 {-
 configWithMaxExUnits :: PlutipConfig

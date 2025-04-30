@@ -44,6 +44,7 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Contract.Hooks (ClusterParameters)
 import Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
   , ContractTestPlan(ContractTestPlan)
@@ -62,7 +63,7 @@ import Ctl.Internal.Testnet.DistributeFunds
   )
 import Ctl.Internal.Testnet.DistributeFunds (Tx(Tx)) as DistrFunds
 import Ctl.Internal.Testnet.Server
-  ( StartedTestnetCluster
+  ( StartedTestnetCluster(StartedTestnetCluster)
   , makeClusterContractEnv
   , mkLogging
   , startTestnetCluster
@@ -77,8 +78,8 @@ import Ctl.Internal.Testnet.Utils
 import Data.Array (concat, fromFoldable, zip) as Array
 import Data.Bifunctor (lmap)
 import Data.Map (values) as Map
+import Effect.Aff (apathize, try)
 import Effect.Aff (bracket) as Aff
-import Effect.Aff (try)
 import Effect.Exception (error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read, write) as Ref
@@ -243,9 +244,17 @@ startTestnetContractEnv
 startTestnetContractEnv cfg distr cleanupRef = do
   _ <- cleanupOnExit cleanupRef
   logging@{ logger } <- liftEffect $ mkLogging cfg
-  cluster <- startTestnetCluster cfg cleanupRef logger
+  cluster@(StartedTestnetCluster { paths: { nodeSocketPath, nodeConfigPath } }) <-
+    startTestnetCluster cfg cleanupRef logger
   { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef logging
   wallets <- mkWallets env cluster
+  let
+    clusterParams :: ClusterParameters
+    clusterParams =
+      { nodeSocketPath
+      , nodeConfigPath
+      }
+  apathize $ liftEffect $ for_ env.hooks.onClusterStartup (_ $ clusterParams)
   pure
     { cluster
     , env
