@@ -43,7 +43,7 @@
     };
 
     blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
-    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
+    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.1.0";
 
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
