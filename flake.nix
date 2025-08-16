@@ -3,12 +3,17 @@
 
   nixConfig = {
     extra-substituters = [ "https://plutonomicon.cachix.org" ];
-    extra-trusted-public-keys = [ "plutonomicon.cachix.org-1:evUxtNULjCjOipxwAnYhNFeF/lyYU1FeNGaVAnm+QQw=" ];
+    extra-trusted-public-keys = [
+      "plutonomicon.cachix.org-1:evUxtNULjCjOipxwAnYhNFeF/lyYU1FeNGaVAnm+QQw="
+    ];
     bash-prompt = "\\[\\e[0m\\][\\[\\e[0;2m\\]nix-develop \\[\\e[0;1m\\]CTL@\\[\\033[33m\\]$(git rev-parse --abbrev-ref HEAD) \\[\\e[0;32m\\]\\w\\[\\e[0m\\]]\\[\\e[0m\\]$ \\[\\e[0m\\]";
   };
 
   inputs = {
-    nixpkgs.follows = "cardano-node/nixpkgs";
+    # Get Ogmios and Kupo from cardano-nix
+    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
+
+    nixpkgs.follows = "cardano-nix/nixpkgs";
     nixpkgs-arion.url = "github:NixOS/nixpkgs";
 
     flake-compat = {
@@ -16,7 +21,7 @@
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/10.1.4";
+    cardano-node.follows = "cardano-nix/cardano-node";
 
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
@@ -25,15 +30,9 @@
       flake = false;
     };
 
-    # Get Ogmios and Kupo from cardano-nix
-    cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.8.0";
+      url = "github:CardanoSolutions/ogmios/v6.13.0";
       flake = false;
     };
 
@@ -42,81 +41,98 @@
       flake = false;
     };
 
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
-    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.1.0";
+    blockfrost.follows = "cardano-nix/blockfrost";
+    db-sync.follows = "cardano-nix/cardano-db-sync";
 
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
 
   outputs =
-    { self
-    , nixpkgs
-    , nixpkgs-arion
-    , cardano-configurations
-    , cardano-node
-    , ...
+    {
+      self,
+      nixpkgs,
+      nixpkgs-arion,
+      cardano-configurations,
+      cardano-node,
+      ...
     }@inputs:
     let
-      linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
-      darwinSystems = [ "x86_64-darwin" "aarch64-darwin" ];
+      linuxSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      darwinSystems = [
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
       supportedSystems = linuxSystems ++ darwinSystems;
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
-      mkNixpkgsFor = system: import nixpkgs {
-        overlays = nixpkgs.lib.attrValues self.overlays ++ [
-          (_: _: {
-            ogmios-fixtures = inputs.ogmios;
-            arion = (import nixpkgs-arion { inherit system; }).arion;
-          })
-        ];
-        inherit system;
-      };
+      mkNixpkgsFor =
+        system:
+        import nixpkgs {
+          overlays = nixpkgs.lib.attrValues self.overlays ++ [
+            (_: _: {
+              ogmios-fixtures = inputs.ogmios;
+              arion = (import nixpkgs-arion { inherit system; }).arion;
+            })
+          ];
+          inherit system;
+        };
 
       inherit (import ./nix/runtime.nix { inherit inputs; })
-        buildCtlRuntime launchCtlRuntime;
+        buildCtlRuntime
+        launchCtlRuntime
+        ;
 
       allNixpkgs = perSystem mkNixpkgsFor;
 
       nixpkgsFor = system: allNixpkgs.${system};
 
-      buildOgmiosFixtures = pkgs: pkgs.runCommand "ogmios-fixtures"
-        {
-          buildInputs = [ pkgs.jq pkgs.pcre ];
-        }
-        ''
-          cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
-          chmod -R +rwx .
-
-          function on_file () {
-            local path=$1
-            match_A=$(pcregrep -o1 'QueryLedgerState([a-zA-Z]+)\/' <<< "$path")
-            match_B=$(pcregrep -o1 '([a-zA-Z]+)Response' <<< "$path")
-            command=""
-            if [ ! -z $match_A ]
-            then
-              command="QueryLedgerState-$match_A"
-            elif [ ! -z $match_B ]
-            then
-              command="$match_B"
-            fi
-            if [ ! -z $command ]
-            then
-              echo "$path"
-              json=$(cat "$path")
-              md5=($(md5sum <<< "$json"))
-              printf "%s" "$json" > "ogmios/$command-$md5.json"
-            fi
+      buildOgmiosFixtures =
+        pkgs:
+        pkgs.runCommand "ogmios-fixtures"
+          {
+            buildInputs = [
+              pkgs.jq
+              pkgs.pcre
+            ];
           }
-          export -f on_file
+          ''
+            cp -r ${pkgs.ogmios-fixtures}/server/test/vectors vectors
+            chmod -R +rwx .
 
-          mkdir ogmios
-          find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
-          mkdir $out
-          cp -rT ogmios $out
-        '';
+            function on_file () {
+              local path=$1
+              match_A=$(pcregrep -o1 'QueryLedgerState([a-zA-Z]+)\/' <<< "$path")
+              match_B=$(pcregrep -o1 '([a-zA-Z]+)Response' <<< "$path")
+              command=""
+              if [ ! -z $match_A ]
+              then
+                command="QueryLedgerState-$match_A"
+              elif [ ! -z $match_B ]
+              then
+                command="$match_B"
+              fi
+              if [ ! -z $command ]
+              then
+                echo "$path"
+                json=$(cat "$path")
+                md5=($(md5sum <<< "$json"))
+                printf "%s" "$json" > "ogmios/$command-$md5.json"
+              fi
+            }
+            export -f on_file
 
-      psProjectFor = pkgs: system:
+            mkdir ogmios
+            find vectors/ -type f -name "*.json" -exec bash -c 'on_file "{}"' \;
+            mkdir $out
+            cp -rT ogmios $out
+          '';
+
+      psProjectFor =
+        pkgs: system:
         let
           projectName = "cardano-transaction-lib";
           # `filterSource` will still trigger rebuilds with flakes, even if a
@@ -125,17 +141,15 @@
           src = builtins.path {
             path = self;
             name = "${projectName}-src";
-            filter = path: ftype:
+            filter =
+              path: ftype:
               !(pkgs.lib.hasSuffix ".md" path)
-              && !(ftype == "directory" && builtins.elem
-                (baseNameOf path) [ "doc" ]
-              );
+              && !(ftype == "directory" && builtins.elem (baseNameOf path) [ "doc" ]);
           };
           ogmiosFixtures = buildOgmiosFixtures pkgs;
-          exportOgmiosFixtures =
-            ''
-              export OGMIOS_FIXTURES="${ogmiosFixtures}"
-            '';
+          exportOgmiosFixtures = ''
+            export OGMIOS_FIXTURES="${ogmiosFixtures}"
+          '';
           project = pkgs.purescriptProject {
             inherit src pkgs projectName;
             packageJson = ./package.json;
@@ -144,9 +158,18 @@
               withRuntime = system == "x86_64-linux";
               shellHook = exportOgmiosFixtures;
               packageLockOnly = true;
-              packages = with pkgs;
-                (if (builtins.elem system linuxSystems) then [ psmisc procps ] else [ ]) ++
-                [
+              packages =
+                with pkgs;
+                (
+                  if (builtins.elem system linuxSystems) then
+                    [
+                      psmisc
+                      procps
+                    ]
+                  else
+                    [ ]
+                )
+                ++ [
                   arion
                   fd
                   nixpkgs-fmt
@@ -210,7 +233,9 @@
             ctl-unit-test = project.runPursTest {
               name = "ctl-unit-test";
               testMain = "Test.Ctl.Unit";
-              env = { OGMIOS_FIXTURES = "${ogmiosFixtures}"; };
+              env = {
+                OGMIOS_FIXTURES = "${ogmiosFixtures}";
+              };
             };
           };
 
@@ -228,15 +253,12 @@
         };
     in
     {
-      overlay = builtins.trace
-        (
-          "warning: `cardano-transaction-lib.overlay` is deprecated and will be"
-          + " removed in the next release. Please use"
-          + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
-          + " directly instead"
-        )
-        nixpkgs.lib.composeManyExtensions
-        (nixpkgs.lib.attrValues self.overlays);
+      overlay = builtins.trace (
+        "warning: `cardano-transaction-lib.overlay` is deprecated and will be"
+        + " removed in the next release. Please use"
+        + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
+        + " directly instead"
+      ) nixpkgs.lib.composeManyExtensions (nixpkgs.lib.attrValues self.overlays);
 
       overlays = with inputs; {
         purescript = final: prev: {
@@ -248,13 +270,11 @@
             spago = prev.easy-ps.spago.overrideAttrs (_: rec {
               version = "0.21.0";
               src =
-                if final.stdenv.isDarwin
-                then
-                  final.fetchurl
-                    {
-                      url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
-                      sha256 = "19c0kdg7gk1c7v00lnkcsxidffab84d50d6l6vgrjy4i86ilhzd5";
-                    }
+                if final.stdenv.isDarwin then
+                  final.fetchurl {
+                    url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
+                    sha256 = "19c0kdg7gk1c7v00lnkcsxidffab84d50d6l6vgrjy4i86ilhzd5";
+                  }
                 else
                   final.fetchurl {
                     url = "https://github.com/purescript/spago/releases/download/${version}/Linux.tar.gz";
@@ -263,25 +283,24 @@
             });
           };
         };
-        runtime =
-          (
-            final: prev:
-              let
-                inherit (prev) system;
-              in
-              {
-                ogmios = cardano-nix.packages.${system}.ogmios;
-                cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
-                cardano-node = cardano-node.packages.${system}.cardano-node;
-                cardano-cli = cardano-node.packages.${system}.cardano-cli;
-                kupo = cardano-nix.packages.${system}.kupo;
-                cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
-                blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
-                buildCtlRuntime = buildCtlRuntime final;
-                launchCtlRuntime = launchCtlRuntime final;
-                inherit cardano-configurations;
-              }
-          );
+        runtime = (
+          final: prev:
+          let
+            inherit (prev) system;
+          in
+          {
+            ogmios = cardano-nix.packages.${system}.ogmios;
+            cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
+            cardano-node = cardano-node.packages.${system}.cardano-node;
+            cardano-cli = cardano-node.packages.${system}.cardano-cli;
+            kupo = cardano-nix.packages.${system}.kupo;
+            cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+            blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
+            buildCtlRuntime = buildCtlRuntime final;
+            launchCtlRuntime = launchCtlRuntime final;
+            inherit cardano-configurations;
+          }
+        );
       };
 
       devShells = perSystem (system: {
@@ -290,146 +309,156 @@
         default = (psProjectFor (nixpkgsFor system) system).devShell;
       });
 
-      packages = perSystem (system:
-        (psProjectFor (nixpkgsFor system) system).packages
-      );
+      packages = perSystem (system: (psProjectFor (nixpkgsFor system) system).packages);
 
-      apps = perSystem (system:
+      apps = perSystem (
+        system:
         let
           pkgs = nixpkgsFor system;
         in
-        (psProjectFor pkgs system).apps // {
+        (psProjectFor pkgs system).apps
+        // {
           ctl-runtime = pkgs.launchCtlRuntime { };
           ctl-runtime-blockfrost = pkgs.launchCtlRuntime { blockfrost.enable = true; };
           default = self.apps.${system}.ctl-runtime;
           vm = {
             type = "app";
-            program =
-              "${self.nixosConfigurations.test.config.system.build.vm}/bin/run-nixos-vm";
+            program = "${self.nixosConfigurations.test.config.system.build.vm}/bin/run-nixos-vm";
           };
-        });
+        }
+      );
 
       # TODO
       # Add a check that attempts to verify if the scaffolding template is
       # reasonably up-to-date. See:
       # https://github.com/Plutonomicon/cardano-transaction-lib/issues/839
-      checks = perSystem (system:
+      checks = perSystem (
+        system:
         let
           pkgs = nixpkgsFor system;
           psProject = psProjectFor pkgs system;
         in
         psProject.checks
         // {
-          formatting-check = pkgs.runCommand "formatting-check"
-            {
-              nativeBuildInputs = with pkgs; [
-                easy-ps.purs-tidy
-                nixpkgs-fmt
-                nodePackages.prettier
-                nodePackages.eslint
-                fd
-              ];
-            }
-            ''
-              cd $TMPDIR
-              ln -sfn ${psProject.nodeModules}/lib/node_modules node_modules
-              cp -r ${self}/* .
-
-              make check-format
-              touch $out
-            '';
-          template-deps-json = pkgs.runCommand "template-deps-check"
-            {
-              ctlPackageJson = builtins.readFile ./package.json;
-              ctlScaffoldPackageJson = builtins.readFile ./templates/ctl-scaffold/package.json;
-              nativeBuildInputs = [ pkgs.jq ];
-            } ''
-            cd ${self}
-            diff \
-              <(jq -S .dependencies <<< $ctlPackageJson) \
-              <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
-            # We don't want to include some dev dependencies.
-            diff \
-              <(jq -S '.devDependencies | del(.jssha) | del(.blakejs) | del(.doctoc) | del(.globals) | del(.["@eslint/js"])' <<< $ctlPackageJson) \
-              <(jq -S .devDependencies <<< $ctlScaffoldPackageJson)
-            touch $out
-          '';
-          template-dhall-diff = pkgs.runCommand "template-dhall-diff-check"
-            (with builtins;
-            let
-              ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
-              ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
-              ctlPs = attrValues ctlPkgsExp.inputs;
-              ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib")
-                (attrValues ctlScaffoldPkgsExp.inputs);
-              intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;
-              scaffoldDisjoint = pkgs.lib.lists.subtractLists intersection ctlScaffoldPs;
-              ctlDisjoint = pkgs.lib.lists.subtractLists intersection ctlPs;
-            in
-            {
-              inherit ctlDisjoint scaffoldDisjoint;
-              nativeBuildInputs = [ ];
-            }
-            ) ''
-
-            if [ -z "$ctlDisjoint" ] && [ -z "$scaffoldDisjoint" ];
-            then
-              touch $out
-            else
-              if [ -n "$ctlDisjoint" ];
-              then
-                echo "The following packages are in the main projects dependencies but not in the scaffold:"
-                for p in $ctlDisjoint; do
-                  echo "  $p"
-                done
-              fi
-              if [ -n "$scaffoldDisjoint" ];
-              then
-                echo "The following packages are in the scaffold projects dependencies but not in the main:"
-                for p in $scaffoldDisjoint; do
-                  echo "  $p"
-                done
-              fi
-              exit 1
-            fi
-          '';
-          template-version = pkgs.runCommand "template-consistent-version-check"
-            (
-              let
-                ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
-                ctlScaffoldFlake = import ./templates/ctl-scaffold/flake.nix;
-                versionCheck = ctlScaffoldPackages.inputs."cardano-transaction-lib".version == ctlScaffoldFlake.inputs.ctl.rev;
-              in
+          formatting-check =
+            pkgs.runCommand "formatting-check"
               {
-                packagesLibRev = ctlScaffoldPackages.inputs."cardano-transaction-lib".version;
-                flakeLibRev = ctlScaffoldFlake.inputs.ctl.rev;
-                nativeBuildInputs = [ ];
+                nativeBuildInputs = with pkgs; [
+                  easy-ps.purs-tidy
+                  nixpkgs-fmt
+                  nodePackages.prettier
+                  nodePackages.eslint
+                  fd
+                ];
               }
-            ) ''
+              ''
+                cd $TMPDIR
+                ln -sfn ${psProject.nodeModules}/lib/node_modules node_modules
+                cp -r ${self}/* .
 
-            if [ $packagesLibRev != $flakeLibRev ]
-            then
-              echo "CTL revision in scaffold flake.nix ($flakeLibRev) doesn't match revision referenced in spago-packages.nix ($packagesLibRev). Please update flake.nix or packages.dhall and run spago2nix."
-              exit 1
-            fi
+                make check-format
+                touch $out
+              '';
+          template-deps-json =
+            pkgs.runCommand "template-deps-check"
+              {
+                ctlPackageJson = builtins.readFile ./package.json;
+                ctlScaffoldPackageJson = builtins.readFile ./templates/ctl-scaffold/package.json;
+                nativeBuildInputs = [ pkgs.jq ];
+              }
+              ''
+                cd ${self}
+                diff \
+                  <(jq -S .dependencies <<< $ctlPackageJson) \
+                  <(jq -S .dependencies <<< $ctlScaffoldPackageJson)
+                # We don't want to include some dev dependencies.
+                diff \
+                  <(jq -S '.devDependencies | del(.jssha) | del(.blakejs) | del(.doctoc) | del(.globals) | del(.["@eslint/js"])' <<< $ctlPackageJson) \
+                  <(jq -S .devDependencies <<< $ctlScaffoldPackageJson)
+                touch $out
+              '';
+          template-dhall-diff =
+            pkgs.runCommand "template-dhall-diff-check"
+              (
+                with builtins;
+                let
+                  ctlPkgsExp = import ./spago-packages.nix { inherit pkgs; };
+                  ctlScaffoldPkgsExp = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+                  ctlPs = attrValues ctlPkgsExp.inputs;
+                  ctlScaffoldPs = filter (p: p.name != "cardano-transaction-lib") (
+                    attrValues ctlScaffoldPkgsExp.inputs
+                  );
+                  intersection = pkgs.lib.lists.intersectLists ctlPs ctlScaffoldPs;
+                  scaffoldDisjoint = pkgs.lib.lists.subtractLists intersection ctlScaffoldPs;
+                  ctlDisjoint = pkgs.lib.lists.subtractLists intersection ctlPs;
+                in
+                {
+                  inherit ctlDisjoint scaffoldDisjoint;
+                  nativeBuildInputs = [ ];
+                }
+              )
+              ''
+
+                if [ -z "$ctlDisjoint" ] && [ -z "$scaffoldDisjoint" ];
+                then
+                  touch $out
+                else
+                  if [ -n "$ctlDisjoint" ];
+                  then
+                    echo "The following packages are in the main projects dependencies but not in the scaffold:"
+                    for p in $ctlDisjoint; do
+                      echo "  $p"
+                    done
+                  fi
+                  if [ -n "$scaffoldDisjoint" ];
+                  then
+                    echo "The following packages are in the scaffold projects dependencies but not in the main:"
+                    for p in $scaffoldDisjoint; do
+                      echo "  $p"
+                    done
+                  fi
+                  exit 1
+                fi
+              '';
+          template-version =
+            pkgs.runCommand "template-consistent-version-check"
+              (
+                let
+                  ctlScaffoldPackages = import ./templates/ctl-scaffold/spago-packages.nix { inherit pkgs; };
+                  ctlScaffoldFlake = import ./templates/ctl-scaffold/flake.nix;
+                  versionCheck =
+                    ctlScaffoldPackages.inputs."cardano-transaction-lib".version == ctlScaffoldFlake.inputs.ctl.rev;
+                in
+                {
+                  packagesLibRev = ctlScaffoldPackages.inputs."cardano-transaction-lib".version;
+                  flakeLibRev = ctlScaffoldFlake.inputs.ctl.rev;
+                  nativeBuildInputs = [ ];
+                }
+              )
+              ''
+
+                if [ $packagesLibRev != $flakeLibRev ]
+                then
+                  echo "CTL revision in scaffold flake.nix ($flakeLibRev) doesn't match revision referenced in spago-packages.nix ($packagesLibRev). Please update flake.nix or packages.dhall and run spago2nix."
+                  exit 1
+                fi
+                touch $out
+              '';
+          examples-imports-check = pkgs.runCommand "examples-imports-check" { } ''
+            cd ${self}
+            make check-examples-imports
             touch $out
           '';
-          examples-imports-check = pkgs.runCommand "examples-imports-check" { }
-            ''
-              cd ${self}
-              make check-examples-imports
-              touch $out
-            '';
-        });
+        }
+      );
 
       templatePath = builtins.toString self + self.templates.ctl-scaffold.path;
 
-      check = perSystem (system:
+      check = perSystem (
+        system:
         (nixpkgsFor system).runCommand "combined-check"
           {
-            combined =
-              builtins.attrValues self.checks.${system}
-              ++ builtins.attrValues self.packages.${system};
+            combined = builtins.attrValues self.checks.${system} ++ builtins.attrValues self.packages.${system};
           }
           ''
             echo $combined
