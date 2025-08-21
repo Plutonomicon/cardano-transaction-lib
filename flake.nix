@@ -297,7 +297,7 @@
               cardano-node = cardano-node.packages.${system}.cardano-node;
               cardano-cli = cardano-node.packages.${system}.cardano-cli;
               kupo = cardano-nix.packages.${system}.kupo;
-              cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+              cardano-db-sync = inputs.db-sync.packages.${system}."cardano-db-sync:exe:cardano-db-sync";
               blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
               buildCtlRuntime = buildCtlRuntime final;
               launchCtlRuntime = launchCtlRuntime final;
