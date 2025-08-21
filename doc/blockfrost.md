@@ -9,7 +9,6 @@
   - [Funding your address](#funding-your-address)
   - [Setting up a directory for temporary keys](#setting-up-a-directory-for-temporary-keys)
   - [Providing an API endpoint URL](#providing-an-api-endpoint-url)
-  - [Setting Tx confirmation delay](#setting-tx-confirmation-delay)
   - [Test suite setup on PureScript side](#test-suite-setup-on-purescript-side)
 - [Running `Contract`s with Blockfrost](#running-contracts-with-blockfrost)
 - [Running Blockfrost locally](#running-blockfrost-locally)
@@ -192,7 +191,7 @@ db-sync-preview_1   | [db-sync-node:Info:70] [2023-03-06 15:09:27.40 UTC] epochP
 
 ### Performance
 
-The main disadvantage of using Blockfrost in comparison with CTL backend is speed of Tx confirmation (see [here](#6-setting-tx-confirmation-delay) for explanation).
+The main disadvantage of using Blockfrost in comparison with CTL backend is speed of Tx confirmation.
 
 Contracts running with local Blockfrost instance are expected to be slightly slower, because transaction propagation takes a bit longer.
 

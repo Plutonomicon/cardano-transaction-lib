@@ -3,13 +3,11 @@
 
 [![Hercules-ci][herc badge]][herc link]
 [![Cachix Cache][cachix badge]][cachix link]
-[![PureScript code documentation][docs badge]][docs link]
 
 [herc badge]: https://img.shields.io/badge/ci--by--hercules-green.svg
 [herc link]: https://hercules-ci.com/github/Plutonomicon/cardano-transaction-lib
 [cachix badge]: https://img.shields.io/badge/cachix-public_plutonomicon-blue.svg
 [cachix link]: https://public-plutonomicon.cachix.org
-[docs badge]: https://img.shields.io/badge/docs-PureScript%20code%20documentation-%2377F
 [docs link]: https://plutonomicon.github.io/cardano-transaction-lib/
 
 **cardano-transaction-lib** (CTL) is a Purescript framework for building smart contract transactions on Cardano. It belongs to the the same category of tools as Lucid, Mesh.js, Atlas, Plutus Application Backend (PAB).
@@ -82,7 +80,7 @@ CTL is being developed by MLabs. The following companies/funds have contributed 
 - [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)
 - [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791)
 - [Catalyst Fund10](https://cardano.ideascale.com/c/idea/101478)
-- [Intersect MBO](https://docs.intersectmbo.org/intersect-community-grants/grant-projects)
+- [Intersect MBO](https://docs.intersectmbo.org)
 - [MLabs](https://mlabs.city/)
 - [Indigo Protocol](https://indigoprotocol.io/)
 - [Equine](https://www.equine.gg/)
