@@ -48,13 +48,12 @@
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      nixpkgs-arion,
-      cardano-configurations,
-      cardano-node,
-      ...
+    { self
+    , nixpkgs
+    , nixpkgs-arion
+    , cardano-configurations
+    , cardano-node
+    , ...
     }@inputs:
     let
       linuxSystems = [
@@ -253,12 +252,15 @@
         };
     in
     {
-      overlay = builtins.trace (
-        "warning: `cardano-transaction-lib.overlay` is deprecated and will be"
-        + " removed in the next release. Please use"
-        + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
-        + " directly instead"
-      ) nixpkgs.lib.composeManyExtensions (nixpkgs.lib.attrValues self.overlays);
+      overlay = builtins.trace
+        (
+          "warning: `cardano-transaction-lib.overlay` is deprecated and will be"
+          + " removed in the next release. Please use"
+          + " `cardano-transaction-lib.overlays.{runtime, purescript}`"
+          + " directly instead"
+        )
+        nixpkgs.lib.composeManyExtensions
+        (nixpkgs.lib.attrValues self.overlays);
 
       overlays = with inputs; {
         purescript = final: prev: {
@@ -271,10 +273,11 @@
               version = "0.21.0";
               src =
                 if final.stdenv.isDarwin then
-                  final.fetchurl {
-                    url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
-                    sha256 = "19c0kdg7gk1c7v00lnkcsxidffab84d50d6l6vgrjy4i86ilhzd5";
-                  }
+                  final.fetchurl
+                    {
+                      url = "https://github.com/purescript/spago/releases/download/${version}/macOS.tar.gz";
+                      sha256 = "19c0kdg7gk1c7v00lnkcsxidffab84d50d6l6vgrjy4i86ilhzd5";
+                    }
                 else
                   final.fetchurl {
                     url = "https://github.com/purescript/spago/releases/download/${version}/Linux.tar.gz";
@@ -285,21 +288,21 @@
         };
         runtime = (
           final: prev:
-          let
-            inherit (prev) system;
-          in
-          {
-            ogmios = cardano-nix.packages.${system}.ogmios;
-            cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
-            cardano-node = cardano-node.packages.${system}.cardano-node;
-            cardano-cli = cardano-node.packages.${system}.cardano-cli;
-            kupo = cardano-nix.packages.${system}.kupo;
-            cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
-            blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
-            buildCtlRuntime = buildCtlRuntime final;
-            launchCtlRuntime = launchCtlRuntime final;
-            inherit cardano-configurations;
-          }
+            let
+              inherit (prev) system;
+            in
+            {
+              ogmios = cardano-nix.packages.${system}.ogmios;
+              cardano-testnet = cardano-node.packages.${system}.cardano-testnet;
+              cardano-node = cardano-node.packages.${system}.cardano-node;
+              cardano-cli = cardano-node.packages.${system}.cardano-cli;
+              kupo = cardano-nix.packages.${system}.kupo;
+              cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+              blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
+              buildCtlRuntime = buildCtlRuntime final;
+              launchCtlRuntime = launchCtlRuntime final;
+              inherit cardano-configurations;
+            }
         );
       };
 
