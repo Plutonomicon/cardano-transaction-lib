@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-Please report any (suspected) security vulnerabilities to info@mlabs.city.
+Please report any (suspected) security vulnerabilities to <info@mlabs.city>.
 If the issue is confirmed, we will release a patch as soon as possible.
 
 Please provide a clear and concise description of the vulnerability, including:
