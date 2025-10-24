@@ -26,7 +26,7 @@ Do note that `runLocalTestnetTest` in `overlays.purescript` requires the presenc
 To see an example project that uses both `overlays`, please refer to our [scaffolding template](../templates/ctl-scaffold/flake.nix). You can also use this template to conveniently initialize a new CTL-based project (`nix flake init -t github:Plutonomicon/cardano-transaction-lib` in a new directory). It will take a significant amount of time for spago to download the dependencies.
 
 ## Upgrading CTL
-Unfortunately, upgrading CTL remains a relatively involved process. However, it has been partially simplified with the introduction of our [Cardano domain PureScript package set](https://github.com/mlabs-haskell/purescript-cardano-package-set) and the aggregate [NPM package](https://www.npmjs.com/package/@mlabs-haskell/ctl-npm-meta). This complexity arises partly from the scale of the project itself and in part due to features inherent to Spago's approach to dependency management. The following assumes that you are using a project based on Nix flakes and using our overlays as outlined above.
+Unfortunately, upgrading CTL remains a relatively involved process. However, it has been partially simplified with the introduction of our [Cardano domain PureScript package set](https://github.com/mlabs-haskell/purescript-cardano-package-set) and the aggregate @mlabs-haskell/ctl-npm-meta NPM package. This complexity arises partly from the scale of the project itself and in part due to features inherent to Spago's approach to dependency management. The following assumes that you are using a project based on Nix flakes and using our overlays as outlined above.
 
 Make sure to perform **all** of the following steps, otherwise you **will** encounter difficult-to-debug issues:
 
