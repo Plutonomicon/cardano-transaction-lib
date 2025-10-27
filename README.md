@@ -21,7 +21,7 @@
 
 - [Documentation](#documentation)
 - [Additional resources/tools:](#additional-resourcestools)
-- [Available support channels info](#available-support-channels-info)
+- [Available support channels](#available-support-channels)
 - [Funding acknowledgements](#funding-acknowledgements)
 - [Use in production](#use-in-production)
 
@@ -67,12 +67,9 @@ You can also access [PureScript documentation for CTL and its dependencies](http
 - [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)
 
-## Available support channels info
+## Available support channels
 
-You can find help, more information and ongoing discusion about the project here:
-
-- [Plutonomicon Discord](https://discord.gg/JhbexnV9Pc)
-- #ctl channel at MLabs' Slack
+See [SUPPORT.md](SUPPORT.md).
 
 ## Funding acknowledgements
 
@@ -82,7 +79,7 @@ CTL is being developed by MLabs. The following companies/funds have contributed 
 - [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)
 - [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791)
 - [Catalyst Fund10](https://cardano.ideascale.com/c/idea/101478)
-- [Intersect MBO](https://docs.intersectmbo.org/intersect-community-grants/grant-projects)
+- [Intersect MBO](https://www.intersectmbo.org/grants)
 - [MLabs](https://mlabs.city/)
 - [Indigo Protocol](https://indigoprotocol.io/)
 - [Equine](https://www.equine.gg/)
