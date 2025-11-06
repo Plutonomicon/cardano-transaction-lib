@@ -22,17 +22,11 @@ module Ctl.Internal.Contract.Monad
 
 import Prelude
 
-import Cardano.Blockfrost.Service
-  ( BlockfrostServiceM
-  , runBlockfrostServiceM
-  )
+import Cardano.Blockfrost.Service (BlockfrostServiceM, runBlockfrostServiceM)
 import Cardano.Blockfrost.Service as Blockfrost
-import Cardano.Kupmios.KupmiosM (KupmiosEnv, KupmiosM)
+import Cardano.Kupmios (KupmiosConfig, KupmiosM, mkKupmiosEnv)
 import Cardano.Kupmios.Ogmios (getProtocolParameters, getSystemStartTime)
-import Cardano.Kupmios.Ogmios.Types
-  ( OgmiosDecodeError
-  , pprintOgmiosDecodeError
-  )
+import Cardano.Kupmios.Ogmios.Types (OgmiosDecodeError, pprintOgmiosDecodeError)
 import Cardano.Provider.Error (ClientError)
 import Cardano.Provider.Type (Provider)
 import Cardano.Types (NetworkId(TestnetId, MainnetId), TransactionHash, UtxoMap)
@@ -451,20 +445,23 @@ runKupmiosM
   -> CtlBackend
   -> KupmiosM a
   -> Aff a
-runKupmiosM params ctlBackend =
-  flip runReaderT (mkKupmiosEnv params ctlBackend) <<< unwrap
-
-mkKupmiosEnv
-  :: forall (rest :: Row Type). LogParams rest -> CtlBackend -> KupmiosEnv
-mkKupmiosEnv params ctlBackend =
-  { config:
-      { ogmiosConfig: ctlBackend.ogmiosConfig
-      , kupoConfig: ctlBackend.kupoConfig
-      , logLevel: params.logLevel
-      , customLogger: params.customLogger
-      , suppressLogs: params.suppressLogs
-      }
-  }
+runKupmiosM params ctlBackend action = do
+  env <- mkKupmiosEnv config
+  runReaderT (unwrap action) env
+  where
+  config :: KupmiosConfig
+  config =
+    { ogmios:
+        { serverConfig: ctlBackend.ogmiosConfig
+        , maxParallelRequests: Just 5
+        }
+    , kupo:
+        { serverConfig: ctlBackend.kupoConfig
+        }
+    , logLevel: params.logLevel
+    , customLogger: params.customLogger
+    , suppressLogs: params.suppressLogs
+    }
 
 --------------------------------------------------------------------------------
 -- Helpers

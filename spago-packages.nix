@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "v2.1.0";
+        version = "a96b25fb05e52295e42578539939e170c8ab8530";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "6ba7f96e0bc6b3633d930780f5c61bb122d90109";
-          sha256 = "1376zxnk5mshvzmanf3czrsm7ps4bm49kwnwwzxq492zjl5p5pja";
+          rev = "a96b25fb05e52295e42578539939e170c8ab8530";
+          sha256 = "16rqindnh1m4ncg01g5vs9ahni7m7sljravbr4zggd2a32plkwx8";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -444,6 +444,18 @@ let
           url = "https://github.com/mlabs-haskell/purescript-cip95-typesafe";
           rev = "bee527d5bca9b8d9f7126f67160773196f492259";
           sha256 = "1cl4h65xc6px1bwldbi6vr3a5h682frasnslx7ryfdrinyx3fs0y";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "concurrent-queues" = pkgs.stdenv.mkDerivation {
+        name = "concurrent-queues";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-concurrent-queues.git";
+          rev = "905a0cb902dec070fa621819455363660de289c4";
+          sha256 = "0wr9fkdf23mam4ip7nwdm1i7qy0l1lysyfkffbqj07dvrgpkzd0f";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
