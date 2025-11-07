@@ -15,6 +15,7 @@ module Ctl.Internal.Contract.ProviderBackend
 import Prelude
 
 import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
+import Cardano.Kupmios.KupmiosM (Semaphore) as Kupmios
 import Concurrent.Queue (Queue)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -30,7 +31,7 @@ data ProviderBackend
 
 type CtlBackend =
   { ogmiosConfig :: ServerConfig
-  , ogmiosRequestSemaphore :: Maybe (Queue Unit)
+  , ogmiosRequestSemaphore :: Maybe Kupmios.Semaphore
   , kupoConfig :: ServerConfig
   }
 

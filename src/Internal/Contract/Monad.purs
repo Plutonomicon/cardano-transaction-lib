@@ -78,7 +78,7 @@ import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Time.Duration (Milliseconds, Seconds)
+import Data.Time.Duration (Milliseconds(Milliseconds), Seconds)
 import Data.Traversable (for_, traverse)
 import Effect.Aff (Aff, ParAff, attempt, error, finally, supervise)
 import Effect.Aff.Class (class MonadAff, liftAff)
@@ -462,8 +462,13 @@ runKupmiosM params ctlBackend = flip runReaderT env <<< unwrap
 
   config :: KupmiosConfig
   config =
-    { ogmiosConfig: ctlBackend.ogmiosConfig
-    , kupoConfig: ctlBackend.kupoConfig
+    { ogmios:
+        { serverConfig: ctlBackend.ogmiosConfig
+        , requestSemaphoreCooldown: Just $ Milliseconds 300.0
+        }
+    , kupo:
+        { serverConfig: ctlBackend.kupoConfig
+        }
     , logLevel: params.logLevel
     , customLogger: params.customLogger
     , suppressLogs: params.suppressLogs
