@@ -30,6 +30,7 @@
   , "cip30-typesafe"
   , "cip95"
   , "cip95-typesafe"
+  , "concurrent-queues"
   , "console"
   , "control"
   , "crypto"

@@ -24,7 +24,12 @@ import Prelude
 
 import Cardano.Blockfrost.Service (BlockfrostServiceM, runBlockfrostServiceM)
 import Cardano.Blockfrost.Service as Blockfrost
-import Cardano.Kupmios (KupmiosConfig, KupmiosM, mkKupmiosEnv)
+import Cardano.Kupmios
+  ( KupmiosConfig
+  , KupmiosEnv
+  , KupmiosM
+  , initOgmiosRequestSemaphore
+  )
 import Cardano.Kupmios.Ogmios (getProtocolParameters, getSystemStartTime)
 import Cardano.Kupmios.Ogmios.Types (OgmiosDecodeError, pprintOgmiosDecodeError)
 import Cardano.Provider.Error (ClientError)
@@ -258,8 +263,10 @@ buildBackend _ = case _ of
   where
   buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
   buildCtlBackend { ogmiosConfig, kupoConfig } = do
+    sem <- initOgmiosRequestSemaphore { maxParallelRequests: 5 }
     pure
       { ogmiosConfig
+      , ogmiosRequestSemaphore: Just sem
       , kupoConfig
       }
 
@@ -440,24 +447,23 @@ wrapKupmiosM qm = do
   liftAff $ runKupmiosM contractEnv ctlBackend qm
 
 runKupmiosM
-  :: forall (a :: Type) (rest :: Row Type)
-   . LogParams rest
+  :: forall (a :: Type) (r :: Row Type)
+   . LogParams r
   -> CtlBackend
   -> KupmiosM a
   -> Aff a
-runKupmiosM params ctlBackend action = do
-  env <- mkKupmiosEnv config
-  runReaderT (unwrap action) env
+runKupmiosM params ctlBackend = flip runReaderT env <<< unwrap
   where
+  env :: KupmiosEnv
+  env =
+    { config
+    , ogmiosRequestSemaphore: ctlBackend.ogmiosRequestSemaphore
+    }
+
   config :: KupmiosConfig
   config =
-    { ogmios:
-        { serverConfig: ctlBackend.ogmiosConfig
-        , maxParallelRequests: Just 5
-        }
-    , kupo:
-        { serverConfig: ctlBackend.kupoConfig
-        }
+    { ogmiosConfig: ctlBackend.ogmiosConfig
+    , kupoConfig: ctlBackend.kupoConfig
     , logLevel: params.logLevel
     , customLogger: params.customLogger
     , suppressLogs: params.suppressLogs

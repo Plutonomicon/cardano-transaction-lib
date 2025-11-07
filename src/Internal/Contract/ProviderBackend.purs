@@ -15,6 +15,7 @@ module Ctl.Internal.Contract.ProviderBackend
 import Prelude
 
 import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
+import Concurrent.Queue (Queue)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Time.Duration (Seconds(Seconds))
@@ -29,6 +30,7 @@ data ProviderBackend
 
 type CtlBackend =
   { ogmiosConfig :: ServerConfig
+  , ogmiosRequestSemaphore :: Maybe (Queue Unit)
   , kupoConfig :: ServerConfig
   }
 

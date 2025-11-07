@@ -47,7 +47,7 @@ let additions =
           , "untagged-union"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider"
-        , version = "a96b25fb05e52295e42578539939e170c8ab8530" 
+        , version = "51a0b8e8662f7f96b2ffd7c8866c5d38d691b421" 
         }
       }
 
