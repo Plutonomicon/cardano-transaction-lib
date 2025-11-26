@@ -1811,21 +1811,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-arion": {
-      "locked": {
-        "lastModified": 1764177957,
-        "narHash": "sha256-yHDAsd3OtelgGSWWy1hJq+pEOGF0BT/w5qiPZWxyOis=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "3a27eb4be1a058b1218aa06775bf1ac077adbba2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "nixpkgs-regression": {
       "locked": {
         "lastModified": 1643052045,
@@ -2073,7 +2058,6 @@
           "cardano-nix",
           "nixpkgs"
         ],
-        "nixpkgs-arion": "nixpkgs-arion",
         "ogmios": "ogmios"
       }
     },

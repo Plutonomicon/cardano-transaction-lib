@@ -9,14 +9,10 @@
 
   inputs = {
     cardano-nix.url = "github:mlabs-haskell/cardano.nix";
-
     nixpkgs.follows = "cardano-nix/nixpkgs";
-    nixpkgs-arion.url = "github:NixOS/nixpkgs";
-
     blockfrost.follows = "cardano-nix/blockfrost";
     cardano-node.follows = "cardano-nix/cardano-node";
     db-sync.follows = "cardano-nix/cardano-db-sync";
-
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
 
     flake-compat = {
@@ -46,7 +42,6 @@
   outputs =
     { self
     , nixpkgs
-    , nixpkgs-arion
     , cardano-configurations
     , cardano-node
     , ...
@@ -62,7 +57,6 @@
         overlays = nixpkgs.lib.attrValues self.overlays ++ [
           (_: _: {
             ogmios-fixtures = inputs.ogmios;
-            arion = (import nixpkgs-arion { inherit system; }).arion;
           })
         ];
         inherit system;
@@ -462,15 +456,11 @@
       nixosConfigurations.test = nixpkgs.lib.nixosSystem rec {
         system = "x86_64-linux";
         modules = [
-          inputs.cardano-node.nixosModules.cardano-node
-          inputs.cardano-nix.nixosModules.ogmios
-          inputs.cardano-nix.nixosModules.kupo
+          inputs.cardano-nix.nixosModules.default
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
-          ogmios = inputs.cardano-nix.packages.${system}.ogmios;
-          kupo = inputs.cardano-nix.packages.${system}.kupo;
         };
       };
 

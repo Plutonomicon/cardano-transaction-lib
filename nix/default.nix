@@ -462,7 +462,7 @@ let
           cardano-node
           cardano-cli
           chromium
-          python39 # To serve bundled CTL
+          python314 # To serve bundled CTL
           # Utils needed by E2E test code
           which # used to check for browser availability
           gnutar # used unpack settings archive within E2E test code
