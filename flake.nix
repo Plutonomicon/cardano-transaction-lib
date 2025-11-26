@@ -8,32 +8,32 @@
   };
 
   inputs = {
-    nixpkgs.follows = "cardano-node/nixpkgs";
+    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
+
+    nixpkgs.follows = "cardano-nix/nixpkgs";
     nixpkgs-arion.url = "github:NixOS/nixpkgs";
+
+    blockfrost.follows = "cardano-nix/blockfrost";
+    cardano-node.follows = "cardano-nix/cardano-node";
+    db-sync.follows = "cardano-nix/cardano-db-sync";
+
+    hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/10.1.4";
-
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
-      url = "github:input-output-hk/cardano-configurations?rev=a913d87246dc2484562a00c86e5f9c74a20e82ce";
+      url = "github:cardano-foundation/cardano-configurations?rev=e4eb6da37e3f013eece2c9301a0e66e939b3dd96";
       flake = false;
-    };
-
-    # Get Ogmios and Kupo from cardano-nix
-    cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.8.0";
+      url = "github:CardanoSolutions/ogmios/v6.13.0";
       flake = false;
     };
 
@@ -41,11 +41,6 @@
       url = "github:justinwoo/easy-purescript-nix";
       flake = false;
     };
-
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
-    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
-
-    hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
 
   outputs =

@@ -4,7 +4,6 @@ rec {
     inherit (inputs) cardano-configurations;
     # { name = "preprod"; magic = 1; }
     # { name = "preview"; magic = 2; }
-    # { name = "sanchonet"; magic = 4; }
     # { name = "mainnet"; magic = null; }
     # See `doc/development.md` and `doc/runtime.md#changing-network-configurations`
     # for info on how to switch networks.
