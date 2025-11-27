@@ -8,13 +8,10 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/25.05";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/24.11";
 
-    cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
+    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
+    nixpkgs.follows = "cardano-nix/nixpkgs";
     blockfrost.follows = "cardano-nix/blockfrost";
     cardano-node.follows = "cardano-nix/cardano-node";
     db-sync.follows = "cardano-nix/cardano-db-sync";
@@ -47,6 +44,7 @@
   outputs =
     { self
     , nixpkgs
+    , nixpkgs-stable
     , cardano-configurations
     , cardano-node
     , ...
@@ -458,7 +456,7 @@
         };
       };
 
-      nixosConfigurations.test = nixpkgs.lib.nixosSystem rec {
+      nixosConfigurations.test = nixpkgs-stable.lib.nixosSystem rec {
         system = "x86_64-linux";
         modules = [
           inputs.cardano-nix.nixosModules.default
