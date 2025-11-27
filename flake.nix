@@ -8,8 +8,13 @@
   };
 
   inputs = {
-    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
-    nixpkgs.follows = "cardano-nix/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/25.05";
+
+    cardano-nix = {
+      url = "github:mlabs-haskell/cardano.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     blockfrost.follows = "cardano-nix/blockfrost";
     cardano-node.follows = "cardano-nix/cardano-node";
     db-sync.follows = "cardano-nix/cardano-db-sync";
