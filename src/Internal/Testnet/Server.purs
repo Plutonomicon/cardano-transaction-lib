@@ -352,7 +352,10 @@ startCardanoTestnet params cleanupRef logger =
     when (workspace /= workspaceFromLogs) do
       runCleanup cleanupRef
       -- this error should never happen
-      throwError $ error "cardano-testnet workspace mismatch"
+      throwError $ error $ "cardano-testnet workspace mismatch. expected: "
+        <> workspace
+        <> "actual (from logs): "
+        <> workspaceFromLogs
 
     channels <- liftEffect $ getChannels testnet
     attachStdoutMonitors testnet
