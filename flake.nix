@@ -8,13 +8,12 @@
   };
 
   inputs = {
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/24.11";
+    nixpkgs.follows = "db-sync/nixpkgs";
 
     cardano-nix.url = "github:mlabs-haskell/cardano.nix";
-    nixpkgs.follows = "cardano-nix/nixpkgs";
     blockfrost.follows = "cardano-nix/blockfrost";
     cardano-node.follows = "cardano-nix/cardano-node";
-    db-sync.follows = "cardano-nix/cardano-db-sync";
+    db-sync.url = "github:intersectmbo/cardano-db-sync/13.6.0.5";
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
 
     flake-compat = {
@@ -44,7 +43,6 @@
   outputs =
     { self
     , nixpkgs
-    , nixpkgs-stable
     , cardano-configurations
     , cardano-node
     , ...
@@ -267,7 +265,7 @@
                 cardano-node = cardano-node.packages.${system}.cardano-node;
                 cardano-cli = cardano-node.packages.${system}.cardano-cli;
                 kupo = cardano-nix.packages.${system}.kupo;
-                cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+                cardano-db-sync = inputs.db-sync.packages.${system}.default;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
@@ -456,7 +454,7 @@
         };
       };
 
-      nixosConfigurations.test = nixpkgs-stable.lib.nixosSystem rec {
+      nixosConfigurations.test = nixpkgs.lib.nixosSystem rec {
         system = "x86_64-linux";
         modules = [
           inputs.cardano-nix.nixosModules.default
