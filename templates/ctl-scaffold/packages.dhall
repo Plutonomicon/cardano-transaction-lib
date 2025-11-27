@@ -6,7 +6,7 @@ let upstream =
 let additions =
       { cardano-transaction-lib =
         { dependencies =
-          [ "aeson"
+         [ "aeson"
           , "aff"
           , "aff-promise"
           , "aff-retry"
@@ -112,7 +112,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "4ae87e5509faafd48e7a2ccb1b4831d9eb9b752c"
+        , version = "a865d7292e212d73b6bcd184df54a440603933b7"
         }
       }
 
