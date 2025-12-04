@@ -15,8 +15,7 @@ module Ctl.Internal.Contract.ProviderBackend
 import Prelude
 
 import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
-import Cardano.Kupmios.KupmiosM (Semaphore) as Kupmios
-import Concurrent.Queue (Queue)
+import Cardano.Kupmios.KupmiosM (RateLimiter) as Kupmios
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Time.Duration (Seconds(Seconds))
@@ -31,7 +30,7 @@ data ProviderBackend
 
 type CtlBackend =
   { ogmiosConfig :: ServerConfig
-  , ogmiosRequestSemaphore :: Maybe Kupmios.Semaphore
+  , ogmiosRequestRateLimiter :: Maybe Kupmios.RateLimiter
   , kupoConfig :: ServerConfig
   }
 

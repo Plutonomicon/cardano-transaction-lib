@@ -28,7 +28,7 @@ import Cardano.Kupmios
   ( KupmiosConfig
   , KupmiosEnv
   , KupmiosM
-  , initOgmiosRequestSemaphore
+  , initOgmiosRequestRateLimiter
   )
 import Cardano.Kupmios.Ogmios (getProtocolParameters, getSystemStartTime)
 import Cardano.Kupmios.Ogmios.Types (OgmiosDecodeError, pprintOgmiosDecodeError)
@@ -263,10 +263,10 @@ buildBackend _ = case _ of
   where
   buildCtlBackend :: CtlBackendParams -> Aff CtlBackend
   buildCtlBackend { ogmiosConfig, kupoConfig } = do
-    sem <- initOgmiosRequestSemaphore { maxParallelRequests: 5 }
+    sem <- initOgmiosRequestRateLimiter { maxParallelRequests: 5 }
     pure
       { ogmiosConfig
-      , ogmiosRequestSemaphore: Just sem
+      , ogmiosRequestRateLimiter: Just sem
       , kupoConfig
       }
 
@@ -457,14 +457,14 @@ runKupmiosM params ctlBackend = flip runReaderT env <<< unwrap
   env :: KupmiosEnv
   env =
     { config
-    , ogmiosRequestSemaphore: ctlBackend.ogmiosRequestSemaphore
+    , ogmiosRequestRateLimiter: ctlBackend.ogmiosRequestRateLimiter
     }
 
   config :: KupmiosConfig
   config =
     { ogmios:
         { serverConfig: ctlBackend.ogmiosConfig
-        , requestSemaphoreCooldown: Just $ Milliseconds 300.0
+        , requestRateLimiterCooldown: Just $ Milliseconds 300.0
         }
     , kupo:
         { serverConfig: ctlBackend.kupoConfig

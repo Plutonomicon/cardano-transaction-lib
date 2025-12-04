@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "22044b695b6d3e43724c01ed5f255ece33dc4744";
+        version = "aa3b5f045d0e0756dc5855a341fe23b7057fb111";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "22044b695b6d3e43724c01ed5f255ece33dc4744";
-          sha256 = "1jvncsrnzsnw2899crm4yp0swvl7vswx8y64jhd5m0zk01ak38li";
+          rev = "aa3b5f045d0e0756dc5855a341fe23b7057fb111";
+          sha256 = "1jc6yjrh8fjax40s8kd3n7ppz28yr5hdlm1r7yx3bffqil6xnq6n";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
