@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "v2.1.0";
+        version = "v3.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "6ba7f96e0bc6b3633d930780f5c61bb122d90109";
-          sha256 = "1376zxnk5mshvzmanf3czrsm7ps4bm49kwnwwzxq492zjl5p5pja";
+          rev = "89a2a5ff52cebc72365a1aab570d6840acacac00";
+          sha256 = "1jc6yjrh8fjax40s8kd3n7ppz28yr5hdlm1r7yx3bffqil6xnq6n";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -355,11 +355,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "c73bbfb259272a7d64cc18cfce85334842ea61fd";
+        version = "35a08837b06c154297c1106bb3ce7f97e90cea53";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "c73bbfb259272a7d64cc18cfce85334842ea61fd";
-          sha256 = "00fai0zhr905bmfvapa69drd8qzvhnzb0vx5jzmkbf1safn8ba6n";
+          rev = "35a08837b06c154297c1106bb3ce7f97e90cea53";
+          sha256 = "1q1xx207g46jzvmg2q9cwcl4rzym2h8ajjm3sg7q7vm46pclzq6c";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -456,6 +456,18 @@ let
           url = "https://github.com/mlabs-haskell/purescript-cip95-typesafe";
           rev = "bee527d5bca9b8d9f7126f67160773196f492259";
           sha256 = "1cl4h65xc6px1bwldbi6vr3a5h682frasnslx7ryfdrinyx3fs0y";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "concurrent-queues" = pkgs.stdenv.mkDerivation {
+        name = "concurrent-queues";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-concurrent-queues.git";
+          rev = "905a0cb902dec070fa621819455363660de289c4";
+          sha256 = "0wr9fkdf23mam4ip7nwdm1i7qy0l1lysyfkffbqj07dvrgpkzd0f";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
