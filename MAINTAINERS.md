@@ -2,4 +2,4 @@
 
 * Dzmitry Shuiski <dzmitryshuiski@mlabs.city>
 * Marcus Fernandes <marcus@mlabs.city>
-* Szabo Gergely <gergely@mlabs.city>
+* Gergely Szabo <gergely@mlabs.city>
