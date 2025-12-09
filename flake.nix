@@ -8,32 +8,29 @@
   };
 
   inputs = {
-    nixpkgs.follows = "cardano-node/nixpkgs";
-    nixpkgs-arion.url = "github:NixOS/nixpkgs";
+    nixpkgs.follows = "db-sync/nixpkgs";
+
+    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
+    blockfrost.follows = "cardano-nix/blockfrost";
+    cardano-node.follows = "cardano-nix/cardano-node";
+    db-sync.url = "github:intersectmbo/cardano-db-sync/13.6.0.5";
+    hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
 
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
 
-    cardano-node.url = "github:input-output-hk/cardano-node/10.1.4";
-
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
-      url = "github:input-output-hk/cardano-configurations?rev=a913d87246dc2484562a00c86e5f9c74a20e82ce";
+      url = "github:cardano-foundation/cardano-configurations?rev=e4eb6da37e3f013eece2c9301a0e66e939b3dd96";
       flake = false;
-    };
-
-    # Get Ogmios and Kupo from cardano-nix
-    cardano-nix = {
-      url = "github:mlabs-haskell/cardano.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.8.0";
+      url = "github:CardanoSolutions/ogmios/v6.13.0";
       flake = false;
     };
 
@@ -41,17 +38,11 @@
       url = "github:justinwoo/easy-purescript-nix";
       flake = false;
     };
-
-    blockfrost.url = "github:blockfrost/blockfrost-backend-ryo/v1.7.0";
-    db-sync.url = "github:input-output-hk/cardano-db-sync/13.1.0.0";
-
-    hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
 
   outputs =
     { self
     , nixpkgs
-    , nixpkgs-arion
     , cardano-configurations
     , cardano-node
     , ...
@@ -67,7 +58,6 @@
         overlays = nixpkgs.lib.attrValues self.overlays ++ [
           (_: _: {
             ogmios-fixtures = inputs.ogmios;
-            arion = (import nixpkgs-arion { inherit system; }).arion;
           })
         ];
         inherit system;
@@ -275,7 +265,7 @@
                 cardano-node = cardano-node.packages.${system}.cardano-node;
                 cardano-cli = cardano-node.packages.${system}.cardano-cli;
                 kupo = cardano-nix.packages.${system}.kupo;
-                cardano-db-sync = inputs.db-sync.packages.${system}.cardano-db-sync;
+                cardano-db-sync = inputs.db-sync.packages.${system}.default;
                 blockfrost-backend-ryo = inputs.blockfrost.packages.${system}.blockfrost-backend-ryo;
                 buildCtlRuntime = buildCtlRuntime final;
                 launchCtlRuntime = launchCtlRuntime final;
@@ -467,15 +457,11 @@
       nixosConfigurations.test = nixpkgs.lib.nixosSystem rec {
         system = "x86_64-linux";
         modules = [
-          inputs.cardano-node.nixosModules.cardano-node
-          inputs.cardano-nix.nixosModules.ogmios
-          inputs.cardano-nix.nixosModules.kupo
+          inputs.cardano-nix.nixosModules.default
           ./nix/test-nixos-configuration.nix
         ];
         specialArgs = {
           inherit (inputs) cardano-configurations;
-          ogmios = inputs.cardano-nix.packages.${system}.ogmios;
-          kupo = inputs.cardano-nix.packages.${system}.kupo;
         };
       };
 

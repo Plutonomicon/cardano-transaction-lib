@@ -92,8 +92,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Changed
 
 - Replaced cardano-serialization-lib (CSL) with [cardano-data-lite (CDL)](https://github.com/mlabs-haskell/purescript-cardano-data-lite) ([#1678](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1678))
-- Bumped [cardano-node to v10.1.4](https://github.com/IntersectMBO/cardano-node/releases/tag/10.1.4) capable of crossing the second Chang hardfork ([#1657](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1657))
-- Bumped [Ogmios to v6.8.0](https://github.com/CardanoSolutions/ogmios/releases/tag/v6.8.0) ([#1657](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1657))
 - `QueryHandle` has been renamed to `Provider` ([#1665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1665))
   - `QueryBackend` renamed to `ProviderBackend`
   - `QueryBackendParams` renamed to `ProviderBackendParams`
@@ -119,6 +117,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - The `submitTxFromConstraints` and `submitTxFromBuildPlan` functions have been deprecated in favor of `submitTxFromBlueprint`. The new function accepts a `TxBlueprint` with the steps and context needed to construct and balance a transaction, and returns a `TxReceipt` containing the balanced, signed transaction along with its hash.
   - *Note that all mentioned deprecated functions are planned for removal in a future release.*
 - For legacy tx constraints system: Removed the logic for querying datums by hash when not explicitly provided, eliminating the non-obvious dependency on blockchain state ([#1634](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1634))
+- Updated dependencies ([#1685](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1685))
+  - cardano-node: 10.5.3
+  - ogmios: 6.13.0
+  - kupo: 2.11.0
 
 ### Removed
 
