@@ -115,6 +115,7 @@ queryUtxosViaCardanoCli { socketPath, testnetMagic } address =
       , show testnetMagic
       , "--address"
       , Cardano.Types.Address.toBech32 address
+      , "--output-text"
       ]
     let
       parsingError utxos (Parsing.ParseError msg pos) = mconcat
