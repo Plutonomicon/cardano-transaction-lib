@@ -30,7 +30,12 @@ module Ctl.Internal.Service.Blockfrost
   , BlockfrostRawPostResponseData
   , BlockfrostRawResponse
   , BlockfrostScriptInfo(BlockfrostScriptInfo)
-  , BlockfrostScriptLanguage(NativeScript, PlutusV1Script, PlutusV2Script)
+  , BlockfrostScriptLanguage
+      ( NativeScript
+      , PlutusV1Script
+      , PlutusV2Script
+      , PlutusV3Script
+      )
   , BlockfrostServiceM
   , BlockfrostServiceParams
   , BlockfrostSystemStart(BlockfrostSystemStart)
@@ -601,6 +606,9 @@ getScriptByHash scriptHash = runExceptT $ runMaybeT do
         MaybeT (ExceptT getPlutusScriptCborByHash)
     PlutusV2Script ->
       PlutusScriptRef <<< PlutusScript.plutusV2Script <$>
+        MaybeT (ExceptT getPlutusScriptCborByHash)
+    PlutusV3Script ->
+      PlutusScriptRef <<< PlutusScript.plutusV3Script <$>
         MaybeT (ExceptT getPlutusScriptCborByHash)
   where
   getNativeScriptByHash
@@ -1287,7 +1295,11 @@ resolveBlockfrostTxOutput
 -- BlockfrostScriptLanguage
 --------------------------------------------------------------------------------
 
-data BlockfrostScriptLanguage = NativeScript | PlutusV1Script | PlutusV2Script
+data BlockfrostScriptLanguage
+  = NativeScript
+  | PlutusV1Script
+  | PlutusV2Script
+  | PlutusV3Script
 
 derive instance Generic BlockfrostScriptLanguage _
 derive instance Eq BlockfrostScriptLanguage
@@ -1300,6 +1312,7 @@ instance DecodeAeson BlockfrostScriptLanguage where
     "timelock" -> pure NativeScript
     "plutusV1" -> pure PlutusV1Script
     "plutusV2" -> pure PlutusV2Script
+    "plutusV3" -> pure PlutusV3Script
     invalid ->
       Left $ TypeMismatch $
         "language: expected 'native' or 'plutusV{1|2}', got: " <> invalid
