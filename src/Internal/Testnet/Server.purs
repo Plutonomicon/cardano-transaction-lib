@@ -89,7 +89,7 @@ import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref (modify_, new) as Ref
 import Foreign.Object as Object
-import Node.ChildProcess (defaultSpawnOptions, stdout)
+import Node.ChildProcess (defaultSpawnOptions, stderr)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync (readdir) as FSSync
@@ -296,7 +296,6 @@ spawnCardanoTestnet workdir params = do
   options :: Array String
   options = join
     [ [ "cardano" ]
-    , [ flag $ show params.era ]
     , maybe mempty
         (\epochSize -> [ flag "epoch-length", UInt.toString epochSize ])
         params.epochSize
@@ -327,30 +326,33 @@ startCardanoTestnet params cleanupRef logger =
       stopProcessWithChildren
 
     workspaceFromLogsAvar <- AVar.empty
-    liftEffect $ onDataString (stdout testnetProcess) UTF8 \str -> do
+    liftEffect $ onDataString (stderr testnetProcess) UTF8 \str -> do
       let lines = String.split (Pattern "\n") str
       traverse_
         ( \line -> do
-            logger Trace $ "[cardano-testnet:stdout] " <> line
+            logger Trace $ "[cardano-testnet:stderr] " <> line
             let
-              mWorkspace = String.stripPrefix (Pattern "Workspace: ") $
-                String.trim line
+              mWorkspace =
+                String.stripPrefix (Pattern "Starting testnet in environment: ")
+                  $
+                    String.trim line
             maybe (pure unit)
               (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
               mWorkspace
         )
         lines
 
-    workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
+    workspace <- flip append "/" <$> waitUntil (Milliseconds 100.0)
+      (findWorkspaceDir workdir)
     -- Schedule a cleanup immediately after the workspace
     -- directory is created.
     scheduleWorkspaceCleanup workspace
     -- Wait for cardano-testnet to output the workspace, indicating
     -- that initialization is complete.
+    -- TODO: wait until "Testnet started" is displayed
     workspaceFromLogs <- AVar.take workspaceFromLogsAvar
 
     when (workspace /= workspaceFromLogs) do
-      runCleanup cleanupRef
       liftEffect $ logger Warn
         $ "cardano-testnet workspace mismatch. detected: "
         <> workspace

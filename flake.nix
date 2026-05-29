@@ -12,7 +12,9 @@
 
     cardano-nix.url = "github:mlabs-haskell/cardano.nix";
     blockfrost.follows = "cardano-nix/blockfrost";
-    cardano-node.follows = "cardano-nix/cardano-node";
+    # cardano-node.follows = "cardano-nix/cardano-node";
+    cardano-node.url = "github:IntersectMBO/cardano-node/11.0.1";
+    cardano-nix.inputs.cardano-node.follows = "cardano-node";
     db-sync.url = "github:intersectmbo/cardano-db-sync/13.6.0.5";
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
 
@@ -24,7 +26,7 @@
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
-      url = "github:cardano-foundation/cardano-configurations?rev=e4eb6da37e3f013eece2c9301a0e66e939b3dd96";
+      url = "github:cardano-foundation/cardano-configurations?rev=8c14a74902cc395a7a2408ab9497230e12665d68";
       flake = false;
     };
 
