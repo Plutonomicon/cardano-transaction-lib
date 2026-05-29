@@ -67,11 +67,11 @@ Lucid, on the other hand, provides a way to get a UTxO that contains a specified
 
 ### Staking support
 
-Both [CTL](./staking.md) and [Lucid](https://lucid.spacebudz.io/docs/getting-started/delegate/) support all operations with ADA delegations.
+Both [CTL](./staking.md) and [Lucid](https://anastasia-labs.github.io/lucid-evolution/documentation/deep-dives/register-stake) support all operations with ADA delegations.
 
 ### Testing
 
-CTL uses [Cardano Testnet](./cardano-testnet-testing.md), while Lucid uses an [emulator](https://lucid.spacebudz.io/docs/getting-started/test-emulate/).
+CTL uses [Cardano Testnet](./cardano-testnet-testing.md), while Lucid uses an [emulator](https://anastasia-labs.github.io/lucid-evolution/documentation/deep-dives/emulator).
 
 Additionally, CTL supports [testing with real wallets](./e2e-testing.md) via headless browsers and provides [an assertion library](./test-utils.md).
 
