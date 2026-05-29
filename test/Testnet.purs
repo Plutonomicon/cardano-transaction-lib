@@ -66,21 +66,3 @@ main = interruptOnSignal SIGINT =<< launchAff do
           -- FIXME: ClusterParameters.runTest
           runTestnetTestPlan config SameWallets.suite
           ClusterParameters.runTest
-
-{-
-configWithMaxExUnits :: PlutipConfig
-configWithMaxExUnits = config
-  { clusterConfig = config.clusterConfig { raiseExUnitsToMax = true } }
-
-testStartPlutipCluster :: TestPlanM (Aff Unit) Unit
-testStartPlutipCluster = group "Server" do
-  test "startPlutipCluster / stopPlutipCluster" do
-    bracket (startPlutipServer config)
-      (stopChildProcessWithPort config.port) $ const do
-      checkPlutipServer config
-      _startRes <- startPlutipCluster config [ [] ]
-      stopRes <- stopPlutipCluster config
-      stopRes `shouldSatisfy` case _ of
-        StopClusterSuccess -> true
-        _ -> false
-        -}

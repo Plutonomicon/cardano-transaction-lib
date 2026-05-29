@@ -68,7 +68,7 @@ suite = do
             , suppressLogs = false
             , logLevel = Error
             }
-        writeLog lgl m = liftEffect $ when (m.level >= lgl) $ do
+        writeLog lgl m = liftEffect $ when (m.level > lgl) $ do
           Ref.write true hasLogged
       runTestnetContract config' unit \_ -> do
         logWarn' ""
