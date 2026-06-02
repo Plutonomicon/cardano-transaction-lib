@@ -118,14 +118,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - *Note that all mentioned deprecated functions are planned for removal in a future release.*
 - For legacy tx constraints system: Removed the logic for querying datums by hash when not explicitly provided, eliminating the non-obvious dependency on blockchain state ([#1634](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1634))
 - Updated dependencies ([#1685](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1685))
-  - cardano-node: 10.5.3
+  - cardano-node: 11.0.1 ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
   - ogmios: 6.13.0
   - kupo: 2.11.0
 - `CtlBackend` now includes a new field, `ogmiosRequestRateLimiter`. For the motivation behind this change, see the changelog for [`purescript-cardano-kupmios-provider`](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) ([#1684](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1684))
+- CTL is now compatible with the van Rossem hard fork ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 
 ### Removed
 
 - References to the discontinued Nami and Flint wallets ([#1674](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1674))
+- `era` field from `TestnetClusterConfig`, as it became obsolete for cardano-testnet configuration after upgrading to cardano-node v11.0.1 ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 
 ### Fixed
 
