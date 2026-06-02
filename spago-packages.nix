@@ -235,11 +235,11 @@ let
 
     "cardano-data-lite" = pkgs.stdenv.mkDerivation {
         name = "cardano-data-lite";
-        version = "070a1a502472211853099c2566a7e9100a7b1a61";
+        version = "v1.0.1";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-data-lite";
-          rev = "070a1a502472211853099c2566a7e9100a7b1a61";
-          sha256 = "117ryx4w2lzkw4v8rsz7lp4nld6dd08nw2s8mcjcrw1dwrp2j4gk";
+          rev = "5ef576a4b4eca9f5fbf1b9a78828567778444e30";
+          sha256 = "1x6z8hg063hvmrfyqwiyyqyfac8sb9m2r221kdsjc57m16nydh8y";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "v2.1.0";
+        version = "v3.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "6ba7f96e0bc6b3633d930780f5c61bb122d90109";
-          sha256 = "1376zxnk5mshvzmanf3czrsm7ps4bm49kwnwwzxq492zjl5p5pja";
+          rev = "89a2a5ff52cebc72365a1aab570d6840acacac00";
+          sha256 = "1jc6yjrh8fjax40s8kd3n7ppz28yr5hdlm1r7yx3bffqil6xnq6n";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -444,6 +444,18 @@ let
           url = "https://github.com/mlabs-haskell/purescript-cip95-typesafe";
           rev = "bee527d5bca9b8d9f7126f67160773196f492259";
           sha256 = "1cl4h65xc6px1bwldbi6vr3a5h682frasnslx7ryfdrinyx3fs0y";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "concurrent-queues" = pkgs.stdenv.mkDerivation {
+        name = "concurrent-queues";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-concurrent-queues.git";
+          rev = "905a0cb902dec070fa621819455363660de289c4";
+          sha256 = "0wr9fkdf23mam4ip7nwdm1i7qy0l1lysyfkffbqj07dvrgpkzd0f";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
