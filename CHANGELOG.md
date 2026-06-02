@@ -121,6 +121,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - cardano-node: 10.5.3
   - ogmios: 6.13.0
   - kupo: 2.11.0
+- `CtlBackend` now includes a new field, `ogmiosRequestRateLimiter`. For the motivation behind this change, see the changelog for [`purescript-cardano-kupmios-provider`](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) ([#1684](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1684))
 
 ### Removed
 
