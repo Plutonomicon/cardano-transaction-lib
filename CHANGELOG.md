@@ -87,7 +87,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## [Unreleased]
+## [Unreleased] 
 
 ### Changed
 
@@ -124,6 +124,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - `CtlBackend` now includes a new field, `ogmiosRequestRateLimiter`. For the motivation behind this change, see the changelog for [`purescript-cardano-kupmios-provider`](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) ([#1684](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1684))
 - CTL is now compatible with the van Rossem hard fork ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 - `defaultOgmiosWsConfig` has been renamed to `defaultOgmiosServerConfig` ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `mkKeyWalletFromFiles` now accepts an optional DRep key file ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 
 ### Removed
 

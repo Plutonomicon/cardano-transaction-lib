@@ -216,6 +216,7 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
   group "Regressions" do
+    -- TODO: Balancing is extremely slow here. Can we optimize for this case?
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
       do
@@ -1027,8 +1028,7 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
-    -- FIXME: script integrity hash mismatch
-    skip $ test "GetDatumsByHashes" do
+    test "GetDatumsByHashes" do
       let
         distribution :: InitialUTxOs
         distribution =

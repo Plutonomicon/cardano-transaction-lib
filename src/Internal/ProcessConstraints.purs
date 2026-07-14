@@ -531,10 +531,6 @@ processConstraint
             , validityStartInterval = validityStartInterval
             }
     MustBeSignedBy pkh -> runExceptT do
-      -- FIXME This is incompatible with Plutus' version, which requires
-      -- the corresponding `paymentPubKey` lookup. In the next major version,
-      -- we might wish to revise this
-      -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
       _cpsTransaction <<< _body <<< _requiredSigners <>=
         [ wrap $ unwrap $ unwrap pkh ]
     MustSpendAtLeast value -> do

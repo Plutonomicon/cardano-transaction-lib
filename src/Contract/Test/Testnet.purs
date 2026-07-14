@@ -49,7 +49,7 @@ defaultTestnetConfig =
       , path: Nothing
       }
   , customLogger: Nothing
-  , suppressLogs: true
+  , suppressLogs: false
   , hooks: emptyHooks
   , clusterConfig:
       { testnetMagic: 2

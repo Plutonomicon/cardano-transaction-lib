@@ -65,7 +65,6 @@ type ConstraintProcessingState =
   , lookups :: ScriptLookups
   -- ^ ScriptLookups for resolving constraints. Should be treated as an immutable
   -- value despite living inside the processing state
-  -- TODO: remove: https://github.com/Plutonomicon/cardano-transaction-lib/issues/843
   , refScriptsUtxoMap :: UtxoMap
   , costModels :: Map Language CostModel
   }

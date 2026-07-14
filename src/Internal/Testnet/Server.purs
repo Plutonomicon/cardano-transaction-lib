@@ -326,6 +326,8 @@ startCardanoTestnet params cleanupRef logger =
       stopProcessWithChildren
 
     workspaceFromLogsAvar <- AVar.empty
+    testnetStartedAvar <- AVar.empty
+
     liftEffect $ onDataString (stderr testnetProcess) UTF8 \str -> do
       let lines = String.split (Pattern "\n") str
       traverse_
@@ -339,6 +341,8 @@ startCardanoTestnet params cleanupRef logger =
             maybe (pure unit)
               (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
               mWorkspace
+            when (line == "Testnet started") do
+              void $ AVarSync.tryPut unit testnetStartedAvar
         )
         lines
 
@@ -347,9 +351,7 @@ startCardanoTestnet params cleanupRef logger =
     -- Schedule a cleanup immediately after the workspace
     -- directory is created.
     scheduleWorkspaceCleanup workspace
-    -- Wait for cardano-testnet to output the workspace, indicating
-    -- that initialization is complete.
-    -- TODO: wait until "Testnet started" is displayed
+
     workspaceFromLogs <- AVar.take workspaceFromLogsAvar
 
     when (workspace /= workspaceFromLogs) do
@@ -359,6 +361,10 @@ startCardanoTestnet params cleanupRef logger =
         <> ", actual (from logs): "
         <> workspaceFromLogs
         <> " -> continuing with the detected workspace"
+
+    -- Wait for cardano-testnet to output the "Testnet Started" message,
+    -- indicating that initialization is complete.
+    void $ AVar.take testnetStartedAvar
 
     channels <- liftEffect $ getChannels testnet
     attachStdoutMonitors testnet

@@ -1,14 +1,18 @@
 -- | **NodeJS-only module**
 module Ctl.Internal.Wallet.KeyFile
   ( keyFromFile
+  , privateDrepKeyFromFile
+  , privateDrepKeyFromTextEnvelope
+  , privateDrepKeyToFile
   , privatePaymentKeyFromFile
   , privatePaymentKeyFromTextEnvelope
   , privatePaymentKeyToFile
   , privateStakeKeyFromFile
   , privateStakeKeyFromTextEnvelope
   , privateStakeKeyToFile
-  , formatStakeKey
+  , formatDrepKey
   , formatPaymentKey
+  , formatStakeKey
   ) where
 
 import Prelude
@@ -17,7 +21,8 @@ import Aeson (encodeAeson)
 import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.PrivateKey as PrivateKey
 import Cardano.Wallet.Key
-  ( PrivatePaymentKey(PrivatePaymentKey)
+  ( PrivateDrepKey(PrivateDrepKey)
+  , PrivatePaymentKey(PrivatePaymentKey)
   , PrivateStakeKey(PrivateStakeKey)
   )
 import Control.Monad.Error.Class (liftMaybe)
@@ -27,6 +32,7 @@ import Ctl.Internal.Cardano.TextEnvelope
   , TextEnvelopeType
       ( PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
+      , DRepSigningKeyed25519
       )
   , decodeTextEnvelope
   )
@@ -62,15 +68,18 @@ keyFromFile filePath ty = errorHandler do
 
 privatePaymentKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivatePaymentKey
 privatePaymentKeyFromTextEnvelope (TextEnvelope envelope) = do
-  -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == PaymentSigningKeyShelleyed25519) Nothing
   PrivatePaymentKey <$> PrivateKey.fromRawBytes (wrap envelope.bytes)
 
 privateStakeKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivateStakeKey
 privateStakeKeyFromTextEnvelope (TextEnvelope envelope) = do
-  -- Check TextEnvelope type match to desirable
   unless (envelope.type_ == StakeSigningKeyShelleyed25519) Nothing
   PrivateStakeKey <$> PrivateKey.fromRawBytes (wrap envelope.bytes)
+
+privateDrepKeyFromTextEnvelope :: TextEnvelope -> Maybe PrivateDrepKey
+privateDrepKeyFromTextEnvelope (TextEnvelope envelope) = do
+  unless (envelope.type_ == DRepSigningKeyed25519) Nothing
+  PrivateDrepKey <$> PrivateKey.fromRawBytes (wrap envelope.bytes)
 
 privatePaymentKeyFromFile :: FilePath -> Aff PrivatePaymentKey
 privatePaymentKeyFromFile filePath = do
@@ -84,20 +93,37 @@ privateStakeKeyFromFile filePath = do
   liftM (error "Unable to decode private stake key") $
     PrivateStakeKey <$> PrivateKey.fromRawBytes (wrap bytes)
 
+privateDrepKeyFromFile :: FilePath -> Aff PrivateDrepKey
+privateDrepKeyFromFile filePath = do
+  bytes <- keyFromFile filePath DRepSigningKeyed25519
+  liftM (error "Unable to decode private DRep key") $
+    PrivateDrepKey <$> PrivateKey.fromRawBytes (wrap bytes)
+
 -- | Write private payment key to file in cardano-cli envelope format
 privatePaymentKeyToFile :: FilePath -> PrivatePaymentKey -> Aff Unit
-privatePaymentKeyToFile filePath key =
-  liftEffect <<< (writeTextFile Encoding.UTF8 filePath) $ formatPaymentKey key
+privatePaymentKeyToFile filePath =
+  liftEffect
+    <<< writeTextFile Encoding.UTF8 filePath
+    <<< formatPaymentKey
 
 -- | Write private stake key to file in cardano-cli envelope format
 privateStakeKeyToFile :: FilePath -> PrivateStakeKey -> Aff Unit
-privateStakeKeyToFile filePath key =
-  liftEffect <<< (writeTextFile Encoding.UTF8 filePath) $ formatStakeKey key
+privateStakeKeyToFile filePath =
+  liftEffect
+    <<< writeTextFile Encoding.UTF8 filePath
+    <<< formatStakeKey
+
+-- | Write private DRep key to file in cardano-cli envelope format
+privateDrepKeyToFile :: FilePath -> PrivateDrepKey -> Aff Unit
+privateDrepKeyToFile filePath =
+  liftEffect
+    <<< writeTextFile Encoding.UTF8 filePath
+    <<< formatDrepKey
 
 -- | Convert private payment key to cardano-cli envelope format.
 formatPaymentKey :: PrivatePaymentKey -> String
-formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show
-  $
+formatPaymentKey (PrivatePaymentKey key) =
+  show $ encodeAeson
     { "type": "PaymentSigningKeyShelley_ed25519"
     , description: "Payment Signing Key"
     , cborHex: keyToCbor key
@@ -105,10 +131,19 @@ formatPaymentKey (PrivatePaymentKey key) = encodeAeson >>> show
 
 -- | Convert private stake key to cardano-cli envelope format.
 formatStakeKey :: PrivateStakeKey -> String
-formatStakeKey (PrivateStakeKey key) = encodeAeson >>> show
-  $
+formatStakeKey (PrivateStakeKey key) =
+  show $ encodeAeson
     { "type": "StakeSigningKeyShelley_ed25519"
     , description: "Stake Signing Key"
+    , cborHex: keyToCbor key
+    }
+
+-- | Convert private DRep key to cardano-cli envelope format.
+formatDrepKey :: PrivateDrepKey -> String
+formatDrepKey (PrivateDrepKey key) =
+  show $ encodeAeson
+    { "type": "DRepSigningKey_ed25519"
+    , description: "Delegated Representative Signing Key"
     , cborHex: keyToCbor key
     }
 

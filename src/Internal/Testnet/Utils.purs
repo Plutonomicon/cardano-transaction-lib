@@ -484,7 +484,7 @@ tryAndLogErrors
 tryAndLogErrors logger location =
   try >=> case _ of
     Left err -> do
-      maybe log (\l -> liftEffect <<< l Error) logger
+      maybe log (\l -> liftEffect <<< l Warn) logger
         $ "An error occured and suppressed at "
         <> location
         <> ": "
