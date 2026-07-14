@@ -84,7 +84,7 @@ testnetConfig =
   , walletSpec: Nothing
   , logLevel: Trace
   , customLogger: Nothing
-  , suppressLogs: false
+  , suppressLogs: true
   , hooks: emptyHooks
   , timeParams: defaultTimeParams
   , synchronizationParams: defaultSynchronizationParams
