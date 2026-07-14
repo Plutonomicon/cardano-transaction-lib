@@ -9,17 +9,20 @@ import Prelude
 import Cardano.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Ctl.Internal.Wallet.KeyFile
   ( privateDrepKeyFromFile
+  , privateDrepKeyFromTextEnvelope
+  , privateDrepKeyToFile
   , privatePaymentKeyFromFile
-  , privateStakeKeyFromFile
-  )
-import Ctl.Internal.Wallet.KeyFile
-  ( privatePaymentKeyFromFile
   , privatePaymentKeyFromTextEnvelope
   , privatePaymentKeyToFile
   , privateStakeKeyFromFile
   , privateStakeKeyFromTextEnvelope
   , privateStakeKeyToFile
   ) as Wallet.KeyFile
+import Ctl.Internal.Wallet.KeyFile
+  ( privateDrepKeyFromFile
+  , privatePaymentKeyFromFile
+  , privateStakeKeyFromFile
+  )
 import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Effect.Aff (Aff)
