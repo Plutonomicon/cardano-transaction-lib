@@ -28,7 +28,11 @@ import Cardano.Ogmios.Mempool
   )
 import Control.Parallel (parTraverse)
 import Ctl.Internal.Helpers (logString)
-import Ctl.Internal.ServerConfig (ServerConfig, defaultOgmiosWsConfig, mkWsUrl)
+import Ctl.Internal.ServerConfig
+  ( ServerConfig
+  , defaultOgmiosServerConfig
+  , mkWsUrl
+  )
 import Data.Either (Either(Left))
 import Data.Log.Level (LogLevel(Trace, Debug))
 import Data.Map as Map
@@ -115,7 +119,7 @@ main :: Effect Unit
 main =
   launchAff_ do
     let logLevel = Trace
-    WebSocket ws listeners <- mkWebSocketAff logLevel defaultOgmiosWsConfig
+    WebSocket ws listeners <- mkWebSocketAff logLevel defaultOgmiosServerConfig
 
     let
       queries =

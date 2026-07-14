@@ -7,7 +7,7 @@ module Ctl.Internal.ServerConfig
   , blockfrostPublicSanchonetServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
-  , defaultOgmiosWsConfig
+  , defaultOgmiosServerConfig
   , mkHttpUrl
   , mkServerUrl
   , mkWsUrl
@@ -29,8 +29,8 @@ type ServerConfig =
   , path :: Maybe String
   }
 
-defaultOgmiosWsConfig :: ServerConfig
-defaultOgmiosWsConfig =
+defaultOgmiosServerConfig :: ServerConfig
+defaultOgmiosServerConfig =
   { port: UInt.fromInt 1337
   , host: "localhost"
   , secure: false

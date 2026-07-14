@@ -56,7 +56,7 @@ import Ctl.Internal.ServerConfig
   , blockfrostPublicPreviewServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
-  , defaultOgmiosWsConfig
+  , defaultOgmiosServerConfig
   )
 import Ctl.Internal.Wallet.Spec
   ( Cip1852DerivationPath
@@ -77,7 +77,7 @@ import Data.Time.Duration (Milliseconds(Milliseconds), Seconds(Seconds))
 testnetConfig :: ContractParams
 testnetConfig =
   { backendParams: mkCtlBackendParams
-      { ogmiosConfig: defaultOgmiosWsConfig
+      { ogmiosConfig: defaultOgmiosServerConfig
       , kupoConfig: defaultKupoServerConfig
       }
   , networkId: TestnetId

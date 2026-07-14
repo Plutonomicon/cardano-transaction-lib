@@ -15,7 +15,7 @@ import Contract.Config
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
   , defaultKupoServerConfig
-  , defaultOgmiosWsConfig
+  , defaultOgmiosServerConfig
   , mkCtlBackendParams
   , testnetConfig
   )
@@ -65,7 +65,7 @@ main =
       --      }
       { backendParams =
           mkCtlBackendParams
-            { ogmiosConfig: defaultOgmiosWsConfig
+            { ogmiosConfig: defaultOgmiosServerConfig
             , kupoConfig:
                 defaultKupoServerConfig
                   { port = UInt.fromInt 1442, path = Nothing }
