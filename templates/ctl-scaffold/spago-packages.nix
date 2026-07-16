@@ -211,11 +211,11 @@ let
 
     "cardano-blockfrost-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-blockfrost-provider";
-        version = "v2.2.0";
+        version = "v2.3.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider";
-          rev = "e8252b45adb34b3d805e5a2b9a8193db40246dea";
-          sha256 = "0wmrjx15hxmqyxaiczmiwnwldy0k87mvpyfxap191r5c66b13w45";
+          rev = "66bc38c663c42a84e257f1ffb6d1d0e851bc170a";
+          sha256 = "00h641ila1gizqnfc3yl9syv7mrrmylva2wfdk63lyc5mahzjd6r";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -355,11 +355,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "4366901f868873fecbc22d3642d1065753664913";
+        version = "6af3ae21326d0e04d3f56e2b98e7576e79dd820d";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "4366901f868873fecbc22d3642d1065753664913";
-          sha256 = "0ff451sgdysql42js53nn0fbljsbd4q9zfkcygmad0fk23zrjd6c";
+          rev = "6af3ae21326d0e04d3f56e2b98e7576e79dd820d";
+          sha256 = "047p4nhma5a3xv0cwi88b4d4kprsnx29hrq2ypdqr83r2aqds4nc";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -816,6 +816,18 @@ let
           url = "https://github.com/purescript/purescript-identity.git";
           rev = "ef6768f8a52ab0bc943a85f5761ba07c257f639f";
           sha256 = "1lh0pkwwdyd8q9bgf4l1m96gdnardki4r2s359cnhrwp94b43fyr";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
+    "int64" = pkgs.stdenv.mkDerivation {
+        name = "int64";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-int64.git";
+          rev = "2e45bede3de11f30226c64d851ff5a8e922636f9";
+          sha256 = "1xcj4n18vl7aw6nv7b0s0aad2hqkmps91x5nybjinj8bvp95mgyv";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
