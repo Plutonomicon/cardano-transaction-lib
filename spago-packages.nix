@@ -211,11 +211,11 @@ let
 
     "cardano-blockfrost-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-blockfrost-provider";
-        version = "7ecf6b4facc7a3e1ff6cec7f83051fe5b1808d26";
+        version = "v2.3.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider";
-          rev = "7ecf6b4facc7a3e1ff6cec7f83051fe5b1808d26";
-          sha256 = "0y72msspydg739qdcq17a9l2fah2src203620w7n113v8chgkzvm";
+          rev = "66bc38c663c42a84e257f1ffb6d1d0e851bc170a";
+          sha256 = "00h641ila1gizqnfc3yl9syv7mrrmylva2wfdk63lyc5mahzjd6r";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

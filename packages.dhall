@@ -13,8 +13,8 @@ let additions =
           , "bifunctors"
           , "bignumber"
           , "bytearrays"
-          , "cardano-provider"
           , "cardano-data-lite"
+          , "cardano-provider"
           , "cardano-types"
           , "datetime"
           , "effect"
@@ -40,7 +40,7 @@ let additions =
           , "uint"
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider"
-        , version = "7ecf6b4facc7a3e1ff6cec7f83051fe5b1808d26"
+        , version = "v2.3.0"
         }
       }
 
