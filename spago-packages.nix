@@ -809,6 +809,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "int64" = pkgs.stdenv.mkDerivation {
+        name = "int64";
+        version = "v3.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/purescript-contrib/purescript-int64.git";
+          rev = "2e45bede3de11f30226c64d851ff5a8e922636f9";
+          sha256 = "1xcj4n18vl7aw6nv7b0s0aad2hqkmps91x5nybjinj8bvp95mgyv";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "integers" = pkgs.stdenv.mkDerivation {
         name = "integers";
         version = "v6.0.0";
