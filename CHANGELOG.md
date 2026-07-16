@@ -93,6 +93,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 ### Added
 
 - `privateDrepKeyFromFile`, `privateDrepKeyFromTextEnvelope`, and `privateDrepKeyToFile` functions ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `pparams` field to `TestnetClusterConfig` ([#1688](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1688))
+  - Protocol parameters are now passed to cardano-testnet explicitly instead of relying on its implicit defaults, improving test reproducibility and transparency.
+- `testnetConfigWithMaxExUnits`, `defaultTestnetClusterConfig`, and `defaultTestnetProtocolParameters` functions to `Contract.Test.Testnet` ([#1688](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1688))
+  - `defaultTestnetProtocolParameters` provides the pinned default values.
+  - Individual parameters (max ex units, max tx size, and others) can be overridden per test via a record update on `pparams`.
+  - `testnetConfigWithMaxExUnits` is provided as a ready-made configuration for tests that need relaxed execution unit limits.
 
 ### Changed
 
