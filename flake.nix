@@ -10,11 +10,9 @@
   inputs = {
     nixpkgs.follows = "db-sync/nixpkgs";
 
-    cardano-nix.url = "github:mlabs-haskell/cardano.nix";
+    cardano-nix.url = "github:mlabs-haskell/cardano.nix/dshuiski/kupo";
+    cardano-node.follows = "cardano-nix/cardano-node";
     blockfrost.follows = "cardano-nix/blockfrost";
-    # cardano-node.follows = "cardano-nix/cardano-node";
-    cardano-node.url = "github:IntersectMBO/cardano-node/11.0.1";
-    cardano-nix.inputs.cardano-node.follows = "cardano-node";
     db-sync.url = "github:intersectmbo/cardano-db-sync/13.6.0.5";
     hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
 
@@ -26,13 +24,13 @@
     # Repository with network parameters
     # NOTE(bladyjoker): Cardano configurations (yaml/json) often change format and break, that's why we pin to a specific known version.
     cardano-configurations = {
-      url = "github:cardano-foundation/cardano-configurations?rev=8c14a74902cc395a7a2408ab9497230e12665d68";
+      url = "github:cardano-foundation/cardano-configurations?rev=4a9b69103507b124679fcb185eeabd4dc15e9c75";
       flake = false;
     };
 
     # Get Ogmios test fixtures
     ogmios = {
-      url = "github:CardanoSolutions/ogmios/v6.13.0";
+      url = "github:CardanoSolutions/ogmios/v7.0.0";
       flake = false;
     };
 

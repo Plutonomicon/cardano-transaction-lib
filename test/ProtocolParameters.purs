@@ -28,19 +28,19 @@ import Test.Spec.Runner (defaultConfig)
 
 blockfrostPreprodFixture :: String
 blockfrostPreprodFixture =
-  "blockfrost/getProtocolParameters-preprod/getProtocolParameters-preprod-777ccf0382d07f157254394b89a2bfb1.json"
+  "blockfrost/getProtocolParameters-preprod/getProtocolParameters-preprod-69e4f7fdd8b088e4de653fc6f2a57587.json"
 
 blockfrostPreviewFixture :: String
 blockfrostPreviewFixture =
-  "blockfrost/getProtocolParameters-preview/getProtocolParameters-preview-5eb5597b71674414383b4adcf5ba1045.json"
+  "blockfrost/getProtocolParameters-preview/getProtocolParameters-preview-5bc80dc21804f41760e0620f964f5b45.json"
 
 ogmiosPreprodFixture :: String
 ogmiosPreprodFixture =
-  "ogmios/queryLedgerState-protocolParameters-preprod-aba1f2da221ecf7bf6e002ddd026fb9a.json"
+  "ogmios/queryLedgerState-protocolParameters-preprod-b1f489b5d2c4a04f8513dd9b8718cd3f.json"
 
 ogmiosPreviewFixture :: String
 ogmiosPreviewFixture =
-  "ogmios/queryLedgerState-protocolParameters-preview-2467cdc2c839aae9535e26724ac1f592.json"
+  "ogmios/queryLedgerState-protocolParameters-preview-b56479534c05c935ed0018ddd188c714.json"
 
 loadFixture :: forall (a :: Type). DecodeAeson a => String -> Aff a
 loadFixture fixture =

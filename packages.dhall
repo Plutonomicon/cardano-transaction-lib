@@ -42,6 +42,52 @@ let additions =
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider"
         , version = "v2.3.0"
         }
+      , cardano-kupmios-provider =
+        { dependencies =
+          [ "aeson"
+          , "aff"
+          , "affjax"
+          , "arrays"
+          , "bifunctors"
+          , "bytearrays"
+          , "cardano-provider"
+          , "cardano-data-lite"
+          , "cardano-types"
+          , "concurrent-queues"
+          , "console"
+          , "control"
+          , "datetime"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "foldable-traversable"
+          , "foreign-object"
+          , "formatters"
+          , "http-methods"
+          , "integers"
+          , "js-bigints"
+          , "js-date"
+          , "maybe"
+          , "monad-logger"
+          , "newtype"
+          , "ordered-collections"
+          , "parallel"
+          , "partial"
+          , "prelude"
+          , "profunctor-lenses"
+          , "record"
+          , "strings"
+          , "stringutils"
+          , "tailrec"
+          , "transformers"
+          , "tuples"
+          , "uint"
+          , "untagged-union"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider"
+        , version = "942af07184e7c03513ad04052209d530bc0ad880"
+        }
       }
 
 in (upstream // additions)
