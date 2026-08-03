@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "v3.0.0";
+        version = "942af07184e7c03513ad04052209d530bc0ad880";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "89a2a5ff52cebc72365a1aab570d6840acacac00";
-          sha256 = "1jc6yjrh8fjax40s8kd3n7ppz28yr5hdlm1r7yx3bffqil6xnq6n";
+          rev = "942af07184e7c03513ad04052209d530bc0ad880";
+          sha256 = "1x3q24w17dw659kkiqny197qgknsn7mfrcwgifq7ic6pawxvd9vr";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -355,11 +355,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "6af3ae21326d0e04d3f56e2b98e7576e79dd820d";
+        version = "b5b321d88e7050a6db52300238fc33dccb0b871c";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "6af3ae21326d0e04d3f56e2b98e7576e79dd820d";
-          sha256 = "047p4nhma5a3xv0cwi88b4d4kprsnx29hrq2ypdqr83r2aqds4nc";
+          rev = "b5b321d88e7050a6db52300238fc33dccb0b871c";
+          sha256 = "1r8bm44xzjbcgg8r9b1d1005p7ijs07dlq56b0am4x19s14iqwn9";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
