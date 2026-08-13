@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "942af07184e7c03513ad04052209d530bc0ad880";
+        version = "v3.1.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "942af07184e7c03513ad04052209d530bc0ad880";
-          sha256 = "1x3q24w17dw659kkiqny197qgknsn7mfrcwgifq7ic6pawxvd9vr";
+          rev = "017b34374dd778dcdda7a3cc8d3c69c5a9abe914";
+          sha256 = "0s5l9vpnzp6xl6zq7bnn2x0gk785ln74nr0253vgssqgf6i0acy3";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -355,11 +355,11 @@ let
 
     "cardano-transaction-lib" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-lib";
-        version = "b5b321d88e7050a6db52300238fc33dccb0b871c";
+        version = "3cb966d60af7be108117e6e3e89f263c65d29bf3";
         src = pkgs.fetchgit {
           url = "https://github.com/Plutonomicon/cardano-transaction-lib.git";
-          rev = "b5b321d88e7050a6db52300238fc33dccb0b871c";
-          sha256 = "1r8bm44xzjbcgg8r9b1d1005p7ijs07dlq56b0am4x19s14iqwn9";
+          rev = "3cb966d60af7be108117e6e3e89f263c65d29bf3";
+          sha256 = "0yc2k2ss9lny06ykpny5k3cg5bi1zs61ki08v343lr9k53rykq4h";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -403,11 +403,11 @@ let
 
     "cip30" = pkgs.stdenv.mkDerivation {
         name = "cip30";
-        version = "v1.0.1";
+        version = "23d72a375017374bb67b44d56aa2c0be81218ff8";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cip30";
-          rev = "8de9bbcc6728237e3aec418c2c88bfcb519fc176";
-          sha256 = "18ms7kyd98zmimvnjyixxhqrw5d68cpi3ya351hy2p4r7mmf7vy7";
+          rev = "23d72a375017374bb67b44d56aa2c0be81218ff8";
+          sha256 = "0qiaakzm4ddv7qcbkwfljzn1c85qag39y7rdvjr8k4r20zx13wh5";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
