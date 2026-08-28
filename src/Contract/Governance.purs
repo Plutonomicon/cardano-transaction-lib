@@ -1,12 +1,13 @@
 module Contract.Governance
   ( queryProposalById
+  , queryRegisteredDrepInfo
   , queryVotesOnProposal
   ) where
 
 import Prelude
 
-import Cardano.Provider (Proposal, VoteOnProposal) as Provider
-import Cardano.Types (GovernanceActionId)
+import Cardano.Provider (DrepInfo, Proposal, VoteOnProposal) as Provider
+import Cardano.Types (Credential, GovernanceActionId)
 import Contract.Monad (Contract, liftedE)
 import Ctl.Internal.Contract.Monad (getProvider)
 import Data.Maybe (Maybe)
@@ -23,3 +24,8 @@ queryVotesOnProposal
 queryVotesOnProposal proposalRef = do
   provider <- getProvider
   liftedE $ liftAff $ provider.getVotesOnProposal proposalRef
+
+queryRegisteredDrepInfo :: Credential -> Contract (Maybe Provider.DrepInfo)
+queryRegisteredDrepInfo drepCred = do
+  provider <- getProvider
+  liftedE $ liftAff $ provider.getRegisteredDrepInfo drepCred

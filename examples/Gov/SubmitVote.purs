@@ -7,10 +7,15 @@ module Ctl.Examples.Gov.SubmitVote
 import Contract.Prelude
 
 import Cardano.Transaction.Builder
-  ( TransactionBuilderStep(SubmitProposal, SubmitVotingProcedure)
+  ( TransactionBuilderStep
+      ( IssueCertificate
+      , SubmitProposal
+      , SubmitVotingProcedure
+      )
   )
 import Cardano.Types
-  ( Credential(PubKeyHashCredential)
+  ( Certificate(RegDrepCert, StakeRegistration)
+  , Credential(PubKeyHashCredential)
   , GovernanceActionId
   , Vote(VoteYes)
   , Voter(Drep)
@@ -18,6 +23,7 @@ import Cardano.Types
   , VotingProposal(VotingProposal)
   )
 import Cardano.Types (GovernanceAction(Info)) as GovAction
+import Cardano.Types.PublicKey (hash) as PublicKey
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -25,6 +31,7 @@ import Contract.Config
   , testnetConfig
   , walletName
   )
+import Contract.Governance (queryRegisteredDrepInfo)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, liftedM, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
@@ -34,10 +41,13 @@ import Contract.Transaction
   , emptyBalancerCtx
   , submitTxFromBlueprint
   )
-import Contract.Wallet (getRewardAddresses, ownDrepPubKeyHash)
+import Contract.Wallet
+  ( getRewardAddresses
+  , ownDrepPubKeyHash
+  , ownUnregisteredPubStakeKeys
+  )
 import Ctl.Examples.Gov.Internal.Common (asRewardAddress, dummyAnchor)
-import Ctl.Examples.Gov.ManageDrep (ContractPath(RegDrep), contractStep) as ManageDrep
-import Data.Array (head) as Array
+import Data.Array (head, singleton) as Array
 import Data.Map (singleton) as Map
 
 main :: Effect Unit
@@ -52,7 +62,6 @@ example = launchAff_ <<< flip runContract contract
 contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Gov.SubmitVote"
-  void $ ManageDrep.contractStep ManageDrep.RegDrep
   govActionId <- submitProposal
   logInfo' $ "Successfully submitted voting proposal. Action id: " <> show
     govActionId
@@ -61,23 +70,34 @@ contract = do
 
 submitProposal :: Contract GovernanceActionId
 submitProposal = do
+  pubStakeKey <- Array.head <$> ownUnregisteredPubStakeKeys
+  let
+    stakeCred =
+      wrap <<< PubKeyHashCredential <<< PublicKey.hash <$>
+        pubStakeKey
   govActionDeposit <- _.govActionDeposit <<< unwrap <$> getProtocolParameters
   rewardAddr <- liftedM "Could not get reward address" $
     map (asRewardAddress <=< Array.head)
       getRewardAddresses
-
+  let
+    registerStakeAddress =
+      maybe
+        mempty
+        (\x -> Array.singleton $ IssueCertificate (StakeRegistration x) Nothing)
+        stakeCred
   { txHash } <- submitTxFromBlueprint
     { buildSteps:
-        [ SubmitProposal
-            ( VotingProposal
-                { govAction: GovAction.Info
-                , anchor: dummyAnchor
-                , deposit: unwrap govActionDeposit
-                , returnAddr: rewardAddr
-                }
-            )
-            Nothing
-        ]
+        registerStakeAddress <>
+          [ SubmitProposal
+              ( VotingProposal
+                  { govAction: GovAction.Info
+                  , anchor: dummyAnchor
+                  , deposit: unwrap govActionDeposit
+                  , returnAddr: rewardAddr
+                  }
+              )
+              Nothing
+          ]
     , balancer: defaultBalancer
     , balancerCtx: emptyBalancerCtx
     }
@@ -87,15 +107,26 @@ submitProposal = do
 submitVote :: GovernanceActionId -> Contract Unit
 submitVote govActionId = do
   drepCred <- PubKeyHashCredential <$> ownDrepPubKeyHash
-
+  drepInfo <- queryRegisteredDrepInfo drepCred
+  drepDeposit <- _.drepDeposit <<< unwrap <$> getProtocolParameters
+  let
+    registerDrep =
+      maybe
+        ( Array.singleton $ IssueCertificate
+            (RegDrepCert drepCred drepDeposit Nothing)
+            Nothing
+        )
+        (const mempty)
+        drepInfo
   { txHash } <- submitTxFromBlueprint
     { buildSteps:
-        [ SubmitVotingProcedure (Drep drepCred)
-            ( Map.singleton govActionId $
-                VotingProcedure { vote: VoteYes, anchor: Nothing }
-            )
-            Nothing
-        ]
+        registerDrep <>
+          [ SubmitVotingProcedure (Drep drepCred)
+              ( Map.singleton govActionId $
+                  VotingProcedure { vote: VoteYes, anchor: Nothing }
+              )
+              Nothing
+          ]
     , balancer: defaultBalancer
     , balancerCtx: emptyBalancerCtx
     }

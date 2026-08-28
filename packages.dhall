@@ -117,7 +117,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider"
-        , version = "c03df0dc75d25b5bd6936c257f4089e623fa8fac"
+        , version = "66135ec1a103a1c43d51f7bc6bc1264359afc41c"
         }
       , cardano-types =
         { dependencies =

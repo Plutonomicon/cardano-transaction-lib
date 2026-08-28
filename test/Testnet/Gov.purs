@@ -68,9 +68,6 @@ walletSpec = wrap
   , withDrepKey: true
   }
 
--- FIXME: Gov.SubmitVote and Gov.SubmitVoteScript tests are not self-contained:
--- they submit proposals without first registering the stake key used as
--- returnAddr, so they rely on it being already registered on-chain.
 suite :: TestPlanM ContractTest Unit
 suite = do
   group "Governance" do
