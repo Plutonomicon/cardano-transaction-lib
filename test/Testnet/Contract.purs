@@ -2079,8 +2079,8 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Just privateDrepKey
+          , withStakeKey: true
+          , withDrepKey: true
           }
       withWallets walletSpec \alice ->
         withCip30Mock alice (walletName Eternl) $
@@ -2095,8 +2095,8 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Just privateDrepKey
+          , withStakeKey: true
+          , withDrepKey: true
           }
       withWallets walletSpec \alice ->
         withCip30Mock alice (walletName Eternl) $
@@ -2111,8 +2111,8 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Nothing
+          , withStakeKey: true
+          , withDrepKey: false
           }
       withWallets walletSpec \alice ->
         withCip30Mock alice (walletName Eternl) $
@@ -2126,8 +2126,8 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Nothing
+          , withStakeKey: true
+          , withDrepKey: false
           }
       withWallets walletSpec \alice ->
         withCip30Mock alice (walletName Eternl) $
@@ -2142,8 +2142,8 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Just privateDrepKey
+          , withStakeKey: true
+          , withDrepKey: true
           }
       withWallets walletSpec \alice ->
         withCip30Mock alice (walletName Eternl) do

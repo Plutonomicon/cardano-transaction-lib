@@ -1,3 +1,4 @@
+-- TODO: Consider removing this module
 module Test.Ctl.Testnet.Common
   ( privateDrepKey
   , privateStakeKey

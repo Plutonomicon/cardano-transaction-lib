@@ -52,11 +52,10 @@ import Ctl.Examples.Gov.SubmitVoteScript (contract) as Gov.SubmitVoteScript
 import Ctl.Internal.Test.UtxoDistribution (TestWalletSpec)
 import Data.Array (concat, find, head) as Array
 import Data.Map (singleton) as Map
-import Data.Maybe (Maybe(Just, Nothing), maybe)
+import Data.Maybe (Maybe(Nothing), maybe)
 import Data.Newtype (unwrap, wrap)
 import Effect.Exception (error)
 import Mote (group, test)
-import Test.Ctl.Testnet.Common (privateDrepKey, privateStakeKey)
 import Test.Spec.Assertions (shouldEqual)
 
 walletSpec :: TestWalletSpec
@@ -65,8 +64,8 @@ walletSpec = wrap
       [ BigNum.fromInt 1_000_000_000
       , BigNum.fromInt 50_000_000
       ]
-  , stakeKey: Just privateStakeKey
-  , drepKey: Just privateDrepKey
+  , withStakeKey: true
+  , withDrepKey: true
   }
 
 -- FIXME: Gov.SubmitVote and Gov.SubmitVoteScript tests are not self-contained:
