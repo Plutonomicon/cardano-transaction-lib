@@ -70,7 +70,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider"
-        , version = "1f4682b629207b4af641aa5abb2242eb0c416b67"
+        , version = "a31f4f8baca2e91c98506708d6eb4b156b3127e0"
         }
       , cardano-kupmios-provider =
         { dependencies =
@@ -117,7 +117,57 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider"
-        , version = "aede2b484d76e335dd1bfcf76acc116be94cdd12"
+        , version = "c03df0dc75d25b5bd6936c257f4089e623fa8fac"
+        }
+      , cardano-types =
+        { dependencies =
+          [ "aeson"
+          , "aff"
+          , "arraybuffer-types"
+          , "arrays"
+          , "bifunctors"
+          , "bytearrays"
+          , "cardano-plutus-data-schema"
+          , "cardano-data-lite"
+          , "control"
+          , "datetime"
+          , "effect"
+          , "either"
+          , "encoding"
+          , "exceptions"
+          , "foldable-traversable"
+          , "foreign-object"
+          , "integers"
+          , "js-bigints"
+          , "lattice"
+          , "lists"
+          , "literals"
+          , "maybe"
+          , "monad-logger"
+          , "mote"
+          , "mote-testplan"
+          , "newtype"
+          , "nonempty"
+          , "nullable"
+          , "ordered-collections"
+          , "partial"
+          , "prelude"
+          , "profunctor"
+          , "profunctor-lenses"
+          , "quickcheck"
+          , "rationals"
+          , "record"
+          , "safe-coerce"
+          , "spec"
+          , "these"
+          , "tuples"
+          , "typelevel-prelude"
+          , "uint"
+          , "unfoldable"
+          , "unsafe-coerce"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cardano-types.git"
+        , version = "27e07553aaf2ec0d7b58a83623171fa9c8c292c7"
         }
       }
 
