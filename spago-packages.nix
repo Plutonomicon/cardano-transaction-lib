@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "v3.0.0";
+        version = "v3.1.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "89a2a5ff52cebc72365a1aab570d6840acacac00";
-          sha256 = "1jc6yjrh8fjax40s8kd3n7ppz28yr5hdlm1r7yx3bffqil6xnq6n";
+          rev = "017b34374dd778dcdda7a3cc8d3c69c5a9abe914";
+          sha256 = "0s5l9vpnzp6xl6zq7bnn2x0gk785ln74nr0253vgssqgf6i0acy3";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -391,11 +391,11 @@ let
 
     "cip30" = pkgs.stdenv.mkDerivation {
         name = "cip30";
-        version = "v1.0.1";
+        version = "23d72a375017374bb67b44d56aa2c0be81218ff8";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cip30";
-          rev = "8de9bbcc6728237e3aec418c2c88bfcb519fc176";
-          sha256 = "18ms7kyd98zmimvnjyixxhqrw5d68cpi3ya351hy2p4r7mmf7vy7";
+          rev = "23d72a375017374bb67b44d56aa2c0be81218ff8";
+          sha256 = "0qiaakzm4ddv7qcbkwfljzn1c85qag39y7rdvjr8k4r20zx13wh5";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

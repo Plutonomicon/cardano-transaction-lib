@@ -1,7 +1,7 @@
 let upstream =
     -- https://github.com/mlabs-haskell/purescript-cardano-package-set
-      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v4.1.0/packages.dhall
-        sha256:f8d7c3ff5aea758f64cd0876e5be3f8b778b447579b615f143c4043744bd5e37
+      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v4.2.0/packages.dhall
+        sha256:03c0bc2f30b7c1bf4dd01d5a94515223fc755d0269e30780523ac67bc19ffa00
 
 let additions =
       { cardano-transaction-lib =
@@ -114,45 +114,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "6af3ae21326d0e04d3f56e2b98e7576e79dd820d"
-        }
-      , cardano-blockfrost-provider =
-        { dependencies =
-          [ "aeson"
-          , "aff"
-          , "affjax"
-          , "arrays"
-          , "bifunctors"
-          , "bignumber"
-          , "bytearrays"
-          , "cardano-data-lite"
-          , "cardano-provider"
-          , "cardano-types"
-          , "datetime"
-          , "effect"
-          , "either"
-          , "exceptions"
-          , "foldable-traversable"
-          , "foreign-object"
-          , "http-methods"
-          , "js-bigints"
-          , "js-date"
-          , "maybe"
-          , "media-types"
-          , "monad-logger"
-          , "newtype"
-          , "numbers"
-          , "ordered-collections"
-          , "parallel"
-          , "partial"
-          , "prelude"
-          , "strings"
-          , "transformers"
-          , "tuples"
-          , "uint"
-          ]
-        , repo = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider"
-        , version = "v2.3.0"
+        , version = "3cb966d60af7be108117e6e3e89f263c65d29bf3"
         }
       }
 

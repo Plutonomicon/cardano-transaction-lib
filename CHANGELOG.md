@@ -136,6 +136,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - CTL is now compatible with the van Rossem hard fork ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 - `defaultOgmiosWsConfig` has been renamed to `defaultOgmiosServerConfig` ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 - `mkKeyWalletFromFiles` now accepts an optional DRep key file ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- Updated runtime dependencies ([#1689](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1689))
+  - Kupo: v2.11.0 -> v2.12.0
+  - Ogmios: v6.14.0 -> v7.0.0
+  - Blockfrost Backend RYO: v6.4.0 -> v6.7.0
 
 ### Removed
 
