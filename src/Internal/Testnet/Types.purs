@@ -11,6 +11,7 @@ module Ctl.Internal.Testnet.Types
 
 import Contract.Prelude
 
+import Cardano.Blockfrost (BlockfrostProtocolParametersRaw)
 import Contract.Config as Config
 import Ctl.Internal.Contract.Hooks (Hooks)
 import Ctl.Internal.ServerConfig (ServerConfig)
@@ -34,8 +35,7 @@ type TestnetClusterConfig =
   { testnetMagic :: Int
   , slotLength :: Seconds
   , epochSize :: Maybe UInt
-  -- FIXME: , maxTxSize :: Maybe UInt
-  -- FIXME: , raiseExUnitsToMax :: Boolean
+  , pparams :: BlockfrostProtocolParametersRaw
   }
 
 type TestnetRuntime =

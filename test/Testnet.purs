@@ -9,6 +9,7 @@ import Contract.Test.Testnet
   ( defaultTestnetConfig
   , runTestnetTestPlan
   , testTestnetContracts
+  , testnetConfigWithMaxExUnits
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapKupmiosM)
@@ -47,8 +48,9 @@ main = interruptOnSignal SIGINT =<< launchAff do
           group "ExUnits - normal limits" do
             testTestnetContracts config $ ExUnits.mkFailingSuite 8000
             testTestnetContracts config $ ExUnits.mkSuite 2550
-          -- FIXME: group "ExUnits - relaxed limits" do
-          --   testTestnetContracts configWithMaxExUnits $ ExUnits.mkSuite 3000
+          group "ExUnits - relaxed limits" do
+            testTestnetContracts testnetConfigWithMaxExUnits $ ExUnits.mkSuite
+              10_000
           testTestnetContracts config Assert.suite
           Logging.suite
           testTestnetContracts config $ do

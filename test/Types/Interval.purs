@@ -66,9 +66,8 @@ suite = do
       test "Hull" $ liftToTest testHull
       test "Intersection" $ liftToTest testIntersection
 
-loadOgmiosFixture
-  :: forall (a :: Type). DecodeAeson a => String -> String -> Effect a
-loadOgmiosFixture query hash = do
+loadOgmiosFixture :: forall (a :: Type). DecodeAeson a => String -> Effect a
+loadOgmiosFixture name = do
   contents <- readTextFile UTF8 path
   liftEither $ lmap
     (error <<< ((path <> "\n  ") <> _) <<< printJsonDecodeError)
@@ -76,7 +75,7 @@ loadOgmiosFixture query hash = do
   where
   path :: String
   path = Path.concat
-    [ "fixtures", "test", "ogmios", query <> "-" <> hash <> ".json" ]
+    [ "fixtures", "test", "ogmios", name <> ".json" ]
 
 -- To update the eraSummaries and systemStart fixtures, run
 -- `spago run --main Test.Ogmios.GenerateFixtures`
@@ -86,15 +85,13 @@ loadOgmiosFixture query hash = do
 eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
   { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
-    "queryLedgerState-eraSummaries"
-    "bee9da7cfae1d597a7708d5333b7693a"
+    "queryLedgerState-eraSummaries-preview-ec960dd7c15ce2bc444a24b52d356109"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart
 systemStartFixture = do
   { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture
-    "queryNetwork-startTime"
-    "7a69fc36c65959ecea462df634c0dcf6"
+    "queryNetwork-startTime-preview-1d8812f4ca23df314ac8b365d85a950b"
   pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit

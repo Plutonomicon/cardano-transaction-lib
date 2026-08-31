@@ -18,6 +18,7 @@ import Cardano.Wallet.Key
   , getPrivatePaymentKey
   , getPrivateStakeKey
   )
+import Contract.Test.Testnet (defaultTestnetProtocolParameters)
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (liftMaybe)
 import Control.Promise (Promise, toAffE)
@@ -213,6 +214,7 @@ buildLocalTestnetConfig options =
       { testnetMagic: 2
       , slotLength: Seconds 0.05
       , epochSize: Nothing
+      , pparams: defaultTestnetProtocolParameters
       }
   }
 

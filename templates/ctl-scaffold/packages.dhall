@@ -1,7 +1,7 @@
 let upstream =
     -- https://github.com/mlabs-haskell/purescript-cardano-package-set
-      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v4.1.0/packages.dhall
-        sha256:f8d7c3ff5aea758f64cd0876e5be3f8b778b447579b615f143c4043744bd5e37
+      https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v4.2.0/packages.dhall
+        sha256:03c0bc2f30b7c1bf4dd01d5a94515223fc755d0269e30780523ac67bc19ffa00
 
 let additions =
       { cardano-transaction-lib =
@@ -17,6 +17,7 @@ let additions =
           , "arrays"
           , "avar"
           , "bifunctors"
+          , "bignumber"
           , "bytearrays"
           , "cardano-blockfrost-provider"
           , "cardano-data-lite"
@@ -51,6 +52,7 @@ let additions =
           , "functions"
           , "http-methods"
           , "identity"
+          , "int64"
           , "integers"
           , "js-bigints"
           , "js-date"
@@ -112,7 +114,7 @@ let additions =
           , "web-storage"
           ]
         , repo = "https://github.com/Plutonomicon/cardano-transaction-lib.git"
-        , version = "4366901f868873fecbc22d3642d1065753664913"
+        , version = "3cb966d60af7be108117e6e3e89f263c65d29bf3"
         }
       }
 
