@@ -70,7 +70,7 @@ let additions =
           ]
         , repo =
             "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider"
-        , version = "a31f4f8baca2e91c98506708d6eb4b156b3127e0"
+        , version = "e0cb1053bc19c50b8b4b6c4f57694f664500d44b"
         }
       , cardano-kupmios-provider =
         { dependencies =

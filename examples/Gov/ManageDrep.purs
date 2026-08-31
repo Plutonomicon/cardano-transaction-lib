@@ -22,6 +22,7 @@ import Contract.Config
   , testnetConfig
   , walletName
   )
+import Contract.Governance (queryRegisteredDrepInfo)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
@@ -32,11 +33,9 @@ import Contract.Transaction
   , submitTxFromBlueprint
   )
 import Contract.Wallet (ownDrepPubKeyHash)
-import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
-import Data.String (Pattern(Pattern))
-import Data.String (contains) as String
-import Effect.Exception (message)
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -66,10 +65,18 @@ contractStep :: ContractPath -> Contract Ed25519KeyHash
 contractStep path = do
   drepPkh <- ownDrepPubKeyHash
   let drepCred = PubKeyHashCredential drepPkh
-  drepDeposit <- _.drepDeposit <<< unwrap <$> getProtocolParameters
-
-  let
-    submitTx = do
+  drepInfo <- queryRegisteredDrepInfo drepCred
+  case drepInfo, path of
+    Just _, RegDrep ->
+      logInfo' "DRep already registered. Skipping registration contract."
+    _, _ -> do
+      drepDeposit <-
+        case path of
+          RegDrep ->
+            _.drepDeposit <<< unwrap <$> getProtocolParameters
+          _ ->
+            liftMaybe (error "Could not get DRep info")
+              (_.deposit <$> drepInfo)
       { txHash } <- submitTxFromBlueprint
         { buildSteps:
             [ IssueCertificate
@@ -87,10 +94,4 @@ contractStep path = do
         , balancerCtx: emptyBalancerCtx
         }
       awaitTxConfirmed txHash
-
-  submitTx `catchError` \err ->
-    unless
-      (String.contains (Pattern "knownDelegateRepresentative") $ message err)
-      (throwError err)
-
   pure drepPkh

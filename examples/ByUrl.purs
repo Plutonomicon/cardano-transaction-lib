@@ -23,6 +23,11 @@ import Ctl.Examples.Cip30 as Cip30
 import Ctl.Examples.Datums as Datums
 import Ctl.Examples.DropTokens as DropTokens
 import Ctl.Examples.ECDSA as ECDSA
+import Ctl.Examples.Gov.DelegateVoteAbstain (contract) as Gov.DelegateVoteAbstain
+import Ctl.Examples.Gov.ManageDrep (contract) as Gov.ManageDrep
+import Ctl.Examples.Gov.ManageDrepScript (contract) as Gov.ManageDrepScript
+import Ctl.Examples.Gov.SubmitVote (contract) as Gov.SubmitVote
+import Ctl.Examples.Gov.SubmitVoteScript (contract) as Gov.SubmitVoteScript
 import Ctl.Examples.IncludeDatum (contract) as IncludeDatum
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
@@ -58,7 +63,7 @@ main = do
   mbApiKey <- getBlockfrostApiKey
   let
     connectTo wallet =
-      Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName wallet) { cip95: true }
     walletsWithBlockfrost =
       wallets `Map.union`
         if isNothing mbApiKey then Map.empty
@@ -193,6 +198,11 @@ examples = addSuccessLog <$> Map.fromFoldable
   , "ChangeGeneration1-3" /\
       ChangeGeneration.checkChangeOutputsDistribution 1 3 7
   , "IncludeDatum" /\ IncludeDatum.contract
+  , "Gov.DelegateVoteAbstain" /\ Gov.DelegateVoteAbstain.contract
+  , "Gov.ManageDrep" /\ Gov.ManageDrep.contract
+  , "Gov.ManageDrepScript" /\ Gov.ManageDrepScript.contract
+  , "Gov.SubmitVote" /\ Gov.SubmitVote.contract
+  , "Gov.SubmitVoteScript" /\ Gov.SubmitVoteScript.contract
   ]
 
 addSuccessLog :: Contract Unit -> Contract Unit
