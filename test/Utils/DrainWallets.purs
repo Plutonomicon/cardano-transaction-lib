@@ -5,7 +5,7 @@ import Prelude
 import Contract.Config
   ( PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
-  , defaultOgmiosWsConfig
+  , defaultOgmiosServerConfig
   , mkCtlBackendParams
   , testnetConfig
   )
@@ -138,7 +138,7 @@ run privateKey walletsDir = runContract config do
           Nothing
           Nothing
       , backendParams = mkCtlBackendParams
-          { ogmiosConfig: defaultOgmiosWsConfig
+          { ogmiosConfig: defaultOgmiosServerConfig
           , kupoConfig:
               { port: UInt.fromInt 1442
               , host: "localhost"

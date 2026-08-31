@@ -10,6 +10,7 @@ module Ctl.Internal.Testnet.Server
 
 import Contract.Prelude hiding (log)
 
+import Aeson (encodeAeson, stringifyAeson)
 import Cardano.Types (NetworkId(TestnetId))
 import Cardano.Types.BigNum (maxValue, toString) as BigNum
 import Contract.Config (Hooks, defaultSynchronizationParams, defaultTimeParams)
@@ -25,7 +26,7 @@ import Ctl.Internal.Contract.Monad
   , stopContractEnv
   )
 import Ctl.Internal.Contract.ProviderBackend (mkCtlBackendParams)
-import Ctl.Internal.Helpers (concatPaths, (<</>>))
+import Ctl.Internal.Helpers ((<</>>))
 import Ctl.Internal.Logging (Logger, mkLogger, setupLogs)
 import Ctl.Internal.ServerConfig (ServerConfig)
 import Ctl.Internal.Spawn
@@ -63,7 +64,6 @@ import Ctl.Internal.Testnet.Utils
   , waitUntil
   )
 import Ctl.Internal.Types.UsedTxOuts (newUsedTxOuts)
-import Data.Array (head) as Array
 import Data.Log.Message (Message)
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Set as Set
@@ -89,10 +89,11 @@ import Effect.Exception (Error, error, throw)
 import Effect.Ref (Ref)
 import Effect.Ref (modify_, new) as Ref
 import Foreign.Object as Object
-import Node.ChildProcess (defaultSpawnOptions, stdout)
+import Node.ChildProcess (defaultSpawnOptions, stderr)
 import Node.ChildProcess as Node.ChildProcess
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Sync (readdir) as FSSync
+import Node.FS.Aff (writeTextFile)
+import Node.FS.Sync (exists) as FSSync
 import Node.FS.Sync as Node.FS
 import Node.Path (FilePath)
 import Node.Process as Node.Process
@@ -276,6 +277,9 @@ startTestnetCluster cfg cleanupRef logger = do
 -- | Spawns cardano-testnet process with provided parameters.
 spawnCardanoTestnet :: FilePath -> TestnetClusterConfig -> Aff ManagedProcess
 spawnCardanoTestnet workdir params = do
+  let pparamsFilePath = workdir <</>> "pparams.json"
+  writeTextFile UTF8 pparamsFilePath $ stringifyAeson $ encodeAeson
+    params.pparams
   env <- liftEffect Node.Process.getEnv
   let
     env' = Object.fromFoldable
@@ -288,21 +292,21 @@ spawnCardanoTestnet workdir params = do
       , env = Just $ Object.union env' env
       , detached = true
       }
-  spawn "cardano-testnet" options opts Nothing
+  spawn "cardano-testnet" (options pparamsFilePath) opts Nothing
   where
   flag :: String -> String
   flag name = "--" <> name
 
-  options :: Array String
-  options = join
+  options :: FilePath -> Array String
+  options pparamsFilePath = join
     [ [ "cardano" ]
-    , [ flag $ show params.era ]
     , maybe mempty
         (\epochSize -> [ flag "epoch-length", UInt.toString epochSize ])
         params.epochSize
     , [ flag "slot-length", show (unwrap params.slotLength) ]
     , [ flag "testnet-magic", show params.testnetMagic ]
     , [ flag "max-lovelace-supply", BigNum.toString BigNum.maxValue ]
+    , [ flag "params-file", pparamsFilePath ]
     ]
 
 startCardanoTestnet
@@ -321,42 +325,49 @@ startCardanoTestnet
 startCardanoTestnet params cleanupRef logger =
   annotateError "startCardanoTestnet" do
     workdir <- tmpdirUnique "cardano-testnet"
+    scheduleWorkdirCleanup workdir
     testnet@(ManagedProcess _ testnetProcess _) <- scheduleCleanup
       cleanupRef
       (spawnCardanoTestnet workdir params)
       stopProcessWithChildren
 
     workspaceFromLogsAvar <- AVar.empty
-    liftEffect $ onDataString (stdout testnetProcess) UTF8 \str -> do
+    testnetStartedAvar <- AVar.empty
+
+    liftEffect $ onDataString (stderr testnetProcess) UTF8 \str -> do
       let lines = String.split (Pattern "\n") str
       traverse_
         ( \line -> do
-            logger Trace $ "[cardano-testnet:stdout] " <> line
+            logger Trace $ "[cardano-testnet:stderr] " <> line
             let
-              mWorkspace = String.stripPrefix (Pattern "Workspace: ") $
-                String.trim line
+              mWorkspace =
+                String.stripPrefix (Pattern "Starting testnet in environment: ")
+                  $
+                    String.trim line
             maybe (pure unit)
               (void <<< flip AVarSync.tryPut workspaceFromLogsAvar)
               mWorkspace
+            when (line == "Testnet started") do
+              void $ AVarSync.tryPut unit testnetStartedAvar
         )
         lines
 
-    workspace <- waitUntil (Milliseconds 100.0) $ findWorkspaceDir workdir
-    -- Schedule a cleanup immediately after the workspace
-    -- directory is created.
-    scheduleWorkspaceCleanup workspace
-    -- Wait for cardano-testnet to output the workspace, indicating
-    -- that initialization is complete.
+    workspace <- flip append "/" <$> waitUntil (Milliseconds 100.0)
+      (findWorkspaceDir workdir)
+
     workspaceFromLogs <- AVar.take workspaceFromLogsAvar
 
     when (workspace /= workspaceFromLogs) do
-      runCleanup cleanupRef
       liftEffect $ logger Warn
         $ "cardano-testnet workspace mismatch. detected: "
         <> workspace
         <> ", actual (from logs): "
         <> workspaceFromLogs
         <> " -> continuing with the detected workspace"
+
+    -- Wait for cardano-testnet to output the "Testnet Started" message,
+    -- indicating that initialization is complete.
+    void $ AVar.take testnetStartedAvar
 
     channels <- liftEffect $ getChannels testnet
     attachStdoutMonitors testnet
@@ -369,9 +380,10 @@ startCardanoTestnet params cleanupRef logger =
       }
   where
   findWorkspaceDir :: forall m. MonadEffect m => FilePath -> m (Maybe FilePath)
-  findWorkspaceDir workdir =
-    liftEffect $ map (concatPaths workdir) <<< Array.head <$>
-      FSSync.readdir workdir
+  findWorkspaceDir workdir = do
+    let workspace = workdir <</>> "testnet"
+    workspaceCreated <- liftEffect $ FSSync.exists workspace
+    pure $ if workspaceCreated then Just workspace else Nothing
 
   attachStdoutMonitors :: ManagedProcess -> Aff Unit
   attachStdoutMonitors testnet =
@@ -385,8 +397,8 @@ startCardanoTestnet params cleanupRef logger =
         throwError $ fromMaybe (error "cardano-testnet process has exited")
           cause
 
-  scheduleWorkspaceCleanup :: forall m. MonadEffect m => FilePath -> m Unit
-  scheduleWorkspaceCleanup workspace =
+  scheduleWorkdirCleanup :: forall m. MonadEffect m => FilePath -> m Unit
+  scheduleWorkdirCleanup workdir =
     liftEffect do
       shouldCleanup <-
         Node.Process.lookupEnv "TESTNET_CLEANUP_WORKDIR" <#>
@@ -395,8 +407,8 @@ startCardanoTestnet params cleanupRef logger =
             _ -> true
       when shouldCleanup do
         addCleanup cleanupRef $ liftEffect do
-          logger Trace $ "Cleaning up cardano-testnet workspace: " <> workspace
-          _rmdirSync workspace
+          logger Trace $ "Cleaning up cardano-testnet workdir: " <> workdir
+          _rmdirSync workdir
 
   getTestnetRuntime :: FilePath -> Aff TestnetRuntime
   getTestnetRuntime workdir =

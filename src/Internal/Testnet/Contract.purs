@@ -126,7 +126,7 @@ withTestnetContractEnv cfg distr cont = do
 -- |       inside the bracket.
 -- |       If you wish to only set up Testnet once, ensure all tests that are passed
 -- |       to `testTestnetContracts` are wrapped in a single group.
--- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/cardano-testnet-testing.md#testing-with-mote FIXME
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/cardano-testnet-testing.md#testing-with-mote
 testTestnetContracts
   :: TestnetConfig
   -> TestPlanM ContractTest Unit
@@ -137,7 +137,7 @@ testTestnetContracts cfg tp = do
 
 -- | Run a `ContractTestPlan` in a (single) cardano-testnet environment.
 -- | Supports wallet reuse - see docs on sharing wallet state between
--- | wallets in `doc/cardano-testnet-testing.md`. FIXME
+-- | wallets in `doc/cardano-testnet-testing.md`.
 runTestnetTestPlan
   :: TestnetConfig
   -> ContractTestPlan
@@ -383,7 +383,6 @@ makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
           <<< Array.fromFoldable
           <<< Map.values
 
--- FIXME: adjust values
 distrFundsParams :: forall wallet. DistrFundsParams wallet BigInt
 distrFundsParams =
   { maxRounds: 3
@@ -392,7 +391,6 @@ distrFundsParams =
   , feePerTx: BigInt.fromInt 2_000_000
   }
 
--- FIXME: move to helpers
 mustPayToAddress :: Address -> Value -> TxConstraints
 mustPayToAddress addr =
   let

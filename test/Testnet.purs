@@ -9,18 +9,15 @@ import Contract.Test.Testnet
   ( defaultTestnetConfig
   , runTestnetTestPlan
   , testTestnetContracts
+  , testnetConfigWithMaxExUnits
   )
 import Contract.Test.Utils (exitCode, interruptOnSignal)
 import Ctl.Internal.Contract.Monad (wrapKupmiosM)
 import Data.Maybe (Maybe(Just))
 import Data.Posix.Signal (Signal(SIGINT))
+import Data.Time.Duration (Seconds(Seconds), fromDuration)
 import Effect (Effect)
-import Effect.Aff
-  ( Milliseconds(Milliseconds)
-  , cancelWith
-  , effectCanceler
-  , launchAff
-  )
+import Effect.Aff (cancelWith, effectCanceler, launchAff)
 import Mote (group)
 import Mote.Monad (mapTest)
 import Mote.TestPlanM as Utils
@@ -44,17 +41,18 @@ main = interruptOnSignal SIGINT =<< launchAff do
   let config = defaultTestnetConfig
   flip cancelWith (effectCanceler (exitCode 1)) do
     Utils.interpretWithConfig
-      defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true }
+      defaultConfig
+        { timeout = Just $ fromDuration $ Seconds 70.0, exit = true }
       $ group "cardano-testnet" do
           testTestnetContracts config Mnemonics.suite
           group "ExUnits - normal limits" do
             testTestnetContracts config $ ExUnits.mkFailingSuite 8000
             testTestnetContracts config $ ExUnits.mkSuite 2550
-          -- FIXME: group "ExUnits - relaxed limits" do
-          --   testTestnetContracts configWithMaxExUnits $ ExUnits.mkSuite 3000
+          group "ExUnits - relaxed limits" do
+            testTestnetContracts testnetConfigWithMaxExUnits $ ExUnits.mkSuite
+              10_000
           testTestnetContracts config Assert.suite
           Logging.suite
-          -- FIXME: testStartPlutipCluster
           testTestnetContracts config $ do
             flip mapTest KupmiosM.AffInterface.suite
               (noWallet <<< wrapKupmiosM)
@@ -63,24 +61,5 @@ main = interruptOnSignal SIGINT =<< launchAff do
             Gov.suite
           UtxoDistribution.suite
           testTestnetContracts config OgmiosMempool.suite
-          -- FIXME: ClusterParameters.runTest
           runTestnetTestPlan config SameWallets.suite
           ClusterParameters.runTest
-
-{-
-configWithMaxExUnits :: PlutipConfig
-configWithMaxExUnits = config
-  { clusterConfig = config.clusterConfig { raiseExUnitsToMax = true } }
-
-testStartPlutipCluster :: TestPlanM (Aff Unit) Unit
-testStartPlutipCluster = group "Server" do
-  test "startPlutipCluster / stopPlutipCluster" do
-    bracket (startPlutipServer config)
-      (stopChildProcessWithPort config.port) $ const do
-      checkPlutipServer config
-      _startRes <- startPlutipCluster config [ [] ]
-      stopRes <- stopPlutipCluster config
-      stopRes `shouldSatisfy` case _ of
-        StopClusterSuccess -> true
-        _ -> false
-        -}

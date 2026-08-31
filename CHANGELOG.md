@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
   - [Changed](#changed)
   - [Removed](#removed)
   - [Fixed](#fixed)
@@ -17,38 +18,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - [Fixed](#fixed-2)
   - [Changed](#changed-1)
 - [[v9.2.0]](#v920)
-  - [Added](#added)
+  - [Added](#added-1)
   - [Changed](#changed-2)
   - [Removed](#removed-1)
   - [Fixed](#fixed-3)
 - [[v9.1.0]](#v910)
-  - [Added](#added-1)
+  - [Added](#added-2)
   - [Changed](#changed-3)
   - [Removed](#removed-2)
   - [Fixed](#fixed-4)
 - [[v9.0.0]](#v900)
   - [Deprecated](#deprecated)
-  - [Added](#added-2)
+  - [Added](#added-3)
   - [Removed](#removed-3)
   - [Changed](#changed-4)
   - [Fixed](#fixed-5)
 - [[v8.0.0]](#v800)
-  - [Added](#added-3)
+  - [Added](#added-4)
   - [Changed](#changed-5)
   - [Fixed](#fixed-6)
   - [Removed](#removed-4)
 - [[v7.0.0]](#v700)
-  - [Added](#added-4)
+  - [Added](#added-5)
   - [Changed](#changed-6)
   - [Fixed](#fixed-7)
   - [Removed](#removed-5)
 - [[v6.0.0]](#v600)
-  - [Added](#added-5)
+  - [Added](#added-6)
   - [Changed](#changed-7)
   - [Fixed](#fixed-8)
   - [Removed](#removed-6)
 - [[v5.0.0]](#v500)
-  - [Added](#added-6)
+  - [Added](#added-7)
   - [Changed](#changed-8)
   - [Removed](#removed-7)
   - [Fixed](#fixed-9)
@@ -56,26 +57,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 - [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-10)
 - [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
-  - [Added](#added-7)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-8)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
+  - [Added](#added-9)
   - [Changed](#changed-9)
   - [Removed](#removed-8)
   - [Fixed](#fixed-11)
   - [Runtime Dependencies](#runtime-dependencies-1)
 - [[3.0.0] - 2022-11-21](#300---2022-11-21)
-  - [Added](#added-9)
+  - [Added](#added-10)
   - [Changed](#changed-10)
   - [Removed](#removed-9)
   - [Fixed](#fixed-12)
   - [Runtime Dependencies](#runtime-dependencies-2)
 - [[2.0.0] - 2022-09-12](#200---2022-09-12)
-  - [Added](#added-10)
+  - [Added](#added-11)
   - [Changed](#changed-11)
   - [Removed](#removed-10)
   - [Fixed](#fixed-13)
 - [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
-  - [Added](#added-11)
+  - [Added](#added-12)
   - [Removed](#removed-11)
   - [Changed](#changed-12)
   - [Fixed](#fixed-14)
@@ -88,6 +89,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## [Unreleased]
+
+### Added
+
+- `privateDrepKeyFromFile`, `privateDrepKeyFromTextEnvelope`, and `privateDrepKeyToFile` functions ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `pparams` field to `TestnetClusterConfig` ([#1688](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1688))
+  - Protocol parameters are now passed to cardano-testnet explicitly instead of relying on its implicit defaults, improving test reproducibility and transparency.
+- `testnetConfigWithMaxExUnits`, `defaultTestnetClusterConfig`, and `defaultTestnetProtocolParameters` functions to `Contract.Test.Testnet` ([#1688](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1688))
+  - `defaultTestnetProtocolParameters` provides the pinned default values.
+  - Individual parameters (max ex units, max tx size, and others) can be overridden per test via a record update on `pparams`.
+  - `testnetConfigWithMaxExUnits` is provided as a ready-made configuration for tests that need relaxed execution unit limits.
 
 ### Changed
 
@@ -118,14 +129,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - *Note that all mentioned deprecated functions are planned for removal in a future release.*
 - For legacy tx constraints system: Removed the logic for querying datums by hash when not explicitly provided, eliminating the non-obvious dependency on blockchain state ([#1634](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1634))
 - Updated dependencies ([#1685](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1685))
-  - cardano-node: 10.5.3
+  - cardano-node: 11.0.1 ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
   - ogmios: 6.13.0
   - kupo: 2.11.0
 - `CtlBackend` now includes a new field, `ogmiosRequestRateLimiter`. For the motivation behind this change, see the changelog for [`purescript-cardano-kupmios-provider`](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) ([#1684](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1684))
+- CTL is now compatible with the van Rossem hard fork ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `defaultOgmiosWsConfig` has been renamed to `defaultOgmiosServerConfig` ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `mkKeyWalletFromFiles` now accepts an optional DRep key file ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- Updated runtime dependencies ([#1689](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1689))
+  - Kupo: v2.11.0 -> v2.12.0
+  - Ogmios: v6.14.0 -> v7.0.0
+  - Blockfrost Backend RYO: v6.4.0 -> v6.7.0
 
 ### Removed
 
 - References to the discontinued Nami and Flint wallets ([#1674](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1674))
+- `era` field from `TestnetClusterConfig`, as it became obsolete for cardano-testnet configuration after upgrading to cardano-node v11.0.1 ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
 
 ### Fixed
 

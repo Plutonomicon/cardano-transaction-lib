@@ -32,7 +32,6 @@ import Data.Posix.Signal as Signal
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Debug (traceM)
 import Effect (Effect)
 import Effect.AVar (AVar)
 import Effect.AVar (empty, tryPut) as AVar
@@ -92,8 +91,8 @@ spawn' cmd args opts mbFilter cont = do
   closedAVar <- AVar.empty
   stdoutInterfaceRef <- Ref.new Nothing
   stderrInterface <- RL.createInterface (stderr child) mempty
-  flip RL.setLineHandler stderrInterface \str -> do
-    traceM $ "stderr: " <> str
+  -- flip RL.setLineHandler stderrInterface \str -> do
+  --   traceM $ "stderr: " <> str
   outputRef <- Ref.new ""
   ChildProcess.onClose child \code -> do
     stdoutInterface <- Ref.read stdoutInterfaceRef
