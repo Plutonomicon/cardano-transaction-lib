@@ -28,6 +28,7 @@ import Ctl.Examples.Gov.ManageDrep (contract) as Gov.ManageDrep
 import Ctl.Examples.Gov.ManageDrepScript (contract) as Gov.ManageDrepScript
 import Ctl.Examples.Gov.SubmitVote (contract) as Gov.SubmitVote
 import Ctl.Examples.Gov.SubmitVoteScript (contract) as Gov.SubmitVoteScript
+import Ctl.Examples.Gov.UpdateProtocolParameters (contract) as Gov.UpdateProtocolParameters
 import Ctl.Examples.IncludeDatum (contract) as IncludeDatum
 import Ctl.Examples.MintsMultipleTokens as MintsMultipleTokens
 import Ctl.Examples.NativeScriptMints as NativeScriptMints
@@ -203,6 +204,7 @@ examples = addSuccessLog <$> Map.fromFoldable
   , "Gov.ManageDrepScript" /\ Gov.ManageDrepScript.contract
   , "Gov.SubmitVote" /\ Gov.SubmitVote.contract
   , "Gov.SubmitVoteScript" /\ Gov.SubmitVoteScript.contract
+  , "Gov.UpdateProtocolParameters" /\ Gov.UpdateProtocolParameters.contract
   ]
 
 addSuccessLog :: Contract Unit -> Contract Unit
