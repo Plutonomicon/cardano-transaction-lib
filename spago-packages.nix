@@ -211,11 +211,11 @@ let
 
     "cardano-blockfrost-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-blockfrost-provider";
-        version = "e0cb1053bc19c50b8b4b6c4f57694f664500d44b";
+        version = "e056a3abe841d208cbd0deadb72b58227f68676b";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider";
-          rev = "e0cb1053bc19c50b8b4b6c4f57694f664500d44b";
-          sha256 = "1md0f3sv60nsyl5rjzvkhzz350gypkc9pg7qlihngd83wifa1xwx";
+          rev = "e056a3abe841d208cbd0deadb72b58227f68676b";
+          sha256 = "1bjwh04q2760wchi4b81naahcm91c3kp6qz3j4j73sdz06bn5yn3";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "66135ec1a103a1c43d51f7bc6bc1264359afc41c";
+        version = "26795bd5d29520c37b139b586ef7ae24a708f19b";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "66135ec1a103a1c43d51f7bc6bc1264359afc41c";
-          sha256 = "0wqhq9220afprm2vkrxgdjc7p30g5aq7llc3irvjlfkjd3hgrxkg";
+          rev = "26795bd5d29520c37b139b586ef7ae24a708f19b";
+          sha256 = "09hnviab4wp5dzs81ci830pg30wakp8jivb2cxgac2c1dz9xkx73";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
