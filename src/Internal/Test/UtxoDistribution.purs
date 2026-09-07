@@ -4,6 +4,7 @@ module Ctl.Internal.Test.UtxoDistribution
   , decodeWallets'
   , keyWallets
   , encodeDistribution
+  , privateKeysNeeded
   , transferFundsFromEnterpriseToBase
   , withStakeKey
   , InitialUTxOs
@@ -28,9 +29,9 @@ import Cardano.Types.PrivateKey (PrivateKey)
 import Cardano.Types.UtxoMap (UtxoMap)
 import Cardano.Wallet.Key
   ( KeyWallet
-  , PrivateDrepKey
+  , PrivateDrepKey(PrivateDrepKey)
   , PrivatePaymentKey(PrivatePaymentKey)
-  , PrivateStakeKey
+  , PrivateStakeKey(PrivateStakeKey)
   , privateKeysToKeyWallet
   )
 import Contract.Address (getNetworkId)
@@ -58,6 +59,7 @@ import Control.Monad.Reader (asks)
 import Control.Monad.State.Trans (StateT(StateT), runStateT)
 import Data.Array (head)
 import Data.Array as Array
+import Data.Foldable (sum)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.List (List, (:))
@@ -85,8 +87,8 @@ data InitialUTxOsWithStakeKey =
 
 newtype TestWalletSpec = TestWalletSpec
   { utxos :: Array UtxoAmount
-  , stakeKey :: Maybe PrivateStakeKey
-  , drepKey :: Maybe PrivateDrepKey
+  , withStakeKey :: Boolean
+  , withDrepKey :: Boolean
   }
 
 derive instance Generic TestWalletSpec _
@@ -104,6 +106,7 @@ type InitialUTxODistribution = Array InitialUTxOs
 -- | wallets provided to the user.
 class UtxoDistribution distr wallets | distr -> wallets where
   encodeDistribution :: distr -> Array (Array UtxoAmount)
+  privateKeysNeeded :: distr -> Int
   decodeWallets :: distr -> Array PrivateKey -> Maybe wallets
   decodeWallets'
     :: distr
@@ -113,12 +116,14 @@ class UtxoDistribution distr wallets | distr -> wallets where
 
 instance UtxoDistribution Unit Unit where
   encodeDistribution _ = []
+  privateKeysNeeded _ = 0
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Just $ unit /\ pks
   keyWallets _ _ = []
 
 instance UtxoDistribution InitialUTxOs KeyWallet where
   encodeDistribution amounts = [ amounts ]
+  privateKeysNeeded _ = 1
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' _ pks = Array.uncons pks <#>
     \{ head: key, tail } ->
@@ -127,6 +132,7 @@ instance UtxoDistribution InitialUTxOs KeyWallet where
 
 instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
   encodeDistribution (InitialUTxOsWithStakeKey _ amounts) = [ amounts ]
+  privateKeysNeeded _ = 1
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (InitialUTxOsWithStakeKey stake _) pks = Array.uncons pks <#>
     \{ head: key, tail } ->
@@ -136,27 +142,47 @@ instance UtxoDistribution InitialUTxOsWithStakeKey KeyWallet where
 
 instance UtxoDistribution TestWalletSpec KeyWallet where
   encodeDistribution (TestWalletSpec { utxos }) = [ utxos ]
+  privateKeysNeeded (TestWalletSpec spec) =
+    (if spec.withStakeKey then 1 else 0)
+      + (if spec.withDrepKey then 1 else 0)
+      + 1
   decodeWallets distr privateKeys = decodeWalletsDefault distr privateKeys
-  decodeWallets' (TestWalletSpec { stakeKey, drepKey }) privateKeys =
-    Array.uncons privateKeys <#> \{ head: key, tail } ->
-      privateKeysToKeyWallet (PrivatePaymentKey key) stakeKey drepKey /\
-        tail
+  decodeWallets' (TestWalletSpec spec) privateKeys = do
+    { head: pay, tail: r0 } <- Array.uncons privateKeys
+    stake /\ r1 <- takeIf spec.withStakeKey r0
+    drep /\ r2 <- takeIf spec.withDrepKey r1
+    let
+      kw = privateKeysToKeyWallet (PrivatePaymentKey pay)
+        (PrivateStakeKey <$> stake)
+        (PrivateDrepKey <$> drep)
+    Just $ kw /\ r2
+    where
+    takeIf
+      :: forall (a :: Type)
+       . Boolean
+      -> Array a
+      -> Maybe (Maybe a /\ Array a)
+    takeIf false xs = Just (Nothing /\ xs)
+    takeIf true xs = Array.uncons xs <#> \{ head, tail } -> Just head /\ tail
   keyWallets _ wallet = [ wallet ]
 
 instance UtxoDistribution (Array InitialUTxOs) (Array KeyWallet) where
   encodeDistribution = encodeDistributionArray
+  privateKeysNeeded = sum <<< map privateKeysNeeded
   decodeWallets d = decodeWalletsDefault d
   decodeWallets' = decodeWallets'Array
   keyWallets = keyWalletsArray
 
 instance UtxoDistribution (Array InitialUTxOsWithStakeKey) (Array KeyWallet) where
   encodeDistribution = encodeDistributionArray
+  privateKeysNeeded = sum <<< map privateKeysNeeded
   decodeWallets d = decodeWalletsDefault d
   decodeWallets' = decodeWallets'Array
   keyWallets = keyWalletsArray
 
 instance UtxoDistribution (Array TestWalletSpec) (Array KeyWallet) where
   encodeDistribution = encodeDistributionArray
+  privateKeysNeeded = sum <<< map privateKeysNeeded
   decodeWallets d = decodeWalletsDefault d
   decodeWallets' = decodeWallets'Array
   keyWallets = keyWalletsArray
@@ -191,6 +217,8 @@ instance
     (Tuple headWallets restWallets) where
   encodeDistribution (distr /\ rest) =
     encodeDistribution distr <> encodeDistribution rest
+  privateKeysNeeded (distr /\ rest) = privateKeysNeeded distr +
+    privateKeysNeeded rest
   decodeWallets d p = decodeWalletsDefault d p
   decodeWallets' (distr /\ rest) = runStateT do
     headWallets <- StateT $ decodeWallets' distr
