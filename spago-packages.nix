@@ -331,11 +331,11 @@ let
 
     "cardano-transaction-balancer" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-balancer";
-        version = "4ede1f6a58596077c932e8061848f8f12ced7e0c";
+        version = "bdf033700de716af736e92b40dfb79cc6013a290";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer";
-          rev = "4ede1f6a58596077c932e8061848f8f12ced7e0c";
-          sha256 = "1k9ziipb3kzsx41qmp8y4mpj7374c41n80djpapgm0x4xmlz56sn";
+          rev = "bdf033700de716af736e92b40dfb79cc6013a290";
+          sha256 = "0pr581bnrx8zhsvzadcnj42f5gk21f47mz4giyw1bhl49rmnpb17";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";

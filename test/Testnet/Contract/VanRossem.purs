@@ -9,14 +9,16 @@ import Prelude
 import Cardano.Transaction.Builder
   ( DatumWitness(DatumValue)
   , OutputWitness(PlutusScriptOutput)
-  , ScriptWitness(ScriptValue)
+  , RefInputAction(ReferenceInput)
+  , ScriptWitness(ScriptReference, ScriptValue)
   , TransactionBuilderStep(Pay, SpendOutput)
   )
 import Cardano.Transaction.Edit (editTransaction)
 import Cardano.Types
   ( Credential(ScriptHashCredential)
+  , Language(PlutusV1)
   , OutputDatum(OutputDatum, OutputDatumHash)
-  , PlutusScript
+  , PlutusScript(PlutusScript)
   , Transaction
   , TransactionInput
   , TransactionOutput(TransactionOutput)
@@ -74,12 +76,13 @@ import Test.Spec.Assertions (shouldSatisfy)
 --  4. V2 exec + overlap
 --  5. V3 exec + overlap - rejected
 --  6. Unused V3 reference script does not fire disjointness
---  7. V3 spends a datum-less input                       (CIP-69)
---  8. V1/V2 datum-less spend fails                       (CIP-69)
---  9. V1 cannot spend a UTxO with a reference script     (CIP-0110)
--- 10. V1 coexists with plain reference inputs            (CIP-0110)
--- 11. Paying to a V3 script address without a datum      (CIP-69)
--- 12. Paying to a V1/V2 script address without a datum   (over-permissive builder trap)
+--  7. V3 spends a datum-less input
+--  8. V1/V2 datum-less spend fails
+--  9. V1 cannot spend a UTxO with a reference script
+-- 10. V1 coexists with plain reference inputs
+-- 11. V1 script invoked via reference script
+-- 12. Paying to a V3 script address without a datum
+-- 13. Paying to a V1/V2 script address without a datum
 
 --------------------------------------------------------------------------------
 -- Suite
@@ -522,7 +525,7 @@ regressionPinSuite = group "Regression pins" do
     --
     -- Shape:
     --  * Send a UTxO to a V2 script address with `datum: Nothing`. Note
-    --    this creates dead value that the builder allows (item 12).
+    --    this creates dead value that the builder allows (item 13).
     --  * Try to spend that UTxO with the V2 script.
     --  * Expect: submit fails with a phase-1 error mentioning
     --    MissingRequiredDatums.
@@ -658,7 +661,81 @@ regressionPinSuite = group "Regression pins" do
         }
       awaitTxConfirmed txHash
 
-  test "11. Paying to a V3 script address without a datum is possible" do
+  test "11. V1 script invoked via reference script" do
+    -- Checks whether a V1 validator can satisfy a script credential when
+    -- provided as a `scriptRef` on a reference-input UTxO instead of in
+    -- the witness set.
+    --
+    -- Shape:
+    --  * Deploy a UTxO carrying the V1 script as `referenceScript`.
+    --  * Lock another UTxO at the V1 script address with a hashed datum.
+    --  * Spend the V1-locked UTxO using `ScriptReference` pointing at the
+    --    ref-script UTxO instead of `ScriptValue` in the witness set.
+    --  * Expect: confirmed if V1-as-refscript is supported. Test fails
+    --    with the ledger's error if not.
+    withWallets standardDistribution \alice -> withKeyWallet alice do
+      v1Validator <- V1.alwaysSucceedsScript
+      v1Addr <- mkAddress
+        (wrap $ ScriptHashCredential $ PlutusScript.hash v1Validator)
+        Nothing
+      aliceAddr <- liftContractM "No wallet address"
+        =<< (Array.head <$> getWalletAddresses)
+      let
+        datumUnit = PlutusData.unit
+        dHash = hashPlutusData datumUnit
+
+      logInfo' "Deploying V1 as ref script and locking a V1 UTxO"
+      { txHash: setupTxHash } <- submitTxFromBlueprint
+        { buildSteps:
+            [ Pay $ TransactionOutput
+                { address: aliceAddr
+                , amount: Value.lovelaceValueOf $ BigNum.fromInt 5_000_000
+                , datum: Nothing
+                , scriptRef: Just $ PlutusScriptRef v1Validator
+                }
+            , Pay $ TransactionOutput
+                { address: v1Addr
+                , amount: Value.lovelaceValueOf $ BigNum.fromInt 3_000_000
+                , datum: Just $ OutputDatumHash dHash
+                , scriptRef: Nothing
+                }
+            ]
+        , balancer: defaultBalancer
+        , balancerCtx: emptyBalancerCtx
+        }
+      awaitTxConfirmed setupTxHash
+
+      aliceUtxos <- utxosAt aliceAddr
+      refScriptUtxo <- liftContractM "Could not find V1 ref-script UTxO"
+        $ Array.find hasV1RefScript
+        $ lookupTxHash setupTxHash aliceUtxos
+      let refScriptOref = (unwrap refScriptUtxo).input
+
+      v1Utxos <- utxosAt v1Addr
+      v1Utxo <- liftContractM "Could not find locked V1 UTxO"
+        $ Array.head
+        $ lookupTxHash setupTxHash v1Utxos
+
+      logInfo' "Spending V1 UTxO with V1 script provided via reference script"
+      { txHash } <- submitTxFromBlueprint
+        { buildSteps:
+            [ SpendOutput v1Utxo
+                ( Just $ PlutusScriptOutput
+                    (ScriptReference refScriptOref ReferenceInput)
+                    RedeemerDatum.unit
+                    (Just $ DatumValue datumUnit)
+                )
+            ]
+        , balancer: defaultBalancer
+        , balancerCtx:
+            { balancerConstraints:
+                mustNotSpendUtxoWithOutRef refScriptOref
+            , extraUtxos: toUtxoMap [ v1Utxo, refScriptUtxo ]
+            }
+        }
+      awaitTxConfirmed txHash
+
+  test "12. Paying to a V3 script address without a datum is possible" do
     -- CIP-69. Positive case: builder + ledger accept a V3 script output
     -- with `datum: Nothing`.
     --
@@ -686,7 +763,7 @@ regressionPinSuite = group "Regression pins" do
       awaitTxConfirmed txHash
 
   test
-    "12. Paying to a V1/V2 script address without a datum is also accepted"
+    "13. Paying to a V1/V2 script address without a datum is also accepted"
     do
       -- Documents the over-permissive trap: the builder does not gate
       -- on address language, so this creates unspendable dead value.
@@ -769,6 +846,16 @@ addReferenceInputs
   :: Array TransactionInput -> Transaction -> Transaction
 addReferenceInputs refs =
   _body <<< _referenceInputs %~ (_ <> refs)
+
+-- Does this UTxO carry a V1 Plutus script as its `scriptRef`?
+hasV1RefScript :: TransactionUnspentOutput -> Boolean
+hasV1RefScript utxo = case (unwrap (unwrap utxo).output).scriptRef of
+  Just (PlutusScriptRef ps) ->
+    let
+      PlutusScript (_ /\ lang) = ps
+    in
+      lang == PlutusV1
+  _ -> false
 
 -- Pay to the given script's address with `datum: Nothing`, then assert
 -- that spending the resulting UTxO with that same script fails. Used by
