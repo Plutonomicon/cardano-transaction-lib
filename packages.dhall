@@ -3,7 +3,7 @@ let upstream =
       https://raw.githubusercontent.com/mlabs-haskell/purescript-cardano-package-set/v4.2.0/packages.dhall
         sha256:03c0bc2f30b7c1bf4dd01d5a94515223fc755d0269e30780523ac67bc19ffa00
 
-let additions = 
+let additions =
       { cardano-provider =
         { dependencies =
           [ "aeson"
@@ -168,6 +168,79 @@ let additions =
           ]
         , repo = "https://github.com/mlabs-haskell/purescript-cardano-types.git"
         , version = "c8d03d76a9467993eae8185e986aaf007bed6804"
+        }
+      , cardano-transaction-builder =
+        { dependencies =
+          [ "aff"
+          , "arrays"
+          , "bifunctors"
+          , "bytearrays"
+          , "cardano-types"
+          , "datetime"
+          , "effect"
+          , "either"
+          , "foldable-traversable"
+          , "maybe"
+          , "mote"
+          , "mote-testplan"
+          , "newtype"
+          , "ordered-collections"
+          , "partial"
+          , "prelude"
+          , "profunctor-lenses"
+          , "record"
+          , "spec"
+          , "transformers"
+          , "tuples"
+          , "uint"
+          ]
+        , repo =
+            "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder"
+        , version = "c8e835fc3952bcfe417389700ef97deee20d72f0"
+        }
+      , cardano-transaction-balancer =
+        { dependencies =
+          [ "aff"
+          , "ansi"
+          , "arrays"
+          , "bifunctors"
+          , "bytearrays"
+          , "cardano-data-lite"
+          , "cardano-provider"
+          , "cardano-transaction-builder"
+          , "cardano-types"
+          , "console"
+          , "effect"
+          , "either"
+          , "exceptions"
+          , "foldable-traversable"
+          , "integers"
+          , "js-bigints"
+          , "js-date"
+          , "lattice"
+          , "lists"
+          , "literals"
+          , "maybe"
+          , "monad-logger"
+          , "newtype"
+          , "ordered-collections"
+          , "parallel"
+          , "partial"
+          , "prelude"
+          , "profunctor"
+          , "profunctor-lenses"
+          , "quickcheck"
+          , "random"
+          , "strings"
+          , "stringutils"
+          , "these"
+          , "transformers"
+          , "tuples"
+          , "uint"
+          , "unsafe-coerce"
+          ]
+        , repo = "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer"
+        , version = "bdf033700de716af736e92b40dfb79cc6013a290"
         }
       }
 

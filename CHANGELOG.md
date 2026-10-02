@@ -99,6 +99,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - `defaultTestnetProtocolParameters` provides the pinned default values.
   - Individual parameters (max ex units, max tx size, and others) can be overridden per test via a record update on `pparams`.
   - `testnetConfigWithMaxExUnits` is provided as a ready-made configuration for tests that need relaxed execution unit limits.
+- `Ctl.Examples.PlutusV3.Scripts.AlwaysSucceeds` example fixture, mirroring the V2 fixture but compiled to a minimal V3 UPLC ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
 
 ### Changed
 
@@ -140,6 +141,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - Kupo: v2.11.0 -> v2.12.0
   - Ogmios: v6.14.0 -> v7.0.0
   - Blockfrost Backend RYO: v6.4.0 -> v6.7.0
+- `defaultTestnetProtocolParameters` values now come from a Blockfrost mainnet snapshot (fetched 30.09.26), so the local testnet cluster boots at protocol version 11 with a consistent cost model ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
 
 ### Removed
 
