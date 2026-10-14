@@ -22,7 +22,7 @@ import Cardano.Types
   , VotingProposal(VotingProposal)
   )
 import Cardano.Types (GovernanceAction(Info)) as GovAction
-import Cardano.Types.BigNum (fromInt) as BigNum
+import Cardano.Types.BigNum (fromInt, fromStringUnsafe) as BigNum
 import Cardano.Types.PublicKey (hash) as PublicKey
 import Contract.Governance (queryProposalById, queryVotesOnProposal)
 import Contract.Log (logInfo')
@@ -61,7 +61,9 @@ import Test.Spec.Assertions (shouldEqual)
 walletSpec :: TestWalletSpec
 walletSpec = wrap
   { utxos:
-      [ BigNum.fromInt 1_000_000_000
+      -- Enough to cover govActionDeposit (100 000 ADA) plus fees and
+      -- other deposits for the proposal-submitting tests.
+      [ BigNum.fromStringUnsafe "101000000000"
       , BigNum.fromInt 50_000_000
       ]
   , withStakeKey: true

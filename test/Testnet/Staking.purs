@@ -45,6 +45,7 @@ import Contract.Monad (Contract, liftedM)
 import Contract.Numeric.BigNum (fromInt, toBigInt) as BigNum
 import Contract.Prelude (liftM)
 import Contract.Prim.ByteArray (hexToByteArray)
+import Contract.ProtocolParameters (getProtocolParameters)
 import Contract.Scripts (NativeScript(ScriptPubkey, ScriptAny))
 import Contract.Staking
   ( getPoolIds
@@ -290,6 +291,7 @@ suite = do
             hexToByteArray
               "fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096"
               >>= wrap >>> decodeCbor
+          minPoolCost <- _.minPoolCost <<< unwrap <$> getProtocolParameters
           let
             rewardAccount =
               { networkId
@@ -301,7 +303,7 @@ suite = do
               { operator: poolOperator
               , vrfKeyhash: vrfKeyHash -- needed to prove that the pool won the lottery
               , pledge: BigNum.fromInt 1
-              , cost: BigNum.fromInt 1
+              , cost: unwrap minPoolCost
               , margin: UnitInterval
                   { numerator: BigNum.fromInt 1
                   , denominator: BigNum.fromInt 1

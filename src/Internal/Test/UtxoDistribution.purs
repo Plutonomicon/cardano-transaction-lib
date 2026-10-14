@@ -72,6 +72,7 @@ import Data.Tuple (Tuple)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+import Prim.TypeError (class Warn, Text)
 import Type.Prelude (Proxy(Proxy))
 
 -- | UTxO amount in Lovelaces
@@ -82,6 +83,9 @@ type InitialUTxOs = Array UtxoAmount
 
 -- | A wrapper that allows to specify a stake key to attach to a
 -- | generated pre-funded Address.
+-- |
+-- | Deprecated: prefer `TestWalletSpec` with `withStakeKey: true`, which lets
+-- | the harness generate the stake key for you.
 data InitialUTxOsWithStakeKey =
   InitialUTxOsWithStakeKey PrivateStakeKey InitialUTxOs
 
@@ -323,5 +327,12 @@ transferFundsFromEnterpriseToBase ourKey wallets = do
           }
         pure $ { utxos: utxos', payPkh, stakePkh, wallet } : walletsInfo
 
-withStakeKey :: PrivateStakeKey -> InitialUTxOs -> InitialUTxOsWithStakeKey
+withStakeKey
+  :: Warn
+       ( Text
+           "Deprecated: withStakeKey. Use `TestWalletSpec` with `withStakeKey: true` instead."
+       )
+  => PrivateStakeKey
+  -> InitialUTxOs
+  -> InitialUTxOsWithStakeKey
 withStakeKey = InitialUTxOsWithStakeKey

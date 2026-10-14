@@ -92,6 +92,11 @@ testnetConfigWithMaxExUnits =
                 , max_tx_ex_steps = maxVal
                 , max_block_ex_mem = maxVal
                 , max_block_ex_steps = maxVal
+                -- Lowered from the mainnet default of 150 so the balancer's
+                -- hardcoded 5 ADA collateral floor still covers the required
+                -- collateral for the high-ex-units transactions this config
+                -- is used for.
+                , collateral_percent = Just $ UInt.fromInt 100
                 }
           }
     }
