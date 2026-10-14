@@ -176,6 +176,7 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
@@ -195,7 +196,7 @@ import Test.Ctl.Fixtures
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
-import Test.Ctl.Testnet.Common (privateDrepKey, privateStakeKey)
+import Test.Ctl.Testnet.Common (privateStakeKey)
 import Test.Ctl.Testnet.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Testnet.UtxoDistribution (checkUtxoDistribution)
 import Test.Spec.Assertions
@@ -2082,10 +2083,12 @@ suite = do
           , withStakeKey: true
           , withDrepKey: true
           }
-      withWallets walletSpec \alice ->
+      withWallets walletSpec \alice -> do
+        drepPrivKey <- liftedM "No DRep key on wallet"
+          $ liftAff (unwrap alice).drepKey
         withCip30Mock alice (walletName Eternl) $
           ownDrepPubKey `shouldReturn`
-            PrivateKey.toPublicKey (unwrap privateDrepKey)
+            PrivateKey.toPublicKey (unwrap drepPrivKey)
 
     test "ownDrepPubKeyHash works" do
       let
@@ -2098,10 +2101,12 @@ suite = do
           , withStakeKey: true
           , withDrepKey: true
           }
-      withWallets walletSpec \alice ->
+      withWallets walletSpec \alice -> do
+        drepPrivKey <- liftedM "No DRep key on wallet"
+          $ liftAff (unwrap alice).drepKey
         withCip30Mock alice (walletName Eternl) $
           ownDrepPubKeyHash `shouldReturn`
-            PublicKey.hash (PrivateKey.toPublicKey $ unwrap privateDrepKey)
+            PublicKey.hash (PrivateKey.toPublicKey $ unwrap drepPrivKey)
 
     test "ownRegisteredPubStakeKeys works" do
       let
@@ -2129,10 +2134,12 @@ suite = do
           , withStakeKey: true
           , withDrepKey: false
           }
-      withWallets walletSpec \alice ->
+      withWallets walletSpec \alice -> do
+        stakePrivKey <- liftedM "No stake key on wallet"
+          $ liftAff (unwrap alice).stakeKey
         withCip30Mock alice (walletName Eternl) $
           ownUnregisteredPubStakeKeys `shouldReturn`
-            Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
+            Array.singleton (PrivateKey.toPublicKey $ unwrap stakePrivKey)
 
     test "signData using DRep key" do
       let

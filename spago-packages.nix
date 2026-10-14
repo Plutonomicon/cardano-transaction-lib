@@ -211,11 +211,11 @@ let
 
     "cardano-blockfrost-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-blockfrost-provider";
-        version = "e056a3abe841d208cbd0deadb72b58227f68676b";
+        version = "v3.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider";
-          rev = "e056a3abe841d208cbd0deadb72b58227f68676b";
-          sha256 = "1bjwh04q2760wchi4b81naahcm91c3kp6qz3j4j73sdz06bn5yn3";
+          rev = "065455549bbaff6385a8637532f3e7ca05bb5f11";
+          sha256 = "0rqhqs8w9hxj9zg7dxp3izbiz49lq53r6kz92mgffg0jjb46iglz";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -271,11 +271,11 @@ let
 
     "cardano-kupmios-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-kupmios-provider";
-        version = "26795bd5d29520c37b139b586ef7ae24a708f19b";
+        version = "v4.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider";
-          rev = "26795bd5d29520c37b139b586ef7ae24a708f19b";
-          sha256 = "09hnviab4wp5dzs81ci830pg30wakp8jivb2cxgac2c1dz9xkx73";
+          rev = "d09fd5482ffb5e40e40533b6f440595f3721110c";
+          sha256 = "1k3z7wx4xgjkllyprs256l2qsm9sifjm4blrl6zsv64qg3sxy0dw";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -319,11 +319,11 @@ let
 
     "cardano-provider" = pkgs.stdenv.mkDerivation {
         name = "cardano-provider";
-        version = "031075c0d56536ee3e459b5207c9f50487f605b0";
+        version = "v3.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-provider";
-          rev = "031075c0d56536ee3e459b5207c9f50487f605b0";
-          sha256 = "1zsgp7yrvznwivhnl6wq56002k77dhl28cm02qqww1jg9vcvxz32";
+          rev = "8ba9aa6e3024eb2fb7c15b5f5c30450b437d0bd1";
+          sha256 = "1vzff2d773m08hh783vmmihbis6lnvm2hsq74lka9c4qqxy4436a";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -331,11 +331,11 @@ let
 
     "cardano-transaction-balancer" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-balancer";
-        version = "v1.1.0";
+        version = "v2.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer";
-          rev = "a2f5db9774a0128add6cac2c967c7b08e5dd1b8e";
-          sha256 = "1r2zibh3fkbxh4wa7kdp3381j1332gr0ahp78qxybpr09vhvgzbv";
+          rev = "f5ffbdff8cc554c4a9c81dd21184b0c7f3e22c3d";
+          sha256 = "0ffd1a12bhmcgn86xpxgfbrnwvh1mr8d3d144rxdh8454kjb7ikc";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -343,11 +343,11 @@ let
 
     "cardano-transaction-builder" = pkgs.stdenv.mkDerivation {
         name = "cardano-transaction-builder";
-        version = "v3.0.0";
+        version = "v4.0.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-transaction-builder";
-          rev = "6d011e6de07cad254110cfbc91ad318db5d254a6";
-          sha256 = "11gja0lkdcqhvaxfkqxdklggvan2i5sxxawz9sf9r2frcx8819s6";
+          rev = "e54989a5516c1a5d5e895c3dd5c14e90b8e25a21";
+          sha256 = "0xjgd0hc8y841hp93rfvj9a7sn988i6hfqhvg2hki16s1s2j656j";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
@@ -355,11 +355,11 @@ let
 
     "cardano-types" = pkgs.stdenv.mkDerivation {
         name = "cardano-types";
-        version = "c8d03d76a9467993eae8185e986aaf007bed6804";
+        version = "v5.1.0";
         src = pkgs.fetchgit {
           url = "https://github.com/mlabs-haskell/purescript-cardano-types.git";
-          rev = "c8d03d76a9467993eae8185e986aaf007bed6804";
-          sha256 = "0xr13h3b1hws049ljb93ynd6vynmgpfz93ydnb28rsprr37h392d";
+          rev = "2c3d78b7d145178cf341ddc3fa48d43881923bec";
+          sha256 = "13k7ccslfgndllnkyxikgsm5njlqcc4wl39swz92q5yd4pmvcszi";
         };
         phases = "installPhase";
         installPhase = "ln -s $src $out";
