@@ -101,6 +101,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - Individual parameters (max ex units, max tx size, and others) can be overridden per test via a record update on `pparams`.
   - `testnetConfigWithMaxExUnits` is provided as a ready-made configuration for tests that need relaxed execution unit limits. It also lowers `collateral_percent` from the mainnet default of 150 to 100, so the balancer's hardcoded 5 ADA collateral floor still covers the required collateral for the high-ex-units transactions this config is used for.
 - `Ctl.Examples.PlutusV3.Scripts.AlwaysSucceeds` example fixture, mirroring the V2 fixture but compiled to a minimal V3 UPLC ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
+- `Contract.Governance` module exposing `queryProposalById`, `queryVotesOnProposal`, and `queryRegisteredDrepInfo` for retrieving on-chain governance state through the active `Provider` ([#1691](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1691))
 
 ### Changed
 
@@ -142,6 +143,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - Kupo: v2.11.0 -> v2.12.0
   - Ogmios: v6.14.0 -> v7.0.0
   - Blockfrost Backend RYO: v6.4.0 -> v6.7.0
+- **[BREAKING CHANGE]** `TestWalletSpec`'s `stakeKey :: Maybe PrivateStakeKey` and `drepKey :: Maybe PrivateDrepKey` fields have been replaced with `withStakeKey :: Boolean` and `withDrepKey :: Boolean`. The testnet harness now generates the stake and DRep keys itself when the corresponding flag is set. ([#1691](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1691))
 - `defaultTestnetProtocolParameters` values now come from a Blockfrost mainnet snapshot (fetched 30.09.26), so the local testnet cluster boots at protocol version 11 with a consistent cost model ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
 
 ### Deprecated
