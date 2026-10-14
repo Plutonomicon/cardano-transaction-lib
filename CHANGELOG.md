@@ -99,6 +99,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - `defaultTestnetProtocolParameters` provides the pinned default values.
   - Individual parameters (max ex units, max tx size, and others) can be overridden per test via a record update on `pparams`.
   - `testnetConfigWithMaxExUnits` is provided as a ready-made configuration for tests that need relaxed execution unit limits.
+- `Contract.Governance` module exposing `queryProposalById`, `queryVotesOnProposal`, and `queryRegisteredDrepInfo` for retrieving on-chain governance state through the active `Provider` ([#1691](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1691))
 
 ### Changed
 
@@ -140,6 +141,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
   - Kupo: v2.11.0 -> v2.12.0
   - Ogmios: v6.14.0 -> v7.0.0
   - Blockfrost Backend RYO: v6.4.0 -> v6.7.0
+- **[BREAKING CHANGE]** `TestWalletSpec`'s `stakeKey :: Maybe PrivateStakeKey` and `drepKey :: Maybe PrivateDrepKey` fields have been replaced with `withStakeKey :: Boolean` and `withDrepKey :: Boolean`. The testnet harness now generates the stake and DRep keys itself when the corresponding flag is set. ([#1691](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1691))
 
 ### Removed
 
