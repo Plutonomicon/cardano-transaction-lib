@@ -28,6 +28,7 @@ import Contract.Config
   , testnetConfig
   , walletName
   )
+import Contract.Governance (queryRegisteredDrepInfo)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
@@ -37,12 +38,10 @@ import Contract.Transaction
   , emptyBalancerCtx
   , submitTxFromBlueprint
   )
-import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
 import Ctl.Examples.PlutusV3.Scripts.AlwaysMints (alwaysMintsPolicyScriptV3)
-import Data.String (Pattern(Pattern))
-import Data.String (contains) as String
-import Effect.Exception (message)
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -76,11 +75,18 @@ contractStep path = do
     drepCred = ScriptHashCredential drepScriptHash
     drepCredWitness = PlutusScriptCredential (ScriptValue drepScript)
       RedeemerDatum.unit
-
-  drepDeposit <- _.drepDeposit <<< unwrap <$> getProtocolParameters
-
-  let
-    submitTx = do
+  drepInfo <- queryRegisteredDrepInfo drepCred
+  case drepInfo, path of
+    Just _, RegDrep ->
+      logInfo' "DRep already registered. Skipping registration contract."
+    _, _ -> do
+      drepDeposit <-
+        case path of
+          RegDrep ->
+            _.drepDeposit <<< unwrap <$> getProtocolParameters
+          _ ->
+            liftMaybe (error "Could not get DRep info")
+              (_.deposit <$> drepInfo)
       { txHash } <- submitTxFromBlueprint
         { buildSteps:
             [ case path of
@@ -98,10 +104,4 @@ contractStep path = do
         , balancerCtx: emptyBalancerCtx
         }
       awaitTxConfirmed txHash
-
-  submitTx `catchError` \err ->
-    unless
-      (String.contains (Pattern "knownDelegateRepresentative") $ message err)
-      (throwError err)
-
   pure drepScriptHash

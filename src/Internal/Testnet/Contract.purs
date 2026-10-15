@@ -55,6 +55,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
+  , privateKeysNeeded
   )
 import Ctl.Internal.Testnet.DistributeFunds
   ( DistrFundsParams
@@ -78,6 +79,7 @@ import Ctl.Internal.Testnet.Utils
 import Data.Array (concat, fromFoldable, zip) as Array
 import Data.Bifunctor (lmap)
 import Data.Map (values) as Map
+import Data.Unfoldable (replicateA)
 import Effect.Aff (apathize, try)
 import Effect.Aff (bracket) as Aff
 import Effect.Exception (error)
@@ -345,8 +347,9 @@ makeDistrFundsPlan
 makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
   let distrArray = map BigNum.toBigInt <$> encodeDistribution distr
   privateKeys <-
-    for (encodeDistribution distr) \_ ->
-      liftEffect $ wrap <$> Csl.privateKey_generateEd25519
+    replicateA
+      (privateKeysNeeded distr)
+      (liftEffect $ wrap <$> Csl.privateKey_generateEd25519)
   wallets <-
     liftContractM
       "Impossible happened: could not decode wallets. Please report as bug"

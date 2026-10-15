@@ -28,6 +28,7 @@ import Test.Ctl.Testnet.Contract as Contract
 import Test.Ctl.Testnet.Contract.Assert as Assert
 import Test.Ctl.Testnet.Contract.Mnemonics as Mnemonics
 import Test.Ctl.Testnet.Contract.OgmiosMempool as OgmiosMempool
+import Test.Ctl.Testnet.Contract.VanRossem as VanRossem
 import Test.Ctl.Testnet.ExUnits as ExUnits
 import Test.Ctl.Testnet.Gov as Gov
 import Test.Ctl.Testnet.Logging as Logging
@@ -59,6 +60,7 @@ main = interruptOnSignal SIGINT =<< launchAff do
             ChangeGeneration.suite
             Contract.suite
             Gov.suite
+            VanRossem.suite
           UtxoDistribution.suite
           testTestnetContracts config OgmiosMempool.suite
           runTestnetTestPlan config SameWallets.suite

@@ -7,7 +7,7 @@ module Ctl.Examples.Gov.DelegateVoteAbstain
 import Contract.Prelude
 
 import Cardano.Transaction.Builder (TransactionBuilderStep(IssueCertificate))
-import Cardano.Types.Certificate (Certificate(VoteRegDelegCert))
+import Cardano.Types.Certificate (Certificate(VoteDelegCert, VoteRegDelegCert))
 import Cardano.Types.Credential (Credential(PubKeyHashCredential))
 import Cardano.Types.DRep (DRep(AlwaysAbstain))
 import Cardano.Types.PublicKey (hash) as PublicKey
@@ -27,7 +27,8 @@ import Contract.Transaction
   , emptyBalancerCtx
   , submitTxFromBlueprint
   )
-import Contract.Wallet (ownUnregisteredPubStakeKeys)
+import Contract.Wallet (ownRegisteredPubStakeKeys, ownUnregisteredPubStakeKeys)
+import Control.Monad.Error.Class (throwError)
 import Data.Array (head) as Array
 import Effect.Exception (error)
 
@@ -44,12 +45,24 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Gov.DelegateVoteAbstain"
 
-  unregPubStakeKeys <- ownUnregisteredPubStakeKeys
-  logDebug' $ "Unregistered public stake keys: " <> show unregPubStakeKeys
+  unregStakeKeys <- ownUnregisteredPubStakeKeys
+  logDebug' $ "Unregistered stake keys: " <> show unregStakeKeys
 
-  pubStakeKey <- liftM (error "Failed to get unregistered pub stake key") $
-    Array.head unregPubStakeKeys
-  let stakeCred = wrap $ PubKeyHashCredential $ PublicKey.hash pubStakeKey
+  regStakeKeys <- ownRegisteredPubStakeKeys
+  logDebug' $ "Registered stake keys: " <> show regStakeKeys
+
+  { stakeKey, registered } <-
+    case Array.head unregStakeKeys of
+      Just stakeKey ->
+        pure { stakeKey, registered: false }
+      Nothing ->
+        case Array.head regStakeKeys of
+          Just stakeKey ->
+            pure { stakeKey, registered: true }
+          Nothing ->
+            throwError $ error "Could to get pub stake key"
+
+  let stakeCred = wrap $ PubKeyHashCredential $ PublicKey.hash stakeKey
 
   stakeCredDeposit <- _.stakeAddressDeposit <<< unwrap <$>
     getProtocolParameters
@@ -57,7 +70,12 @@ contract = do
   { txHash } <- submitTxFromBlueprint
     { buildSteps:
         [ IssueCertificate
-            (VoteRegDelegCert stakeCred AlwaysAbstain stakeCredDeposit)
+            ( case registered of
+                false ->
+                  VoteRegDelegCert stakeCred AlwaysAbstain stakeCredDeposit
+                true ->
+                  VoteDelegCert stakeCred AlwaysAbstain
+            )
             Nothing
         ]
     , balancer: defaultBalancer

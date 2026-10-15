@@ -11,7 +11,6 @@
   , "arrays"
   , "avar"
   , "bifunctors"
-  , "bignumber"
   , "bytearrays"
   , "cardano-blockfrost-provider"
   , "cardano-data-lite"
