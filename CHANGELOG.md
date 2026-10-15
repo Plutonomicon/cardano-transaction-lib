@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[Unreleased]](#unreleased)
+- [[v10.0.0]](#v1000)
   - [Added](#added)
   - [Changed](#changed)
   - [Deprecated](#deprecated)
@@ -89,7 +89,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## [Unreleased]
+## [v10.0.0]
 
 ### Added
 
