@@ -1,27 +1,60 @@
 -- | A module that defines the different transaction data types, balancing
 -- | functionality, transaction fees, signing and submission.
 module Contract.Transaction
-  ( balanceTx
+  ( module BalanceTxError
+  , module X
+  , TxBlueprint
+  , TxReceipt
+  , balanceMultipleTxs
+  , balanceTx
   , balanceTxE
   , balanceTxs
+  , buildTx
   , createAdditionalUtxos
   , getTxAuxiliaryData
-  , module BalanceTxError
-  , module X
+  , hashTransaction
+  , lookupTxHash
+  , mkPoolPubKeyHash
   , submit
   , submitE
+  , submitTxFromBlueprint
+  , submitTxFromBuildPlan
   , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
-  , lookupTxHash
-  , mkPoolPubKeyHash
-  , hashTransaction
-  , buildTx
-  , submitTxFromBuildPlan
   ) where
 
 import Prelude
 
+import Cardano.Provider.Error (ClientError, GetTxMetadataError)
+import Cardano.Provider.Error
+  ( GetTxMetadataError
+      ( GetTxMetadataTxNotFoundError
+      , GetTxMetadataMetadataEmptyOrMissingError
+      , GetTxMetadataClientError
+      )
+  ) as X
+import Cardano.Transaction.Balancer.Constraints (BalancerConstraints)
+import Cardano.Transaction.Balancer.Error
+  ( Actual(Actual)
+  , BalanceTxError
+      ( BalanceInsufficientError
+      , CouldNotConvertScriptOutputToTxInput
+      , CouldNotGetCollateral
+      , InsufficientCollateralUtxos
+      , CouldNotGetUtxos
+      , CollateralReturnError
+      , CollateralReturnMinAdaValueCalcError
+      , ExUnitsEvaluationFailed
+      , InsufficientUtxoBalanceToCoverAsset
+      , ReindexRedeemersError
+      , UtxoLookupFailedFor
+      , UtxoMinAdaValueCalculationFailed
+      )
+  , Expected(Expected)
+  , explainBalanceTxError
+  ) as BalanceTxError
+import Cardano.Transaction.Balancer.MinFee (calculateMinFee) as X
 import Cardano.Transaction.Builder
   ( TransactionBuilderStep
   , buildTransaction
@@ -68,47 +101,26 @@ import Contract.UnbalancedTx (mkUnbalancedTx)
 import Control.Monad.Error.Class (catchError, liftEither, throwError)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Reader.Class (ask)
-import Ctl.Internal.BalanceTx as B
-import Ctl.Internal.BalanceTx.Constraints (BalancerConstraints)
-import Ctl.Internal.BalanceTx.Error
-  ( Actual(Actual)
-  , BalanceTxError
-      ( BalanceInsufficientError
-      , CouldNotConvertScriptOutputToTxInput
-      , CouldNotGetCollateral
-      , InsufficientCollateralUtxos
-      , CouldNotGetUtxos
-      , CollateralReturnError
-      , CollateralReturnMinAdaValueCalcError
-      , ExUnitsEvaluationFailed
-      , InsufficientUtxoBalanceToCoverAsset
-      , ReindexRedeemersError
-      , UtxoLookupFailedFor
-      , UtxoMinAdaValueCalculationFailed
-      )
-  , Expected(Expected)
-  , explainBalanceTxError
-  ) as BalanceTxError
+import Ctl.Internal.BalanceTx
+  ( CtlBalancer
+  , CtlBalancerContext
+  , defaultBalancer
+  , defaultBalancerWithErr
+  , emptyBalancerCtx
+  ) as X
+import Ctl.Internal.BalanceTx (defaultBalancerWithErr)
 import Ctl.Internal.Contract.AwaitTxConfirmed
   ( awaitTxConfirmed
   , awaitTxConfirmedWithTimeout
   , awaitTxConfirmedWithTimeoutSlots
   , isTxConfirmed
   ) as X
-import Ctl.Internal.Contract.MinFee (calculateMinFee) as X
-import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Contract.QueryHandle.Error (GetTxMetadataError)
-import Ctl.Internal.Contract.QueryHandle.Error
-  ( GetTxMetadataError
-      ( GetTxMetadataTxNotFoundError
-      , GetTxMetadataMetadataEmptyOrMissingError
-      , GetTxMetadataClientError
-      )
-  ) as X
+import Ctl.Internal.Contract.Monad (getProvider)
 import Ctl.Internal.Contract.Sign (signTransaction)
 import Ctl.Internal.Contract.Sign (signTransaction) as X
-import Ctl.Internal.Service.Error (ClientError)
 import Ctl.Internal.Types.ScriptLookups (ScriptLookups)
+import Ctl.Internal.Types.TxBalancer (TxBalancer)
+import Ctl.Internal.Types.TxBalancer (TxBalancer) as X
 import Ctl.Internal.Types.TxConstraints (TxConstraints)
 import Ctl.Internal.Types.UsedTxOuts
   ( UsedTxOuts
@@ -125,14 +137,14 @@ import Data.Map (empty, insert, toUnfoldable) as Map
 import Data.Maybe (Maybe(Nothing))
 import Data.Newtype (unwrap)
 import Data.String.Utils (startsWith)
-import Data.Traversable (class Traversable, for_, traverse)
+import Data.Traversable (class Traversable, for_, traverse, traverse_)
 import Data.Tuple (fst)
 import Data.Tuple.Nested ((/\))
 import Data.UInt (UInt)
 import Effect.Aff (bracket, error)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
-import Effect.Exception (try)
+import Effect.Exception (Error, try)
 import Prim.Coerce (class Coercible)
 import Prim.TypeError (class Warn, Text)
 import Safe.Coerce (coerce)
@@ -171,8 +183,8 @@ submitE
   :: Transaction
   -> Contract (Either ClientError TransactionHash)
 submitE tx = do
-  queryHandle <- getQueryHandle
-  eiTxHash <- liftAff $ queryHandle.submitTx tx
+  provider <- getProvider
+  eiTxHash <- liftAff $ provider.submitTx tx
   void $ asks (_.hooks >>> _.onSubmit) >>=
     traverse \hook -> liftEffect $ void $ try $ hook tx
   pure eiTxHash
@@ -221,51 +233,58 @@ withSingleTransaction prepare extract utx action =
     (action <<< NonEmptyArray.head)
 
 -- | Execute an action on an array of balanced
--- | transactions (`balanceTxs` will be called). Within
+-- | transactions (`balanceMultipleTxs` will be called). Within
 -- | this function, all transaction inputs used by these
 -- | transactions will be locked, so that they are not used
 -- | in any other context.
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
 withBalancedTxs
-  :: forall (a :: Type)
-   . Array
+  :: forall (ctx :: Type) (a :: Type)
+   . TxBalancer Contract Error ctx
+  -> Array
        { transaction :: Transaction
-       , usedUtxos :: UtxoMap
-       , balancerConstraints :: BalancerConstraints
+       , balancerCtx :: ctx
        }
   -> (Array Transaction -> Contract a)
   -> Contract a
-withBalancedTxs = withTransactions balanceTxs identity
+withBalancedTxs balancer = withTransactions (balanceMultipleTxs balancer)
+  identity
 
--- | Execute an action on a balanced transaction (`balanceTx` will
+-- | Execute an action on a balanced transaction (the provided balancer will
 -- | be called). Within this function, all transaction inputs
 -- | used by this transaction will be locked, so that they are not
 -- | used in any other context.
 -- | After the function completes, the locks will be removed.
 -- | Errors will be thrown.
 withBalancedTx
-  :: forall (a :: Type)
-   . Transaction
-  -> UtxoMap
-  -> BalancerConstraints
+  :: forall (ctx :: Type) (a :: Type)
+   . TxBalancer Contract Error ctx
+  -> Transaction
+  -> ctx
   -> (Transaction -> Contract a)
   -> Contract a
-withBalancedTx tx usedUtxos balancerConstraints =
+withBalancedTx balancer tx balancerCtx =
   withSingleTransaction
-    ( \transaction -> balanceAndLock
-        { transaction, usedUtxos, balancerConstraints }
-    )
+    (balanceAndLockUtxos balancer <<< { transaction: _, balancerCtx })
     identity
     tx
 
 -- | A variant of `balanceTx` that returns a balancer error value.
 balanceTxE
-  :: Transaction
+  :: Warn
+       ( Text
+           "Deprecated, use a standalone transaction balancer instead (see `defaultBalancerWithErr`)"
+       )
+  => Transaction
   -> UtxoMap
   -> BalancerConstraints
   -> Contract (Either BalanceTxError.BalanceTxError Transaction)
-balanceTxE tx utxos = B.balanceTxWithConstraints tx utxos
+balanceTxE tx utxos constraints =
+  defaultBalancerWithErr tx
+    { balancerConstraints: constraints
+    , extraUtxos: utxos
+    }
 
 -- | Balance a single transaction.
 -- |
@@ -276,7 +295,8 @@ balanceTxE tx utxos = B.balanceTxWithConstraints tx utxos
 -- | Use `balanceTxs` to balance multiple transactions and prevent them from
 -- | using the same input UTxOs.
 balanceTx
-  :: Transaction
+  :: Warn (Text "Deprecated, use a standalone transaction balancer instead")
+  => Transaction
   -> UtxoMap
   -> BalancerConstraints
   -> Contract Transaction
@@ -290,7 +310,8 @@ balanceTx utx utxos constraints = do
 -- | locks the used inputs so that they cannot be reused by subsequent
 -- | transactions.
 balanceTxs
-  :: Array
+  :: Warn (Text "Deprecated, use `balanceMultipleTxs` instead")
+  => Array
        { transaction :: Transaction
        , usedUtxos :: UtxoMap
        , balancerConstraints :: BalancerConstraints
@@ -305,8 +326,32 @@ balanceTxs unbalancedTxs =
       withUsedTxOuts <<< unlockTransactionInputs <<< _.transaction
     throwError e
 
+-- | Balances each transaction using the specified `TxBalancer` and locks the
+-- | used inputs so that they cannot be reused by subsequent transactions.
+balanceMultipleTxs
+  :: forall (ctx :: Type)
+   . TxBalancer Contract Error ctx
+  -> Array
+       { transaction :: Transaction
+       , balancerCtx :: ctx
+       }
+  -> Contract (Array Transaction)
+balanceMultipleTxs balancer unbalancedTxs =
+  unlockAllUtxosOnError $ traverse (balanceAndLockUtxos balancer)
+    unbalancedTxs
+  where
+  unlockAllUtxosOnError :: forall (a :: Type). Contract a -> Contract a
+  unlockAllUtxosOnError f =
+    catchError f $ \err -> do
+      traverse_ (withUsedTxOuts <<< unlockTransactionInputs <<< _.transaction)
+        unbalancedTxs
+      throwError err
+
+-- | Balances the transaction using the specified balancer constraints and locks
+-- | its inputs to prevent their reuse in subsequent transactions.
 balanceAndLock
-  :: { transaction :: Transaction
+  :: Warn (Text "Deprecated, use `balanceAndLockUtxos` instead")
+  => { transaction :: Transaction
      , usedUtxos :: UtxoMap
      , balancerConstraints :: BalancerConstraints
      }
@@ -316,14 +361,28 @@ balanceAndLock { transaction, usedUtxos, balancerConstraints } = do
   void $ withUsedTxOuts $ lockTransactionInputs balancedTx
   pure balancedTx
 
+-- | Balances the transaction using the specified `TxBalancer` and locks its
+-- | inputs to prevent their reuse in subsequent transactions.
+balanceAndLockUtxos
+  :: forall (ctx :: Type)
+   . TxBalancer Contract Error ctx
+  -> { transaction :: Transaction
+     , balancerCtx :: ctx
+     }
+  -> Contract Transaction
+balanceAndLockUtxos balancer { transaction, balancerCtx } = do
+  balancedTx <- liftEither =<< balancer transaction balancerCtx
+  void $ withUsedTxOuts $ lockTransactionInputs balancedTx
+  pure balancedTx
+
 -- | Fetch transaction auxiliary data.
 -- | Returns `Right` when the transaction exists and auxiliary data is not empty
 getTxAuxiliaryData
   :: TransactionHash
   -> Contract (Either GetTxMetadataError AuxiliaryData)
 getTxAuxiliaryData txHash = do
-  queryHandle <- getQueryHandle
-  liftAff $ queryHandle.getTxAuxiliaryData txHash
+  provider <- getProvider
+  liftAff $ provider.getTxAuxiliaryData txHash
 
 -- | Builds an expected utxo set from transaction outputs. Predicts output
 -- | references (`TransactionInput`s) for each output by calculating the
@@ -348,7 +407,11 @@ createAdditionalUtxos tx = do
     foldl (\utxo txOut -> Map.insert (txIn $ length utxo) txOut utxo) Map.empty
 
 submitTxFromConstraints
-  :: ScriptLookups
+  :: Warn
+       ( Text
+           "Contract.TxConstraints is deprecated. Use `submitTxFromBlueprint` instead"
+       )
+  => ScriptLookups
   -> TxConstraints
   -> Contract TransactionHash
 submitTxFromConstraints lookups constraints = do
@@ -358,7 +421,8 @@ submitTxFromConstraints lookups constraints = do
   submit balancedSignedTx
 
 submitTxFromBuildPlan
-  :: UtxoMap
+  :: Warn (Text "Deprecated, use `submitTxFromBlueprint` instead")
+  => UtxoMap
   -> BalancerConstraints
   -> Array TransactionBuilderStep
   -> Contract Transaction
@@ -368,6 +432,40 @@ submitTxFromBuildPlan usedUtxos balancerConstraints plan = do
   balancedSignedTx <- signTransaction balancedTx
   void $ submit balancedSignedTx
   pure balancedSignedTx
+
+-- | Blueprint containing the steps and context required to construct
+-- | and balance a transaction.
+type TxBlueprint (ctx :: Type) =
+  { buildSteps :: Array TransactionBuilderStep
+  , balancer :: TxBalancer Contract Error ctx
+  , balancerCtx :: ctx
+  }
+
+-- | Represents the result of submitting a transaction via
+-- | `submitTxFromBlueprint`, which includes the balanced signed transaction
+-- | along with its hash.
+type TxReceipt =
+  { submittedTx :: Transaction
+  , txHash :: TransactionHash
+  }
+
+-- | Builds, balances, signs, and submits a transaction defined by the given
+-- | `TxBlueprint`. Returns a `TxReceipt` containing the submitted transaction
+-- | and its hash.
+submitTxFromBlueprint
+  :: forall (ctx :: Type)
+   . TxBlueprint ctx
+  -> Contract TxReceipt
+submitTxFromBlueprint blueprint = do
+  unbalancedTx <- buildTx blueprint.buildSteps
+  balancedTx <- liftEither =<< blueprint.balancer unbalancedTx
+    blueprint.balancerCtx
+  balancedSignedTx <- signTransaction balancedTx
+  txHash <- submit balancedSignedTx
+  pure
+    { submittedTx: balancedSignedTx
+    , txHash
+    }
 
 lookupTxHash
   :: TransactionHash -> UtxoMap -> Array TransactionUnspentOutput

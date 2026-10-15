@@ -13,7 +13,6 @@ import Cardano.Types.Address (Address(EnterpriseAddress))
 import Cardano.Types.DataHash (hashPlutusData)
 import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash))
 import Cardano.Types.PlutusData as PlutusData
-import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionOutput (TransactionOutput(TransactionOutput))
 import Cardano.Types.TransactionUnspentOutput (_input, fromUtxoMap, toUtxoMap)
 import Contract.Address (getNetworkId, mkAddress)
@@ -37,13 +36,14 @@ import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( TransactionHash
   , awaitTxConfirmed
-  , submitTxFromBuildPlan
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
 import Data.Array as Array
 import Data.Lens (view)
-import Data.Map as Map
 import Data.Newtype (unwrap)
 import Noble.Secp256k1.Schnorr
   ( SchnorrPublicKey
@@ -82,15 +82,18 @@ prepTest = do
   scriptAddress <- mkAddress
     (wrap $ ScriptHashCredential valHash)
     Nothing
-  tx <- submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address: scriptAddress
-        , amount: val
-        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
-        , scriptRef: Nothing
-        }
-    ]
-  let txId = Transaction.hash tx
+  { txHash: txId } <- submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address: scriptAddress
+            , amount: val
+            , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
   logInfo' $ "Submitted ECDSA test preparation tx: " <> show txId
   awaitTxConfirmed txId
   logInfo' $ "Transaction confirmed: " <> show txId
@@ -116,16 +119,22 @@ testVerification txId ecdsaRed = do
     $ Array.filter (view _input >>> unwrap >>> _.transactionId >>> eq txId)
     $ fromUtxoMap scriptUtxos
 
-  tx <- submitTxFromBuildPlan (toUtxoMap [ utxo ]) mempty
-    [ SpendOutput utxo $ Just
-        $ PlutusScriptOutput
-            (ScriptValue validator)
-            redeemer
-        $ Just
-        $ DatumValue
-        $ PlutusData.unit
-    ]
-  let txId' = Transaction.hash tx
+  { txHash: txId' } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SpendOutput utxo $ Just
+            $ PlutusScriptOutput
+                (ScriptValue validator)
+                redeemer
+            $ Just
+            $ DatumValue
+            $ PlutusData.unit
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints: mempty
+        , extraUtxos: toUtxoMap [ utxo ]
+        }
+    }
   logInfo' $ "Submitted ECDSA test verification tx: " <> show txId'
   awaitTxConfirmed txId'
   logInfo' $ "Transaction confirmed: " <> show txId'

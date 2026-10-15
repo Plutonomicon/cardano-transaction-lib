@@ -15,7 +15,7 @@ import Cardano.Types.TransactionInput (TransactionInput)
 import Contract.Log (logWarn')
 import Contract.Monad (Contract, liftedE)
 import Ctl.Internal.BalanceTx.Sync (getControlledAddresses, isCip30Wallet)
-import Ctl.Internal.Contract.Monad (getQueryHandle)
+import Ctl.Internal.Contract.Monad (getProvider)
 import Data.Maybe (Maybe)
 import Data.Set (member) as Set
 import Effect.Aff.Class (liftAff)
@@ -33,7 +33,7 @@ utxosAt
   :: Address
   -> Contract UtxoMap
 utxosAt address = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   whenM isCip30Wallet do
     walletAddresses <- getControlledAddresses
     when (address `Set.member` walletAddresses) do
@@ -44,7 +44,7 @@ utxosAt address = do
           <> "that are available on wallet addresses are actually spendable. "
           <> "See the docs for UTxO locking in `doc/query-layers.md`. Using "
           <> "`getWalletUtxos` is a way to avoid the potential problems."
-  liftedE $ liftAff $ queryHandle.utxosAt address
+  liftedE $ liftAff $ provider.utxosAt address
 
 -- | Queries for an utxo given a transaction input.
 -- | Returns `Nothing` if the output has already been spent.
@@ -52,5 +52,5 @@ getUtxo
   :: TransactionInput
   -> Contract (Maybe TransactionOutput)
 getUtxo oref = do
-  queryHandle <- getQueryHandle
-  liftedE $ liftAff $ queryHandle.getUtxoByOref oref
+  provider <- getProvider
+  liftedE $ liftAff $ provider.getUtxoByOref oref

@@ -2,13 +2,12 @@ module Test.Ctl.CoinSelection.UtxoIndex (suite) where
 
 import Prelude
 
-import Cardano.Types.TransactionInput (TransactionInput)
-import Ctl.Internal.CoinSelection.UtxoIndex
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex
   ( SelectionFilter
   , UtxoIndex
   , UtxoIndexInvariantStatus(InvariantHolds)
   )
-import Ctl.Internal.CoinSelection.UtxoIndex
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex
   ( buildUtxoIndex
   , checkUtxoIndexInvariants
   , emptyUtxoIndex
@@ -18,6 +17,7 @@ import Ctl.Internal.CoinSelection.UtxoIndex
   , utxoIndexInsertEntry
   , utxoIndexPartition
   ) as UtxoIndex
+import Cardano.Types.TransactionInput (TransactionInput)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(Nothing, Just))
 import Data.Newtype (unwrap)

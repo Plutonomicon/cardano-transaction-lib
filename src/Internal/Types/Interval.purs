@@ -69,6 +69,7 @@ import Aeson
   , Aeson
   , JsonDecodeError(AtKey, Named, TypeMismatch, UnexpectedValue)
   , aesonNull
+  , caseAesonObject
   , decodeAeson
   , encodeAeson
   , finiteNumber
@@ -88,8 +89,13 @@ import Cardano.Plutus.DataSchema
   )
 import Cardano.ToData (class ToData, genericToData, toData)
 import Cardano.Types.BigNum (add, fromBigInt, maxValue, one, toBigInt, zero) as BigNum
+import Cardano.Types.EraSummaries
+  ( EraSummaries(EraSummaries)
+  , EraSummary(EraSummary)
+  )
 import Cardano.Types.PlutusData (PlutusData(Constr))
 import Cardano.Types.Slot (Slot(Slot))
+import Cardano.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Ctl.Internal.Helpers
@@ -100,12 +106,6 @@ import Ctl.Internal.Helpers
   , showWithParens
   , unsafeFromJust
   )
-import Ctl.Internal.QueryM.Ogmios (aesonObject)
-import Ctl.Internal.Types.EraSummaries
-  ( EraSummaries(EraSummaries)
-  , EraSummary(EraSummary)
-  )
-import Ctl.Internal.Types.SystemStart (SystemStart, sysStartUnixTime)
 import Data.Argonaut.Encode.Encoders (encodeString)
 import Data.Array (find, head, index, length)
 import Data.Array.NonEmpty (singleton) as NEArray
@@ -600,7 +600,7 @@ maxSlot = wrap BigNum.maxValue
 -- Conversion functions
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
--- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
+-- Slot (absolute from System Start - see KupmiosM.SystemStart.getSystemStart)
 -- to POSIXTime (milliseconds)
 --------------------------------------------------------------------------------
 data SlotToPosixTimeError
@@ -643,7 +643,7 @@ instance EncodeAeson SlotToPosixTimeError where
       aesonNull
 
 instance DecodeAeson SlotToPosixTimeError where
-  decodeAeson = aesonObject $ \o -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) $ \o -> do
     errorType <- getField o "errorType"
     unless (errorType == slotToPosixTimeErrorStr)
       $ throwError
@@ -746,7 +746,7 @@ instance Show RelSlot where
   show (RelSlot rs) = showWithParens "RelSlot" rs
 
 -- | Relative time to the start of an `EraSummary`. Contract this to
--- | `Ogmios.QueryM.RelativeTime` which is usually relative to system start.
+-- | `Ogmios.KupmiosM.RelativeTime` which is usually relative to system start.
 -- | Treat as Milliseconds
 newtype RelTime = RelTime BigInt
 
@@ -837,7 +837,7 @@ slotLengthFactor = 1000.0
 
 --------------------------------------------------------------------------------
 -- POSIXTime (milliseconds) to
--- Slot (absolute from System Start - see QueryM.SystemStart.getSystemStart)
+-- Slot (absolute from System Start - see KupmiosM.SystemStart.getSystemStart)
 --------------------------------------------------------------------------------
 data PosixTimeToSlotError
   = CannotFindTimeInEraSummaries AbsTime
@@ -890,7 +890,7 @@ instance EncodeAeson PosixTimeToSlotError where
       [ encodeAeson slot, encodeAeson modTime ]
 
 instance DecodeAeson PosixTimeToSlotError where
-  decodeAeson = aesonObject $ \o -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) $ \o -> do
     errorType <- getField o "errorType"
     unless (errorType == posixTimeToSlotErrorStr)
       $ throwError
@@ -1186,7 +1186,7 @@ instance EncodeAeson ToOnChainPosixTimeRangeError where
       [ err ]
 
 instance DecodeAeson ToOnChainPosixTimeRangeError where
-  decodeAeson = aesonObject $ \o -> do
+  decodeAeson = caseAesonObject (Left (TypeMismatch "Object")) $ \o -> do
     errorType <- getField o "errorType"
     unless (errorType == toOnChainPosixTimeRangeErrorStr)
       $ throwError

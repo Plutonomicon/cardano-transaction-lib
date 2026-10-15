@@ -68,7 +68,7 @@ import Ctl.Internal.Wallet.Spec
   , mkKeyWalletFromMnemonic
   )
 import Ctl.Internal.Wallet.Spec
-  ( KnownWallet(Nami, Gero, Flint, Eternl, Lode, Lace, NuFi)
+  ( KnownWallet(Gero, Eternl, Lode, Lace, NuFi)
   , MnemonicSource(MnemonicString, MnemonicFile)
   , PrivatePaymentKeySource(PrivatePaymentKeyFile, PrivatePaymentKeyValue)
   , PrivateStakeKeySource(PrivateStakeKeyFile, PrivateStakeKeyValue)
@@ -188,7 +188,6 @@ getWalletBalance = do
 
 -- | Get the collateral of the browser wallet. This collateral will vary
 -- | depending on the wallet.
--- | E.g. Nami creates a hard-coded 5 Ada collateral.
 -- | Throws on `Promise` rejection by wallet, returns `Nothing` if no collateral
 -- | is available.
 getWalletCollateral

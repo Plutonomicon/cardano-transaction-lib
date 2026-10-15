@@ -2,13 +2,22 @@ module Test.Ctl.Blockfrost.GenerateFixtures.NativeScript (main) where
 
 import Contract.Prelude
 
+import Cardano.Blockfrost.BlockfrostBackend (BlockfrostBackend)
+import Cardano.Blockfrost.Service
+  ( BlockfrostEndpoint(NativeScriptByHash)
+  , BlockfrostRawResponse
+  , runBlockfrostServiceTestM
+  )
+import Cardano.Blockfrost.Service
+  ( getScriptByHash
+  ) as Blockfrost
 import Cardano.Types.BigNum as BigNum
 import Contract.Config
   ( ContractParams
   , PrivatePaymentKeySource(PrivatePaymentKeyFile)
   , WalletSpec(UseKeys)
   , defaultKupoServerConfig
-  , defaultOgmiosWsConfig
+  , defaultOgmiosServerConfig
   , mkCtlBackendParams
   , testnetConfig
   )
@@ -24,15 +33,6 @@ import Contract.TxConstraints (TxConstraints) as Constraints
 import Contract.Value (lovelaceValueOf) as Value
 import Contract.Wallet (ownPaymentPubKeyHash, ownStakePubKeyHash)
 import Ctl.Examples.Helpers (mustPayToPubKeyStakeAddressWithScriptRef)
-import Ctl.Internal.Contract.QueryBackend (BlockfrostBackend)
-import Ctl.Internal.Service.Blockfrost
-  ( BlockfrostEndpoint(NativeScriptByHash)
-  , BlockfrostRawResponse
-  , runBlockfrostServiceTestM
-  )
-import Ctl.Internal.Service.Blockfrost
-  ( getScriptByHash
-  ) as Blockfrost
 import Data.Array (mapWithIndex)
 import Data.UInt (fromInt) as UInt
 import Test.Ctl.Blockfrost.GenerateFixtures.Helpers
@@ -62,7 +62,7 @@ main =
       --      }
       { backendParams =
           mkCtlBackendParams
-            { ogmiosConfig: defaultOgmiosWsConfig
+            { ogmiosConfig: defaultOgmiosServerConfig
             , kupoConfig:
                 defaultKupoServerConfig
                   { port = UInt.fromInt 1442, path = Nothing }

@@ -2,10 +2,10 @@ module Ctl.Internal.Contract (getChainTip, getProtocolParameters) where
 
 import Prelude
 
+import Cardano.Types.Chain (Tip)
+import Cardano.Types.ProtocolParameters (ProtocolParameters)
 import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
-import Ctl.Internal.Types.Chain (Tip)
-import Ctl.Internal.Types.ProtocolParameters (ProtocolParameters)
+import Ctl.Internal.Contract.Monad (Contract, getProvider)
 import Data.Either (either)
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
@@ -13,9 +13,9 @@ import Effect.Exception (throw)
 
 getChainTip :: Contract Tip
 getChainTip = do
-  queryHandle <- getQueryHandle
+  provider <- getProvider
   liftAff $
-    queryHandle.getChainTip
+    provider.getChainTip
       >>= either (liftEffect <<< throw <<< show) pure
 
 -- | Returns the `ProtocolParameters` from the environment.

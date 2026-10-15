@@ -132,7 +132,7 @@ See [this example](../test/Blockfrost/Contract.purs), which can be executed with
 
 On production, the environment should be configured on PureScript side (environment variables are not respected).
 
-`mkBlockfrostBackendParams` can be called on a populated `BlockfrostBackendParams` record to create a `QueryBackendParams` value. `backendParams` field of `ContractParams` uses a value of this type. And `ContractParams` can in turn be used with `runContract`.
+`mkBlockfrostBackendParams` can be called on a populated `BlockfrostBackendParams` record to create a `ProviderBackendParams` value. `backendParams` field of `ContractParams` uses a value of this type. And `ContractParams` can in turn be used with `runContract`.
 
 ```purescript
 type BlockfrostBackendParams =

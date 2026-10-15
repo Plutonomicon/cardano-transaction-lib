@@ -15,7 +15,6 @@ import Cardano.Types
   , Credential(PubKeyHashCredential)
   , Ed25519KeyHash
   )
-import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -23,17 +22,20 @@ import Contract.Config
   , testnetConfig
   , walletName
   )
+import Contract.Governance (queryRegisteredDrepInfo)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
 import Contract.Wallet (ownDrepPubKeyHash)
-import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Error.Class (liftMaybe)
 import Ctl.Examples.Gov.Internal.Common (dummyAnchor)
-import Data.Map (empty) as Map
-import Data.String (Pattern(Pattern))
-import Data.String (contains) as String
-import Effect.Exception (message)
+import Effect.Exception (error)
 
 main :: Effect Unit
 main = example $ testnetConfig
@@ -63,27 +65,33 @@ contractStep :: ContractPath -> Contract Ed25519KeyHash
 contractStep path = do
   drepPkh <- ownDrepPubKeyHash
   let drepCred = PubKeyHashCredential drepPkh
-  drepDeposit <- _.drepDeposit <<< unwrap <$> getProtocolParameters
-
-  let
-    submitTx = do
-      tx <- submitTxFromBuildPlan Map.empty mempty
-        [ IssueCertificate
-            ( case path of
-                RegDrep ->
-                  RegDrepCert drepCred drepDeposit Nothing
-                UpdateDrep anchor ->
-                  UpdateDrepCert drepCred $ Just anchor
-                UnregDrep ->
-                  UnregDrepCert drepCred drepDeposit
-            )
-            Nothing
-        ]
-      awaitTxConfirmed $ Transaction.hash tx
-
-  submitTx `catchError` \err ->
-    unless
-      (String.contains (Pattern "knownDelegateRepresentative") $ message err)
-      (throwError err)
-
+  drepInfo <- queryRegisteredDrepInfo drepCred
+  case drepInfo, path of
+    Just _, RegDrep ->
+      logInfo' "DRep already registered. Skipping registration contract."
+    _, _ -> do
+      drepDeposit <-
+        case path of
+          RegDrep ->
+            _.drepDeposit <<< unwrap <$> getProtocolParameters
+          _ ->
+            liftMaybe (error "Could not get DRep info")
+              (_.deposit <$> drepInfo)
+      { txHash } <- submitTxFromBlueprint
+        { buildSteps:
+            [ IssueCertificate
+                ( case path of
+                    RegDrep ->
+                      RegDrepCert drepCred drepDeposit Nothing
+                    UpdateDrep anchor ->
+                      UpdateDrepCert drepCred $ Just anchor
+                    UnregDrep ->
+                      UnregDrepCert drepCred drepDeposit
+                )
+                Nothing
+            ]
+        , balancer: defaultBalancer
+        , balancerCtx: emptyBalancerCtx
+        }
+      awaitTxConfirmed txHash
   pure drepPkh

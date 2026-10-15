@@ -2,7 +2,7 @@ module Test.Ctl.Partition (suite) where
 
 import Prelude
 
-import Ctl.Internal.Partition
+import Cardano.Transaction.Balancer.Partition
   ( class Equipartition
   , class Partition
   , equipartition

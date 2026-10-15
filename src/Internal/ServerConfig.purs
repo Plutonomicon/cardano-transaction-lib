@@ -7,7 +7,7 @@ module Ctl.Internal.ServerConfig
   , blockfrostPublicSanchonetServerConfig
   , blockfrostSelfHostedServerConfig
   , defaultKupoServerConfig
-  , defaultOgmiosWsConfig
+  , defaultOgmiosServerConfig
   , mkHttpUrl
   , mkServerUrl
   , mkWsUrl
@@ -16,7 +16,6 @@ module Ctl.Internal.ServerConfig
 import Prelude
 
 import Ctl.Internal.Helpers ((<</>>))
-import Ctl.Internal.JsWebSocket (Url)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.UInt (UInt)
 import Data.UInt as UInt
@@ -30,8 +29,8 @@ type ServerConfig =
   , path :: Maybe String
   }
 
-defaultOgmiosWsConfig :: ServerConfig
-defaultOgmiosWsConfig =
+defaultOgmiosServerConfig :: ServerConfig
+defaultOgmiosServerConfig =
   { port: UInt.fromInt 1337
   , host: "localhost"
   , secure: false
@@ -85,6 +84,8 @@ blockfrostSelfHostedServerConfig =
   , secure: false
   , path: Just ""
   }
+
+type Url = String
 
 mkHttpUrl :: ServerConfig -> Url
 mkHttpUrl = mkServerUrl "http"

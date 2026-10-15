@@ -7,11 +7,10 @@ module Ctl.Examples.Gov.DelegateVoteAbstain
 import Contract.Prelude
 
 import Cardano.Transaction.Builder (TransactionBuilderStep(IssueCertificate))
-import Cardano.Types.Certificate (Certificate(VoteRegDelegCert))
+import Cardano.Types.Certificate (Certificate(VoteDelegCert, VoteRegDelegCert))
 import Cardano.Types.Credential (Credential(PubKeyHashCredential))
 import Cardano.Types.DRep (DRep(AlwaysAbstain))
 import Cardano.Types.PublicKey (hash) as PublicKey
-import Cardano.Types.Transaction (hash) as Transaction
 import Contract.Config
   ( ContractParams
   , KnownWallet(Eternl)
@@ -22,10 +21,15 @@ import Contract.Config
 import Contract.Log (logDebug', logInfo')
 import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.ProtocolParameters (getProtocolParameters)
-import Contract.Transaction (awaitTxConfirmed, submitTxFromBuildPlan)
-import Contract.Wallet (ownUnregisteredPubStakeKeys)
+import Contract.Transaction
+  ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
+  , submitTxFromBlueprint
+  )
+import Contract.Wallet (ownRegisteredPubStakeKeys, ownUnregisteredPubStakeKeys)
+import Control.Monad.Error.Class (throwError)
 import Data.Array (head) as Array
-import Data.Map (empty) as Map
 import Effect.Exception (error)
 
 main :: Effect Unit
@@ -41,21 +45,42 @@ contract :: Contract Unit
 contract = do
   logInfo' "Running Examples.Gov.DelegateVoteAbstain"
 
-  unregPubStakeKeys <- ownUnregisteredPubStakeKeys
-  logDebug' $ "Unregistered public stake keys: " <> show unregPubStakeKeys
+  unregStakeKeys <- ownUnregisteredPubStakeKeys
+  logDebug' $ "Unregistered stake keys: " <> show unregStakeKeys
 
-  pubStakeKey <- liftM (error "Failed to get unregistered pub stake key") $
-    Array.head unregPubStakeKeys
-  let stakeCred = wrap $ PubKeyHashCredential $ PublicKey.hash pubStakeKey
+  regStakeKeys <- ownRegisteredPubStakeKeys
+  logDebug' $ "Registered stake keys: " <> show regStakeKeys
+
+  { stakeKey, registered } <-
+    case Array.head unregStakeKeys of
+      Just stakeKey ->
+        pure { stakeKey, registered: false }
+      Nothing ->
+        case Array.head regStakeKeys of
+          Just stakeKey ->
+            pure { stakeKey, registered: true }
+          Nothing ->
+            throwError $ error "Could to get pub stake key"
+
+  let stakeCred = wrap $ PubKeyHashCredential $ PublicKey.hash stakeKey
 
   stakeCredDeposit <- _.stakeAddressDeposit <<< unwrap <$>
     getProtocolParameters
 
-  tx <- submitTxFromBuildPlan Map.empty mempty
-    [ IssueCertificate
-        (VoteRegDelegCert stakeCred AlwaysAbstain stakeCredDeposit)
-        Nothing
-    ]
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ IssueCertificate
+            ( case registered of
+                false ->
+                  VoteRegDelegCert stakeCred AlwaysAbstain stakeCredDeposit
+                true ->
+                  VoteDelegCert stakeCred AlwaysAbstain
+            )
+            Nothing
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
-  awaitTxConfirmed $ Transaction.hash tx
+  awaitTxConfirmed txHash
   logInfo' "Tx submitted successfully!"

@@ -6,6 +6,7 @@ module Ctl.Internal.Cardano.TextEnvelope
       , PlutusScriptV3
       , PaymentSigningKeyShelleyed25519
       , StakeSigningKeyShelleyed25519
+      , DRepSigningKeyed25519
       , Other
       )
   , decodeTextEnvelope
@@ -15,15 +16,13 @@ module Ctl.Internal.Cardano.TextEnvelope
 import Prelude
 
 import Aeson (class DecodeAeson, decodeAeson, parseJsonStringToAeson)
-import Cardano.Types.Language (Language(PlutusV3))
 import Cardano.Types.PlutusScript (PlutusScript)
 import Cardano.Types.PlutusScript as PlutusScript
 import Ctl.Internal.Types.Cbor (toByteArray)
 import Data.ByteArray (ByteArray, hexToByteArray)
 import Data.Either (hush)
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Newtype (class Newtype, unwrap, wrap)
-import Data.Tuple.Nested ((/\))
+import Data.Newtype (class Newtype, wrap)
 
 data TextEnvelopeType
   = PlutusScriptV1
@@ -31,6 +30,7 @@ data TextEnvelopeType
   | PlutusScriptV3
   | PaymentSigningKeyShelleyed25519
   | StakeSigningKeyShelleyed25519
+  | DRepSigningKeyed25519
   | Other String
 
 derive instance Eq TextEnvelopeType
@@ -42,6 +42,7 @@ instance Show TextEnvelopeType where
     PlutusScriptV3 -> "PlutusScriptV3"
     PaymentSigningKeyShelleyed25519 -> "PaymentSigningKeyShelley_ed25519"
     StakeSigningKeyShelleyed25519 -> "StakeSigningKeyShelley_ed25519"
+    DRepSigningKeyed25519 -> "DRepSigningKey_ed25519"
     Other other -> other
 
 instance DecodeAeson TextEnvelopeType where
@@ -50,10 +51,12 @@ instance DecodeAeson TextEnvelopeType where
       "PlutusScriptV1" -> pure PlutusScriptV1
       "PlutusScriptV2" -> pure PlutusScriptV2
       "PlutusScriptV3" -> pure PlutusScriptV3
-      "PaymentSigningKeyShelley_ed25519" -> pure
-        PaymentSigningKeyShelleyed25519
-      "StakeSigningKeyShelley_ed25519" -> pure
-        StakeSigningKeyShelleyed25519
+      "PaymentSigningKeyShelley_ed25519" ->
+        pure PaymentSigningKeyShelleyed25519
+      "StakeSigningKeyShelley_ed25519" ->
+        pure StakeSigningKeyShelleyed25519
+      "DRepSigningKey_ed25519" ->
+        pure DRepSigningKeyed25519
       other -> pure $ Other other
 
 type TextEnvelopeRaw =
@@ -94,8 +97,7 @@ plutusScriptFromEnvelope (TextEnvelope envelope) =
     PlutusScriptV2 ->
       Just $ PlutusScript.plutusV2Script envelopeBytes
     PlutusScriptV3 ->
-      -- TODO: add plutusV3Script to Cardano.Types.PlutusScript
-      Just $ wrap $ unwrap envelopeBytes /\ PlutusV3
+      Just $ PlutusScript.plutusV3Script envelopeBytes
     _ -> Nothing
   where
   envelopeBytes = wrap envelope.bytes

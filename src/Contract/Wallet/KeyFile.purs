@@ -8,7 +8,10 @@ import Prelude
 
 import Cardano.Wallet.Key (KeyWallet, privateKeysToKeyWallet)
 import Ctl.Internal.Wallet.KeyFile
-  ( privatePaymentKeyFromFile
+  ( privateDrepKeyFromFile
+  , privateDrepKeyFromTextEnvelope
+  , privateDrepKeyToFile
+  , privatePaymentKeyFromFile
   , privatePaymentKeyFromTextEnvelope
   , privatePaymentKeyToFile
   , privateStakeKeyFromFile
@@ -16,26 +19,30 @@ import Ctl.Internal.Wallet.KeyFile
   , privateStakeKeyToFile
   ) as Wallet.KeyFile
 import Ctl.Internal.Wallet.KeyFile
-  ( privatePaymentKeyFromFile
+  ( privateDrepKeyFromFile
+  , privatePaymentKeyFromFile
   , privateStakeKeyFromFile
   )
-import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (Maybe)
 import Data.Traversable (traverse)
 import Effect.Aff (Aff)
 import Node.Path (FilePath)
 
 -- | Load `PrivateKey`s from `skey` files (the files should be in JSON format as
 -- | accepted by cardano-cli) given a network id.
--- | The keys should have `PaymentSigningKeyShelley_ed25519` and
--- | `StakeSigningKeyShelley_ed25519` types, respectively.
--- | The stake key is optional.
+-- | The keys should have `PaymentSigningKeyShelley_ed25519`,
+-- | `StakeSigningKeyShelley_ed25519`, and `DRepSigningKey_ed25519` types,
+-- | respectively.
+-- | The stake and DRep keys are optional.
 -- |
 -- | **NodeJS only**
 mkKeyWalletFromFiles
-  :: FilePath -> Maybe FilePath -> Aff KeyWallet
-mkKeyWalletFromFiles paymentKeyFile mbStakeKeyFile =
+  :: FilePath
+  -> Maybe FilePath
+  -> Maybe FilePath
+  -> Aff KeyWallet
+mkKeyWalletFromFiles paymentKeyFile mbStakeKeyFile mbDrepKeyFile =
   privateKeysToKeyWallet
     <$> privatePaymentKeyFromFile paymentKeyFile
     <*> traverse privateStakeKeyFromFile mbStakeKeyFile
-    -- FIXME: allow to provide drep key
-    <*> pure Nothing
+    <*> traverse privateDrepKeyFromFile mbDrepKeyFile

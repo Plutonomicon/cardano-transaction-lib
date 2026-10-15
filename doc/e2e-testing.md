@@ -65,7 +65,7 @@ For purposes of testing, there are two parts to using a wallet: providing the ri
 ### Where to Find the Installed Extensions
 
 1. Locate your browser profile directory. Commonly used locations include: `~/.config/{google-chrome,chromium}/Default` (where `Default` is the profile name), `~/snap/chromium/common/chromium/Default`.
-2. Make sure that inside the profile, your desired extension is unpacked. Nami should be in `Extensions/lpfcbjknijpeeillifnkikgncikgfhdo`, Gero (testnet version) in `Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc`.
+2. Make sure that inside the profile, your desired extension is unpacked. Gero (testnet version) should be in `Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc`.
 3. Add the version as a subdirectory, too. The final path may look like `/home/user/.config/google-chrome/Default/Extensions/iifeegfcfhlhhnilhfoeihllenamcfgc/1.10.9_0`
 
 ### How to Use a Different User Wallet
@@ -125,14 +125,6 @@ The tests can set up using CLI arguments, environment variables, or both. CLI ar
 | Lode CRX URL                                                           | `--lode-crx-url`            | `LODE_CRX_URL`             |
 | Lode password                                                          | `--lode-password`           | `LODE_PASSWORD`            |
 | Lode Extension ID                                                      | `--lode-extid`              | `LODE_EXTID`               |
-| Nami CRX URL                                                           | `--nami-crx-url`            | `NAMI_CRX_URL`             |
-| Nami CRX file                                                          | `--nami-crx`                | `NAMI_CRX`                 |
-| Nami password                                                          | `--nami-password`           | `NAMI_PASSWORD`            |
-| Nami Extension ID                                                      | `--nami-extid`              | `NAMI_EXTID`               |
-| Flint CRX URL                                                          | `--flint-crx-url`           | `FLINT_CRX_URL`            |
-| Flint CRX file                                                         | `--flint-crx`               | `FLINT_CRX`                |
-| Flint password                                                         | `--flint-password`          | `FLINT_PASSWORD`           |
-| Flint Extension ID                                                     | `--flint-extid`             | `FLINT_EXTID`              |
 | Gero CRX URL                                                           | `--gero-crx-url`            | `GERO_CRX_URL`             |
 | Gero CRX file                                                          | `--gero-crx`                | `GERO_CRX`                 |
 | Gero password                                                          | `--gero-password`           | `GERO_PASSWORD`            |
@@ -224,22 +216,74 @@ See [this file](../templates/ctl-scaffold/test/E2E.purs) for a quick example:
 ```purescript
 main :: Effect Unit
 main = do
+  configs <- liftEither $ lmap error mkConfigs
   -- Adds links to all available tests to the DOM for convenience
   addLinks configs tests
   -- Serves the appropriate `Contract` with e2eTestHooks
   route configs tests
 
-configs :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
-configs = Map.fromFoldable
-  [ "nami" /\ testnetNamiConfig /\ Nothing
-  , "gero" /\ testnetGeroConfig /\ Nothing
-  , "flint" /\ testnetFlintConfig /\ Nothing
-  , "eternl" /\ testnetEternlConfig /\ Nothing
-  , "lode" /\ testnetLodeConfig /\ Nothing
-  , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
-  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
-  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
-  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
+mkConfigs :: Either String (Map E2EConfigName (ContractParams /\ Maybe String))
+mkConfigs =
+  e2eConfigs
+    [ "eternl"
+    , "gero"
+    , "lode"
+    , "eternl-mock"
+    , "gero-mock"
+    , "lode-mock"
+    , "localnet-eternl-mock"
+    , "localnet-gero-mock"
+    , "localnet-lode-mock"
+    ]
+
+tests :: Map E2ETestName (Contract Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
+  ]
+
+tests :: Map E2ETestName (Contract Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
+  ]
+```
+
+It is also possible to specify E2E configurations directly without using
+the `e2eConfigs` helper function:
+
+```purescript
+main :: Effect Unit
+main = do
+  -- Adds links to all available tests to the DOM for convenience
+  addLinks configs tests
+  -- Serves the appropriate `Contract` with e2eTestHooks
+  route configs tests
+
+configs :: Map E2EConfigName (ContractParams /\ Maybe String)
+configs = map (map walletName) <$> Map.fromFoldable
+  [ "eternl" /\ testnetConfig' Eternl /\ Nothing
+  , "gero" /\ testnetConfig' Gero /\ Nothing
+  , "lode" /\ testnetConfig' Lode /\ Nothing
+  , "eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
+  , "gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "lode-mock" /\ testnetConfig' Lode /\ Just Lode
+  , "localnet-eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
+  , "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
+  ]
+  where
+  testnetConfig' :: KnownWallet -> ContractParams
+  testnetConfig' wallet =
+    testnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
+      }
+
+tests :: Map E2ETestName (Contract Unit)
+tests = Map.fromFoldable
+  [ "Contract" /\ Scaffold.contract
+  -- Add more `Contract`s here
   ]
 
 tests :: Map E2ETestName (Contract Unit)
@@ -253,11 +297,11 @@ Now, the `Scaffold.contract` can be used as a test:
 
 ```bash
 E2E_TESTS="
-nami:http://localhost:4008/?nami:Contract
+eternl:http://localhost:4008/?eternl:Contract
 "
 ```
 
-The `nami:` prefix specifies which browser extension to load for the test, and the query parameter is for the router to be able to find the appropriate config.
+The `eternl:` prefix specifies which browser extension to load for the test, and the query parameter is for the router to be able to find the appropriate config.
 
 Refer to the docs for `Contract.Test.E2E.route` function for an overview of the URL structure.
 
@@ -286,10 +330,10 @@ As a result, you will get json files that look like this:
 Simply copy the `cborHex` from payment and stake signing keys (the order is important), and add them to the URL, separating by `:`:
 
 ```
-http://localhost:4008/?nami-mock:Contract:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
+http://localhost:4008/?eternl-mock:Contract:58200b07c066ba037344acee5431e6df41f6034bf1c5ffd6f803751e356807c6a209:5820f0db841df6c7fbc4506c58fad6676db0354a02dfd26efca445715a8adeabc338
 ```
 
-The `nami:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
+The `eternl:` prefix should not be specified, otherwise CTL will refuse to overwrite the existing wallet with a mock.
 
 In order to use the keys, their corresponding address must be pre-funded using the [faucet](https://docs.cardano.org/cardano-testnet/tools/faucet) (beware of IP-based rate-limiting) or from another wallet. Most contracts require at least two UTxOs to run (one will be used as collateral), so it's best to make two transactions.
 
@@ -297,28 +341,44 @@ In order to use the keys, their corresponding address must be pre-funded using t
 
 It's possible to run headless browser tests on top of a Cardano Testnet cluster.
 
-To do that, it's enough to define a config name that:
-
-- uses a `ContractParams` value with `networkId` set to `MainnetId`.
-- Specifies a wallet mock (e.g. `MockNami`)
+To do that, it's enough to define a config that specifies a wallet mock.
+For `e2eConfigs`, the name config must include the `-mock` suffix.
 
 E.g.:
 
 ```purescript
-wallets :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
-wallets = Map.fromFoldable
-  [ "testnet-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
-  , "testnet-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
-  , "testnet-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
-  , "testnet-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
+mkConfigs :: Either String (Map E2EConfigName (ContractParams /\ Maybe String))
+mkConfigs =
+  e2eConfigs
+    [ "localnet-eternl-mock"
+    , "localnet-gero-mock"
+    , "localnet-lode-mock"
+    ]
+```
+
+or, if finer control over the configurations is needed:
+
+```purescript
+configs :: Map E2EConfigName (ContractParams /\ Maybe String)
+configs = map (map walletName) <$> Map.fromFoldable
+  [ "localnet-eternl-mock" /\ testnetConfig' Eternl /\ Just Eternl
+  , "localnet-gero-mock" /\ testnetConfig' Gero /\ Just Gero
+  , "localnet-lode-mock" /\ testnetConfig' Lode /\ Just Lode
   ]
+  where
+  testnetConfig' :: KnownWallet -> ContractParams
+  testnetConfig' wallet =
+    testnetConfig
+      { walletSpec =
+          Just $ ConnectToGenericCip30 (walletName wallet) { cip95: false }
+      }
 ```
 
 Then a test entry *without* specifying any private key can be used:
 
 ```bash
 export E2E_TESTS="
-plutip:http://localhost:4008/?plutip-nami-mock:SomeContract
+localnet:http://localhost:4008/?localnet-gero-mock:SomeContract
 "
 ```
 

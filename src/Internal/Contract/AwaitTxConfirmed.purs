@@ -9,14 +9,14 @@ import Prelude
 
 import Cardano.Types (Slot, TransactionHash, TransactionInput(TransactionInput))
 import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Chain as Chain
 import Contract.Monad (liftedE)
 import Control.Monad.Reader.Class (asks)
 import Control.Parallel (parOneOf)
 import Ctl.Internal.BalanceTx.Sync (syncWalletWithTransaction)
 import Ctl.Internal.Contract (getChainTip)
-import Ctl.Internal.Contract.Monad (Contract, getQueryHandle)
-import Ctl.Internal.Contract.QueryBackend (getBlockfrostBackend)
-import Ctl.Internal.Types.Chain as Chain
+import Ctl.Internal.Contract.Monad (Contract, getProvider)
+import Ctl.Internal.Contract.ProviderBackend (getBlockfrostBackend)
 import Data.Either (either)
 import Data.Maybe (isJust, maybe)
 import Data.Newtype (unwrap, wrap)
@@ -68,7 +68,7 @@ awaitTxConfirmedWithTimeout timeoutSeconds txHash = do
   -- Assumption is that the Tx has at least one output.
   --
   -- CTL backend (kupo) ensures that UTxO changes are propagated in the
-  -- `QueryHandle`, because it uses querying for UTxOs to check for tx
+  -- `Provider`, because it uses querying for UTxOs to check for tx
   -- availability in the first place.
   --
   -- But blockfrost backend performs the check for Tx existence using tx-by-hash
@@ -105,8 +105,8 @@ tryUntilTrue delayTime check = go
 -- | Check that UTxOs are present using `getUtxoByOref` function
 utxosPresentForTxHash :: TransactionHash -> Contract Boolean
 utxosPresentForTxHash txHash = do
-  queryHandle <- getQueryHandle
-  mbTxOutput <- liftedE $ liftAff $ queryHandle.getUtxoByOref
+  provider <- getProvider
+  mbTxOutput <- liftedE $ liftAff $ provider.getUtxoByOref
     -- Here we assume that the tx has at least one output.
     (TransactionInput { transactionId: txHash, index: UInt.fromInt 0 })
   pure $ isJust mbTxOutput
@@ -157,8 +157,8 @@ awaitTxConfirmedWithTimeoutSlots timeoutSlots txHash = do
 -- | Checks if a Tx is known to the query layer. It may still be unconfirmed.
 doesTxExist :: TransactionHash -> Contract Boolean
 doesTxExist txHash = do
-  queryHandle <- getQueryHandle
-  liftAff $ queryHandle.doesTxExist txHash
+  provider <- getProvider
+  liftAff $ provider.doesTxExist txHash
     >>= either (liftEffect <<< throw <<< show) pure
 
 -- | Check if a transaction is confirmed at the moment, i.e. if its UTxOs

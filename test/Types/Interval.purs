@@ -7,12 +7,13 @@ module Test.Ctl.Types.Interval
 import Prelude
 
 import Aeson (class DecodeAeson, decodeJsonString, printJsonDecodeError)
+import Cardano.Kupmios.Ogmios.Types (OgmiosEraSummaries, OgmiosSystemStart)
 import Cardano.Types (Slot(Slot))
 import Cardano.Types.BigNum (fromInt) as BigNum
+import Cardano.Types.EraSummaries (EraSummaries)
+import Cardano.Types.SystemStart (SystemStart)
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Except (throwError)
-import Ctl.Internal.QueryM.Ogmios (OgmiosEraSummaries, OgmiosSystemStart)
-import Ctl.Internal.Types.EraSummaries (EraSummaries)
 import Ctl.Internal.Types.Interval
   ( Interval
   , POSIXTime(POSIXTime)
@@ -30,7 +31,6 @@ import Ctl.Internal.Types.Interval
   , slotToPosixTime
   , to
   )
-import Ctl.Internal.Types.SystemStart (SystemStart)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(Left, Right), either)
 import Data.Maybe (fromJust)
@@ -66,9 +66,8 @@ suite = do
       test "Hull" $ liftToTest testHull
       test "Intersection" $ liftToTest testIntersection
 
-loadOgmiosFixture
-  :: forall (a :: Type). DecodeAeson a => String -> String -> Effect a
-loadOgmiosFixture query hash = do
+loadOgmiosFixture :: forall (a :: Type). DecodeAeson a => String -> Effect a
+loadOgmiosFixture name = do
   contents <- readTextFile UTF8 path
   liftEither $ lmap
     (error <<< ((path <> "\n  ") <> _) <<< printJsonDecodeError)
@@ -76,7 +75,7 @@ loadOgmiosFixture query hash = do
   where
   path :: String
   path = Path.concat
-    [ "fixtures", "test", "ogmios", query <> "-" <> hash <> ".json" ]
+    [ "fixtures", "test", "ogmios", name <> ".json" ]
 
 -- To update the eraSummaries and systemStart fixtures, run
 -- `spago run --main Test.Ogmios.GenerateFixtures`
@@ -86,15 +85,13 @@ loadOgmiosFixture query hash = do
 eraSummariesFixture :: Effect EraSummaries
 eraSummariesFixture = do
   { result } :: { result :: OgmiosEraSummaries } <- loadOgmiosFixture
-    "queryLedgerState-eraSummaries"
-    "8073a8f378e969384ec52010ec6c290c"
+    "queryLedgerState-eraSummaries-preview-ec960dd7c15ce2bc444a24b52d356109"
   pure $ unwrap result
 
 systemStartFixture :: Effect SystemStart
 systemStartFixture = do
   { result } :: { result :: OgmiosSystemStart } <- loadOgmiosFixture
-    "queryNetwork-startTime"
-    "5185237542c7c8a6810aeb0fe74b3b40"
+    "queryNetwork-startTime-preview-1d8812f4ca23df314ac8b365d85a950b"
   pure $ unwrap result
 
 testPosixTimeToSlot :: EraSummaries -> SystemStart -> Effect Unit

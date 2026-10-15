@@ -65,8 +65,8 @@ module Contract.Test.Assert
 
 import Prelude
 
+import Cardano.Data.Lite (toBytes)
 import Cardano.FromMetadata (fromMetadata)
-import Cardano.Serialization.Lib (toBytes)
 import Cardano.Types
   ( Address
   , Asset(Asset)

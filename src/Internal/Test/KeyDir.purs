@@ -35,13 +35,11 @@ import Contract.Wallet
   ( getWalletAddresses
   , getWalletBalance
   , ownPaymentPubKeyHashes
+  , ownStakePubKeyHashes
   , privateKeysToKeyWallet
   , withKeyWallet
   )
-import Contract.Wallet.Key
-  ( getPrivatePaymentKey
-  , getPrivateStakeKey
-  )
+import Contract.Wallet.Key (getPrivatePaymentKey, getPrivateStakeKey)
 import Contract.Wallet.KeyFile
   ( privatePaymentKeyFromTextEnvelope
   , privatePaymentKeyToFile
@@ -386,9 +384,13 @@ returnFunds backup env allWalletsArray mbFundTotal hasRun =
         pkhs <- fold <$> for nonEmptyWallets
           (snd >>> flip withKeyWallet ownPaymentPubKeyHashes)
 
+        skhs <- catMaybes <<< fold <$> for nonEmptyWallets
+          (snd >>> flip withKeyWallet ownStakePubKeyHashes)
+
         let
           constraints = flip foldMap (Map.keys utxos) mustSpendPubKeyOutput
             <> foldMap mustBeSignedBy pkhs
+            <> foldMap (mustBeSignedBy <<< wrap <<< unwrap) skhs
           lookups = unspentOutputs utxos
 
         unbalancedTx /\ usedUtxos <- liftedE $ mkUnbalancedTxImpl lookups

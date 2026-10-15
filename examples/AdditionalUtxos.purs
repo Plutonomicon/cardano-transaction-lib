@@ -30,7 +30,7 @@ import Contract.BalanceTxConstraints
   )
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -42,18 +42,20 @@ import Contract.Sync (withoutSync)
 import Contract.Transaction
   ( ScriptRef(NativeScriptRef)
   , awaitTxConfirmed
-  , balanceTx
   , buildTx
   , createAdditionalUtxos
+  , defaultBalancer
+  , emptyBalancerCtx
   , signTransaction
   , submit
+  , submitTxFromBlueprint
   , withBalancedTx
   )
 import Contract.Utxos (UtxoMap)
 import Contract.Value (Value)
 import Contract.Value (lovelaceValueOf) as Value
 import Ctl.Examples.PlutusV2.Scripts.AlwaysSucceeds (alwaysSucceedsScriptV2)
-import Data.Map (difference, empty, filter) as Map
+import Data.Map (difference, filter) as Map
 import JS.BigInt (fromInt) as BigInt
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (randomSampleOne)
@@ -61,7 +63,7 @@ import Test.QuickCheck.Gen (randomSampleOne)
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 example :: ContractParams -> Effect Unit
@@ -74,7 +76,7 @@ contract testAdditionalUtxoOverlap = withoutSync do
   validator <- alwaysSucceedsScriptV2
   let vhash = PlutusScript.hash validator
   { unbalancedTx, datum } <- payToValidator vhash
-  withBalancedTx unbalancedTx Map.empty mempty \balancedTx -> do
+  withBalancedTx defaultBalancer unbalancedTx emptyBalancerCtx \balancedTx -> do
     balancedSignedTx <- signTransaction balancedTx
     txHash <- submit balancedSignedTx
     when testAdditionalUtxoOverlap $ awaitTxConfirmed txHash
@@ -135,16 +137,20 @@ spendFromValidator validator additionalUtxos _datum = do
       fromUtxoMap (Map.difference additionalUtxos scriptUtxos) <#> \output ->
         SpendOutput output Nothing
 
-    plan = spendScriptOutputs <> spendPubkeyOutputs
+    buildSteps = spendScriptOutputs <> spendPubkeyOutputs
 
     balancerConstraints :: BalancerConstraints
     balancerConstraints =
       mustUseAdditionalUtxos additionalUtxos
 
-  unbalancedTx <- buildTx plan
-  balancedTx <- balanceTx unbalancedTx additionalUtxos balancerConstraints
-  balancedSignedTx <- signTransaction balancedTx
-  txHash <- submit balancedSignedTx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints
+        , extraUtxos: additionalUtxos
+        }
+    }
 
   awaitTxConfirmed txHash
   logInfo' "Successfully spent additional utxos from the validator address."

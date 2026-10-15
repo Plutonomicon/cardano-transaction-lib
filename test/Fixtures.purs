@@ -924,8 +924,6 @@ readJsonFixtureFile path =
   readTextFile UTF8 path >>=
     pure <<< fromRight aesonNull <<< parseJsonStringToAeson
 
--- TODO: remove CIP25 fixtures below
-
 ogmiosEvaluateTxValidRespFixture :: Effect Aeson
 ogmiosEvaluateTxValidRespFixture =
   readJsonFixtureFile "test/Fixtures/OgmiosEvaluateTxValidRespFixture.json"

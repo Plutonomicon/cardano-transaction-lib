@@ -353,7 +353,6 @@ your project's `flake.nix`. This is done by default in the
 
 ```purescript
   { testnetMagic :: Int
-  , era :: Era
   , slotLength :: Seconds
   , epochSize :: Maybe UInt
   }

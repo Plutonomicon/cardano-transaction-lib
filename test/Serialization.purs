@@ -3,7 +3,7 @@ module Test.Ctl.Serialization (suite) where
 import Prelude
 
 import Cardano.AsCbor (decodeCbor, encodeCbor)
-import Cardano.Serialization.Lib (publicKey_fromBytes)
+import Cardano.Data.Lite (publicKey_fromBytes)
 import Cardano.Types (PublicKey, TransactionHash)
 import Cardano.Types.BigNum (fromString, one) as BN
 import Cardano.Types.PlutusData as PD

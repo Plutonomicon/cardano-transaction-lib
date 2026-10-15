@@ -25,7 +25,6 @@ import Cardano.Types.Address
       , ByronAddress
       , EnterpriseAddress
       , RewardAddress
-      , PointerAddress
       )
   ) as X
 import Cardano.Types.Address (mkPaymentAddress)

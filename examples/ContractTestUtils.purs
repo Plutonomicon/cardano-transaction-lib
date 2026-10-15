@@ -55,8 +55,9 @@ import Contract.Transaction
   ( TransactionHash
   , TransactionUnspentOutput
   , awaitTxConfirmed
-  , balanceTx
   , buildTx
+  , defaultBalancer
+  , emptyBalancerCtx
   , lookupTxHash
   , signTransaction
   , submit
@@ -71,7 +72,6 @@ import Contract.Wallet
   )
 import Data.Array (head)
 import Data.Lens (view)
-import Data.Map as Map
 import Effect.Exception (throw)
 
 type ContractParams =
@@ -169,7 +169,7 @@ mkContract p = do
       ]
 
   unbalancedTx <- buildTx plan
-  balancedTx <- balanceTx unbalancedTx Map.empty mempty
+  balancedTx <- liftEither =<< defaultBalancer unbalancedTx emptyBalancerCtx
   balancedSignedTx <- signTransaction balancedTx
 
   txId <- submit balancedSignedTx

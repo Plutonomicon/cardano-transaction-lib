@@ -24,8 +24,8 @@ import Aeson
   , encodeAeson
   , parseJsonStringToAeson
   )
-import Cardano.Serialization.Lib (class IsBytes, fromBytes)
-import Cardano.Serialization.Lib.Internal (class IsCsl)
+import Cardano.Data.Lite (class IsBytes, fromBytes)
+import Cardano.Data.Lite.Internal (class IsCsl)
 import Data.ByteArray (ByteArray)
 import Data.DateTime.Instant (unInstant)
 import Data.Either (Either(Right), either)

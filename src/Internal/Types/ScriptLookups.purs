@@ -16,7 +16,6 @@ import Cardano.Types
   , PaymentPubKeyHash
   , PlutusData
   , PlutusScript
-  , PublicKey
   , StakePubKeyHash
   , TransactionInput
   , TransactionOutput
@@ -43,7 +42,7 @@ import Data.Show.Generic (genericShow)
 --------------------------------------------------------------------------------
 -- We write `mps` and `scripts` as an `Array` instead of `Map`, meaning
 -- our lookup helpers aren't required to hash (`mintingPolicy`, `validator`)
--- and therefore not lifted to `QueryM`. The downside is the lookups contain
+-- and therefore not lifted to `KupmiosM`. The downside is the lookups contain
 -- less information. All hashing is done inside `ConstraintsM`, see
 -- `processLookupsAndConstraints`.
 -- The lookups uses the Plutus type `TransactionOutput` and does internal
@@ -54,10 +53,6 @@ newtype ScriptLookups = ScriptLookups
   , txOutputs :: UtxoMap
   , scripts :: Array PlutusScript -- Script validators
   , datums :: Map DataHash PlutusData
-  -- FIXME there's currently no way to set this field
-  -- See https://github.com/Plutonomicon/cardano-transaction-lib/issues/569
-  , paymentPubKeyHashes ::
-      Map PaymentPubKeyHash PublicKey -- Public keys that we might need
   , ownPaymentPubKeyHash ::
       Maybe PaymentPubKeyHash -- The contract's payment public key hash, used for depositing tokens etc.
   , ownStakePubKeyHash ::
@@ -83,7 +78,6 @@ instance Semigroup ScriptLookups where
       , txOutputs: l.txOutputs `union` r.txOutputs
       , scripts: l.scripts `Array.union` r.scripts
       , datums: l.datums `union` r.datums
-      , paymentPubKeyHashes: l.paymentPubKeyHashes `union` r.paymentPubKeyHashes
       -- 'First' to match the semigroup instance of Map (left-biased)
       , ownPaymentPubKeyHash: l.ownPaymentPubKeyHash <\> r.ownPaymentPubKeyHash
       , ownStakePubKeyHash: l.ownStakePubKeyHash <\> r.ownStakePubKeyHash
@@ -96,7 +90,6 @@ instance Monoid ScriptLookups where
     , txOutputs: empty
     , scripts: mempty
     , datums: empty
-    , paymentPubKeyHashes: empty
     , ownPaymentPubKeyHash: Nothing
     , ownStakePubKeyHash: Nothing
     }

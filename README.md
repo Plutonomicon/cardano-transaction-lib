@@ -21,7 +21,7 @@
 
 - [Documentation](#documentation)
 - [Additional resources/tools:](#additional-resourcestools)
-- [Available support channels info](#available-support-channels-info)
+- [Available support channels](#available-support-channels)
 - [Funding acknowledgements](#funding-acknowledgements)
 - [Use in production](#use-in-production)
 
@@ -48,6 +48,8 @@ Please explore our documentation to discover how to use CTL, how to set up its r
 - [Transaction balancing](./doc/balancing.md)
 - [Transaction chaining](./doc/tx-chaining.md)
 - [Ada staking support](./doc/staking.md)
+- [Cardano governance](./doc/gov.md)
+- [Van Rossem (PV11) compatibility notes](./doc/van-rossem.md)
 - [Key management](./doc/key-management.md)
 - [SECP256k1 support (CIP-49)](./doc/secp256k1-support.md)
 - [Custom query layers](./doc/custom-query-layers.md)
@@ -64,16 +66,12 @@ You can also access [PureScript documentation for CTL and its dependencies](http
 - [`cardano-serialization-lib`](https://github.com/Emurgo/cardano-serialization-lib/)
 - [Ogmios](https://ogmios.dev) for chain queries
 - [Kupo](https://cardanosolutions.github.io/kupo/) for chain queries
-- [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface - Nami partially implements this)
-- [Nami docs](https://github.com/Berry-Pool/nami-wallet)
+- [CIP-30](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0030) (wallet interface)
 - [Alonzo CDDL spec](https://github.com/input-output-hk/cardano-ledger/blob/0738804155245062f05e2f355fadd1d16f04cd56/alonzo/impl/cddl-files/alonzo.cddl)
 
-## Available support channels info
+## Available support channels
 
-You can find help, more information and ongoing discusion about the project here:
-
-- [Plutonomicon Discord](https://discord.gg/JhbexnV9Pc)
-- #ctl channel at MLabs' Slack
+See [SUPPORT.md](SUPPORT.md).
 
 ## Funding acknowledgements
 
@@ -83,13 +81,13 @@ CTL is being developed by MLabs. The following companies/funds have contributed 
 - [Catalyst Fund8](https://cardano.ideascale.com/c/idea/396607)
 - [Catalyst Fund9](https://cardano.ideascale.com/c/idea/420791)
 - [Catalyst Fund10](https://cardano.ideascale.com/c/idea/101478)
-- [Intersect MBO](https://docs.intersectmbo.org/intersect-community-grants/grant-projects)
+- [Intersect MBO](https://www.intersectmbo.org/grants)
 - [MLabs](https://mlabs.city/)
 - [Indigo Protocol](https://indigoprotocol.io/)
 - [Equine](https://www.equine.gg/)
 - [Liqwid Labs](https://liqwid.finance/)
-- [PlayerMint](https://www.playermint.com/)
-- [Fourier Labs](https://fourierlabs.io/)
+- PlayerMint
+- Fourier Labs
 - Ardana
 
 ## Use in production
@@ -97,5 +95,5 @@ CTL is being developed by MLabs. The following companies/funds have contributed 
 - [Indigo Protocol](https://indigoprotocol.io/)
 - [Liqwid](https://liqwid.finance/)
 - [Clarity](https://clarity.community/)
-- [PlayerMint](https://www.playermint.com/)
+- PlayerMint
 - [SingularityNet](https://singularitynet.io/)

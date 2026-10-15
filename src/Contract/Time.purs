@@ -15,27 +15,19 @@ module Contract.Time
 
 import Prelude
 
-import Cardano.Types (BigNum, Epoch(Epoch), Slot)
-import Cardano.Types (Slot(Slot)) as X
-import Cardano.Types.BigNum as BigNum
-import Contract.Chain (getTip) as Chain
-import Contract.Log (logInfo')
-import Contract.Monad (Contract, liftContractM, liftedE)
-import Control.Monad.Reader.Class (asks)
-import Ctl.Internal.Contract (getChainTip)
-import Ctl.Internal.Contract.Monad (getQueryHandle)
-import Ctl.Internal.Helpers (liftM)
-import Ctl.Internal.QueryM.Ogmios (CurrentEpoch(CurrentEpoch))
-import Ctl.Internal.QueryM.Ogmios
+import Cardano.Kupmios.Ogmios.Types
   ( CurrentEpoch(CurrentEpoch)
   , OgmiosEraSummaries(OgmiosEraSummaries)
   ) as ExportOgmios
-import Ctl.Internal.Types.Chain
+import Cardano.Types (BigNum, Epoch(Epoch), Slot)
+import Cardano.Types (Slot(Slot)) as X
+import Cardano.Types.BigNum as BigNum
+import Cardano.Types.Chain
   ( BlockHeaderHash(BlockHeaderHash)
   , ChainTip(ChainTip)
   , Tip(TipAtGenesis, Tip)
   ) as Chain
-import Ctl.Internal.Types.EraSummaries
+import Cardano.Types.EraSummaries
   ( EpochLength(EpochLength)
   , EraSummaries(EraSummaries)
   , EraSummary(EraSummary)
@@ -44,7 +36,16 @@ import Ctl.Internal.Types.EraSummaries
   , SafeZone(SafeZone)
   , SlotLength(SlotLength)
   ) as ExportEraSummaries
-import Ctl.Internal.Types.EraSummaries (EraSummaries, EraSummary)
+import Cardano.Types.EraSummaries (EraSummaries, EraSummary)
+import Cardano.Types.SystemStart (SystemStart)
+import Cardano.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
+import Contract.Chain (getTip) as Chain
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, liftContractM, liftedE)
+import Control.Monad.Reader.Class (asks)
+import Ctl.Internal.Contract (getChainTip)
+import Ctl.Internal.Contract.Monad (getProvider)
+import Ctl.Internal.Helpers (liftM)
 import Ctl.Internal.Types.Interval
   ( AbsTime(AbsTime)
   , Closure
@@ -98,8 +99,6 @@ import Ctl.Internal.Types.Interval
   , toOnchainPosixTimeRange
   , upperBound
   ) as Interval
-import Ctl.Internal.Types.SystemStart (SystemStart)
-import Ctl.Internal.Types.SystemStart (SystemStart(SystemStart)) as ExportSystemStart
 import Data.Array as Array
 import Data.Foldable (find)
 import Data.Maybe (Maybe(Just, Nothing))
@@ -173,11 +172,11 @@ normalizeTimeInterval = case _ of
 -- | Get the current Epoch.
 getCurrentEpoch :: Contract Epoch
 getCurrentEpoch = do
-  queryHandle <- getQueryHandle
-  CurrentEpoch bigNum <- liftAff $ queryHandle.getCurrentEpoch
+  provider <- getProvider
+  epoch <- liftAff provider.getCurrentEpoch
   map Epoch $ liftM (error "Unable to convert CurrentEpoch")
     $ UInt.fromString
-    $ BigNum.toString (bigNum :: BigNum)
+    $ BigNum.toString (epoch :: BigNum)
 
 -- | Get `EraSummaries` as used for Slot arithemetic.
 -- |
@@ -187,8 +186,8 @@ getCurrentEpoch = do
 -- | https://docs.blockfrost.io/#tag/Cardano-Network/paths/~1network~1eras/get
 getEraSummaries :: Contract EraSummaries
 getEraSummaries = do
-  queryHandle <- getQueryHandle
-  liftedE $ liftAff $ queryHandle.getEraSummaries
+  provider <- getProvider
+  liftedE $ liftAff $ provider.getEraSummaries
 
 -- | Get the current system start time.
 getSystemStart :: Contract SystemStart

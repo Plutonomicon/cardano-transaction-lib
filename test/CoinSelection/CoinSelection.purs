@@ -3,6 +3,15 @@ module Test.Ctl.CoinSelection (suite) where
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Transaction.Balancer.CoinSelection
+  ( SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
+  , mkSelectionState
+  , performMultiAssetSelection
+  )
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex (UtxoIndex)
+import Cardano.Transaction.Balancer.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
+import Cardano.Transaction.Balancer.Error (BalanceTxError)
+import Cardano.Transaction.Balancer.Types.Val as Val
 import Cardano.Types
   ( Address
   , MultiAsset
@@ -16,15 +25,6 @@ import Cardano.Types.MultiAsset as MultiAsset
 import Cardano.Types.TransactionInput (TransactionInput)
 import Cardano.Types.Value (mkValue)
 import Control.Monad.Error.Class (class MonadThrow)
-import Ctl.Internal.BalanceTx.CoinSelection
-  ( SelectionStrategy(SelectionStrategyMinimal, SelectionStrategyOptimal)
-  , mkSelectionState
-  , performMultiAssetSelection
-  )
-import Ctl.Internal.BalanceTx.Error (BalanceTxError)
-import Ctl.Internal.CoinSelection.UtxoIndex (UtxoIndex)
-import Ctl.Internal.CoinSelection.UtxoIndex (buildUtxoIndex) as UtxoIndex
-import Ctl.Internal.Types.Val as Val
 import Data.ByteArray (byteArrayFromAscii)
 import Data.Foldable (fold, foldMap)
 import Data.Generic.Rep (class Generic)

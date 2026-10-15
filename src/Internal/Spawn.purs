@@ -32,7 +32,6 @@ import Data.Posix.Signal as Signal
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.UInt (UInt)
 import Data.UInt as UInt
-import Debug (traceM)
 import Effect (Effect)
 import Effect.AVar (AVar)
 import Effect.AVar (empty, tryPut) as AVar
@@ -90,13 +89,15 @@ spawn' cmd args opts mbFilter cont = do
   child <- ChildProcess.spawn cmd args opts
   let fullCmd = cmd <> foldMap (" " <> _) args
   closedAVar <- AVar.empty
-  interface <- RL.createInterface (stdout child) mempty
+  stdoutInterfaceRef <- Ref.new Nothing
   stderrInterface <- RL.createInterface (stderr child) mempty
-  flip RL.setLineHandler stderrInterface \str -> do
-    traceM $ "stderr: " <> str
+  -- flip RL.setLineHandler stderrInterface \str -> do
+  --   traceM $ "stderr: " <> str
   outputRef <- Ref.new ""
   ChildProcess.onClose child \code -> do
-    RL.close interface
+    stdoutInterface <- Ref.read stdoutInterfaceRef
+    traverse_ RL.close stdoutInterface
+    RL.close stderrInterface
     void $ AVar.tryPut code closedAVar
     output <- Ref.read outputRef
     cont $ Left $ error
@@ -113,16 +114,18 @@ spawn' cmd args opts mbFilter cont = do
   case mbFilter of
     Nothing -> cont (pure mp)
     Just filter -> do
-      flip RL.setLineHandler interface
+      stdoutInterface <- RL.createInterface (stdout child) mempty
+      Ref.write (Just stdoutInterface) stdoutInterfaceRef
+      flip RL.setLineHandler stdoutInterface
         \str -> do
           output <- Ref.modify (_ <> str <> "\n") outputRef
           filter { output, line: str } >>= case _ of
             Success -> do
-              clearLineHandler interface
+              clearLineHandler stdoutInterface
               cont (pure mp)
             Cancel -> do
               kill SIGINT child
-              clearLineHandler interface
+              clearLineHandler stdoutInterface
               cont $ Left $ error
                 $ "Process cancelled because output received: "
                 <> str

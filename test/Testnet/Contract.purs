@@ -5,8 +5,8 @@ module Test.Ctl.Testnet.Contract
 import Prelude
 
 import Cardano.AsCbor (decodeCbor)
+import Cardano.Data.Lite (fromBytes)
 import Cardano.Plutus.ApplyArgs (applyArgs)
-import Cardano.Serialization.Lib (fromBytes)
 import Cardano.Transaction.Builder
   ( DatumWitness(DatumValue)
   , OutputWitness(PlutusScriptOutput)
@@ -46,11 +46,12 @@ import Contract.BalanceTxConstraints
   , mustUseAdditionalUtxos
   ) as BalanceTxConstraints
 import Contract.BalanceTxConstraints
-  ( mustNotSpendUtxosWithOutRefs
+  ( mustNotSpendUtxosWhere
+  , mustNotSpendUtxosWithOutRefs
   , mustUseCollateralUtxos
   )
 import Contract.Chain (currentTime, waitUntilSlot)
-import Contract.Config (KnownWallet(Nami, Gero, Flint, Lode, NuFi), walletName)
+import Contract.Config (KnownWallet(Eternl, Gero, Lode, NuFi), walletName)
 import Contract.Hashing (datumHash, nativeScriptHash)
 import Contract.Keys (privateKeyFromBytes)
 import Contract.Log (logInfo')
@@ -101,10 +102,13 @@ import Contract.Transaction
   , balanceTxE
   , buildTx
   , createAdditionalUtxos
+  , defaultBalancer
+  , emptyBalancerCtx
   , getTxAuxiliaryData
   , lookupTxHash
   , signTransaction
   , submit
+  , submitTxFromBlueprint
   , submitTxFromConstraints
   , withBalancedTx
   , withBalancedTxs
@@ -112,7 +116,7 @@ import Contract.Transaction
 import Contract.TxConstraints (TxConstraints)
 import Contract.TxConstraints as Constraints
 import Contract.UnbalancedTx (mkUnbalancedTx, mkUnbalancedTxE)
-import Contract.Utxos (UtxoMap, utxosAt)
+import Contract.Utxos (UtxoMap, getUtxo, utxosAt)
 import Contract.Value (Coin(Coin), Value, coinToValue)
 import Contract.Value as Value
 import Contract.Wallet
@@ -130,7 +134,7 @@ import Contract.Wallet
   , signData
   , withKeyWallet
   )
-import Control.Monad.Error.Class (try)
+import Control.Monad.Error.Class (liftEither, try)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parallel, sequential)
 import Ctl.Examples.AdditionalUtxos (contract) as AdditionalUtxos
@@ -161,17 +165,18 @@ import Ctl.Internal.Test.UtxoDistribution (TestWalletSpec)
 import Ctl.Internal.Types.Interval (getSlotLength)
 import Ctl.Internal.Wallet.Cip30Mock (withCip30Mock)
 import Data.Array (head, (!!))
-import Data.Array (singleton) as Array
+import Data.Array (replicate, singleton, take) as Array
 import Data.Either (Either(Left, Right), hush, isLeft, isRight)
 import Data.Foldable (fold, foldM, length)
 import Data.Lens (view)
 import Data.Map as Map
-import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust, fromMaybe, isJust, maybe)
 import Data.Newtype (unwrap, wrap)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.UInt (UInt)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error, throw)
 import JS.BigInt as BigInt
@@ -191,11 +196,12 @@ import Test.Ctl.Fixtures
   , partiallyAppliedScriptFixture
   , unappliedScriptFixture
   )
-import Test.Ctl.Testnet.Common (privateDrepKey, privateStakeKey)
+import Test.Ctl.Testnet.Common (privateStakeKey)
 import Test.Ctl.Testnet.Utils (getLockedInputs, submitAndLog)
 import Test.Ctl.Testnet.UtxoDistribution (checkUtxoDistribution)
 import Test.Spec.Assertions
   ( expectError
+  , fail
   , shouldEqual
   , shouldNotEqual
   , shouldReturn
@@ -211,6 +217,7 @@ suite = do
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 160
         void $ waitUntilSlot $ Slot $ BigNum.fromInt 161
   group "Regressions" do
+    -- TODO: Balancing is extremely slow here. Can we optimize for this case?
     skip $ test
       "#1441 - Mint many assets at once - fails with TooManyAssetsInOutput"
       do
@@ -222,6 +229,7 @@ suite = do
             ]
         withWallets distribution \alice -> do
           withKeyWallet alice ManyAssets.contract
+
     test
       "#1509 - Collateral set to one of the inputs in mustNotSpendUtxosWithOutRefs "
       do
@@ -253,6 +261,59 @@ suite = do
               )
             res `shouldSatisfy` isLeft
 
+    test
+      "#1581 - Fallback to CTL collateral selection when all collateral inputs are non-spendable"
+      do
+        let
+          distribution =
+            [ BigNum.fromInt 10_000_000
+            , BigNum.fromInt 10_000_000
+            ]
+        withWallets distribution \alice ->
+          withKeyWallet alice do
+            validator <- AlwaysSucceeds.alwaysSucceedsScript
+            let vhash = validatorHash validator
+            logInfo' "Attempt to lock value"
+            txId <- AlwaysSucceeds.payToAlwaysSucceeds vhash
+            awaitTxConfirmed txId
+            logInfo' "Try to spend locked values"
+
+            scriptAddress <- mkAddress (wrap $ ScriptHashCredential vhash)
+              Nothing
+            utxos <- utxosAt scriptAddress
+            scriptUtxo <-
+              liftM
+                ( error
+                    ( "The id "
+                        <> show txId
+                        <> " does not have output locked at: "
+                        <> show scriptAddress
+                    )
+                )
+                $ head (lookupTxHash txId utxos)
+
+            unbalancedTx <- buildTx
+              [ SpendOutput scriptUtxo $ Just $ PlutusScriptOutput
+                  (ScriptValue validator)
+                  RedeemerDatum.unit
+                  (Just $ DatumValue PlutusData.unit)
+              ]
+
+            collUtxos <- getWalletCollateral
+            let
+              balancerConstraints =
+                maybe
+                  mempty
+                  (mustNotSpendUtxosWithOutRefs <<< Map.keys <<< toUtxoMap)
+                  collUtxos
+
+            balancedTx <- liftEither =<< defaultBalancer unbalancedTx
+              { balancerConstraints
+              , extraUtxos: toUtxoMap [ scriptUtxo ]
+              }
+            balancedSignedTx <- signTransaction balancedTx
+            submitAndLog balancedSignedTx
+
     test "#1480 - test that does nothing but fails" do
       let
         someUtxos =
@@ -279,6 +340,48 @@ suite = do
       withWallets distribution \_ → pure unit
 
   group "Contract interface" do
+    test "mustNotSpendUtxosWhere balancer constraint" do
+      let
+        distrSize = 10
+        distr = Array.replicate distrSize $ BigNum.fromInt 2_000_000
+      withWallets distr \alice ->
+        withKeyWallet alice do
+          address <- liftedM "Could not get wallet address" $ head <$>
+            getWalletAddresses
+          utxos <- liftedM "Could not get wallet utxos" getWalletUtxos
+          let
+            nonSpendableUtxos = Array.take (distrSize / 2) $ Map.toUnfoldable
+              utxos
+          { txHash } <- submitTxFromBlueprint
+            { buildSteps:
+                Array.singleton $ Pay $ TransactionOutput
+                  { address
+                  , amount: Value.lovelaceValueOf $ BigNum.fromInt 5_000_000
+                  , datum: Nothing
+                  , scriptRef: Nothing
+                  }
+            , balancer: defaultBalancer
+            , balancerCtx:
+                { balancerConstraints:
+                    mustNotSpendUtxosWhere
+                      ( \oref _ -> Map.member oref $ Map.fromFoldable
+                          nonSpendableUtxos
+                      )
+                , extraUtxos: Map.empty
+                }
+            }
+          awaitTxConfirmed txHash
+          traverse_
+            ( \(oref /\ _) ->
+                getUtxo oref >>= case _ of
+                  Just _ -> pure unit
+                  Nothing ->
+                    fail $
+                      "mustNotSpendUtxosWhere: an unspendable utxo has been spent: "
+                        <> show oref
+            )
+            nonSpendableUtxos
+
     test
       "mustUseCollateralUtxos should not fail if enough UTxOs are provided"
       do
@@ -926,8 +1029,7 @@ suite = do
               "e8cb7d18e81b0be160c114c563c020dcc7bf148a1994b73912db3ea1318d488b"
           ]
 
-    -- FIXME: script integrity hash mismatch
-    skip $ test "GetDatumsByHashes" do
+    test "GetDatumsByHashes" do
       let
         distribution :: InitialUTxOs
         distribution =
@@ -1432,8 +1534,7 @@ suite = do
           AlwaysSucceeds.spendFromAlwaysSucceeds vhash validator txId
 
     group "CIP-40 Collateral Output" do
-      skip $ test
-        "Always failing script triggers Collateral Return (ADA-only) UNSKIP AFTER CONWAY"
+      test "Always failing script triggers Collateral Return (ADA-only)"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs
@@ -1464,8 +1565,7 @@ suite = do
                     collateralLoss
                 )
 
-      skip $ test
-        "AlwaysFails script triggers Native Asset Collateral Return (tokens) UNSKIP AFTER CONWAY"
+      test "AlwaysFails script triggers Native Asset Collateral Return (tokens)"
         do
           let
             distribution :: InitialUTxOs /\ InitialUTxOs
@@ -1669,7 +1769,8 @@ suite = do
 
             unbalancedTx0 /\ usedUtxos0 <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 usedUtxos0 mempty \balancedTx0 -> do
+            let ctx = emptyBalancerCtx { extraUtxos = usedUtxos0 }
+            withBalancedTx defaultBalancer unbalancedTx0 ctx \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1784,7 +1885,8 @@ suite = do
 
             unbalancedTx0 /\ usedUtxos <- mkUnbalancedTx lookups0 constraints0
 
-            withBalancedTx unbalancedTx0 usedUtxos mempty \balancedTx0 -> do
+            let ctx = emptyBalancerCtx { extraUtxos = usedUtxos }
+            withBalancedTx defaultBalancer unbalancedTx0 ctx \balancedTx0 -> do
               balancedSignedTx0 <- signTransaction balancedTx0
 
               additionalUtxos <- createAdditionalUtxos balancedSignedTx0
@@ -1855,24 +1957,10 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-
-        let nami = walletName Nami
-        withCip30Mock alice nami do
-          (liftEffect $ isWalletAvailable nami) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable nami) >>= hush >>> shouldEqual
-          (Just false)
-
         let gerowallet = walletName Gero
         withCip30Mock alice gerowallet do
           (liftEffect $ isWalletAvailable gerowallet) >>= shouldEqual true
         try (liftEffect $ isWalletAvailable gerowallet) >>= hush >>>
-          shouldEqual
-            (Just false)
-
-        let flint = walletName Flint
-        withCip30Mock alice flint do
-          (liftEffect $ isWalletAvailable flint) >>= shouldEqual true
-        try (liftEffect $ isWalletAvailable flint) >>= hush >>>
           shouldEqual
             (Just false)
 
@@ -1897,7 +1985,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           getWalletCollateral >>= liftEffect <<< case _ of
             Nothing -> throw "Unable to get collateral"
             Just
@@ -1920,7 +2008,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        utxos <- withCip30Mock alice (walletName Nami) do
+        utxos <- withCip30Mock alice (walletName Eternl) do
           getWalletUtxos
         utxos `shouldSatisfy` isJust
 
@@ -1932,7 +2020,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        mockAddress <- withCip30Mock alice (walletName Nami) do
+        mockAddress <- withCip30Mock alice (walletName Eternl) do
           mbAddr <- head <$> getWalletAddresses
           mbAddr `shouldSatisfy` isJust
           pure mbAddr
@@ -1948,7 +2036,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           pkh <- liftedM "Failed to get PKH" $ head <$>
             ownPaymentPubKeyHashes
           stakePkh <- join <<< head <$> ownStakePubKeyHashes
@@ -1966,7 +2054,7 @@ suite = do
           getWalletBalance >>= shouldEqual
             ( Just $ coinToValue $ Coin $ BigNum.fromInt 1_050_000_000
             )
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           getWalletBalance >>= shouldEqual
             ( Just $ coinToValue $ Coin $ BigNum.fromInt 1_050_000_000
             )
@@ -1980,7 +2068,7 @@ suite = do
           , BigNum.fromInt 1_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           getWalletBalance >>= flip shouldSatisfy
             (eq $ Just $ coinToValue $ Coin $ BigNum.fromInt 8_000_000)
 
@@ -1992,13 +2080,15 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Just privateDrepKey
+          , withStakeKey: true
+          , withDrepKey: true
           }
-      withWallets walletSpec \alice ->
-        withCip30Mock alice (walletName Nami) $
+      withWallets walletSpec \alice -> do
+        drepPrivKey <- liftedM "No DRep key on wallet"
+          $ liftAff (unwrap alice).drepKey
+        withCip30Mock alice (walletName Eternl) $
           ownDrepPubKey `shouldReturn`
-            PrivateKey.toPublicKey (unwrap privateDrepKey)
+            PrivateKey.toPublicKey (unwrap drepPrivKey)
 
     test "ownDrepPubKeyHash works" do
       let
@@ -2008,13 +2098,15 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Just privateDrepKey
+          , withStakeKey: true
+          , withDrepKey: true
           }
-      withWallets walletSpec \alice ->
-        withCip30Mock alice (walletName Nami) $
+      withWallets walletSpec \alice -> do
+        drepPrivKey <- liftedM "No DRep key on wallet"
+          $ liftAff (unwrap alice).drepKey
+        withCip30Mock alice (walletName Eternl) $
           ownDrepPubKeyHash `shouldReturn`
-            PublicKey.hash (PrivateKey.toPublicKey $ unwrap privateDrepKey)
+            PublicKey.hash (PrivateKey.toPublicKey $ unwrap drepPrivKey)
 
     test "ownRegisteredPubStakeKeys works" do
       let
@@ -2024,11 +2116,11 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Nothing
+          , withStakeKey: true
+          , withDrepKey: false
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice (walletName Nami) $
+        withCip30Mock alice (walletName Eternl) $
           ownRegisteredPubStakeKeys `shouldReturn` mempty
 
     test "ownUnregisteredPubStakeKeys works" do
@@ -2039,13 +2131,15 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Nothing
+          , withStakeKey: true
+          , withDrepKey: false
           }
-      withWallets walletSpec \alice ->
-        withCip30Mock alice (walletName Nami) $
+      withWallets walletSpec \alice -> do
+        stakePrivKey <- liftedM "No stake key on wallet"
+          $ liftAff (unwrap alice).stakeKey
+        withCip30Mock alice (walletName Eternl) $
           ownUnregisteredPubStakeKeys `shouldReturn`
-            Array.singleton (PrivateKey.toPublicKey $ unwrap privateStakeKey)
+            Array.singleton (PrivateKey.toPublicKey $ unwrap stakePrivKey)
 
     test "signData using DRep key" do
       let
@@ -2055,11 +2149,11 @@ suite = do
               [ BigNum.fromInt 1_000_000_000
               , BigNum.fromInt 50_000_000
               ]
-          , stakeKey: Just privateStakeKey
-          , drepKey: Just privateDrepKey
+          , withStakeKey: true
+          , withDrepKey: true
           }
       withWallets walletSpec \alice ->
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           networkId <- getNetworkId
           drepCred <- wrap <<< PubKeyHashCredential <$> ownDrepPubKeyHash
           let
@@ -2076,9 +2170,9 @@ suite = do
           ]
       withWallets (distribution /\ distribution) \(alice /\ bob) -> do
         bobAddr <-
-          withCip30Mock bob (walletName Nami) do
+          withCip30Mock bob (walletName Eternl) do
             liftedM "Could not get Bob's address" (head <$> getWalletAddresses)
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           expectError $ signData bobAddr mempty
 
     test "CIP-30 utilities" do
@@ -2089,7 +2183,7 @@ suite = do
           , BigNum.fromInt 50_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice (walletName Nami) do
+        withCip30Mock alice (walletName Eternl) do
           Cip30.contract
 
     test "ECDSA example" do
@@ -2102,7 +2196,7 @@ suite = do
           , BigNum.fromInt 2_000_000_000
           ]
       withWallets distribution \alice -> do
-        withCip30Mock alice (walletName Nami) $ ECDSA.contract
+        withCip30Mock alice (walletName Eternl) $ ECDSA.contract
 
   group "CIP-49 Plutus Crypto Primitives" do
     test "ECDSA: a script that checks if a signature is correct" do
@@ -2142,14 +2236,18 @@ signMultipleContract = do
   ubTx1 /\ usedUtxos1 <- mkUnbalancedTx lookups constraints
   ubTx2 /\ usedUtxos2 <- mkUnbalancedTx lookups constraints
 
-  withBalancedTxs
+  withBalancedTxs defaultBalancer
     [ { transaction: ubTx1
-      , usedUtxos: usedUtxos1
-      , balancerConstraints: mempty
+      , balancerCtx:
+          { balancerConstraints: mempty
+          , extraUtxos: usedUtxos1
+          }
       }
     , { transaction: ubTx2
-      , usedUtxos: usedUtxos2
-      , balancerConstraints: mempty
+      , balancerCtx:
+          { balancerConstraints: mempty
+          , extraUtxos: usedUtxos2
+          }
       }
     ] $ \txs -> do
     locked <- getLockedInputs

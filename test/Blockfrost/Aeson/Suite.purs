@@ -10,19 +10,21 @@ import Aeson
   , parseJsonStringToAeson
   , printJsonDecodeError
   )
-import Control.Monad.Error.Class (liftEither)
-import Control.Monad.Trans.Class (lift)
-import Control.Parallel (parTraverse)
-import Ctl.Internal.Service.Blockfrost
+import Cardano.Blockfrost.BlockfrostProtocolParameters
+  ( BlockfrostProtocolParameters
+  )
+import Cardano.Blockfrost.Service
   ( BlockfrostChainTip
   , BlockfrostCurrentEpoch
   , BlockfrostEraSummaries
   , BlockfrostMetadata
   , BlockfrostNativeScript
-  , BlockfrostProtocolParameters
   , BlockfrostScriptInfo
   , BlockfrostSystemStart
   )
+import Control.Monad.Error.Class (liftEither)
+import Control.Monad.Trans.Class (lift)
+import Control.Parallel (parTraverse)
 import Data.Array (catMaybes, length)
 import Data.Array.NonEmpty (tail)
 import Data.Bifunctor (bimap, lmap)

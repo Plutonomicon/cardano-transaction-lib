@@ -2,12 +2,12 @@ module Test.Ctl.Blockfrost.GenerateFixtures.SystemStart (main) where
 
 import Prelude
 
-import Ctl.Internal.Service.Blockfrost
+import Cardano.Blockfrost.Service
   ( BlockfrostEndpoint(BlockchainGenesis)
   , BlockfrostRawResponse
   , runBlockfrostServiceTestM
   )
-import Ctl.Internal.Service.Blockfrost (getSystemStart) as Blockfrost
+import Cardano.Blockfrost.Service (getSystemStart) as Blockfrost
 import Data.Either (either)
 import Data.Maybe (Maybe(Just, Nothing))
 import Effect (Effect)

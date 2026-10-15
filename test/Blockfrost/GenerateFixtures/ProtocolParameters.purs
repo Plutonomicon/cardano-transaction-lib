@@ -4,12 +4,12 @@ module Test.Ctl.Blockfrost.GenerateFixtures.ProtocolParameters
 
 import Prelude
 
-import Ctl.Internal.Service.Blockfrost
+import Cardano.Blockfrost.Service
   ( BlockfrostEndpoint(LatestProtocolParameters)
   , BlockfrostRawResponse
   , runBlockfrostServiceTestM
   )
-import Ctl.Internal.Service.Blockfrost (getProtocolParameters) as Blockfrost
+import Cardano.Blockfrost.Service (getProtocolParameters) as Blockfrost
 import Data.Either (either)
 import Data.Maybe (Maybe(Just, Nothing), maybe)
 import Data.String (take) as String

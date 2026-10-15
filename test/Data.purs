@@ -5,6 +5,7 @@ import Prelude hiding (conj)
 
 import Aeson (JsonDecodeError(TypeMismatch), decodeAeson, encodeAeson)
 import Cardano.AsCbor (class AsCbor, encodeCbor)
+import Cardano.Data.Lite (fromBytes)
 import Cardano.FromData (class FromData, fromData, genericFromData)
 import Cardano.Plutus.DataSchema
   ( class HasPlutusSchema
@@ -21,7 +22,6 @@ import Cardano.Plutus.DataSchema
   )
 import Cardano.Plutus.DataSchema.RowList (class AllUniqueLabels)
 import Cardano.Plutus.Types.Map (Map(Map))
-import Cardano.Serialization.Lib (fromBytes)
 import Cardano.ToData (class ToData, genericToData, toData)
 import Cardano.Types.BigNum as BigNum
 import Cardano.Types.PlutusData (PlutusData(Constr, Integer))
@@ -561,7 +561,7 @@ instance (FromData a) => FromData (Tree a) where
         Node <$> fromData a <*> (Tuple <$> worker ltree <*> worker rtree)
 
 fromBytesFromData :: forall a. FromData a => String -> Maybe a
-fromBytesFromData binary = (fromData <<< PlutusData.fromCsl) =<< fromBytes
+fromBytesFromData binary = (fromData <<< PlutusData.fromCdl) =<< fromBytes
   (hexToByteArrayUnsafe binary)
 
 testBinaryFixture

@@ -7,81 +7,160 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [[v9.3.1]](#v931)
-  - [Fixed](#fixed)
-- [[v9.3.0]](#v930)
-  - [Fixed](#fixed-1)
-  - [Changed](#changed)
-- [[v9.2.0]](#v920)
+- [[v10.0.0]](#v1000)
   - [Added](#added)
-  - [Changed](#changed-1)
+  - [Changed](#changed)
+  - [Deprecated](#deprecated)
   - [Removed](#removed)
+  - [Fixed](#fixed)
+- [[v9.3.1]](#v931)
+  - [Fixed](#fixed-1)
+- [[v9.3.0]](#v930)
   - [Fixed](#fixed-2)
-- [[v9.1.0]](#v910)
+  - [Changed](#changed-1)
+- [[v9.2.0]](#v920)
   - [Added](#added-1)
   - [Changed](#changed-2)
   - [Removed](#removed-1)
   - [Fixed](#fixed-3)
-- [[v9.0.0]](#v900)
-  - [Deprecated](#deprecated)
+- [[v9.1.0]](#v910)
   - [Added](#added-2)
-  - [Removed](#removed-2)
   - [Changed](#changed-3)
+  - [Removed](#removed-2)
   - [Fixed](#fixed-4)
-- [[v8.0.0]](#v800)
+- [[v9.0.0]](#v900)
+  - [Deprecated](#deprecated-1)
   - [Added](#added-3)
+  - [Removed](#removed-3)
   - [Changed](#changed-4)
   - [Fixed](#fixed-5)
-  - [Removed](#removed-3)
-- [[v7.0.0]](#v700)
+- [[v8.0.0]](#v800)
   - [Added](#added-4)
   - [Changed](#changed-5)
   - [Fixed](#fixed-6)
   - [Removed](#removed-4)
-- [[v6.0.0]](#v600)
+- [[v7.0.0]](#v700)
   - [Added](#added-5)
   - [Changed](#changed-6)
   - [Fixed](#fixed-7)
   - [Removed](#removed-5)
-- [[v5.0.0]](#v500)
+- [[v6.0.0]](#v600)
   - [Added](#added-6)
   - [Changed](#changed-7)
-  - [Removed](#removed-6)
   - [Fixed](#fixed-8)
-  - [Runtime Dependencies](#runtime-dependencies)
-- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
-  - [Fixed](#fixed-9)
-- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Removed](#removed-6)
+- [[v5.0.0]](#v500)
   - [Added](#added-7)
-- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
-  - [Added](#added-8)
   - [Changed](#changed-8)
   - [Removed](#removed-7)
+  - [Fixed](#fixed-9)
+  - [Runtime Dependencies](#runtime-dependencies)
+- [[v4.0.2] - 2023-01-17](#v402---2023-01-17)
   - [Fixed](#fixed-10)
-  - [Runtime Dependencies](#runtime-dependencies-1)
-- [[3.0.0] - 2022-11-21](#300---2022-11-21)
+- [[v4.0.1] - 2022-12-20](#v401---2022-12-20)
+  - [Added](#added-8)
+- [[v4.0.0] - 2022-12-15](#v400---2022-12-15)
   - [Added](#added-9)
   - [Changed](#changed-9)
   - [Removed](#removed-8)
   - [Fixed](#fixed-11)
-  - [Runtime Dependencies](#runtime-dependencies-2)
-- [[2.0.0] - 2022-09-12](#200---2022-09-12)
+  - [Runtime Dependencies](#runtime-dependencies-1)
+- [[3.0.0] - 2022-11-21](#300---2022-11-21)
   - [Added](#added-10)
   - [Changed](#changed-10)
   - [Removed](#removed-9)
   - [Fixed](#fixed-12)
-- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Runtime Dependencies](#runtime-dependencies-2)
+- [[2.0.0] - 2022-09-12](#200---2022-09-12)
   - [Added](#added-11)
-  - [Removed](#removed-10)
   - [Changed](#changed-11)
+  - [Removed](#removed-10)
   - [Fixed](#fixed-13)
-- [[1.1.0] - 2022-06-30](#110---2022-06-30)
+- [[2.0.0-alpha] - 2022-07-05](#200-alpha---2022-07-05)
+  - [Added](#added-12)
+  - [Removed](#removed-11)
+  - [Changed](#changed-12)
   - [Fixed](#fixed-14)
-- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+- [[1.1.0] - 2022-06-30](#110---2022-06-30)
   - [Fixed](#fixed-15)
+- [[1.0.1] - 2022-06-17](#101---2022-06-17)
+  - [Fixed](#fixed-16)
 - [[1.0.0] - 2022-06-10](#100---2022-06-10)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## [v10.0.0]
+
+### Added
+
+- `privateDrepKeyFromFile`, `privateDrepKeyFromTextEnvelope`, and `privateDrepKeyToFile` functions ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `pparams` field to `TestnetClusterConfig` ([#1688](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1688))
+  - Protocol parameters are now passed to cardano-testnet explicitly instead of relying on its implicit defaults, improving test reproducibility and transparency.
+- `testnetConfigWithMaxExUnits`, `defaultTestnetClusterConfig`, and `defaultTestnetProtocolParameters` functions to `Contract.Test.Testnet` ([#1688](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1688))
+  - `defaultTestnetProtocolParameters` provides the pinned default values.
+  - Individual parameters (max ex units, max tx size, and others) can be overridden per test via a record update on `pparams`.
+  - `testnetConfigWithMaxExUnits` is provided as a ready-made configuration for tests that need relaxed execution unit limits. It also lowers `collateral_percent` from the mainnet default of 150 to 100, so the balancer's hardcoded 5 ADA collateral floor still covers the required collateral for the high-ex-units transactions this config is used for.
+- `Ctl.Examples.PlutusV3.Scripts.AlwaysSucceeds` example fixture, mirroring the V2 fixture but compiled to a minimal V3 UPLC ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
+- `Contract.Governance` module exposing `queryProposalById`, `queryVotesOnProposal`, and `queryRegisteredDrepInfo` for retrieving on-chain governance state through the active `Provider` ([#1691](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1691))
+
+### Changed
+
+- Replaced cardano-serialization-lib (CSL) with [cardano-data-lite (CDL)](https://github.com/mlabs-haskell/purescript-cardano-data-lite) ([#1678](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1678))
+- `QueryHandle` has been renamed to `Provider` ([#1665](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1665))
+  - `QueryBackend` renamed to `ProviderBackend`
+  - `QueryBackendParams` renamed to `ProviderBackendParams`
+  - `queryHandleFor*Backend` renamed to `providerFor*Backend`
+  - `getQueryHandle` renamed to `getProvider`
+  - `mkQueryHandle` renamed to `mkProvider`
+  - Also multiple corresponding file names have changed replacing the `QueryHandle` names to `Provider` ones
+- Switched to the [purescript-cardano-package-set](https://github.com/mlabs-haskell/purescript-cardano-package-set) in `packages.dhall` (see the [section on updating PureScript dependencies in the docs](./doc/ctl-as-dependency.md)) ([#1667](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1667))
+- Switched to the aggregate `@mlabs-haskell/ctl-npm-meta` package for NPM dependencies (see the [section on updating JS dependencies in the docs](./doc/ctl-as-dependency.md)) ([#1666](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1666))
+- Ignore **any** tx evaluation errors if tx marked invalid. Previously, certain internal evaluation errors were not properly handled, leading to unexpected behavior for a subset of explicitly marked "invalid" transactions. ([#1668](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1668))
+- `Provider` (previously called `QueryHandle`) is extracted to its own package [purescript-cardano-provider](https://github.com/mlabs-haskell/purescript-cardano-provider) using module names in the format `Cardano.Provider.*` ([#1671](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1671))
+- Switched from WebSocket to HTTP when interfacing with Ogmios. Note: Mempool functionality still uses WebSocket, as it requires a persistent connection to track state. ([#1575](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1575))
+- Blockfrost Provider has been extracted to a separate package [purescript-cardano-blockfrost-provider](https://github.com/mlabs-haskell/purescript-cardano-blockfrost-provider) using module names in the format `Cardano.Blockfrost.*` ([#1661](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1661))
+- Kupo + Ogmios Provider has been extracted to a separate package [purescript-cardano-kupmios-provider](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) using module names in the format `Cardano.Kupmios.*` ([#1662](https://github.com/Plutonomicon/cardano-transaction-lib/issues/1662))
+- Ogmios' mempool functionality has been extracted to a separate package [purescript-cardano-ogmios-mempool](https://github.com/mlabs-haskell/purescript-cardano-ogmios-mempool) using the module `Cardano.Ogmios.Mempool`. To use it, the user must create and manage the websocket connection (see [Test.Ctl.Testnet.Contract.OgmiosMempool](https://github.com/Plutonomicon/cardano-transaction-lib/blob/cd80e31d59b233e48ccb2a0b6635d5d8beb5b160/test/Testnet/Contract/OgmiosMempool.purs))
+- Made adjustments to the [E2E testing documentation page](./doc/e2e-testing.md). Updated the [template](./templates/ctl-scaffold) to use the newly introduced `e2eConfigs` helper function that allows to define E2E configurations without unnecessary boilerplate. ([#1674](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1674))
+- The transaction balancing module used in CTL has been extracted to a separate package [purescript-cardano-transaction-balancer](https://github.com/mlabs-haskell/purescript-cardano-transaction-balancer) using module names in the format `Cardano.Transaction.Balancer.*` ([#1680](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1680))
+- Updated the `Contract.Transaction` interface to support pluggable transaction balancers. This enhancement should allow users to integrate custom balancers when the provided default solution does not satisfy specific domain requirements. ([#1680](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1680))
+  - The `balanceTx` and `balanceTxE` functions from `Contract.Transaction` have been deprecated. Users are now encouraged to use standalone transaction balancers directly (e.g. `defaultBalancer` and `defaultBalancerWithErr` respectively).
+  - The `balanceTxs` function has been deprecated in favor of the new balancer-agnostic `balanceMultipleTxs`.
+  - `Contract.Transaction` now exports `defaultBalancer` and `defaultBalancerWithErr` variants, both implementing the new `TxBalancer` interface.
+  - **[BREAKING CHANGE]** `withBalancedTx` and `withBalancedTxs` now accept a `TxBalancer` and its corresponding balancer context as arguments.
+  - The `submitTxFromConstraints` and `submitTxFromBuildPlan` functions have been deprecated in favor of `submitTxFromBlueprint`. The new function accepts a `TxBlueprint` with the steps and context needed to construct and balance a transaction, and returns a `TxReceipt` containing the balanced, signed transaction along with its hash.
+  - *Note that all mentioned deprecated functions are planned for removal in a future release.*
+- For legacy tx constraints system: Removed the logic for querying datums by hash when not explicitly provided, eliminating the non-obvious dependency on blockchain state ([#1634](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1634))
+- Updated dependencies ([#1685](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1685))
+  - cardano-node: 11.0.1 ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+  - ogmios: 6.13.0
+  - kupo: 2.11.0
+- `CtlBackend` now includes a new field, `ogmiosRequestRateLimiter`. For the motivation behind this change, see the changelog for [`purescript-cardano-kupmios-provider`](https://github.com/mlabs-haskell/purescript-cardano-kupmios-provider) ([#1684](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1684))
+- CTL is now compatible with the van Rossem hard fork ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `defaultOgmiosWsConfig` has been renamed to `defaultOgmiosServerConfig` ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- `mkKeyWalletFromFiles` now accepts an optional DRep key file ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+- Updated runtime dependencies ([#1689](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1689))
+  - Kupo: v2.11.0 -> v2.12.0
+  - Ogmios: v6.14.0 -> v7.0.0
+  - Blockfrost Backend RYO: v6.4.0 -> v6.7.0
+- **[BREAKING CHANGE]** `TestWalletSpec`'s `stakeKey :: Maybe PrivateStakeKey` and `drepKey :: Maybe PrivateDrepKey` fields have been replaced with `withStakeKey :: Boolean` and `withDrepKey :: Boolean`. The testnet harness now generates the stake and DRep keys itself when the corresponding flag is set. ([#1691](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1691))
+- `defaultTestnetProtocolParameters` values now come from a Blockfrost mainnet snapshot (fetched 30.09.26), so the local testnet cluster boots at protocol version 11 with a consistent cost model ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
+
+### Deprecated
+
+- `InitialUTxOsWithStakeKey` and the `withStakeKey` helper in favor of `TestWalletSpec` with `withStakeKey: true`, which lets the harness generate the stake key for you. Uses of `withStakeKey` now emit a compile-time warning. ([#1692](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1692))
+
+### Removed
+
+- References to the discontinued Nami and Flint wallets ([#1674](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1674))
+- `era` field from `TestnetClusterConfig`, as it became obsolete for cardano-testnet configuration after upgrading to cardano-node v11.0.1 ([#1687](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1687))
+
+### Fixed
+
+- Fixed transaction witness set 'attach' functions. Previously, the updated witness set was incorrectly appended to the existing set, causing performance degradation when processing constraints for complex transactions. ([#1653](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1653))
+- Fixed a critical bug where Blockfrost `getUtxo` would also return **spent** outputs ([#1664](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1664))
+- Fixed `onClusterStartup` hook so it is now correctly invoked when using cardano-testnet ([#1651](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1651))
+  - Removed the `privateKeys` and `privateKeysDirectory` fields from the `ClusterParameters` record to ensure compatibility with the new cardano-testnet environment
 
 ## [v9.3.1]
 
@@ -163,6 +242,7 @@ This version provides basic Conway support and replaces Plutip with `cardano-tes
 
 ### Changed
 
+- **IMPORTANT** `Contract.TxConstraints.mustPayTo*` functions no longer automatically include datums in the witness set - use `Contract.TxConstraints.mustIncludeDatum`. This change may require updating existing code to ensure datums are included properly ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624)).
 - `Contract.Test.Plutip` is replaced with `Contract.Test.Testnet` that uses `cardano-testnet` instead of Plutip. As a result, we reduced the dependency footprint (`cardano-testnet` is distributed with `cardano-node`, so there are no internal Haskell components anymore in CTL) ([#1624](https://github.com/Plutonomicon/cardano-transaction-lib/pull/1624))
 
 ### Removed

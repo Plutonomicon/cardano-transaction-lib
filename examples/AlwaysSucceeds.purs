@@ -33,12 +33,11 @@ import Cardano.Types.OutputDatum (OutputDatum(OutputDatumHash))
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript as Script
 import Cardano.Types.RedeemerDatum as RedeemerDatum
-import Cardano.Types.Transaction as Transaction
 import Cardano.Types.TransactionUnspentOutput (toUtxoMap)
 import Contract.Address (mkAddress)
 import Contract.Config
   ( ContractParams
-  , KnownWallet(Nami)
+  , KnownWallet(Eternl)
   , WalletSpec(ConnectToGenericCip30)
   , testnetConfig
   , walletName
@@ -48,8 +47,10 @@ import Contract.Monad (Contract, launchAff_, runContract)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptFromEnvelope)
 import Contract.Transaction
   ( awaitTxConfirmed
+  , defaultBalancer
+  , emptyBalancerCtx
   , lookupTxHash
-  , submitTxFromBuildPlan
+  , submitTxFromBlueprint
   )
 import Contract.Utxos (utxosAt)
 import Contract.Value as Value
@@ -62,7 +63,7 @@ import Effect.Exception (error)
 main :: Effect Unit
 main = example $ testnetConfig
   { walletSpec =
-      Just $ ConnectToGenericCip30 (walletName Nami) { cip95: false }
+      Just $ ConnectToGenericCip30 (walletName Eternl) { cip95: false }
   }
 
 contract :: Contract Unit
@@ -86,14 +87,18 @@ payToAlwaysSucceeds vhash = do
   mbStakeKeyHash <- join <<< head <$> ownStakePubKeyHashes
   scriptAddress <- mkAddress (PaymentCredential $ ScriptHashCredential vhash)
     (StakeCredential <<< PubKeyHashCredential <<< unwrap <$> mbStakeKeyHash)
-  Transaction.hash <$> submitTxFromBuildPlan Map.empty mempty
-    [ Pay $ TransactionOutput
-        { address: scriptAddress
-        , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
-        , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
-        , scriptRef: Nothing
-        }
-    ]
+  _.txHash <$> submitTxFromBlueprint
+    { buildSteps:
+        [ Pay $ TransactionOutput
+            { address: scriptAddress
+            , amount: Value.lovelaceValueOf $ BigNum.fromInt 2_000_000
+            , datum: Just $ OutputDatumHash $ hashPlutusData PlutusData.unit
+            , scriptRef: Nothing
+            }
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx: emptyBalancerCtx
+    }
 
 spendFromAlwaysSucceeds
   :: ScriptHash
@@ -117,17 +122,24 @@ spendFromAlwaysSucceeds vhash validator txId = do
           )
       )
       $ head (lookupTxHash txId utxos)
-  spendTx <- submitTxFromBuildPlan (Map.union utxos $ toUtxoMap [ utxo ])
-    mempty
-    [ SpendOutput
-        utxo
-        ( Just $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
-            $ Just
-            $ DatumValue
-            $ PlutusData.unit
-        )
-    ]
-  awaitTxConfirmed $ Transaction.hash spendTx
+  { txHash } <- submitTxFromBlueprint
+    { buildSteps:
+        [ SpendOutput
+            utxo
+            ( Just
+                $ PlutusScriptOutput (ScriptValue validator) RedeemerDatum.unit
+                $ Just
+                $ DatumValue
+                $ PlutusData.unit
+            )
+        ]
+    , balancer: defaultBalancer
+    , balancerCtx:
+        { balancerConstraints: mempty
+        , extraUtxos: Map.union utxos $ toUtxoMap [ utxo ]
+        }
+    }
+  awaitTxConfirmed txHash
   logInfo' "Successfully spent locked values."
 
 alwaysSucceedsScript :: Contract PlutusScript

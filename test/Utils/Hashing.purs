@@ -15,22 +15,16 @@ module Test.Ctl.Internal.Hashing
 
 import Prelude
 
-import Cardano.Serialization.Lib
-  ( hashPlutusData
-  , nativeScript_hash
-  , plutusScript_hash
-  )
+import Cardano.Data.Lite (hashPlutusData, nativeScript_hash)
 import Cardano.Types.DataHash (DataHash)
 import Cardano.Types.NativeScript (NativeScript)
 import Cardano.Types.NativeScript as NativeScript
 import Cardano.Types.PlutusData (PlutusData)
 import Cardano.Types.PlutusData as PlutusData
 import Cardano.Types.PlutusScript (PlutusScript)
-import Cardano.Types.PlutusScript as PlutusScript
+import Cardano.Types.PlutusScript (hash) as PlutusScript
 import Cardano.Types.ScriptHash (ScriptHash)
-import Cardano.Types.ScriptRef
-  ( ScriptRef(NativeScriptRef, PlutusScriptRef)
-  )
+import Cardano.Types.ScriptRef (ScriptRef(NativeScriptRef, PlutusScriptRef))
 import Data.ByteArray (ByteArray)
 import Data.Newtype (wrap)
 import Effect (Effect)
@@ -62,13 +56,13 @@ md5HashHex contents = do
 
 plutusDataHash :: PlutusData -> DataHash
 plutusDataHash =
-  wrap <<< hashPlutusData <<< PlutusData.toCsl
+  wrap <<< hashPlutusData <<< PlutusData.toCdl
 
 plutusScriptHash :: PlutusScript -> ScriptHash
-plutusScriptHash = wrap <<< plutusScript_hash <<< PlutusScript.toCsl
+plutusScriptHash = PlutusScript.hash
 
 nativeScriptHash :: NativeScript -> ScriptHash
-nativeScriptHash = wrap <<< nativeScript_hash <<< NativeScript.toCsl
+nativeScriptHash = wrap <<< nativeScript_hash <<< NativeScript.toCdl
 
 scriptRefHash :: ScriptRef -> ScriptHash
 scriptRefHash (PlutusScriptRef plutusScript) = plutusScriptHash plutusScript

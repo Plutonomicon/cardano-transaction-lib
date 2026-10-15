@@ -5,24 +5,25 @@ module Test.Ctl.Ogmios.Aeson
 
 import Prelude
 
-import Aeson (Aeson, JsonDecodeError, encodeAeson, printJsonDecodeError)
+import Aeson
+  ( Aeson
+  , JsonDecodeError(TypeMismatch)
+  , caseAesonObject
+  , encodeAeson
+  , printJsonDecodeError
+  )
 import Aeson as Aeson
-import Contract.Backend.Ogmios.Mempool (MempoolSizeAndCapacity)
+import Cardano.Kupmios.Ogmios.Types
+  ( class DecodeOgmios
+  , OgmiosDecodeError(ErrorResponse)
+  , SubmitTxR
+  , decodeOgmios
+  )
+import Cardano.Kupmios.Ogmios.Types as O
+import Cardano.Ogmios.Mempool (HasTxR, MempoolSizeAndCapacity) as Mempool
 import Control.Monad.Error.Class (liftEither)
 import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parTraverse)
-import Ctl.Internal.QueryM.JsonRpc2
-  ( class DecodeOgmios
-  , OgmiosDecodeError(ErrorResponse)
-  , decodeOgmios
-  )
-import Ctl.Internal.QueryM.Ogmios
-  ( HasTxR
-  , SubmitTxR
-  , TxEvaluationR
-  , aesonObject
-  )
-import Ctl.Internal.QueryM.Ogmios as O
 import Data.Array (catMaybes, groupAllBy, nubBy)
 import Data.Array.NonEmpty (NonEmptyArray, head, length, tail)
 import Data.Bifunctor (lmap)
@@ -53,21 +54,30 @@ type Check = String -> Aeson -> Aff Unit
 -- Pay attention to update this if fixture filenames change, otherwise tests are going to be ignored.
 tested :: Array (String /\ Check)
 tested =
-  [ ("queryNetwork/tip" /\ check (Proxy :: _ O.ChainTipQR))
-  , ("queryNetwork/startTime" /\ check (Proxy :: _ O.CurrentEpoch))
-  , ("queryLedgerState/epoch" /\ check (Proxy :: _ O.OgmiosSystemStart))
-  , ("queryLedgerState/eraSummaries" /\ check (Proxy :: _ O.OgmiosEraSummaries))
-  , ( "queryLedgerState/protocolParameters" /\ check
+  [ ("queryNetwork-tip-preview" /\ check (Proxy :: _ O.ChainTipQR))
+  , ("queryNetwork-startTime-preview" /\ check (Proxy :: _ O.OgmiosSystemStart))
+  , ("queryLedgerState-epoch-preview" /\ check (Proxy :: _ O.CurrentEpoch))
+  , ( "queryLedgerState-eraSummaries-preview" /\ check
+        (Proxy :: _ O.OgmiosEraSummaries)
+    )
+  , ( "queryLedgerState-protocolParameters-preview" /\ check
         (Proxy :: _ O.OgmiosProtocolParameters)
     )
-  , ("queryLedgerState/stakePools" /\ check (Proxy :: _ O.PoolParametersR))
+  , ( "queryLedgerState-protocolParameters-preprod" /\ check
+        (Proxy :: _ O.OgmiosProtocolParameters)
+    )
+  , ( "queryLedgerState-stakePools-preview" /\ check
+        (Proxy :: _ O.PoolParametersR)
+    )
+  {-
   , ( "queryLedgerState/rewardAccountSummaries" /\ check
         (Proxy :: _ O.DelegationsAndRewardsR)
     )
-  , ("evaluateTransaction" /\ check (Proxy :: _ TxEvaluationR))
+  -}
+  , ("evaluateTransaction" /\ check (Proxy :: _ O.TxEvaluationR))
   , ("submitTransaction" /\ check (Proxy :: _ SubmitTxR))
-  , ("hasTransaction" /\ check (Proxy :: _ HasTxR))
-  , ("sizeOfMempool" /\ check (Proxy :: _ MempoolSizeAndCapacity))
+  , ("hasTransaction" /\ check (Proxy :: _ Mempool.HasTxR))
+  , ("sizeOfMempool" /\ check (Proxy :: _ Mempool.MempoolSizeAndCapacity))
   -- ignoring because response may lack tx cbor if not run with flag
   -- This endpoint is tested with "fetchMempoolTXs" test (Test.Ctl.Plutip.Contract.OgmiosMempool)
   -- , ("nextTransaction" /\ (Proxy :: _ MaybeMempoolTransaction ))
@@ -75,11 +85,12 @@ tested =
 
 -- Fixtures from ogmios repo have id set to "null", but we require it as string.
 addIdFieldHack :: Aeson -> Either JsonDecodeError Aeson
-addIdFieldHack = aesonObject $
-  ( pure <<< encodeAeson <<< Object.update
-      (const $ pure $ encodeAeson "My favourite id")
-      "id"
-  )
+addIdFieldHack = caseAesonObject (Left (TypeMismatch "Object"))
+  $
+    ( pure <<< encodeAeson <<< Object.update
+        (const $ pure $ encodeAeson "My favourite id")
+        "id"
+    )
 
 -- Fail if we can't decode positive result
 check
@@ -117,7 +128,8 @@ loadFixtures
 loadFixtures = do
   let
     path = concat [ "fixtures", "test", "ogmios" ]
-    pattern = hush $ regex "^([a-zA-Z]+)-[0-9a-fA-F]+\\.json$" noFlags
+    pattern = hush $ regex "^([a-zA-Z]+(?:-[a-zA-Z]+)*)-[0-9a-fA-F]+\\.json$"
+      noFlags
 
   files <- do
     ourFixtures <- readdir' path

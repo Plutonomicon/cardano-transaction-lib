@@ -8,8 +8,7 @@ module Ctl.Internal.Testnet.Contract
 
 import Contract.Prelude
 
-import Cardano.Serialization.Lib (privateKey_generateEd25519) as Csl
-import Cardano.Types (NetworkId(TestnetId))
+import Cardano.Data.Lite (privateKey_generateEd25519) as Csl
 import Cardano.Types.Address (Address, getPaymentCredential, getStakeCredential)
 import Cardano.Types.Address (toBech32) as Address
 import Cardano.Types.BigInt (BigInt)
@@ -45,6 +44,7 @@ import Control.Monad.State (State, execState, modify_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (censor, execWriterT, tell)
 import Control.Parallel (parTraverse)
+import Ctl.Internal.Contract.Hooks (ClusterParameters)
 import Ctl.Internal.Test.ContractTest
   ( ContractTest(ContractTest)
   , ContractTestPlan(ContractTestPlan)
@@ -55,6 +55,7 @@ import Ctl.Internal.Test.UtxoDistribution
   , decodeWallets
   , encodeDistribution
   , keyWallets
+  , privateKeysNeeded
   )
 import Ctl.Internal.Testnet.DistributeFunds
   ( DistrFundsParams
@@ -63,26 +64,28 @@ import Ctl.Internal.Testnet.DistributeFunds
   )
 import Ctl.Internal.Testnet.DistributeFunds (Tx(Tx)) as DistrFunds
 import Ctl.Internal.Testnet.Server
-  ( StartedTestnetCluster
+  ( StartedTestnetCluster(StartedTestnetCluster)
   , makeClusterContractEnv
+  , mkLogging
   , startTestnetCluster
   )
 import Ctl.Internal.Testnet.Types (TestnetConfig)
 import Ctl.Internal.Testnet.Utils
   ( cleanupOnExit
-  , read872GenesisKey
+  , readGenesisKey
   , runCleanup
   , whenError
   )
 import Data.Array (concat, fromFoldable, zip) as Array
 import Data.Bifunctor (lmap)
 import Data.Map (values) as Map
+import Data.Unfoldable (replicateA)
+import Effect.Aff (apathize, try)
 import Effect.Aff (bracket) as Aff
-import Effect.Aff (try)
 import Effect.Exception (error)
 import Effect.Ref (Ref)
 import Effect.Ref (new, read, write) as Ref
-import Internal.CardanoCli.QueryHandle (withCardanoCliCompletion)
+import Internal.CardanoCli.Provider (withCardanoCliCompletion)
 import Mote (bracket) as Mote
 import Mote.Description (Description(Group, Test))
 import Mote.Monad (MoteT(MoteT), mapTest)
@@ -125,7 +128,7 @@ withTestnetContractEnv cfg distr cont = do
 -- |       inside the bracket.
 -- |       If you wish to only set up Testnet once, ensure all tests that are passed
 -- |       to `testTestnetContracts` are wrapped in a single group.
--- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/cardano-testnet-testing.md#testing-with-mote FIXME
+-- | https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/cardano-testnet-testing.md#testing-with-mote
 testTestnetContracts
   :: TestnetConfig
   -> TestPlanM ContractTest Unit
@@ -136,7 +139,7 @@ testTestnetContracts cfg tp = do
 
 -- | Run a `ContractTestPlan` in a (single) cardano-testnet environment.
 -- | Supports wallet reuse - see docs on sharing wallet state between
--- | wallets in `doc/cardano-testnet-testing.md`. FIXME
+-- | wallets in `doc/cardano-testnet-testing.md`.
 runTestnetTestPlan
   :: TestnetConfig
   -> ContractTestPlan
@@ -242,13 +245,21 @@ startTestnetContractEnv
        }
 startTestnetContractEnv cfg distr cleanupRef = do
   _ <- cleanupOnExit cleanupRef
-  cluster <- startTestnetCluster cfg cleanupRef
-  { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef cfg
-  let env' = env { networkId = TestnetId }
-  wallets <- mkWallets env' cluster
+  logging@{ logger } <- liftEffect $ mkLogging cfg
+  cluster@(StartedTestnetCluster { paths: { nodeSocketPath, nodeConfigPath } }) <-
+    startTestnetCluster cfg cleanupRef logger
+  { env, printLogs, clearLogs } <- makeClusterContractEnv cleanupRef logging
+  wallets <- mkWallets env cluster
+  let
+    clusterParams :: ClusterParameters
+    clusterParams =
+      { nodeSocketPath
+      , nodeConfigPath
+      }
+  apathize $ liftEffect $ for_ env.hooks.onClusterStartup (_ $ clusterParams)
   pure
     { cluster
-    , env: env'
+    , env
     , wallets
     , printLogs
     , clearLogs
@@ -274,7 +285,7 @@ startTestnetContractEnv cfg distr cleanupRef = do
     readGenesisWallets =
       traverse
         ( \location -> do
-            paymentKey <- read872GenesisKey location
+            paymentKey <- readGenesisKey location
             pure $ mkKeyWalletFromPrivateKeys paymentKey Nothing Nothing
         )
         (unwrap cluster).paths.genesisKeys
@@ -336,8 +347,9 @@ makeDistrFundsPlan
 makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
   let distrArray = map BigNum.toBigInt <$> encodeDistribution distr
   privateKeys <-
-    for (encodeDistribution distr) \_ ->
-      liftEffect $ wrap <$> Csl.privateKey_generateEd25519
+    replicateA
+      (privateKeysNeeded distr)
+      (liftEffect $ wrap <$> Csl.privateKey_generateEd25519)
   wallets <-
     liftContractM
       "Impossible happened: could not decode wallets. Please report as bug"
@@ -374,7 +386,6 @@ makeDistrFundsPlan withCardanoCliUtxos genesisWallets distr = do
           <<< Array.fromFoldable
           <<< Map.values
 
--- FIXME: adjust values
 distrFundsParams :: forall wallet. DistrFundsParams wallet BigInt
 distrFundsParams =
   { maxRounds: 3
@@ -383,7 +394,6 @@ distrFundsParams =
   , feePerTx: BigInt.fromInt 2_000_000
   }
 
--- FIXME: move to helpers
 mustPayToAddress :: Address -> Value -> TxConstraints
 mustPayToAddress addr =
   let

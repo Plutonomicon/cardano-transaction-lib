@@ -1,4 +1,4 @@
-{ config, modulesPath, pkgs, cardano-configurations, ogmios, kupo, ... }:
+{ config, modulesPath, pkgs, cardano-configurations, ... }:
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
@@ -30,32 +30,15 @@
 
   # services
 
-  services.cardano-node = {
-    enable = true;
-    hostAddr = "0.0.0.0";
-    socketPath = "/var/run/cardano-node/node.socket";
-    systemdSocketActivation = false;
-    nodeConfigFile = "${cardano-configurations}/network/preview/cardano-node/config.json";
-    topology = "${cardano-configurations}/network/preview/cardano-node/topology.json";
-  };
-
-  services.ogmios = {
-    enable = true;
-    package = ogmios;
-    host = "0.0.0.0";
-    user = "cardano-node";
-    group = "cardano-node";
-    nodeSocketPath = "/var/run/cardano-node/node.socket";
-    nodeConfigPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
-  };
-
-  services.kupo = {
-    enable = true;
-    package = kupo;
-    user = "cardano-node";
-    group = "cardano-node";
-    host = "0.0.0.0";
-    nodeSocketPath = "/var/run/cardano-node/node.socket";
-    nodeConfigPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
+  cardano = {
+    network = "preview";
+    node = {
+      enable = true;
+      socketPath = "/var/run/cardano-node/node.socket";
+      configPath = "${cardano-configurations}/network/preview/cardano-node/config.json";
+    };
+    cli.enable = true;
+    ogmios.enable = true;
+    kupo.enable = true;
   };
 }
