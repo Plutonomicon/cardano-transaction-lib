@@ -3,7 +3,8 @@
 **Project:** cardano-transaction-lib (CTL)
 **Release:** v10.0.1
 **Author:** MLabs
-**Report date:** 2026-10-27
+**Report date:** 2026-10-28
+**Consent:** MLabs consents to Intersect publishing this report in full.
 
 **Table of Contents**
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -16,9 +17,10 @@
   - [Testnet defaults](#testnet-defaults)
   - [Documentation](#documentation)
 - [Reference-input disjointness scoping](#reference-input-disjointness-scoping)
-- [Known limitations and deferred work](#known-limitations-and-deferred-work)
 - [Testing summary](#testing-summary)
 - [Runtime version bumps](#runtime-version-bumps)
+- [Key Takeaways](#key-takeaways)
+- [Known limitations and deferred work](#known-limitations-and-deferred-work)
 - [Summary](#summary)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -209,10 +211,6 @@ The van Rossem test suite in
 exercises all four cases (no-Plutus overlap, V2 overlap, V3 overlap rejected,
 unused V3 reference script) and is the canonical reference.
 
-## Known limitations and deferred work
-
-No known limitations or deferred work remain for the van Rossem release.
-
 ## Testing summary
 
 All CTL test suites pass against the van Rossem dependency set at
@@ -245,6 +243,29 @@ versions required at the van Rossem release:
 The project's Nix overlay pins all of the above, so if you consume CTL via
 the overlay you only need to update your flake input. If you run the
 services directly, bump them in your deployment config.
+
+## Key Takeaways
+
+- CTL v10.x bundles several breaking API changes alongside the PV11
+  compatibility work. Downstream projects should review the CHANGELOG
+  before upgrading.
+- CTL's test coverage grew to include a dedicated PV11 regression suite
+  alongside the pre-existing unit, integration, staking, and E2E
+  suites. No regressions were observed.
+- CTL's governance surface is now complete relative to CIP-1694 for the
+  queries most downstream applications need. No further governance work
+  is scheduled for this milestone.
+- No deferred compatibility work remains. The v10.0.1 release is the
+  tagged artefact against which downstream projects should pin.
+
+## Known limitations and deferred work
+
+No known behavioural limitations or deferred technical work remain for
+the van Rossem release. One process item is carried forward: some of
+the PRs delivered in this milestone were merged without a recorded
+second-reviewer approval. Going forward, MLabs will require at least
+one reviewer sign-off on every PR across CTL and its PureScript
+dependency repos before merge.
 
 ## Summary
 
