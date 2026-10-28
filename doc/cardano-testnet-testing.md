@@ -16,8 +16,7 @@
   - [Note on SIGINT](#note-on-sigint)
   - [Testing with Nix](#testing-with-nix)
 - [Cluster configuration options](#cluster-configuration-options)
-  - [Current limitations](#current-limitations)
-- [Using addresses with staking key components](#using-addresses-with-staking-key-components)
+- [Using addresses with staking and DRep key components](#using-addresses-with-staking-and-drep-key-components)
 - [Limitations](#limitations)
 - [See also](#see-also)
 
@@ -39,8 +38,9 @@ Cardano Testnet:
 All of these are provided by CTL's `overlays.runtime` (and are provided in
 CTL's own `devShell`). You **must** use the `runtime` overlay or otherwise make
 the services available in your package set (e.g. by defining them within your
-own `overlays` when instantiating `nixpkgs`) as `purescriptProject.runTest`
-expects all of them; an example of using CTL's overlays is in the
+own `overlays` when instantiating `nixpkgs`) as
+`purescriptProject.runLocalTestnetTest` expects all of them. An example of
+using CTL's overlays is in the
 [`ctl-scaffold` template](../templates/ctl-scaffold/flake.nix#L35).
 
 The services are NOT run by `docker-compose` (via `arion`) as is the case with
@@ -110,14 +110,14 @@ suite :: MoteT Aff (Aff Unit) Aff
 suite = testTestnetContracts config do
   test "Test 1" do
     let
-      distribution :: Array BigInt /\ Array BigInt
+      distribution :: Array BigNum /\ Array BigNum
       distribution = ...
     withWallets distribution \(alice /\ bob) -> do
       ...
 
   test "Test 2" do
     let
-      distribution :: Array BigInt
+      distribution :: Array BigNum
       distribution = ...
     withWallets distribution \alice -> do
       ...
@@ -195,7 +195,7 @@ runTestnetContract
 
 `distr` is a specification of how many wallets and with how much funds should be
 created. It should either be a `Unit` (for no wallets), nested tuples containing
-`Array BigInt` or an `Array (Array BigInt)`, where each element of the inner array
+`Array BigNum` or an `Array (Array BigNum)`, where each element of the inner array
 specifies an UTxO amount in Lovelaces (0.000001 Ada).
 
 The `wallets` argument of the callback is either a `Unit`, a tuple of `KeyWallet`s
@@ -209,7 +209,7 @@ An example `Contract` with two actors using nested tuples:
 
 ```purescript
 let
-  distribution :: Array BigInt /\ Array BigInt
+  distribution :: Array BigNum /\ Array BigNum
   distribution =
     [ BigNum.fromInt 1_000_000_000
     , BigNum.fromInt 2_000_000_000
@@ -226,7 +226,7 @@ An example `Contract` with two actors using `Array`:
 
 ```purescript
 let
-  distribution :: Array (Array BigInt)
+  distribution :: Array (Array BigNum)
   distribution =
     -- wallet one: two UTxOs
     [ [ BigNum.fromInt 1_000_000_000, BigNum.fromInt 2_000_000_000]
@@ -284,7 +284,7 @@ using `sameWallets`:
 suite :: TestPlanM (Aff Unit) Unit
 suite = runTestnetTestPlan config do
   let
-    distribution :: Array BigInt /\ Array BigInt
+    distribution :: Array BigNum /\ Array BigNum
     distribution = ...
 
   sameWallets distribution $
@@ -355,49 +355,63 @@ your project's `flake.nix`. This is done by default in the
   { testnetMagic :: Int
   , slotLength :: Seconds
   , epochSize :: Maybe UInt
+  , pparams :: BlockfrostProtocolParametersRaw
   }
 ```
 
-- `slotLength` and `epochSize` define time-related protocol parameters. Epoch size
-  is specified in slots.
+- `slotLength` and `epochSize` define time-related protocol parameters. Epoch
+  size is specified in slots.
+- `pparams` are the protocol parameters passed to cardano-testnet. Using an
+  explicit value instead of the implicit defaults makes test environments
+  reproducible across cardano-node revisions.
+  `Contract.Test.Testnet.defaultTestnetProtocolParameters` provides a pinned
+  Blockfrost mainnet snapshot that boots the local cluster at protocol
+  version 11 with a consistent cost model, and
+  `Contract.Test.Testnet.testnetConfigWithMaxExUnits` is a ready-made
+  configuration for tests that exceed the default execution budget.
 
-### Current limitations
+## Using addresses with staking and DRep key components
 
-* Non-default values of `epochSize` (current default is 80) break staking rewards -
-  see [this issue](https://github.com/mlabs-haskell/plutip/issues/149) for more info.
-  `slotLength` can be changed without any problems.
+A wallet in the distribution can be configured with a stake key or a DRep key
+(or both) by using `TestWalletSpec` from `Contract.Test.Testnet`:
 
-## Using addresses with staking key components
+```purescript
+newtype TestWalletSpec = TestWalletSpec
+  { utxos :: Array UtxoAmount
+  , withStakeKey :: Boolean
+  , withDrepKey :: Boolean
+  }
+```
 
-It's possible to use stake keys with the Testnet. `Contract.Test.Testnet.withStakeKey`
-function can be used to modify the distribution spec:
+The testnet harness generates the requested keys and attaches them to the
+wallet, so test code never has to supply the raw key material. Example:
 
 ```purescript
 let
-  privateStakeKey :: PrivateStakeKey
-  privateStakeKey = wrap $ unsafePartial $ fromJust
-    $ privateKeyFromBytes =<< hexToRawBytes
-      "633b1c4c4a075a538d37e062c1ed0706d3f0a94b013708e8f5ab0a0ca1df163d"
-  aliceUtxos =
-    [ BigNum.fromInt 2_000_000_000
-    , BigNum.fromInt 2_000_000_000
-    ]
-  distribution = withStakeKey privateStakeKey aliceUtxos
+  aliceSpec :: TestWalletSpec
+  aliceSpec = TestWalletSpec
+    { utxos:
+        [ BigNum.fromInt 2_000_000_000
+        , BigNum.fromInt 2_000_000_000
+        ]
+    , withStakeKey: true
+    , withDrepKey: true
+    }
+
+  distribution = aliceSpec
 ```
 
-Although stake keys serve no real purpose in the Testnet context, they allow the
-use of base addresses, and thus allow the same code for Testnet testing, in-browser
-tests, and production.
+Stake keys allow the use of base addresses, so the same code can run against
+Testnet, in-browser tests, and production. DRep keys enable governance
+workflows such as DRep registration, voting, and the governance-related
+`Provider` queries exposed by `Contract.Governance`.
 
-Note that CTL re-distributes tADA from payment key-only ("enterprise") addresses to
-base addresses, which requires a few transactions before the test can be run. These
-transactions happen on the CTL side, because the Testnet can currently handle only
-enterprise addresses (see [this issue](https://github.com/mlabs-haskell/plutip/issues/103)).
+The older `withStakeKey :: PrivateStakeKey -> InitialUTxOs ->
+InitialUTxOsWithStakeKey` helper and the `InitialUTxOsWithStakeKey`
+distribution type are deprecated and emit a compile-time warning. Prefer
+`TestWalletSpec` with `withStakeKey: true` for new tests.
 
 ## Limitations
-* See the `epochSize` configuration option problem [here](#current-limitations).
-* Currently there's no way to share wallets between separate tests (which is useful
-  for complex protocols). You can adapt [this PR](https://github.com/IndigoProtocol/cardano-transaction-lib/pull/1) (needs to be updated for the newer versions of CTL, likely won't need too many changes) if you need it now (and even better -- make a PR to CTL).
 * If you've used the [`plutus-simple-model`](https://github.com/mlabs-haskell/plutus-simple-model) library then you might know that it allows to time travel in tests, which can be very useful for testing vesting schedules, etc. Testing with the Testnet doesn't allow this, as it's running a real network. A way around this problem can be to parametrize onchain logic by a time multiplier (and use a small one for tests).
 
 ## See also
